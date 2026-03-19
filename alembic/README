@@ -1,0 +1,28 @@
+Generic single-database configuration for Alembic.
+
+## Usage
+
+To create a new migration:
+```bash
+alembic revision --autogenerate -m "description of changes"
+```
+
+To apply migrations:
+```bash
+alembic upgrade head
+```
+
+To rollback migrations:
+```bash
+alembic downgrade -1
+```
+
+To view migration history:
+```bash
+alembic history
+```
+
+To view current migration:
+```bash
+alembic current
+```
