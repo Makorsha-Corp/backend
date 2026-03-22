@@ -45,7 +45,7 @@ router = APIRouter()
 # ============================================================================
 
 @router.post(
-    "/register",
+    "/register/",
     response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register new user",
@@ -119,7 +119,7 @@ def register(
 # ============================================================================
 
 @router.post(
-    "/login",
+    "/login/",
     response_model=LoginResponse,
     status_code=status.HTTP_200_OK,
     summary="User login (workspace selection separate)",
@@ -181,7 +181,7 @@ def login(
 
 
 @router.post(
-    "/switch-workspace",
+    "/switch-workspace/",
     response_model=SwitchWorkspaceResponse,
     status_code=status.HTTP_200_OK,
     summary="Switch to different workspace",
@@ -235,7 +235,7 @@ def switch_workspace(
 # ============================================================================
 
 @router.post(
-    "/forgot-password",
+    "/forgot-password/",
     response_model=ForgotPasswordResponse,
     status_code=status.HTTP_200_OK,
     summary="Request password reset",
@@ -286,7 +286,7 @@ def forgot_password(
 
 
 @router.post(
-    "/reset-password",
+    "/reset-password/",
     response_model=ResetPasswordResponse,
     status_code=status.HTTP_200_OK,
     summary="Reset password with token",
@@ -332,7 +332,7 @@ def reset_password(
 
 
 @router.post(
-    "/admin/reset-password",
+    "/admin/reset-password/",
     response_model=AdminResetPasswordResponse,
     status_code=status.HTTP_200_OK,
     summary="Admin reset user password",
@@ -386,7 +386,7 @@ def admin_reset_password(
 # ============================================================================
 
 @router.post(
-    "/validate-invitation",
+    "/validate-invitation/",
     response_model=ValidateInvitationResponse,
     status_code=status.HTTP_200_OK,
     summary="Validate invitation token",
@@ -437,7 +437,7 @@ def validate_invitation(
 # ============================================================================
 
 @router.get(
-    "/me",
+    "/me/",
     summary="Get current user",
     description="Get currently authenticated user's profile and workspace info"
 )
@@ -468,7 +468,7 @@ def get_current_user_info(
 
 
 @router.post(
-    "/logout",
+    "/logout/",
     status_code=status.HTTP_200_OK,
     summary="User logout",
     description="""

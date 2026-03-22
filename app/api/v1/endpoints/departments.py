@@ -43,7 +43,7 @@ def get_departments(
 
 
 @router.get(
-    "/{department_id}",
+    "/{department_id}/",
     response_model=DepartmentResponse,
     status_code=status.HTTP_200_OK,
     summary="Get department by ID",
@@ -87,7 +87,7 @@ def create_department(
 
 
 @router.put(
-    "/{department_id}",
+    "/{department_id}/",
     response_model=DepartmentResponse,
     status_code=status.HTTP_200_OK,
     summary="Update department",
@@ -112,7 +112,7 @@ def update_department(
 
 
 @router.delete(
-    "/{department_id}",
+    "/{department_id}/",
     response_model=DepartmentResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete department",

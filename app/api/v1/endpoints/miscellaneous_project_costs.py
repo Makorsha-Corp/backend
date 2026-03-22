@@ -38,7 +38,7 @@ def get_miscellaneous_project_costs(
     return costs
 
 
-@router.get("/{cost_id}", response_model=MiscellaneousProjectCostResponse)
+@router.get("/{cost_id}/", response_model=MiscellaneousProjectCostResponse)
 def get_miscellaneous_project_cost(
     cost_id: int,
     workspace: Workspace = Depends(get_current_workspace),
@@ -64,7 +64,7 @@ def create_miscellaneous_project_cost(
     return cost
 
 
-@router.put("/{cost_id}", response_model=MiscellaneousProjectCostResponse)
+@router.put("/{cost_id}/", response_model=MiscellaneousProjectCostResponse)
 def update_miscellaneous_project_cost(
     cost_id: int,
     cost_in: MiscellaneousProjectCostUpdate,
@@ -78,7 +78,7 @@ def update_miscellaneous_project_cost(
     return cost
 
 
-@router.delete("/{cost_id}", status_code=204)
+@router.delete("/{cost_id}/", status_code=204)
 def delete_miscellaneous_project_cost(
     cost_id: int,
     workspace: Workspace = Depends(get_current_workspace),

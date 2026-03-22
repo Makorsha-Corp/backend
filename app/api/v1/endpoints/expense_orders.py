@@ -40,7 +40,7 @@ def list_expense_orders(
 
 
 @router.get(
-    "/{eo_id}",
+    "/{eo_id}/",
     response_model=ExpenseOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Get expense order by ID"
@@ -72,7 +72,7 @@ def create_expense_order(
 
 
 @router.put(
-    "/{eo_id}",
+    "/{eo_id}/",
     response_model=ExpenseOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Update expense order"
@@ -91,7 +91,7 @@ def update_expense_order(
 
 
 @router.delete(
-    "/{eo_id}",
+    "/{eo_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete expense order"
 )
@@ -106,7 +106,7 @@ def delete_expense_order(
 # ─── Expense Order Items ──────────────────────────────────────
 
 @router.get(
-    "/{eo_id}/items",
+    "/{eo_id}/items/",
     response_model=List[ExpenseOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get expense order items"
@@ -120,7 +120,7 @@ def get_expense_order_items(
 
 
 @router.post(
-    "/{eo_id}/items",
+    "/{eo_id}/items/",
     response_model=ExpenseOrderItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to expense order"
@@ -137,7 +137,7 @@ def add_expense_order_item(
 
 
 @router.put(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=ExpenseOrderItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update expense order item"
@@ -154,7 +154,7 @@ def update_expense_order_item(
 
 
 @router.delete(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from expense order"
 )

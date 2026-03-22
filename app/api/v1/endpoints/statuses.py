@@ -24,7 +24,7 @@ def get_statuses(
     return statuses
 
 
-@router.get("/{status_id}", response_model=StatusResponse)
+@router.get("/{status_id}/", response_model=StatusResponse)
 def get_status(
     status_id: int,
     db: Session = Depends(get_db),
@@ -48,7 +48,7 @@ def create_status(
     return status
 
 
-@router.put("/{status_id}", response_model=StatusResponse)
+@router.put("/{status_id}/", response_model=StatusResponse)
 def update_status(
     status_id: int,
     status_in: StatusUpdate,
@@ -63,7 +63,7 @@ def update_status(
     return status
 
 
-@router.delete("/{status_id}", status_code=204)
+@router.delete("/{status_id}/", status_code=204)
 def delete_status(
     status_id: int,
     db: Session = Depends(get_db),

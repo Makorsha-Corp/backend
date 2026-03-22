@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get(
-    "",
+    "/",
     response_model=List[ProjectResponse],
     status_code=status.HTTP_200_OK,
     summary="List all projects",
@@ -41,7 +41,7 @@ def get_projects(
 
 
 @router.get(
-    "/{project_id}",
+    "/{project_id}/",
     response_model=ProjectResponse,
     status_code=status.HTTP_200_OK,
     summary="Get project by ID",
@@ -62,7 +62,7 @@ def get_project(
 
 
 @router.post(
-    "",
+    "/",
     response_model=ProjectResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new project",
@@ -95,7 +95,7 @@ def create_project(
 
 
 @router.put(
-    "/{project_id}",
+    "/{project_id}/",
     response_model=ProjectResponse,
     status_code=status.HTTP_200_OK,
     summary="Update project",
@@ -120,7 +120,7 @@ def update_project(
 
 
 @router.delete(
-    "/{project_id}",
+    "/{project_id}/",
     response_model=ProjectResponse,
     status_code=status.HTTP_200_OK,
     summary="Soft delete project",

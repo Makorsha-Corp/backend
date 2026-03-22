@@ -45,7 +45,7 @@ def get_sales_orders(
 
 
 @router.get(
-    "/{order_id}",
+    "/{order_id}/",
     response_model=SalesOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Get sales order by ID",
@@ -117,7 +117,7 @@ def create_sales_order(
 
 
 @router.put(
-    "/{order_id}",
+    "/{order_id}/",
     response_model=SalesOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Update sales order",
@@ -142,7 +142,7 @@ def update_sales_order(
 
 
 @router.get(
-    "/{order_id}/items",
+    "/{order_id}/items/",
     response_model=List[SalesOrderItemListResponse],
     status_code=status.HTTP_200_OK,
     summary="Get sales order items",
@@ -162,7 +162,7 @@ def get_sales_order_items(
 
 
 @router.get(
-    "/{order_id}/deliveries",
+    "/{order_id}/deliveries/",
     status_code=status.HTTP_200_OK,
     summary="Get sales order deliveries",
     description="Get all deliveries for a sales order."

@@ -54,7 +54,7 @@ router = APIRouter()
 # ============================================================================
 
 @router.get(
-    "",
+    "/",
     response_model=List[WorkspaceListItem],
     summary="List user's workspaces",
     description="Get all workspaces the current user is a member of"
@@ -89,7 +89,7 @@ def list_workspaces(
 
 
 @router.post(
-    "",
+    "/",
     response_model=WorkspaceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new workspace",
@@ -150,7 +150,7 @@ def create_workspace(
 
 
 @router.get(
-    "/{workspace_id}",
+    "/{workspace_id}/",
     response_model=WorkspaceWithPlan,
     summary="Get workspace details",
     description="Get detailed workspace information including subscription plan"
@@ -194,7 +194,7 @@ def get_workspace(
 
 
 @router.patch(
-    "/{workspace_id}",
+    "/{workspace_id}/",
     response_model=WorkspaceResponse,
     summary="Update workspace",
     description="Update workspace details (owner only)"
@@ -235,7 +235,7 @@ def update_workspace(
 # ============================================================================
 
 @router.get(
-    "/{workspace_id}/members",
+    "/{workspace_id}/members/",
     response_model=List[WorkspaceMemberWithUser],
     summary="List workspace members",
     description="Get all members of a workspace with user details"
@@ -282,7 +282,7 @@ def list_members(
 
 
 @router.patch(
-    "/{workspace_id}/members/{user_id}/role",
+    "/{workspace_id}/members/{user_id}/role/",
     response_model=WorkspaceMemberResponse,
     summary="Update member role",
     description="Update workspace member's role (owner only)"
@@ -332,7 +332,7 @@ def update_member_role(
 
 
 @router.delete(
-    "/{workspace_id}/members/{user_id}",
+    "/{workspace_id}/members/{user_id}/",
     status_code=status.HTTP_200_OK,
     summary="Remove member from workspace",
     description="Remove a member from workspace (owner or manager only)"
@@ -388,7 +388,7 @@ def remove_member(
 # ============================================================================
 
 @router.post(
-    "/{workspace_id}/invitations",
+    "/{workspace_id}/invitations/",
     response_model=WorkspaceInvitationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Invite user to workspace",
@@ -456,7 +456,7 @@ def send_invitation(
 
 
 @router.get(
-    "/{workspace_id}/invitations",
+    "/{workspace_id}/invitations/",
     response_model=List[WorkspaceInvitationWithDetails],
     summary="List workspace invitations",
     description="Get all pending invitations for workspace"
@@ -510,7 +510,7 @@ def list_invitations(
 
 
 @router.post(
-    "/{workspace_id}/invitations/accept",
+    "/{workspace_id}/invitations/accept/",
     response_model=WorkspaceMemberResponse,
     summary="Accept invitation (for existing users)",
     description="""
@@ -562,7 +562,7 @@ def accept_invitation(
 
 
 @router.delete(
-    "/{workspace_id}/invitations/{invitation_id}",
+    "/{workspace_id}/invitations/{invitation_id}/",
     status_code=status.HTTP_200_OK,
     summary="Cancel invitation",
     description="Cancel pending workspace invitation"
@@ -615,7 +615,7 @@ def cancel_invitation(
 # ============================================================================
 
 @router.get(
-    "/me/invitations",
+    "/me/invitations/",
     response_model=List[WorkspaceInvitationWithDetails],
     summary="Get my pending invitations",
     description="Get all pending invitations for current user's email"

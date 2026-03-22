@@ -28,7 +28,7 @@ def get_damaged_items(
     return items
 
 
-@router.get("/{damaged_item_id}", response_model=DamagedItemResponse)
+@router.get("/{damaged_item_id}/", response_model=DamagedItemResponse)
 def get_damaged_part(
     damaged_item_id: int,
     db: Session = Depends(get_db),
@@ -52,7 +52,7 @@ def create_damaged_item(
     return item
 
 
-@router.put("/{damaged_item_id}", response_model=DamagedItemResponse)
+@router.put("/{damaged_item_id}/", response_model=DamagedItemResponse)
 def update_damaged_item(
     damaged_item_id: int,
     item_in: DamagedItemUpdate,
@@ -67,7 +67,7 @@ def update_damaged_item(
     return item
 
 
-@router.delete("/{damaged_item_id}", status_code=204)
+@router.delete("/{damaged_item_id}/", status_code=204)
 def delete_damaged_item(
     damaged_item_id: int,
     db: Session = Depends(get_db),

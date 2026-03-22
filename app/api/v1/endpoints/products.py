@@ -42,7 +42,7 @@ def list_products(
 
 
 @router.get(
-    "/ledger",
+    "/ledger/",
     response_model=List[ProductLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="List product ledger entries",
@@ -64,7 +64,7 @@ def list_ledger(
 
 
 @router.get(
-    "/{prod_id}",
+    "/{prod_id}/",
     response_model=ProductResponse,
     status_code=status.HTTP_200_OK,
     summary="Get product record by ID"
@@ -96,7 +96,7 @@ def create_product(
 
 
 @router.put(
-    "/{prod_id}",
+    "/{prod_id}/",
     response_model=ProductResponse,
     status_code=status.HTTP_200_OK,
     summary="Update product record"
@@ -115,7 +115,7 @@ def update_product(
 
 
 @router.delete(
-    "/{prod_id}",
+    "/{prod_id}/",
     response_model=ProductResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete product record"

@@ -47,7 +47,7 @@ def get_machines(
 
 
 @router.get(
-    "/{machine_id}",
+    "/{machine_id}/",
     response_model=MachineResponse,
     status_code=status.HTTP_200_OK,
     summary="Get machine by ID"
@@ -81,7 +81,7 @@ def create_machine(
 
 
 @router.put(
-    "/{machine_id}",
+    "/{machine_id}/",
     response_model=MachineResponse,
     status_code=status.HTTP_200_OK,
     summary="Update machine"
@@ -101,7 +101,7 @@ def update_machine(
 
 
 @router.delete(
-    "/{machine_id}",
+    "/{machine_id}/",
     response_model=MachineResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete machine"
@@ -122,7 +122,7 @@ def delete_machine(
 # ==================== MACHINE EVENTS ====================
 
 @router.post(
-    "/{machine_id}/events",
+    "/{machine_id}/events/",
     response_model=MachineEventResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create machine event",
@@ -145,7 +145,7 @@ def create_machine_event(
 
 
 @router.get(
-    "/{machine_id}/events",
+    "/{machine_id}/events/",
     response_model=List[MachineEventResponse],
     status_code=status.HTTP_200_OK,
     summary="Get machine events",
@@ -168,7 +168,7 @@ def get_machine_events(
 
 
 @router.get(
-    "/{machine_id}/events/latest",
+    "/{machine_id}/events/latest/",
     response_model=MachineEventResponse,
     status_code=status.HTTP_200_OK,
     summary="Get latest machine event"

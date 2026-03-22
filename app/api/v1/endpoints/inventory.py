@@ -42,7 +42,7 @@ def list_inventory(
 
 
 @router.get(
-    "/ledger",
+    "/ledger/",
     response_model=List[InventoryLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="List inventory ledger entries",
@@ -65,7 +65,7 @@ def list_ledger(
 
 
 @router.get(
-    "/{inv_id}",
+    "/{inv_id}/",
     response_model=InventoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Get inventory record by ID"
@@ -97,7 +97,7 @@ def create_inventory(
 
 
 @router.put(
-    "/{inv_id}",
+    "/{inv_id}/",
     response_model=InventoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Update inventory record"
@@ -116,7 +116,7 @@ def update_inventory(
 
 
 @router.delete(
-    "/{inv_id}",
+    "/{inv_id}/",
     response_model=InventoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete inventory record"

@@ -40,7 +40,7 @@ def list_order_templates(
 
 
 @router.get(
-    "/{tpl_id}",
+    "/{tpl_id}/",
     response_model=OrderTemplateResponse,
     status_code=status.HTTP_200_OK,
     summary="Get order template by ID"
@@ -72,7 +72,7 @@ def create_order_template(
 
 
 @router.put(
-    "/{tpl_id}",
+    "/{tpl_id}/",
     response_model=OrderTemplateResponse,
     status_code=status.HTTP_200_OK,
     summary="Update order template"
@@ -91,7 +91,7 @@ def update_order_template(
 
 
 @router.delete(
-    "/{tpl_id}",
+    "/{tpl_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete order template"
 )
@@ -106,7 +106,7 @@ def delete_order_template(
 # ─── Template Items ───────────────────────────────────────────
 
 @router.get(
-    "/{tpl_id}/items",
+    "/{tpl_id}/items/",
     response_model=List[OrderTemplateItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get template items"
@@ -120,7 +120,7 @@ def get_template_items(
 
 
 @router.post(
-    "/{tpl_id}/items",
+    "/{tpl_id}/items/",
     response_model=OrderTemplateItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to template"
@@ -137,7 +137,7 @@ def add_template_item(
 
 
 @router.put(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=OrderTemplateItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update template item"
@@ -154,7 +154,7 @@ def update_template_item(
 
 
 @router.delete(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from template"
 )

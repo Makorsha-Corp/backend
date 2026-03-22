@@ -48,7 +48,7 @@ def get_deliveries(
 
 
 @router.get(
-    "/{delivery_id}",
+    "/{delivery_id}/",
     response_model=SalesDeliveryResponse,
     status_code=status.HTTP_200_OK,
     summary="Get delivery by ID",
@@ -102,7 +102,7 @@ def create_delivery(
 
 
 @router.post(
-    "/{delivery_id}/complete",
+    "/{delivery_id}/complete/",
     response_model=ActionResponse[SalesOrderResponse],
     status_code=200
 )
@@ -153,7 +153,7 @@ def complete_delivery(
 
 
 @router.get(
-    "/{delivery_id}/items",
+    "/{delivery_id}/items/",
     status_code=status.HTTP_200_OK,
     summary="Get delivery items",
     description="Get all line items for a delivery."

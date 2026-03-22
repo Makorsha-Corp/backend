@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get(
-    "",
+    "/",
     response_model=List[AccountInvoiceResponse],
     status_code=status.HTTP_200_OK,
     summary="List all invoices",
@@ -47,7 +47,7 @@ def get_invoices(
 
 
 @router.get(
-    "/{invoice_id}",
+    "/{invoice_id}/",
     response_model=AccountInvoiceResponse,
     status_code=status.HTTP_200_OK,
     summary="Get invoice by ID",
@@ -68,7 +68,7 @@ def get_invoice(
 
 
 @router.post(
-    "",
+    "/",
     response_model=AccountInvoiceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new invoice",
@@ -91,7 +91,7 @@ def create_invoice(
 
 
 @router.put(
-    "/{invoice_id}",
+    "/{invoice_id}/",
     response_model=AccountInvoiceResponse,
     status_code=status.HTTP_200_OK,
     summary="Update invoice",
@@ -116,7 +116,7 @@ def update_invoice(
 
 
 @router.delete(
-    "/{invoice_id}",
+    "/{invoice_id}/",
     response_model=AccountInvoiceResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete invoice",

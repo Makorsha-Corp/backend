@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/invoice/{invoice_id}",
+    "/invoice/{invoice_id}/",
     response_model=List[InvoicePaymentResponse],
     status_code=status.HTTP_200_OK,
     summary="List payments for an invoice",
@@ -43,7 +43,7 @@ def get_payments_by_invoice(
 
 
 @router.get(
-    "/{payment_id}",
+    "/{payment_id}/",
     response_model=InvoicePaymentResponse,
     status_code=status.HTTP_200_OK,
     summary="Get payment by ID",
@@ -87,7 +87,7 @@ def create_payment(
 
 
 @router.put(
-    "/{payment_id}",
+    "/{payment_id}/",
     response_model=InvoicePaymentResponse,
     status_code=status.HTTP_200_OK,
     summary="Update payment",
@@ -110,7 +110,7 @@ def update_payment(
 
 
 @router.delete(
-    "/{payment_id}",
+    "/{payment_id}/",
     response_model=InvoicePaymentResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete payment",

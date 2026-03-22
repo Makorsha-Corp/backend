@@ -45,7 +45,7 @@ def get_factory_sections(
 
 
 @router.get(
-    "/{section_id}",
+    "/{section_id}/",
     response_model=FactorySectionResponse,
     status_code=status.HTTP_200_OK,
     summary="Get factory section by ID",
@@ -89,7 +89,7 @@ def create_factory_section(
 
 
 @router.put(
-    "/{section_id}",
+    "/{section_id}/",
     response_model=FactorySectionResponse,
     status_code=status.HTTP_200_OK,
     summary="Update factory section",
@@ -114,7 +114,7 @@ def update_factory_section(
 
 
 @router.delete(
-    "/{section_id}",
+    "/{section_id}/",
     response_model=FactorySectionResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete factory section",

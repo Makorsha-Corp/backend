@@ -33,7 +33,7 @@ def get_project_component_items(
     return items
 
 
-@router.get("/{item_id}", response_model=ProjectComponentItemResponse)
+@router.get("/{item_id}/", response_model=ProjectComponentItemResponse)
 def get_project_component_item(
     item_id: int,
     workspace: Workspace = Depends(get_current_workspace),
@@ -59,7 +59,7 @@ def create_project_component_item(
     return item
 
 
-@router.put("/{item_id}", response_model=ProjectComponentItemResponse)
+@router.put("/{item_id}/", response_model=ProjectComponentItemResponse)
 def update_project_component_item(
     item_id: int,
     item_in: ProjectComponentItemUpdate,
@@ -73,7 +73,7 @@ def update_project_component_item(
     return item
 
 
-@router.delete("/{item_id}", status_code=204)
+@router.delete("/{item_id}/", status_code=204)
 def delete_project_component_item(
     item_id: int,
     workspace: Workspace = Depends(get_current_workspace),

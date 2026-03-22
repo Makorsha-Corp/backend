@@ -38,7 +38,7 @@ def get_tags(
 
 
 @router.get(
-    "/system",
+    "/system/",
     response_model=List[ItemTagResponse],
     status_code=status.HTTP_200_OK,
     summary="List system tags",
@@ -98,7 +98,7 @@ def create_tag(
 
 
 @router.put(
-    "/{tag_id}",
+    "/{tag_id}/",
     response_model=ItemTagResponse,
     status_code=status.HTTP_200_OK,
     summary="Update tag",
@@ -129,7 +129,7 @@ def update_tag(
 
 
 @router.delete(
-    "/{tag_id}",
+    "/{tag_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete tag",
     description="Delete a tag (only user-created tags can be deleted, not system tags)"

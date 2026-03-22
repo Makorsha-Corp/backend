@@ -38,7 +38,7 @@ def get_project_component_tasks(
     return tasks
 
 
-@router.get("/{task_id}", response_model=ProjectComponentTaskResponse)
+@router.get("/{task_id}/", response_model=ProjectComponentTaskResponse)
 def get_project_component_task(
     task_id: int,
     workspace: Workspace = Depends(get_current_workspace),
@@ -64,7 +64,7 @@ def create_project_component_task(
     return task
 
 
-@router.put("/{task_id}", response_model=ProjectComponentTaskResponse)
+@router.put("/{task_id}/", response_model=ProjectComponentTaskResponse)
 def update_project_component_task(
     task_id: int,
     task_in: ProjectComponentTaskUpdate,
@@ -78,7 +78,7 @@ def update_project_component_task(
     return task
 
 
-@router.delete("/{task_id}", status_code=204)
+@router.delete("/{task_id}/", status_code=204)
 def delete_project_component_task(
     task_id: int,
     workspace: Workspace = Depends(get_current_workspace),

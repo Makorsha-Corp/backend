@@ -28,7 +28,7 @@ def get_storage_items(
     return items
 
 
-@router.get("/{storage_item_id}", response_model=StorageItemResponse)
+@router.get("/{storage_item_id}/", response_model=StorageItemResponse)
 def get_storage_item(
     storage_item_id: int,
     db: Session = Depends(get_db),
@@ -52,7 +52,7 @@ def create_storage_item(
     return item
 
 
-@router.put("/{storage_item_id}", response_model=StorageItemResponse)
+@router.put("/{storage_item_id}/", response_model=StorageItemResponse)
 def update_storage_item(
     storage_item_id: int,
     item_in: StorageItemUpdate,
@@ -67,7 +67,7 @@ def update_storage_item(
     return item
 
 
-@router.delete("/{storage_item_id}", status_code=204)
+@router.delete("/{storage_item_id}/", status_code=204)
 def delete_storage_item(
     storage_item_id: int,
     db: Session = Depends(get_db),

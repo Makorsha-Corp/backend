@@ -39,7 +39,7 @@ def get_machine_items(
 
 
 @router.get(
-    "/{machine_item_id}",
+    "/{machine_item_id}/",
     response_model=MachineItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Get machine item by ID"
@@ -74,7 +74,7 @@ def create_machine_item(
 
 
 @router.put(
-    "/{machine_item_id}",
+    "/{machine_item_id}/",
     response_model=MachineItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update machine item"
@@ -94,7 +94,7 @@ def update_machine_item(
 
 
 @router.delete(
-    "/{machine_item_id}",
+    "/{machine_item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete machine item"
 )

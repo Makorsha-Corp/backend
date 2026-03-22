@@ -33,7 +33,7 @@ def get_project_components(
     return components
 
 
-@router.get("/{component_id}", response_model=ProjectComponentResponse)
+@router.get("/{component_id}/", response_model=ProjectComponentResponse)
 def get_project_component(
     component_id: int,
     workspace: Workspace = Depends(get_current_workspace),
@@ -59,7 +59,7 @@ def create_project_component(
     return component
 
 
-@router.put("/{component_id}", response_model=ProjectComponentResponse)
+@router.put("/{component_id}/", response_model=ProjectComponentResponse)
 def update_project_component(
     component_id: int,
     component_in: ProjectComponentUpdate,
@@ -73,7 +73,7 @@ def update_project_component(
     return component
 
 
-@router.delete("/{component_id}", status_code=204)
+@router.delete("/{component_id}/", status_code=204)
 def delete_project_component(
     component_id: int,
     workspace: Workspace = Depends(get_current_workspace),

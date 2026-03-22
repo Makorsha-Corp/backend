@@ -43,7 +43,7 @@ def get_factories(
 
 
 @router.get(
-    "/{factory_id}",
+    "/{factory_id}/",
     response_model=FactoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Get factory by ID",
@@ -87,7 +87,7 @@ def create_factory(
 
 
 @router.put(
-    "/{factory_id}",
+    "/{factory_id}/",
     response_model=FactoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Update factory",
@@ -112,7 +112,7 @@ def update_factory(
 
 
 @router.delete(
-    "/{factory_id}",
+    "/{factory_id}/",
     response_model=FactoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete factory",

@@ -54,7 +54,7 @@ def get_production_lines(
 
 
 @router.get(
-    "/{line_id}",
+    "/{line_id}/",
     response_model=ProductionLineResponse,
     status_code=status.HTTP_200_OK,
     summary="Get production line by ID",
@@ -97,7 +97,7 @@ def create_production_line(
 
 
 @router.put(
-    "/{line_id}",
+    "/{line_id}/",
     response_model=ProductionLineResponse,
     status_code=status.HTTP_200_OK,
     summary="Update production line",
@@ -118,7 +118,7 @@ def update_production_line(
 
 
 @router.delete(
-    "/{line_id}",
+    "/{line_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete production line",
     description="Soft delete a production line (sets is_active=False). Returns 204 No Content on success.",

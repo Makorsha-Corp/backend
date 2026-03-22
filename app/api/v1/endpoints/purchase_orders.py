@@ -39,7 +39,7 @@ def list_purchase_orders(
 
 
 @router.get(
-    "/{po_id}",
+    "/{po_id}/",
     response_model=PurchaseOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Get purchase order by ID"
@@ -71,7 +71,7 @@ def create_purchase_order(
 
 
 @router.put(
-    "/{po_id}",
+    "/{po_id}/",
     response_model=PurchaseOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Update purchase order"
@@ -90,7 +90,7 @@ def update_purchase_order(
 
 
 @router.delete(
-    "/{po_id}",
+    "/{po_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete purchase order"
 )
@@ -105,7 +105,7 @@ def delete_purchase_order(
 # ─── Purchase Order Items ──────────────────────────────────────
 
 @router.get(
-    "/{po_id}/items",
+    "/{po_id}/items/",
     response_model=List[PurchaseOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get purchase order items"
@@ -119,7 +119,7 @@ def get_purchase_order_items(
 
 
 @router.post(
-    "/{po_id}/items",
+    "/{po_id}/items/",
     response_model=PurchaseOrderItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to purchase order"
@@ -136,7 +136,7 @@ def add_purchase_order_item(
 
 
 @router.put(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=PurchaseOrderItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update purchase order item"
@@ -153,7 +153,7 @@ def update_purchase_order_item(
 
 
 @router.delete(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from purchase order"
 )

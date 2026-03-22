@@ -37,7 +37,7 @@ def list_transfer_orders(
 
 
 @router.get(
-    "/{to_id}",
+    "/{to_id}/",
     response_model=TransferOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Get transfer order by ID"
@@ -69,7 +69,7 @@ def create_transfer_order(
 
 
 @router.put(
-    "/{to_id}",
+    "/{to_id}/",
     response_model=TransferOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Update transfer order"
@@ -88,7 +88,7 @@ def update_transfer_order(
 
 
 @router.delete(
-    "/{to_id}",
+    "/{to_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete transfer order"
 )
@@ -103,7 +103,7 @@ def delete_transfer_order(
 # ─── Transfer Order Items ──────────────────────────────────────
 
 @router.get(
-    "/{to_id}/items",
+    "/{to_id}/items/",
     response_model=List[TransferOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get transfer order items"
@@ -117,7 +117,7 @@ def get_transfer_order_items(
 
 
 @router.post(
-    "/{to_id}/items",
+    "/{to_id}/items/",
     response_model=TransferOrderItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to transfer order"
@@ -134,7 +134,7 @@ def add_transfer_order_item(
 
 
 @router.put(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=TransferOrderItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update transfer order item"
@@ -153,7 +153,7 @@ def update_transfer_order_item(
 
 
 @router.delete(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from transfer order"
 )

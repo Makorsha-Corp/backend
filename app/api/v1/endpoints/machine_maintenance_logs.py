@@ -46,7 +46,7 @@ def list_maintenance_logs(
 
 
 @router.get(
-    "/{log_id}",
+    "/{log_id}/",
     response_model=MachineMaintenanceLogResponse,
     status_code=status.HTTP_200_OK,
     summary="Get maintenance log by ID"
@@ -82,7 +82,7 @@ def create_maintenance_log(
 
 
 @router.put(
-    "/{log_id}",
+    "/{log_id}/",
     response_model=MachineMaintenanceLogResponse,
     status_code=status.HTTP_200_OK,
     summary="Update maintenance log"
@@ -102,7 +102,7 @@ def update_maintenance_log(
 
 
 @router.delete(
-    "/{log_id}",
+    "/{log_id}/",
     response_model=MachineMaintenanceLogResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete maintenance log"

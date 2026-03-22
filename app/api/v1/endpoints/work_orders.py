@@ -47,7 +47,7 @@ def list_work_orders(
 
 
 @router.get(
-    "/{wo_id}",
+    "/{wo_id}/",
     response_model=WorkOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Get work order by ID"
@@ -79,7 +79,7 @@ def create_work_order(
 
 
 @router.put(
-    "/{wo_id}",
+    "/{wo_id}/",
     response_model=WorkOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Update work order"
@@ -98,7 +98,7 @@ def update_work_order(
 
 
 @router.delete(
-    "/{wo_id}",
+    "/{wo_id}/",
     response_model=WorkOrderResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete work order"
@@ -118,7 +118,7 @@ def delete_work_order(
 # ─── Work Order Items ──────────────────────────────────────────
 
 @router.get(
-    "/{wo_id}/items",
+    "/{wo_id}/items/",
     response_model=List[WorkOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get work order items"
@@ -132,7 +132,7 @@ def get_work_order_items(
 
 
 @router.post(
-    "/{wo_id}/items",
+    "/{wo_id}/items/",
     response_model=WorkOrderItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to work order"
@@ -152,7 +152,7 @@ def add_work_order_item(
 
 
 @router.put(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=WorkOrderItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update work order item"
@@ -170,7 +170,7 @@ def update_work_order_item(
 
 
 @router.delete(
-    "/items/{item_id}",
+    "/items/{item_id}/",
     response_model=WorkOrderItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Remove item from work order"

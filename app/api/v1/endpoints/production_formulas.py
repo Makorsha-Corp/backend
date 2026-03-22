@@ -59,7 +59,7 @@ def get_formulas(
 
 
 @router.get(
-    "/{formula_id}",
+    "/{formula_id}/",
     response_model=ProductionFormulaResponse,
     status_code=status.HTTP_200_OK,
     summary="Get production formula by ID",
@@ -101,7 +101,7 @@ def create_formula(
 
 
 @router.put(
-    "/{formula_id}",
+    "/{formula_id}/",
     response_model=ProductionFormulaResponse,
     status_code=status.HTTP_200_OK,
     summary="Update production formula",
@@ -121,7 +121,7 @@ def update_formula(
 
 
 @router.delete(
-    "/{formula_id}",
+    "/{formula_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete production formula",
     description="Soft delete a production formula (sets is_active=False). Returns 204 on success.",
@@ -140,7 +140,7 @@ def delete_formula(
 
 
 @router.get(
-    "/{formula_id}/items",
+    "/{formula_id}/items/",
     response_model=List[ProductionFormulaItemResponse],
     status_code=status.HTTP_200_OK,
     summary="List formula items",
@@ -166,7 +166,7 @@ def get_formula_items(
 
 
 @router.post(
-    "/{formula_id}/items",
+    "/{formula_id}/items/",
     response_model=ProductionFormulaItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to formula",
@@ -196,7 +196,7 @@ def add_formula_item(
 
 
 @router.put(
-    "/items/{formula_item_id}",
+    "/items/{formula_item_id}/",
     response_model=ProductionFormulaItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update formula item",
@@ -216,7 +216,7 @@ def update_formula_item(
 
 
 @router.delete(
-    "/items/{formula_item_id}",
+    "/items/{formula_item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from formula",
     description="Remove an item from a formula (hard delete). Returns 204 on success.",

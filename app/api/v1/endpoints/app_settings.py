@@ -24,7 +24,7 @@ def get_app_settings(
     return settings
 
 
-@router.get("/{setting_id}", response_model=AppSettingsResponse)
+@router.get("/{setting_id}/", response_model=AppSettingsResponse)
 def get_app_setting(
     setting_id: int,
     db: Session = Depends(get_db),
@@ -37,7 +37,7 @@ def get_app_setting(
     return setting
 
 
-@router.get("/name/{name}", response_model=AppSettingsResponse)
+@router.get("/name/{name}/", response_model=AppSettingsResponse)
 def get_app_setting_by_name(
     name: str,
     db: Session = Depends(get_db),
@@ -61,7 +61,7 @@ def create_app_setting(
     return setting
 
 
-@router.put("/{setting_id}", response_model=AppSettingsResponse)
+@router.put("/{setting_id}/", response_model=AppSettingsResponse)
 def update_app_setting(
     setting_id: int,
     setting_in: AppSettingsUpdate,
@@ -76,7 +76,7 @@ def update_app_setting(
     return setting
 
 
-@router.delete("/{setting_id}", status_code=204)
+@router.delete("/{setting_id}/", status_code=204)
 def delete_app_setting(
     setting_id: int,
     db: Session = Depends(get_db),

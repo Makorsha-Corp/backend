@@ -33,7 +33,7 @@ def get_recent_audit_logs(
     return logs
 
 
-@router.get("/entity/{entity_type}/{entity_id}", response_model=List[FinancialAuditLogResponse])
+@router.get("/entity/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
 def get_entity_audit_logs(
     entity_type: str,
     entity_id: int,
@@ -66,7 +66,7 @@ def get_entity_audit_logs(
     return logs
 
 
-@router.get("/related/{entity_type}/{entity_id}", response_model=List[FinancialAuditLogResponse])
+@router.get("/related/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
 def get_related_audit_logs(
     entity_type: str,
     entity_id: int,
@@ -104,7 +104,7 @@ def get_related_audit_logs(
     return logs
 
 
-@router.get("/action/{action_type}", response_model=List[FinancialAuditLogResponse])
+@router.get("/action/{action_type}/", response_model=List[FinancialAuditLogResponse])
 def get_audit_logs_by_action(
     action_type: str,
     skip: int = Query(default=0, ge=0),
@@ -134,7 +134,7 @@ def get_audit_logs_by_action(
     return logs
 
 
-@router.get("/user/{user_id}", response_model=List[FinancialAuditLogResponse])
+@router.get("/user/{user_id}/", response_model=List[FinancialAuditLogResponse])
 def get_user_audit_logs(
     user_id: int,
     skip: int = Query(default=0, ge=0),
@@ -164,7 +164,7 @@ def get_user_audit_logs(
     return logs
 
 
-@router.get("/date-range", response_model=List[FinancialAuditLogResponse])
+@router.get("/date-range/", response_model=List[FinancialAuditLogResponse])
 def get_audit_logs_by_date_range(
     start_date: datetime = Query(..., description="Start datetime (inclusive)"),
     end_date: datetime = Query(..., description="End datetime (inclusive)"),

@@ -35,7 +35,7 @@ router = APIRouter()
 # ============================================================================
 
 @router.get(
-    "/storage",
+    "/storage/",
     response_model=List[StorageItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get storage ledger entries",
@@ -73,7 +73,7 @@ def get_storage_ledger(
 
 
 @router.get(
-    "/storage/balance",
+    "/storage/balance/",
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get storage balance",
@@ -101,7 +101,7 @@ def get_storage_balance(
 
 
 @router.post(
-    "/storage/reconcile",
+    "/storage/reconcile/",
     response_model=ActionResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile storage inventory",
@@ -145,7 +145,7 @@ def reconcile_storage_item(
 # ============================================================================
 
 @router.get(
-    "/machine",
+    "/machine/",
     response_model=List[MachineItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get machine ledger entries",
@@ -179,7 +179,7 @@ def get_machine_ledger(
 
 
 @router.get(
-    "/machine/balance",
+    "/machine/balance/",
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get machine balance",
@@ -203,7 +203,7 @@ def get_machine_balance(
 
 
 @router.post(
-    "/machine/reconcile",
+    "/machine/reconcile/",
     response_model=ActionResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile machine inventory",
@@ -233,7 +233,7 @@ def reconcile_machine_item(
 # ============================================================================
 
 @router.get(
-    "/damaged",
+    "/damaged/",
     response_model=List[DamagedItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get damaged items ledger entries",
@@ -265,7 +265,7 @@ def get_damaged_ledger(
 
 
 @router.get(
-    "/damaged/balance",
+    "/damaged/balance/",
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get damaged items balance",
@@ -289,7 +289,7 @@ def get_damaged_balance(
 
 
 @router.post(
-    "/damaged/reconcile",
+    "/damaged/reconcile/",
     response_model=ActionResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile damaged inventory",
@@ -319,7 +319,7 @@ def reconcile_damaged_item(
 # ============================================================================
 
 @router.get(
-    "/project-component",
+    "/project-component/",
     response_model=List[ProjectComponentItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get project component ledger entries",
@@ -347,7 +347,7 @@ def get_project_component_ledger(
 
 
 @router.get(
-    "/project-component/{project_component_id}/total-cost",
+    "/project-component/{project_component_id}/total-cost/",
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get project component total cost",
@@ -377,7 +377,7 @@ def get_project_component_total_cost(
 # ============================================================================
 
 @router.get(
-    "/inventory",
+    "/inventory/",
     response_model=List[InventoryLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get inventory ledger entries",
@@ -411,7 +411,7 @@ def get_inventory_ledger(
 
 
 @router.get(
-    "/inventory/balance",
+    "/inventory/balance/",
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get inventory balance",
@@ -435,7 +435,7 @@ def get_inventory_balance(
 
 
 @router.post(
-    "/inventory/reconcile",
+    "/inventory/reconcile/",
     response_model=ActionResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile finished goods inventory",
@@ -465,7 +465,7 @@ def reconcile_inventory(
 # ============================================================================
 
 @router.get(
-    "/reports/item-movement/{item_id}",
+    "/reports/item-movement/{item_id}/",
     response_model=Dict[str, List],
     status_code=status.HTTP_200_OK,
     summary="Get item movement summary",
@@ -506,7 +506,7 @@ def get_item_movement_summary(
 
 
 @router.get(
-    "/reports/user-transactions/{user_id}",
+    "/reports/user-transactions/{user_id}/",
     response_model=Dict[str, List],
     status_code=status.HTTP_200_OK,
     summary="Get user transactions",
@@ -543,7 +543,7 @@ def get_transactions_by_user(
 
 
 @router.get(
-    "/reports/order-transactions/{order_id}",
+    "/reports/order-transactions/{order_id}/",
     response_model=Dict[str, List],
     status_code=status.HTTP_200_OK,
     summary="Get order transactions",

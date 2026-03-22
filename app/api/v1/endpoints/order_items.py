@@ -31,7 +31,7 @@ def get_order_items(
     return items
 
 
-@router.get("/{order_item_id}", response_model=OrderItemResponse)
+@router.get("/{order_item_id}/", response_model=OrderItemResponse)
 def get_order_item(
     order_item_id: int,
     db: Session = Depends(get_db),
@@ -55,7 +55,7 @@ def create_order_item(
     return item
 
 
-@router.put("/{order_item_id}", response_model=OrderItemResponse)
+@router.put("/{order_item_id}/", response_model=OrderItemResponse)
 def update_order_item(
     order_item_id: int,
     item_in: OrderItemUpdate,
@@ -70,7 +70,7 @@ def update_order_item(
     return item
 
 
-@router.delete("/{order_item_id}", status_code=204)
+@router.delete("/{order_item_id}/", status_code=204)
 def delete_order_item(
     order_item_id: int,
     db: Session = Depends(get_db),

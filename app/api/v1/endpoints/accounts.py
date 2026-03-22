@@ -45,7 +45,7 @@ def get_accounts(
 
 
 @router.get(
-    "/{account_id}",
+    "/{account_id}/",
     response_model=AccountWithTagsResponse,
     status_code=status.HTTP_200_OK,
     summary="Get account by ID",
@@ -89,7 +89,7 @@ def create_account(
 
 
 @router.put(
-    "/{account_id}",
+    "/{account_id}/",
     response_model=AccountResponse,
     status_code=status.HTTP_200_OK,
     summary="Update account",
@@ -113,7 +113,7 @@ def update_account(
 
 
 @router.delete(
-    "/{account_id}",
+    "/{account_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete account",
     description="Soft delete an account (sets is_deleted=True). Returns 204 No Content on success."

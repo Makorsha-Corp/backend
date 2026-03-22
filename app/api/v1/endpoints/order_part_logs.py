@@ -28,7 +28,7 @@ def get_order_part_logs(
     return logs
 
 
-@router.get("/{log_id}", response_model=OrderPartLogResponse)
+@router.get("/{log_id}/", response_model=OrderPartLogResponse)
 def get_order_part_log(
     log_id: int,
     db: Session = Depends(get_db),

@@ -24,7 +24,7 @@ def get_order_workflows(
     return workflows
 
 
-@router.get("/{workflow_id}", response_model=OrderWorkflowResponse)
+@router.get("/{workflow_id}/", response_model=OrderWorkflowResponse)
 def get_order_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),
@@ -37,7 +37,7 @@ def get_order_workflow(
     return workflow
 
 
-@router.get("/type/{workflow_type}", response_model=OrderWorkflowResponse)
+@router.get("/type/{workflow_type}/", response_model=OrderWorkflowResponse)
 def get_order_workflow_by_type(
     workflow_type: str,
     db: Session = Depends(get_db),
@@ -61,7 +61,7 @@ def create_order_workflow(
     return workflow
 
 
-@router.put("/{workflow_id}", response_model=OrderWorkflowResponse)
+@router.put("/{workflow_id}/", response_model=OrderWorkflowResponse)
 def update_order_workflow(
     workflow_id: int,
     workflow_in: OrderWorkflowUpdate,
@@ -76,7 +76,7 @@ def update_order_workflow(
     return workflow
 
 
-@router.delete("/{workflow_id}", status_code=204)
+@router.delete("/{workflow_id}/", status_code=204)
 def delete_order_workflow(
     workflow_id: int,
     db: Session = Depends(get_db),

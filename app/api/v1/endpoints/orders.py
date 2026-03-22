@@ -35,7 +35,7 @@ def get_orders(
     return orders
 
 
-@router.get("/{order_id}", response_model=OrderResponse)
+@router.get("/{order_id}/", response_model=OrderResponse)
 def get_order(
     order_id: int,
     db: Session = Depends(get_db),
@@ -88,7 +88,7 @@ def create_order(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/{order_id}", response_model=OrderResponse)
+@router.put("/{order_id}/", response_model=OrderResponse)
 def update_order(
     order_id: int,
     order_in: OrderUpdate,
@@ -119,7 +119,7 @@ def update_order(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/{order_id}", status_code=204)
+@router.delete("/{order_id}/", status_code=204)
 def delete_order(
     order_id: int,
     db: Session = Depends(get_db),

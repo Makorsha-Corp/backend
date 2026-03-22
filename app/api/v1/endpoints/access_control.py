@@ -32,7 +32,7 @@ def get_access_controls(
     return controls
 
 
-@router.get("/{control_id}", response_model=AccessControlResponse)
+@router.get("/{control_id}/", response_model=AccessControlResponse)
 def get_access_control(
     control_id: int,
     db: Session = Depends(get_db),
@@ -56,7 +56,7 @@ def create_access_control(
     return control
 
 
-@router.put("/{control_id}", response_model=AccessControlResponse)
+@router.put("/{control_id}/", response_model=AccessControlResponse)
 def update_access_control(
     control_id: int,
     control_in: AccessControlUpdate,
@@ -71,7 +71,7 @@ def update_access_control(
     return control
 
 
-@router.delete("/{control_id}", status_code=204)
+@router.delete("/{control_id}/", status_code=204)
 def delete_access_control(
     control_id: int,
     db: Session = Depends(get_db),

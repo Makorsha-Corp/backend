@@ -90,7 +90,7 @@ def get_batches(
 
 
 @router.get(
-    "/{batch_id}",
+    "/{batch_id}/",
     response_model=ProductionBatchResponse,
     status_code=status.HTTP_200_OK,
     summary="Get production batch by ID",
@@ -132,7 +132,7 @@ def create_batch(
 
 
 @router.put(
-    "/{batch_id}",
+    "/{batch_id}/",
     response_model=ProductionBatchResponse,
     status_code=status.HTTP_200_OK,
     summary="Update production batch",
@@ -155,7 +155,7 @@ def update_batch(
 
 
 @router.delete(
-    "/{batch_id}",
+    "/{batch_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete production batch",
     description="Cancel a draft batch. Only draft batches can be deleted. Returns 204 on success.",
@@ -174,7 +174,7 @@ def delete_batch(
 
 
 @router.post(
-    "/{batch_id}/start",
+    "/{batch_id}/start/",
     response_model=ProductionBatchResponse,
     status_code=status.HTTP_200_OK,
     summary="Start production batch",
@@ -208,7 +208,7 @@ def start_batch(
 
 
 @router.post(
-    "/{batch_id}/complete",
+    "/{batch_id}/complete/",
     response_model=ProductionBatchResponse,
     status_code=status.HTTP_200_OK,
     summary="Complete production batch",
@@ -241,7 +241,7 @@ def complete_batch(
 
 
 @router.post(
-    "/{batch_id}/cancel",
+    "/{batch_id}/cancel/",
     response_model=ProductionBatchResponse,
     status_code=status.HTTP_200_OK,
     summary="Cancel production batch",
@@ -265,7 +265,7 @@ def cancel_batch(
 
 
 @router.get(
-    "/{batch_id}/items",
+    "/{batch_id}/items/",
     response_model=List[ProductionBatchItemResponse],
     status_code=status.HTTP_200_OK,
     summary="List batch items",
@@ -291,7 +291,7 @@ def get_batch_items(
 
 
 @router.post(
-    "/{batch_id}/items",
+    "/{batch_id}/items/",
     response_model=ProductionBatchItemResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add item to batch",
@@ -320,7 +320,7 @@ def add_batch_item(
 
 
 @router.put(
-    "/items/{batch_item_id}",
+    "/items/{batch_item_id}/",
     response_model=ProductionBatchItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update batch item",
@@ -343,7 +343,7 @@ def update_batch_item(
 
 
 @router.delete(
-    "/items/{batch_item_id}",
+    "/items/{batch_item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from batch",
     description="Remove an item from a batch (hard delete). Only for draft or in_progress batches.",

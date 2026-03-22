@@ -43,7 +43,7 @@ def get_items(
 
 
 @router.get(
-    "/{item_id}",
+    "/{item_id}/",
     response_model=ItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Get item by ID",
@@ -88,7 +88,7 @@ def create_item(
 
 
 @router.put(
-    "/{item_id}",
+    "/{item_id}/",
     response_model=ItemResponse,
     status_code=status.HTTP_200_OK,
     summary="Update item",
@@ -112,7 +112,7 @@ def update_item(
 
 
 @router.delete(
-    "/{item_id}",
+    "/{item_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete item",
     description="Soft delete an item (sets is_active=False). Returns 204 No Content on success."
