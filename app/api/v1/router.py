@@ -47,6 +47,7 @@ from app.api.v1.endpoints import (
     project_component_items,
     project_component_tasks,
     miscellaneous_project_costs,
+    project_component_notes,
     # Settings
     app_settings,
     access_control,
@@ -129,6 +130,7 @@ api_router.include_router(project_components.router, prefix="/project-components
 api_router.include_router(project_component_items.router, prefix="/project-component-items", tags=["projects"])
 api_router.include_router(project_component_tasks.router, prefix="/project-component-tasks", tags=["projects"])
 api_router.include_router(miscellaneous_project_costs.router, prefix="/miscellaneous-project-costs", tags=["projects"])
+api_router.include_router(project_component_notes.router, prefix="/project-component-notes", tags=["projects"])
 
 # Settings & Access Control
 api_router.include_router(app_settings.router, prefix="/app-settings", tags=["settings"])

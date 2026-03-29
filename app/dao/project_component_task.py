@@ -15,7 +15,7 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
     """DAO operations for ProjectComponentTask model (workspace-scoped)"""
 
     def get_by_component(
-        self, db: Session, *, project_component_id: int, workspace_id: int, skip: int = 0, limit: int = 100
+        self, db: Session, *, project_component_id: int, workspace_id: int, is_note: bool = False, skip: int = 0, limit: int = 100
     ) -> List[ProjectComponentTask]:
         """
         Get tasks by project component ID (SECURITY-CRITICAL: workspace-filtered)
@@ -34,7 +34,8 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
             db.query(ProjectComponentTask)
             .filter(
                 ProjectComponentTask.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                ProjectComponentTask.project_component_id == project_component_id
+                ProjectComponentTask.project_component_id == project_component_id,
+                ProjectComponentTask.is_note == is_note
             )
             .offset(skip)
             .limit(limit)
@@ -42,7 +43,7 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
         )
 
     def get_incomplete_tasks(
-        self, db: Session, *, project_component_id: int, workspace_id: int, skip: int = 0, limit: int = 100
+        self, db: Session, *, project_component_id: int, workspace_id: int, is_note: bool = False, skip: int = 0, limit: int = 100
     ) -> List[ProjectComponentTask]:
         """
         Get incomplete tasks by project component ID (SECURITY-CRITICAL: workspace-filtered)
@@ -62,7 +63,8 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
             .filter(
                 ProjectComponentTask.workspace_id == workspace_id,  # SECURITY: workspace isolation
                 ProjectComponentTask.project_component_id == project_component_id,
-                ProjectComponentTask.is_completed == False
+                ProjectComponentTask.is_completed == False,
+                ProjectComponentTask.is_note == is_note
             )
             .offset(skip)
             .limit(limit)
