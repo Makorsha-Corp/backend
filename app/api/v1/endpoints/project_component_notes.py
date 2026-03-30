@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_workspace
 from app.models.workspace import Workspace
 from app.schemas.project_component_note import ProjectComponentNoteCreate, ProjectComponentNoteUpdate, ProjectComponentNoteResponse
-from app.dao.project_component_task import project_component_task_dao
 from app.services.project_component_note_service import project_component_note_service
 
 
@@ -22,17 +21,9 @@ def get_project_component_notes(
     db: Session = Depends(get_db)
 ):
     """Get all project component notes, optionally filtered by component"""
-    if project_component_id:
-        notes = project_component_note_service.get_notes(
-            db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    else:
-        notes = project_component_note_service.get_notes(
-            db, project_component_id=None, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    if not notes:
-        raise HTTPException(status_code=404, detail="Project component notes could not be found")
-    return notes
+    return project_component_note_service.get_notes(
+        db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
+    )
 
 
 @router.get("/{note_id}/", response_model=ProjectComponentNoteResponse)

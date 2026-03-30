@@ -7,6 +7,19 @@ from app.schemas.miscellaneous_project_cost import MiscellaneousProjectCostCreat
 class MiscellaneousProjectCostService:
     """Service for miscellaneous project cost workflows - handles transactions"""
 
+    def get_costs(self, db: Session, workspace_id: int, project_id: int = None, project_component_id: int = None, skip: int = 0, limit: int = 100):
+        """Get miscellaneous project costs with optional filtering"""
+        if project_id:
+            return miscellaneous_project_cost_dao.get_by_project(db, project_id=project_id, workspace_id=workspace_id, skip=skip, limit=limit)
+        elif project_component_id:
+            return miscellaneous_project_cost_dao.get_by_component(db, project_component_id=project_component_id, workspace_id=workspace_id, skip=skip, limit=limit)
+        else:
+            return miscellaneous_project_cost_dao.get_by_workspace(db, workspace_id=workspace_id, skip=skip, limit=limit)
+
+    def get_by_id(self, db: Session, cost_id: int, workspace_id: int):
+        """Get miscellaneous project cost by ID"""
+        return miscellaneous_project_cost_dao.get_by_id_and_workspace(db, id=cost_id, workspace_id=workspace_id)
+
     def create_cost(self, db: Session, cost_in: MiscellaneousProjectCostCreate, workspace_id: int):
         """Create miscellaneous project cost with transaction management"""
         try:

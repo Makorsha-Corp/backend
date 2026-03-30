@@ -7,6 +7,17 @@ from app.schemas.project_component_item import ProjectComponentItemCreate, Proje
 class ProjectComponentItemService:
     """Service for project component item workflows - handles transactions"""
 
+    def get_items(self, db: Session, workspace_id: int, project_component_id: int = None, skip: int = 0, limit: int = 100):
+        """Get project component items with optional filtering"""
+        if project_component_id:
+            return project_component_item_dao.get_by_component(db, project_component_id=project_component_id, workspace_id=workspace_id, skip=skip, limit=limit)
+        else:
+            return project_component_item_dao.get_by_workspace(db, workspace_id=workspace_id, skip=skip, limit=limit)
+
+    def get_by_id(self, db: Session, item_id: int, workspace_id: int):
+        """Get project component item by ID"""
+        return project_component_item_dao.get_by_id_and_workspace(db, id=item_id, workspace_id=workspace_id)
+
     def create_component_item(self, db: Session, item_in: ProjectComponentItemCreate, workspace_id: int):
         """Create project component item with transaction management"""
         try:

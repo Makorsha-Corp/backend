@@ -1,14 +1,14 @@
 """Financial audit log API endpoints"""
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.dao.financial_audit_log import financial_audit_log_dao
 from app.schemas.financial_audit_log import FinancialAuditLogResponse
+from app.services.financial_audit_log_service import financial_audit_log_service
 
 router = APIRouter()
 
@@ -25,12 +25,7 @@ def get_recent_audit_logs(
 
     Returns most recent audit logs up to the specified limit.
     """
-    logs = financial_audit_log_dao.get_recent_logs(
-        db,
-        workspace_id=workspace.id,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_recent_logs(db, workspace_id=workspace.id, limit=limit)
 
 
 @router.get("/entity/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
@@ -55,15 +50,7 @@ def get_entity_audit_logs(
     Returns:
         List of audit logs for the entity
     """
-    logs = financial_audit_log_dao.get_by_entity(
-        db,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        workspace_id=workspace.id,
-        skip=skip,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_by_entity(db, entity_type=entity_type, entity_id=entity_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
 @router.get("/related/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
@@ -93,15 +80,7 @@ def get_related_audit_logs(
     Returns:
         List of all related audit logs
     """
-    logs = financial_audit_log_dao.get_related_logs(
-        db,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        workspace_id=workspace.id,
-        skip=skip,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_related_logs(db, entity_type=entity_type, entity_id=entity_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
 @router.get("/action/{action_type}/", response_model=List[FinancialAuditLogResponse])
@@ -124,14 +103,7 @@ def get_audit_logs_by_action(
     Returns:
         List of audit logs with matching action type
     """
-    logs = financial_audit_log_dao.get_by_action_type(
-        db,
-        action_type=action_type,
-        workspace_id=workspace.id,
-        skip=skip,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_by_action_type(db, action_type=action_type, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
 @router.get("/user/{user_id}/", response_model=List[FinancialAuditLogResponse])
@@ -154,14 +126,7 @@ def get_user_audit_logs(
     Returns:
         List of audit logs performed by the user
     """
-    logs = financial_audit_log_dao.get_by_user(
-        db,
-        user_id=user_id,
-        workspace_id=workspace.id,
-        skip=skip,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_by_user(db, user_id=user_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
 @router.get("/date-range/", response_model=List[FinancialAuditLogResponse])
@@ -186,12 +151,4 @@ def get_audit_logs_by_date_range(
     Returns:
         List of audit logs in the date range
     """
-    logs = financial_audit_log_dao.get_by_date_range(
-        db,
-        start_date=start_date,
-        end_date=end_date,
-        workspace_id=workspace.id,
-        skip=skip,
-        limit=limit
-    )
-    return logs
+    return financial_audit_log_service.get_by_date_range(db, start_date=start_date, end_date=end_date, workspace_id=workspace.id, skip=skip, limit=limit)

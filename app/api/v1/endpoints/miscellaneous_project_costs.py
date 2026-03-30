@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_workspace
 from app.models.workspace import Workspace
 from app.schemas.miscellaneous_project_cost import MiscellaneousProjectCostCreate, MiscellaneousProjectCostUpdate, MiscellaneousProjectCostResponse
-from app.dao.miscellaneous_project_cost import miscellaneous_project_cost_dao
 from app.services.miscellaneous_project_cost_service import miscellaneous_project_cost_service
 
 
@@ -23,19 +22,7 @@ def get_miscellaneous_project_costs(
     db: Session = Depends(get_db)
 ):
     """Get all miscellaneous costs, optionally filtered by project or component"""
-    if project_id:
-        costs = miscellaneous_project_cost_dao.get_by_project(
-            db, project_id=project_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    elif project_component_id:
-        costs = miscellaneous_project_cost_dao.get_by_component(
-            db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    else:
-        costs = miscellaneous_project_cost_dao.get_by_workspace(
-            db, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    return costs
+    return miscellaneous_project_cost_service.get_costs(db, workspace_id=workspace.id, project_id=project_id, project_component_id=project_component_id, skip=skip, limit=limit)
 
 
 @router.get("/{cost_id}/", response_model=MiscellaneousProjectCostResponse)
@@ -45,9 +32,7 @@ def get_miscellaneous_project_cost(
     db: Session = Depends(get_db)
 ):
     """Get miscellaneous project cost by ID"""
-    cost = miscellaneous_project_cost_dao.get_by_id_and_workspace(
-        db, id=cost_id, workspace_id=workspace.id
-    )
+    cost = miscellaneous_project_cost_service.get_by_id(db, cost_id=cost_id, workspace_id=workspace.id)
     if not cost:
         raise HTTPException(status_code=404, detail="Miscellaneous project cost not found")
     return cost
@@ -60,8 +45,7 @@ def create_miscellaneous_project_cost(
     db: Session = Depends(get_db)
 ):
     """Create new miscellaneous project cost"""
-    cost = miscellaneous_project_cost_service.create_cost(db, cost_in, workspace.id)
-    return cost
+    return miscellaneous_project_cost_service.create_cost(db, cost_in, workspace.id)
 
 
 @router.put("/{cost_id}/", response_model=MiscellaneousProjectCostResponse)

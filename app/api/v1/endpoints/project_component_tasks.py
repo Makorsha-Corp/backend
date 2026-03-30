@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_workspace
 from app.models.workspace import Workspace
 from app.schemas.project_component_task import ProjectComponentTaskCreate, ProjectComponentTaskUpdate, ProjectComponentTaskResponse
-from app.dao.project_component_task import project_component_task_dao
 from app.services.project_component_task_service import project_component_task_service
 
 
@@ -23,19 +22,7 @@ def get_project_component_tasks(
     db: Session = Depends(get_db)
 ):
     """Get all project component tasks, optionally filtered by component or completion status"""
-    if project_component_id and incomplete_only:
-        tasks = project_component_task_dao.get_incomplete_tasks(
-            db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    elif project_component_id:
-        tasks = project_component_task_dao.get_by_component(
-            db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    else:
-        tasks = project_component_task_dao.get_by_workspace(
-            db, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    return tasks
+    return project_component_task_service.get_tasks(db, workspace_id=workspace.id, project_component_id=project_component_id, incomplete_only=incomplete_only, skip=skip, limit=limit)
 
 
 @router.get("/{task_id}/", response_model=ProjectComponentTaskResponse)
@@ -45,9 +32,7 @@ def get_project_component_task(
     db: Session = Depends(get_db)
 ):
     """Get project component task by ID"""
-    task = project_component_task_dao.get_by_id_and_workspace(
-        db, id=task_id, workspace_id=workspace.id
-    )
+    task = project_component_task_service.get_by_id(db, task_id=task_id, workspace_id=workspace.id)
     if not task:
         raise HTTPException(status_code=404, detail="Project component task not found")
     return task
@@ -60,8 +45,7 @@ def create_project_component_task(
     db: Session = Depends(get_db)
 ):
     """Create new project component task"""
-    task = project_component_task_service.create_task(db, task_in, workspace.id)
-    return task
+    return project_component_task_service.create_task(db, task_in, workspace.id)
 
 
 @router.put("/{task_id}/", response_model=ProjectComponentTaskResponse)

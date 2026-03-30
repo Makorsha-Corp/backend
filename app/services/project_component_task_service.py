@@ -7,6 +7,19 @@ from app.schemas.project_component_task import ProjectComponentTaskCreate, Proje
 class ProjectComponentTaskService:
     """Service for project component task workflows - handles transactions"""
 
+    def get_tasks(self, db: Session, workspace_id: int, project_component_id: int = None, incomplete_only: bool = False, skip: int = 0, limit: int = 100):
+        """Get project component tasks with optional filtering"""
+        if project_component_id and incomplete_only:
+            return project_component_task_dao.get_incomplete_tasks(db, project_component_id=project_component_id, workspace_id=workspace_id, skip=skip, limit=limit)
+        elif project_component_id:
+            return project_component_task_dao.get_by_component(db, project_component_id=project_component_id, workspace_id=workspace_id, skip=skip, limit=limit)
+        else:
+            return project_component_task_dao.get_by_workspace(db, workspace_id=workspace_id, skip=skip, limit=limit)
+
+    def get_by_id(self, db: Session, task_id: int, workspace_id: int):
+        """Get project component task by ID"""
+        return project_component_task_dao.get_by_id_and_workspace(db, id=task_id, workspace_id=workspace_id)
+
     def create_task(self, db: Session, task_in: ProjectComponentTaskCreate, workspace_id: int):
         """Create project component task with transaction management"""
         try:

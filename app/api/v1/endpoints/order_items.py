@@ -3,10 +3,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user
+from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.order_item import OrderItemCreate, OrderItemUpdate, OrderItemResponse
-from app.dao.order_item import order_item_dao
+from app.services.order_item_service import order_item_service
 
 
 router = APIRouter()
@@ -18,27 +19,23 @@ def get_order_items(
     limit: int = Query(100, le=100),
     order_id: int = Query(None),
     pending_approval: bool = Query(None),
+    workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
     current_user: Profile = Depends(get_current_active_user)
 ):
     """Get all order items, optionally filtered by order or approval status"""
-    if order_id:
-        items = order_item_dao.get_by_order(db, order_id=order_id, skip=skip, limit=limit)
-    elif pending_approval:
-        items = order_item_dao.get_pending_approval(db, skip=skip, limit=limit)
-    else:
-        items = order_item_dao.get_multi(db, skip=skip, limit=limit)
-    return items
+    return order_item_service.get_items(db, workspace_id=workspace.id, order_id=order_id, pending_approval=pending_approval, skip=skip, limit=limit)
 
 
 @router.get("/{order_item_id}/", response_model=OrderItemResponse)
 def get_order_item(
     order_item_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
     current_user: Profile = Depends(get_current_active_user)
 ):
     """Get order item by ID"""
-    item = order_item_dao.get(db, id=order_item_id)
+    item = order_item_service.get_by_id(db, item_id=order_item_id, workspace_id=workspace.id)
     if not item:
         raise HTTPException(status_code=404, detail="Order item not found")
     return item
@@ -47,44 +44,37 @@ def get_order_item(
 @router.post("/", response_model=OrderItemResponse, status_code=201)
 def create_order_item(
     part_in: OrderItemCreate,
+    workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
     current_user: Profile = Depends(get_current_active_user)
 ):
     """Create new order item"""
-    item = order_item_dao.create(db, obj_in=part_in)
-    return item
+    return order_item_service.create_item(db, item_in=part_in, workspace_id=workspace.id)
 
 
 @router.put("/{order_item_id}/", response_model=OrderItemResponse)
 def update_order_item(
     order_item_id: int,
     item_in: OrderItemUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
     current_user: Profile = Depends(get_current_active_user)
 ):
     """Update order item"""
-    item = order_item_dao.get(db, id=order_item_id)
+    item = order_item_service.update_item(db, item_id=order_item_id, item_in=item_in, workspace_id=workspace.id)
     if not item:
         raise HTTPException(status_code=404, detail="Order item not found")
-    item = order_item_dao.update(db, db_obj=item, obj_in=item_in)
     return item
 
 
 @router.delete("/{order_item_id}/", status_code=204)
 def delete_order_item(
     order_item_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
     current_user: Profile = Depends(get_current_active_user)
 ):
     """Delete order item (soft delete)"""
-    item = order_item_dao.get(db, id=order_item_id)
-    if not item:
+    deleted = order_item_service.delete_item(db, item_id=order_item_id, workspace_id=workspace.id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Order item not found")
-
-    # Soft delete - just mark as deleted
-    from datetime import datetime
-    item = order_item_dao.update(
-        db,
-        db_obj=item,
-        obj_in={"is_deleted": True, "deleted_at": datetime.utcnow()}
-    )

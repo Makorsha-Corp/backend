@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_workspace
 from app.models.workspace import Workspace
 from app.schemas.project_component_item import ProjectComponentItemCreate, ProjectComponentItemUpdate, ProjectComponentItemResponse
-from app.dao.project_component_item import project_component_item_dao
 from app.services.project_component_item_service import project_component_item_service
 
 
@@ -22,15 +21,7 @@ def get_project_component_items(
     db: Session = Depends(get_db)
 ):
     """Get all project component items, optionally filtered by component"""
-    if project_component_id:
-        items = project_component_item_dao.get_by_component(
-            db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    else:
-        items = project_component_item_dao.get_by_workspace(
-            db, workspace_id=workspace.id, skip=skip, limit=limit
-        )
-    return items
+    return project_component_item_service.get_items(db, workspace_id=workspace.id, project_component_id=project_component_id, skip=skip, limit=limit)
 
 
 @router.get("/{item_id}/", response_model=ProjectComponentItemResponse)
@@ -40,9 +31,7 @@ def get_project_component_item(
     db: Session = Depends(get_db)
 ):
     """Get project component item by ID"""
-    item = project_component_item_dao.get_by_id_and_workspace(
-        db, id=item_id, workspace_id=workspace.id
-    )
+    item = project_component_item_service.get_by_id(db, item_id=item_id, workspace_id=workspace.id)
     if not item:
         raise HTTPException(status_code=404, detail="Project component item not found")
     return item
@@ -55,8 +44,7 @@ def create_project_component_item(
     db: Session = Depends(get_db)
 ):
     """Create new project component item"""
-    item = project_component_item_service.create_component_item(db, item_in, workspace.id)
-    return item
+    return project_component_item_service.create_component_item(db, item_in, workspace.id)
 
 
 @router.put("/{item_id}/", response_model=ProjectComponentItemResponse)
