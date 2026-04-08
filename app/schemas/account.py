@@ -13,6 +13,9 @@ class AccountBase(BaseModel):
     primary_contact_person: Optional[str] = Field(None, max_length=255)
     primary_email: Optional[str] = Field(None, max_length=255)
     primary_phone: Optional[str] = Field(None, max_length=50)
+    secondary_contact_person: Optional[str] = Field(None, max_length=255)
+    secondary_email: Optional[str] = Field(None, max_length=255)
+    secondary_phone: Optional[str] = Field(None, max_length=50)
 
     # Address
     address: Optional[str] = None
@@ -23,6 +26,12 @@ class AccountBase(BaseModel):
     # Financial
     payment_terms: Optional[str] = Field(None, max_length=100)
     tax_id: Optional[str] = Field(None, max_length=100)
+    business_registration_number: Optional[str] = Field(None, max_length=100)
+    credit_limit: Optional[float] = None
+    currency: Optional[str] = Field(None, max_length=3)
+    bank_name: Optional[str] = Field(None, max_length=255)
+    bank_account_number: Optional[str] = Field(None, max_length=100)
+    bank_swift_code: Optional[str] = Field(None, max_length=50)
 
     # Notes
     notes: Optional[str] = None
@@ -49,6 +58,9 @@ class AccountUpdate(BaseModel):
     primary_contact_person: Optional[str] = Field(None, max_length=255)
     primary_email: Optional[str] = Field(None, max_length=255)
     primary_phone: Optional[str] = Field(None, max_length=50)
+    secondary_contact_person: Optional[str] = Field(None, max_length=255)
+    secondary_email: Optional[str] = Field(None, max_length=255)
+    secondary_phone: Optional[str] = Field(None, max_length=50)
 
     # Address
     address: Optional[str] = None
@@ -59,6 +71,12 @@ class AccountUpdate(BaseModel):
     # Financial
     payment_terms: Optional[str] = Field(None, max_length=100)
     tax_id: Optional[str] = Field(None, max_length=100)
+    business_registration_number: Optional[str] = Field(None, max_length=100)
+    credit_limit: Optional[float] = None
+    currency: Optional[str] = Field(None, max_length=3)
+    bank_name: Optional[str] = Field(None, max_length=255)
+    bank_account_number: Optional[str] = Field(None, max_length=100)
+    bank_swift_code: Optional[str] = Field(None, max_length=50)
 
     # Notes
     notes: Optional[str] = None
