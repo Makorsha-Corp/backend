@@ -50,8 +50,17 @@ class AccountManager(BaseManager[Account]):
         # Extract tag_ids before creating account
         tag_ids = account_data.tag_ids if hasattr(account_data, 'tag_ids') else []
 
-        # Convert Pydantic model to dict and inject workspace/audit fields
-        account_dict = account_data.model_dump(exclude={'tag_ids'})
+        # Map API contract fields into persisted model fields.
+        account_input = account_data.model_dump(exclude={'tag_ids'})
+        account_dict = {
+            'name': account_input.get('name'),
+            'account_code': account_input.get('account_code'),
+            'primary_contact_person': account_input.get('contact_details'),
+            'address': account_input.get('address_fields'),
+            'payment_terms': account_input.get('payment_terms'),
+            'bank_name': account_input.get('bank_details'),
+            'allow_invoices': account_input.get('allow_invoices', True),
+        }
         account_dict['workspace_id'] = workspace_id
         account_dict['created_by'] = user_id
 
@@ -130,7 +139,22 @@ class AccountManager(BaseManager[Account]):
             tag_ids = account_data.tag_ids
 
         # Inject updated_by for audit
-        account_dict = account_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
+        update_input = account_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
+        account_dict = {}
+        if 'name' in update_input:
+            account_dict['name'] = update_input['name']
+        if 'account_code' in update_input:
+            account_dict['account_code'] = update_input['account_code']
+        if 'contact_details' in update_input:
+            account_dict['primary_contact_person'] = update_input['contact_details']
+        if 'address_fields' in update_input:
+            account_dict['address'] = update_input['address_fields']
+        if 'payment_terms' in update_input:
+            account_dict['payment_terms'] = update_input['payment_terms']
+        if 'bank_details' in update_input:
+            account_dict['bank_name'] = update_input['bank_details']
+        if 'allow_invoices' in update_input:
+            account_dict['allow_invoices'] = update_input['allow_invoices']
         account_dict['updated_by'] = user_id
 
         # Update the account
