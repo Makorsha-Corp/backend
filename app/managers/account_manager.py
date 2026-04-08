@@ -50,15 +50,14 @@ class AccountManager(BaseManager[Account]):
         # Extract tag_ids before creating account
         tag_ids = account_data.tag_ids if hasattr(account_data, 'tag_ids') else []
 
-        # Map API contract fields into persisted model fields.
         account_input = account_data.model_dump(exclude={'tag_ids'})
         account_dict = {
             'name': account_input.get('name'),
             'account_code': account_input.get('account_code'),
-            'primary_contact_person': account_input.get('contact_details'),
-            'address': account_input.get('address_fields'),
+            'contact_details': account_input.get('contact_details'),
+            'address_fields': account_input.get('address_fields'),
             'payment_terms': account_input.get('payment_terms'),
-            'bank_name': account_input.get('bank_details'),
+            'bank_details': account_input.get('bank_details'),
             'allow_invoices': account_input.get('allow_invoices', True),
         }
         account_dict['workspace_id'] = workspace_id
@@ -86,7 +85,7 @@ class AccountManager(BaseManager[Account]):
             action_type='created',
             performed_by=user_id,
             changes=create_change_dict(after=extract_relevant_fields(
-                account, ['name', 'primary_email', 'primary_phone', 'address_line1']
+                account, ['name', 'contact_details', 'address_fields']
             )),
             description=f"Account '{account.name}' created"
         )
@@ -130,7 +129,7 @@ class AccountManager(BaseManager[Account]):
 
         # Capture before state for audit
         before_state = extract_relevant_fields(
-            account, ['name', 'primary_email', 'primary_phone', 'address_line1', 'is_active']
+            account, ['name', 'contact_details', 'address_fields', 'payment_terms', 'allow_invoices']
         )
 
         # Extract tag_ids if provided
@@ -138,23 +137,11 @@ class AccountManager(BaseManager[Account]):
         if hasattr(account_data, 'tag_ids') and account_data.tag_ids is not None:
             tag_ids = account_data.tag_ids
 
-        # Inject updated_by for audit
         update_input = account_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
         account_dict = {}
-        if 'name' in update_input:
-            account_dict['name'] = update_input['name']
-        if 'account_code' in update_input:
-            account_dict['account_code'] = update_input['account_code']
-        if 'contact_details' in update_input:
-            account_dict['primary_contact_person'] = update_input['contact_details']
-        if 'address_fields' in update_input:
-            account_dict['address'] = update_input['address_fields']
-        if 'payment_terms' in update_input:
-            account_dict['payment_terms'] = update_input['payment_terms']
-        if 'bank_details' in update_input:
-            account_dict['bank_name'] = update_input['bank_details']
-        if 'allow_invoices' in update_input:
-            account_dict['allow_invoices'] = update_input['allow_invoices']
+        for key in ['name', 'account_code', 'contact_details', 'address_fields', 'payment_terms', 'bank_details', 'allow_invoices']:
+            if key in update_input:
+                account_dict[key] = update_input[key]
         account_dict['updated_by'] = user_id
 
         # Update the account
@@ -178,7 +165,7 @@ class AccountManager(BaseManager[Account]):
 
         # Capture after state for audit
         after_state = extract_relevant_fields(
-            updated_account, ['name', 'primary_email', 'primary_phone', 'address_line1', 'is_active']
+            updated_account, ['name', 'contact_details', 'address_fields', 'payment_terms', 'allow_invoices']
         )
 
         # Audit log
@@ -293,7 +280,7 @@ class AccountManager(BaseManager[Account]):
             action_type='deleted',
             performed_by=0,  # No user_id passed to delete method currently
             changes=create_change_dict(before=extract_relevant_fields(
-                account, ['name', 'primary_email', 'primary_phone']
+                account, ['name', 'contact_details']
             )),
             description=f"Account '{account.name}' deleted"
         )
