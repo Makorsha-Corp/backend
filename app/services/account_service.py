@@ -226,7 +226,6 @@ class AccountService(BaseService):
                 "workspace_id": account.workspace_id,
                 "name": account.name,
                 "account_code": account.account_code,
-<<<<<<< HEAD
                 "primary_contact_person": account.primary_contact_person,
                 "primary_email": account.primary_email,
                 "primary_phone": account.primary_phone,
@@ -238,11 +237,6 @@ class AccountService(BaseService):
                 "country": account.country,
                 "postal_code": account.postal_code,
                 "payment_preferences": account.payment_preferences,
-=======
-                "contact_details": account.contact_details,
-                "address_fields": account.address_fields,
-                "payment_terms": account.payment_terms,
->>>>>>> 7efdb37393fc0c50a97a249e15329b5c1ca50823
                 "bank_details": account.bank_details,
                 "allow_invoices": account.allow_invoices,
                 "created_at": account.created_at,
