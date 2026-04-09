@@ -34,10 +34,6 @@ class AccountBase(BaseModel):
 
     # Admin Controls
     allow_invoices: bool = True
-    invoices_disabled_reason: Optional[str] = None
-
-    # Status
-    is_active: bool = True
 
 
 class AccountCreate(AccountBase):
@@ -75,10 +71,6 @@ class AccountUpdate(BaseModel):
 
     # Admin Controls
     allow_invoices: Optional[bool] = None
-    invoices_disabled_reason: Optional[str] = None
-
-    # Status
-    is_active: Optional[bool] = None
     tag_ids: Optional[List[int]] = None  # Update tags if provided
 
 
@@ -89,12 +81,6 @@ class AccountInDB(AccountBase):
     id: int
     workspace_id: int
     created_at: datetime
-    created_by: Optional[int]
-    updated_at: Optional[datetime]
-    updated_by: Optional[int]
-    is_deleted: bool
-    deleted_at: Optional[datetime]
-    deleted_by: Optional[int]
 
 
 class AccountResponse(AccountInDB):
@@ -104,4 +90,4 @@ class AccountResponse(AccountInDB):
 
 class AccountWithTagsResponse(AccountInDB):
     """Account response schema with tags included"""
-    tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon
+    account_tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon

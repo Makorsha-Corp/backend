@@ -50,8 +50,16 @@ class AccountManager(BaseManager[Account]):
         # Extract tag_ids before creating account
         tag_ids = account_data.tag_ids if hasattr(account_data, 'tag_ids') else []
 
-        # Convert Pydantic model to dict and inject workspace/audit fields
-        account_dict = account_data.model_dump(exclude={'tag_ids'})
+        account_input = account_data.model_dump(exclude={'tag_ids'})
+        account_dict = {
+            'name': account_input.get('name'),
+            'account_code': account_input.get('account_code'),
+            'contact_details': account_input.get('contact_details'),
+            'address_fields': account_input.get('address_fields'),
+            'payment_terms': account_input.get('payment_terms'),
+            'bank_details': account_input.get('bank_details'),
+            'allow_invoices': account_input.get('allow_invoices', True),
+        }
         account_dict['workspace_id'] = workspace_id
         account_dict['created_by'] = user_id
 
@@ -77,7 +85,7 @@ class AccountManager(BaseManager[Account]):
             action_type='created',
             performed_by=user_id,
             changes=create_change_dict(after=extract_relevant_fields(
-                account, ['name', 'primary_email', 'primary_phone', 'address_line1']
+                account, ['name', 'contact_details', 'address_fields']
             )),
             description=f"Account '{account.name}' created"
         )
@@ -121,7 +129,7 @@ class AccountManager(BaseManager[Account]):
 
         # Capture before state for audit
         before_state = extract_relevant_fields(
-            account, ['name', 'primary_email', 'primary_phone', 'address_line1', 'is_active']
+            account, ['name', 'contact_details', 'address_fields', 'payment_terms', 'allow_invoices']
         )
 
         # Extract tag_ids if provided
@@ -129,8 +137,11 @@ class AccountManager(BaseManager[Account]):
         if hasattr(account_data, 'tag_ids') and account_data.tag_ids is not None:
             tag_ids = account_data.tag_ids
 
-        # Inject updated_by for audit
-        account_dict = account_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
+        update_input = account_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
+        account_dict = {}
+        for key in ['name', 'account_code', 'contact_details', 'address_fields', 'payment_terms', 'bank_details', 'allow_invoices']:
+            if key in update_input:
+                account_dict[key] = update_input[key]
         account_dict['updated_by'] = user_id
 
         # Update the account
@@ -154,7 +165,7 @@ class AccountManager(BaseManager[Account]):
 
         # Capture after state for audit
         after_state = extract_relevant_fields(
-            updated_account, ['name', 'primary_email', 'primary_phone', 'address_line1', 'is_active']
+            updated_account, ['name', 'contact_details', 'address_fields', 'payment_terms', 'allow_invoices']
         )
 
         # Audit log
@@ -269,7 +280,7 @@ class AccountManager(BaseManager[Account]):
             action_type='deleted',
             performed_by=0,  # No user_id passed to delete method currently
             changes=create_change_dict(before=extract_relevant_fields(
-                account, ['name', 'primary_email', 'primary_phone']
+                account, ['name', 'contact_details']
             )),
             description=f"Account '{account.name}' deleted"
         )

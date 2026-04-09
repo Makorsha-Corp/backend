@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.account import AccountCreate, AccountUpdate, AccountResponse, AccountWithTagsResponse
+from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
 from app.services.account_service import account_service
 
 
@@ -67,7 +67,7 @@ def get_account(
 
 @router.post(
     "/",
-    response_model=AccountResponse,
+    response_model=AccountWithTagsResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new account",
     description="Create a new account. Returns the created account."
@@ -85,12 +85,12 @@ def create_account(
     Any exceptions are handled by global exception handlers.
     """
     account = account_service.create_account(db, account_in, workspace.id, current_user.id)
-    return account
+    return account_service.get_account_with_tags(db, account.id, workspace_id=workspace.id)
 
 
 @router.put(
     "/{account_id}/",
-    response_model=AccountResponse,
+    response_model=AccountWithTagsResponse,
     status_code=status.HTTP_200_OK,
     summary="Update account",
     description="Update an existing account. Returns the updated account."
@@ -109,7 +109,7 @@ def update_account(
     Returns updated account directly (no wrapper).
     """
     account = account_service.update_account(db, account_id, account_in, workspace.id, current_user.id)
-    return account
+    return account_service.get_account_with_tags(db, account.id, workspace_id=workspace.id)
 
 
 @router.delete(

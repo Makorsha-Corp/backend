@@ -42,11 +42,7 @@ class Account(Base):
     bank_details = Column(Text, nullable=True)
 
     # Admin Controls
-    allow_invoices = Column(Boolean, nullable=False, default=True)  # Admin can disable invoice creation
-    invoices_disabled_reason = Column(Text, nullable=True)  # Why invoices are disabled
-
-    # Notes
-    notes = Column(Text, nullable=True)
+    allow_invoices = Column(Boolean, nullable=False, default=True)
 
     # Audit Fields
     created_at = Column(DateTime, nullable=False, server_default=func.now())

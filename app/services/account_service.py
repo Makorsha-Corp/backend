@@ -138,17 +138,8 @@ class AccountService(BaseService):
             "payment_preferences": account.payment_preferences,
             "bank_details": account.bank_details,
             "allow_invoices": account.allow_invoices,
-            "invoices_disabled_reason": account.invoices_disabled_reason,
-            "notes": account.notes,
-            "is_active": account.is_active,
-            "is_deleted": account.is_deleted,
             "created_at": account.created_at,
-            "updated_at": account.updated_at,
-            "created_by": account.created_by,
-            "updated_by": account.updated_by,
-            "deleted_at": account.deleted_at,
-            "deleted_by": account.deleted_by,
-            "tags": [
+            "account_tags": [
                 {
                     "id": tag.id,
                     "name": tag.name,
@@ -235,6 +226,7 @@ class AccountService(BaseService):
                 "workspace_id": account.workspace_id,
                 "name": account.name,
                 "account_code": account.account_code,
+<<<<<<< HEAD
                 "primary_contact_person": account.primary_contact_person,
                 "primary_email": account.primary_email,
                 "primary_phone": account.primary_phone,
@@ -246,19 +238,15 @@ class AccountService(BaseService):
                 "country": account.country,
                 "postal_code": account.postal_code,
                 "payment_preferences": account.payment_preferences,
+=======
+                "contact_details": account.contact_details,
+                "address_fields": account.address_fields,
+                "payment_terms": account.payment_terms,
+>>>>>>> 7efdb37393fc0c50a97a249e15329b5c1ca50823
                 "bank_details": account.bank_details,
                 "allow_invoices": account.allow_invoices,
-                "invoices_disabled_reason": account.invoices_disabled_reason,
-                "notes": account.notes,
-                "is_active": account.is_active,
-                "is_deleted": account.is_deleted,
                 "created_at": account.created_at,
-                "updated_at": account.updated_at,
-                "created_by": account.created_by,
-                "updated_by": account.updated_by,
-                "deleted_at": account.deleted_at,
-                "deleted_by": account.deleted_by,
-                "tags": [
+                "account_tags": [
                     {
                         "id": tag.id,
                         "name": tag.name,
