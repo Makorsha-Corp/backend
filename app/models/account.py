@@ -1,5 +1,5 @@
 """Account model - unified entity for suppliers, clients, utilities, payroll, etc."""
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -35,19 +35,11 @@ class Account(Base):
     country = Column(String(100), nullable=True)
     postal_code = Column(String(20), nullable=True)
 
-    # Business Details
-    tax_id = Column(String(100), nullable=True)  # GST/VAT/TIN number
-    business_registration_number = Column(String(100), nullable=True)
+    # Payment Preferences
+    payment_preferences = Column(Text, nullable=True)
 
-    # Financial Terms
-    payment_terms = Column(String(100), nullable=True)  # "Net 30", "Net 60", "Cash", etc.
-    credit_limit = Column(Numeric(15, 2), nullable=True)
-    currency = Column(String(3), nullable=True, default='USD')
-
-    # Banking Info (for reference)
-    bank_name = Column(String(255), nullable=True)
-    bank_account_number = Column(String(100), nullable=True)
-    bank_swift_code = Column(String(50), nullable=True)
+    # Banking Info
+    bank_details = Column(Text, nullable=True)
 
     # Admin Controls
     allow_invoices = Column(Boolean, nullable=False, default=True)  # Admin can disable invoice creation

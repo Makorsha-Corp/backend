@@ -13,6 +13,9 @@ class AccountBase(BaseModel):
     primary_contact_person: Optional[str] = Field(None, max_length=255)
     primary_email: Optional[str] = Field(None, max_length=255)
     primary_phone: Optional[str] = Field(None, max_length=50)
+    secondary_contact_person: Optional[str] = Field(None, max_length=255)
+    secondary_email: Optional[str] = Field(None, max_length=255)
+    secondary_phone: Optional[str] = Field(None, max_length=50)
 
     # Address
     address: Optional[str] = None
@@ -20,9 +23,11 @@ class AccountBase(BaseModel):
     postal_code: Optional[str] = Field(None, max_length=20)
     country: Optional[str] = Field(None, max_length=100)
 
-    # Financial
-    payment_terms: Optional[str] = Field(None, max_length=100)
-    tax_id: Optional[str] = Field(None, max_length=100)
+    # Payment Preferences
+    payment_preferences: Optional[str] = None
+
+    # Banking Info
+    bank_details: Optional[str] = None
 
     # Notes
     notes: Optional[str] = None
@@ -49,6 +54,9 @@ class AccountUpdate(BaseModel):
     primary_contact_person: Optional[str] = Field(None, max_length=255)
     primary_email: Optional[str] = Field(None, max_length=255)
     primary_phone: Optional[str] = Field(None, max_length=50)
+    secondary_contact_person: Optional[str] = Field(None, max_length=255)
+    secondary_email: Optional[str] = Field(None, max_length=255)
+    secondary_phone: Optional[str] = Field(None, max_length=50)
 
     # Address
     address: Optional[str] = None
@@ -56,9 +64,11 @@ class AccountUpdate(BaseModel):
     postal_code: Optional[str] = Field(None, max_length=20)
     country: Optional[str] = Field(None, max_length=100)
 
-    # Financial
-    payment_terms: Optional[str] = Field(None, max_length=100)
-    tax_id: Optional[str] = Field(None, max_length=100)
+    # Payment Preferences
+    payment_preferences: Optional[str] = None
+
+    # Banking Info
+    bank_details: Optional[str] = None
 
     # Notes
     notes: Optional[str] = None
