@@ -25,9 +25,20 @@ from app.schemas.production_batch_item import (
     ProductionBatchItemResponse,
 )
 from app.services.production_batch_service import production_batch_service
+from app.dao.product_ledger import product_ledger_dao
+from app.models.production_batch import ProductionBatch as ProductionBatchModel
 
 
 router = APIRouter()
+
+
+def _batch_response(db: Session, workspace_id: int, batch: ProductionBatchModel) -> ProductionBatchResponse:
+    posted = product_ledger_dao.exists_for_production_batch(
+        db, workspace_id=workspace_id, batch_id=batch.id
+    )
+    return ProductionBatchResponse.model_validate(batch).model_copy(
+        update={"finished_goods_posted": posted}
+    )
 
 
 # ─── Workflow Request Schemas ────────────────────────────────────────
@@ -45,6 +56,23 @@ class CompleteBatchRequest(BaseModel):
     actual_output_quantity: Optional[int] = Field(None, gt=0, description="Actual output produced")
     actual_duration_minutes: Optional[int] = Field(None, ge=0, description="Actual time taken in minutes")
     notes: Optional[str] = Field(None, description="Completion notes")
+    post_outputs_to_finished_goods: bool = Field(
+        False,
+        description="If true, post output (and optionally byproduct) quantities to factory finished goods (products) in the same request.",
+    )
+    post_finished_goods_include_byproducts: bool = Field(
+        True,
+        description="When posting to finished goods, include byproduct line quantities.",
+    )
+
+
+class PostFinishedGoodsRequest(BaseModel):
+    """Optional body when posting a completed batch to finished goods."""
+
+    include_byproducts: bool = Field(
+        True,
+        description="Include byproduct lines when posting quantities.",
+    )
 
 
 class CancelBatchRequest(BaseModel):
@@ -102,9 +130,8 @@ def get_batch(
     db: Session = Depends(get_db),
 ):
     """Get production batch by ID"""
-    return production_batch_service.get_batch(
-        db, batch_id, workspace_id=workspace.id
-    )
+    batch = production_batch_service.get_batch(db, batch_id, workspace_id=workspace.id)
+    return _batch_response(db, workspace.id, batch)
 
 
 @router.post(
@@ -232,12 +259,48 @@ def complete_batch(
     db: Session = Depends(get_db),
 ):
     """Complete a production batch"""
-    return production_batch_service.complete_batch(
-        db, batch_id, workspace.id, current_user.id,
+    result = production_batch_service.complete_batch(
+        db,
+        batch_id,
+        workspace.id,
+        current_user.id,
         actual_output_quantity=body.actual_output_quantity,
         actual_duration_minutes=body.actual_duration_minutes,
-        notes=body.notes
+        notes=body.notes,
+        post_outputs_to_finished_goods=body.post_outputs_to_finished_goods,
+        post_finished_goods_include_byproducts=body.post_finished_goods_include_byproducts,
     )
+    return _batch_response(db, workspace.id, result)
+
+
+@router.post(
+    "/{batch_id}/post-finished-goods/",
+    response_model=ProductionBatchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Post batch outputs to finished goods",
+    description="""
+    For a **completed** batch, add output and optional byproduct quantities to factory
+    finished goods (`products`, not-for-sale bucket). Each batch can only be posted once.
+
+    Quantities come from batch line actuals (fallback: expected), or from batch actual output
+    when the formula defines a single output item.
+    """,
+)
+def post_finished_goods(
+    batch_id: int,
+    body: PostFinishedGoodsRequest = PostFinishedGoodsRequest(),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    result = production_batch_service.post_outputs_to_finished_goods(
+        db,
+        batch_id,
+        workspace.id,
+        current_user.id,
+        include_byproducts=body.include_byproducts,
+    )
+    return _batch_response(db, workspace.id, result)
 
 
 @router.post(

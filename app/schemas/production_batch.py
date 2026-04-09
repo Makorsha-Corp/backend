@@ -66,4 +66,9 @@ class ProductionBatchInDB(ProductionBatchBase):
 
 class ProductionBatchResponse(ProductionBatchInDB):
     """Production batch response schema"""
-    pass
+
+    finished_goods_posted: bool = False
+    """
+    True when outputs for this batch have been posted to factory finished goods (products).
+    Only guaranteed accurate on GET /production-batches/{id}/; list endpoints may omit or default.
+    """

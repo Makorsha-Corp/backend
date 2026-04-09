@@ -1,4 +1,5 @@
 """Production Batch Manager for business logic"""
+from collections import defaultdict
 from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
@@ -12,6 +13,10 @@ from app.dao.production_line import production_line_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
 from app.dao.item import item_dao
+from app.dao.production_line import production_line_dao
+from app.dao.production_formula_item import production_formula_item_dao
+from app.dao.product_ledger import product_ledger_dao
+from app.managers.product_manager import product_manager
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
 from app.schemas.production_batch_item import ProductionBatchItemCreate, ProductionBatchItemUpdate
 
@@ -514,6 +519,92 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                     session, db_obj=bi,
                     obj_in={'variance_quantity': variance, 'variance_percentage': variance_pct}
                 )
+
+    def post_outputs_to_finished_goods(
+        self,
+        session: Session,
+        batch_id: int,
+        workspace_id: int,
+        user_id: int,
+        *,
+        include_byproducts: bool = True,
+    ) -> int:
+        """
+        Post output and optional byproduct quantities to finished goods (products) for the batch's factory.
+
+        Idempotent: raises if any product ledger row already exists for this batch.
+
+        Returns:
+            Number of distinct items posted (ledger lines created).
+        """
+        if product_ledger_dao.exists_for_production_batch(
+            session, workspace_id=workspace_id, batch_id=batch_id
+        ):
+            raise ValueError(
+                "Finished goods for this batch have already been posted. "
+                "Each batch can only be received into products once."
+            )
+
+        batch = self.batch_dao.get_by_id_and_workspace(
+            session, id=batch_id, workspace_id=workspace_id
+        )
+        if not batch:
+            raise ValueError(f"Production batch {batch_id} not found")
+        if batch.status != "completed":
+            raise ValueError("Only completed batches can post outputs to finished goods")
+
+        line = production_line_dao.get_by_id_and_workspace(
+            session, id=batch.production_line_id, workspace_id=workspace_id
+        )
+        if not line:
+            raise ValueError("Production line not found for this batch")
+        factory_id = line.factory_id
+
+        roles = {"output"}
+        if include_byproducts:
+            roles.add("byproduct")
+
+        merged_qty: defaultdict[int, int] = defaultdict(int)
+        batch_items = self.batch_item_dao.get_by_batch(
+            session, batch_id=batch_id, workspace_id=workspace_id
+        )
+        for bi in batch_items:
+            if bi.item_role not in roles:
+                continue
+            qty = bi.actual_quantity if bi.actual_quantity is not None else bi.expected_quantity
+            if qty is None or qty <= 0:
+                continue
+            merged_qty[bi.item_id] += int(qty)
+
+        if not merged_qty and batch.actual_output_quantity and batch.actual_output_quantity > 0 and batch.formula_id:
+            outs = production_formula_item_dao.get_by_formula_and_role(
+                session,
+                formula_id=batch.formula_id,
+                item_role="output",
+                workspace_id=workspace_id,
+            )
+            if len(outs) == 1:
+                merged_qty[outs[0].item_id] += int(batch.actual_output_quantity)
+
+        if not merged_qty:
+            raise ValueError(
+                "No quantities to post. Enter actual amounts on output/byproduct lines, "
+                "or set actual output quantity on the batch when the formula has a single output item."
+            )
+
+        for item_id, qty in merged_qty.items():
+            product_manager.apply_production_output(
+                session,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                factory_id=factory_id,
+                item_id=item_id,
+                quantity=qty,
+                batch_id=batch_id,
+                unit_cost=None,
+            )
+
+        return len(merged_qty)
 
 
 # Singleton instance
