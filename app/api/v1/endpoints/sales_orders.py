@@ -136,9 +136,29 @@ def update_sales_order(
     Service layer will raise NotFoundError if order doesn't exist.
     """
     order = sales_service.update_sales_order(
-        db, order_id, workspace.id, order_update
+        db, order_id, workspace.id, order_update, user_id=current_user.id
     )
     return order
+
+
+@router.post(
+    "/{order_id}/create-invoice",
+    response_model=SalesOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create invoice from sales order",
+)
+def create_invoice_from_sales_order(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.create_invoice_for_sales_order(
+        db,
+        order_id=order_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+    )
 
 
 @router.get(

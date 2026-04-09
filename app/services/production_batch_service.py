@@ -215,8 +215,10 @@ class ProductionBatchService(BaseService):
         except ValueError as e:
             self._rollback_transaction(db)
             error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
+            if "not found" in error_msg.lower():
+                if "production batch" in error_msg.lower():
+                    raise NotFoundError(error_msg)
+                raise BusinessRuleError(error_msg)
             raise BusinessRuleError(error_msg)
         except Exception:
             self._rollback_transaction(db)
@@ -248,8 +250,10 @@ class ProductionBatchService(BaseService):
         except ValueError as e:
             self._rollback_transaction(db)
             error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
+            if "not found" in error_msg.lower():
+                if "production batch" in error_msg.lower():
+                    raise NotFoundError(error_msg)
+                raise BusinessRuleError(error_msg)
             raise BusinessRuleError(error_msg)
         except Exception:
             self._rollback_transaction(db)

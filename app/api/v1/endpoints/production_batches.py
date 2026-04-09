@@ -117,23 +117,6 @@ def get_batches(
     )
 
 
-@router.get(
-    "/{batch_id}/",
-    response_model=ProductionBatchResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Get production batch by ID",
-    description="Retrieve a single production batch by its ID. Raises 404 if not found.",
-)
-def get_batch(
-    batch_id: int,
-    workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db),
-):
-    """Get production batch by ID"""
-    batch = production_batch_service.get_batch(db, batch_id, workspace_id=workspace.id)
-    return _batch_response(db, workspace.id, batch)
-
-
 @router.post(
     "/",
     response_model=ProductionBatchResponse,
@@ -156,45 +139,6 @@ def create_batch(
     return production_batch_service.create_batch(
         db, batch_in, workspace.id, current_user.id
     )
-
-
-@router.put(
-    "/{batch_id}/",
-    response_model=ProductionBatchResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Update production batch",
-    description="""
-    Update a production batch. Only draft or in_progress batches can be updated.
-    Status changes must use the dedicated workflow endpoints (start, complete, cancel).
-    """,
-)
-def update_batch(
-    batch_id: int,
-    batch_in: ProductionBatchUpdate,
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Update production batch"""
-    return production_batch_service.update_batch(
-        db, batch_id, batch_in, workspace.id, current_user.id
-    )
-
-
-@router.delete(
-    "/{batch_id}/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete production batch",
-    description="Cancel a draft batch. Only draft batches can be deleted. Returns 204 on success.",
-)
-def delete_batch(
-    batch_id: int,
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Delete (cancel) a draft production batch"""
-    production_batch_service.delete_batch(db, batch_id, workspace.id)
 
 
 # ─── Batch Workflow Endpoints ────────────────────────────────────────
@@ -419,3 +363,62 @@ def remove_batch_item(
 ):
     """Remove an item from a batch"""
     production_batch_service.remove_batch_item(db, batch_item_id, workspace.id)
+
+
+# ─── Batch by ID (after /{batch_id}/… sub-routes to avoid routing ambiguity) ──
+
+
+@router.get(
+    "/{batch_id}/",
+    response_model=ProductionBatchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get production batch by ID",
+    description="Retrieve a single production batch by its ID. Raises 404 if not found.",
+)
+def get_batch(
+    batch_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Get production batch by ID"""
+    batch = production_batch_service.get_batch(db, batch_id, workspace_id=workspace.id)
+    return _batch_response(db, workspace.id, batch)
+
+
+@router.put(
+    "/{batch_id}/",
+    response_model=ProductionBatchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update production batch",
+    description="""
+    Update a production batch. Only draft or in_progress batches can be updated.
+    Status changes must use the dedicated workflow endpoints (start, complete, cancel).
+    """,
+)
+def update_batch(
+    batch_id: int,
+    batch_in: ProductionBatchUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Update production batch"""
+    return production_batch_service.update_batch(
+        db, batch_id, batch_in, workspace.id, current_user.id
+    )
+
+
+@router.delete(
+    "/{batch_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete production batch",
+    description="Cancel a draft batch. Only draft batches can be deleted. Returns 204 on success.",
+)
+def delete_batch(
+    batch_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Delete (cancel) a draft production batch"""
+    production_batch_service.delete_batch(db, batch_id, workspace.id)

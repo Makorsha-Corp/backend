@@ -1,15 +1,24 @@
 """Sales Service for orchestrating sales workflows"""
+from datetime import date
+from decimal import Decimal
 from typing import List, Tuple
+
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.services.base_service import BaseService
 from app.managers.sales_manager import sales_manager
+from app.managers.account_invoice_manager import account_invoice_manager
+from app.dao.account import account_dao
 from app.models.sales_order import SalesOrder
 from app.models.sales_delivery import SalesDelivery
 from app.models.profile import Profile
+from app.models.status import Status
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
 from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
-from app.schemas.response import ActionMessage, success_message, info_message, warning_message
-from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.schemas.account_invoice import AccountInvoiceCreate
+from app.schemas.response import ActionMessage, success_message, info_message
+from app.core.exceptions import NotFoundError
 
 
 class SalesService(BaseService):
@@ -25,6 +34,118 @@ class SalesService(BaseService):
     def __init__(self):
         super().__init__()
         self.sales_manager = sales_manager
+        self.account_invoice_manager = account_invoice_manager
+
+    @staticmethod
+    def _is_completed_status(db: Session, workspace_id: int, status_id: int) -> bool:
+        """True if this status row belongs to the workspace and its name is Completed (case-insensitive)."""
+        st = (
+            db.query(Status)
+            .filter(Status.id == status_id, Status.workspace_id == workspace_id)
+            .first()
+        )
+        if not st or not st.name:
+            return False
+        return st.name.strip().lower() == "completed"
+
+    def _attach_receivable_invoice_to_sales_order(
+        self,
+        db: Session,
+        order: SalesOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """
+        Create one receivable invoice for the sales order and link it (no commit).
+        Caller must ensure the order is not already invoiced.
+        """
+        if order.account_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Cannot create invoice: sales order has no customer account",
+            )
+
+        account = account_dao.get_by_id_and_workspace(
+            db, id=order.account_id, workspace_id=workspace_id
+        )
+        if not account:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Cannot create invoice: customer account was not found in this workspace",
+            )
+        if not account.allow_invoices:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Cannot create invoice: invoicing is disabled for this account",
+            )
+
+        invoice_in = AccountInvoiceCreate(
+            account_id=order.account_id,
+            order_id=None,
+            invoice_type="receivable",
+            invoice_amount=Decimal(str(order.total_amount or 0)),
+            invoice_number=None,
+            vendor_invoice_number=None,
+            invoice_date=date.today(),
+            due_date=None,
+            description=f"Auto-created from sales order {order.sales_order_number}",
+            notes=order.notes,
+            allow_payments=True,
+            payment_locked_reason=None,
+        )
+
+        try:
+            invoice = self.account_invoice_manager.create_invoice(
+                session=db,
+                invoice_data=invoice_in,
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_404_NOT_FOUND:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Cannot create invoice: customer account was not found in this workspace",
+                ) from exc
+            raise
+
+        order.invoice_id = invoice.id
+        order.is_invoiced = True
+        db.flush()
+
+    def create_invoice_for_sales_order(
+        self,
+        db: Session,
+        order_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> SalesOrder:
+        """
+        Create exactly one receivable account invoice from a sales order (manual retry / explicit API).
+        """
+        try:
+            order = self.get_sales_order(db, order_id, workspace_id)
+
+            if order.invoice_id is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Invoice already exists for this sales order",
+                )
+            if order.is_invoiced:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Invoice already exists for this sales order",
+                )
+
+            self._attach_receivable_invoice_to_sales_order(
+                db, order, workspace_id, user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(order)
+            return order
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
     def create_sales_order(
         self,
@@ -152,16 +273,21 @@ class SalesService(BaseService):
         db: Session,
         order_id: int,
         workspace_id: int,
-        order_update: SalesOrderUpdate
+        order_update: SalesOrderUpdate,
+        user_id: int,
     ) -> SalesOrder:
         """
         Update sales order.
+
+        When current_status_id changes to a workspace status named \"Completed\" (case-insensitive),
+        creates a receivable invoice in the same transaction if not already invoiced.
 
         Args:
             db: Database session
             order_id: Sales order ID
             workspace_id: Workspace ID
             order_update: Update data
+            user_id: User performing the update (invoice created_by context)
 
         Returns:
             Updated sales order
@@ -171,17 +297,31 @@ class SalesService(BaseService):
         """
         try:
             order = self.get_sales_order(db, order_id, workspace_id)
+            prev_status_id = order.current_status_id
 
             updated_order = self.sales_manager.sales_order_dao.update(
                 db, db_obj=order, obj_in=order_update
             )
+
+            if order_update.current_status_id is not None:
+                new_status_id = updated_order.current_status_id
+                if prev_status_id != new_status_id and self._is_completed_status(
+                    db, workspace_id, new_status_id
+                ):
+                    if (
+                        updated_order.invoice_id is None
+                        and not updated_order.is_invoiced
+                    ):
+                        self._attach_receivable_invoice_to_sales_order(
+                            db, updated_order, workspace_id, user_id
+                        )
 
             self._commit_transaction(db)
             db.refresh(updated_order)
 
             return updated_order
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -248,7 +388,6 @@ class SalesService(BaseService):
         3. Update inventory ledger (transfer_out)
         4. Update inventory snapshot
         5. Check if order fully delivered
-        6. Auto-generate invoice if configured
 
         Args:
             db: Database session

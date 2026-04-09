@@ -5,17 +5,40 @@ Provides operations for managing product records and querying ledger.
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.dao.product_ledger import product_ledger_dao
+from app.models.production_batch import ProductionBatch as ProductionBatchModel
 from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from app.schemas.product_ledger import ProductLedgerResponse
+from app.schemas.production_batch import ProductionBatchResponse
 from app.services.product_service import product_service
+from app.services.production_batch_service import production_batch_service
 
 
 router = APIRouter()
+
+
+class ReceiveFromProductionBatchBody(BaseModel):
+    include_byproducts: bool = Field(
+        True,
+        description="Include byproduct lines when posting quantities.",
+    )
+
+
+def _production_batch_response_with_fg(
+    db: Session, workspace_id: int, batch: ProductionBatchModel
+) -> ProductionBatchResponse:
+    posted = product_ledger_dao.exists_for_production_batch(
+        db, workspace_id=workspace_id, batch_id=batch.id
+    )
+    return ProductionBatchResponse.model_validate(batch).model_copy(
+        update={"finished_goods_posted": posted}
+    )
 
 
 @router.get(
@@ -61,6 +84,33 @@ def list_ledger(
         factory_id=factory_id,
         item_id=item_id, skip=skip, limit=limit
     )
+
+
+@router.post(
+    "/receive-from-batch/{batch_id}/",
+    response_model=ProductionBatchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Receive production batch into finished goods",
+    description=(
+        "For a completed batch, post output and optional byproduct quantities to factory products "
+        "(same as POST /production-batches/{batch_id}/post-finished-goods/)."
+    ),
+)
+def receive_from_production_batch(
+    batch_id: int,
+    body: ReceiveFromProductionBatchBody = ReceiveFromProductionBatchBody(),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    batch = production_batch_service.post_outputs_to_finished_goods(
+        db,
+        batch_id,
+        workspace.id,
+        current_user.id,
+        include_byproducts=body.include_byproducts,
+    )
+    return _production_batch_response_with_fg(db, workspace.id, batch)
 
 
 @router.get(
