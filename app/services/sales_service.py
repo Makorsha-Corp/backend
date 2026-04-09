@@ -1,7 +1,7 @@
 """Sales Service for orchestrating sales workflows"""
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,17 +19,6 @@ from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
 from app.schemas.account_invoice import AccountInvoiceCreate
 from app.schemas.response import ActionMessage, success_message, info_message
 from app.core.exceptions import NotFoundError
-
-# Must align with sales Kanban "completed" column (see salesOrderStatusConstants.ts).
-_SALES_INVOICE_TRIGGER_STATUS_NAMES = frozenset(
-    {"completed", "complete", "done", "closed"}
-)
-
-
-def _status_name_triggers_sales_receivable_invoice(name: Optional[str]) -> bool:
-    if not name:
-        return False
-    return name.strip().lower() in _SALES_INVOICE_TRIGGER_STATUS_NAMES
 
 
 class SalesService(BaseService):
@@ -49,18 +38,15 @@ class SalesService(BaseService):
 
     @staticmethod
     def _is_completed_status(db: Session, workspace_id: int, status_id: int) -> bool:
-        """
-        True if this status belongs to the workspace and its name is a terminal "completed-like"
-        label (same rules as the sales Kanban completed column).
-        """
+        """True if this status row belongs to the workspace and its name is Completed (case-insensitive)."""
         st = (
             db.query(Status)
             .filter(Status.id == status_id, Status.workspace_id == workspace_id)
             .first()
         )
-        if not st:
+        if not st or not st.name:
             return False
-        return _status_name_triggers_sales_receivable_invoice(st.name)
+        return st.name.strip().lower() == "completed"
 
     def _attach_receivable_invoice_to_sales_order(
         self,
@@ -293,8 +279,7 @@ class SalesService(BaseService):
         """
         Update sales order.
 
-        When current_status_id changes to a workspace status whose name is a completed-like
-        terminal label (e.g. Completed, Complete, Done, Closed — case-insensitive),
+        When current_status_id changes to a workspace status named \"Completed\" (case-insensitive),
         creates a receivable invoice in the same transaction if not already invoiced.
 
         Args:
