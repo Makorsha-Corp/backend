@@ -82,11 +82,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     def list_purchase_orders(
         self, session: Session, workspace_id: int,
         account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[PurchaseOrder]:
         return self.po_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             account_id=account_id,
+            invoice_id=invoice_id,
             skip=skip, limit=limit
         )
 

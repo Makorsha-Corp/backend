@@ -83,11 +83,13 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         self, session: Session, workspace_id: int,
         expense_category: Optional[str] = None,
         account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[ExpenseOrder]:
         return self.eo_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             expense_category=expense_category, account_id=account_id,
+            invoice_id=invoice_id,
             skip=skip, limit=limit
         )
 

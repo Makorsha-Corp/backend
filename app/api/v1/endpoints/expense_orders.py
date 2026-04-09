@@ -29,12 +29,13 @@ def list_expense_orders(
     limit: int = Query(100, ge=1, le=1000),
     expense_category: Optional[str] = Query(None),
     account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
     return expense_order_service.list_expense_orders(
         db, workspace_id=workspace.id,
-        expense_category=expense_category, account_id=account_id,
+        expense_category=expense_category, account_id=account_id, invoice_id=invoice_id,
         skip=skip, limit=limit
     )
 

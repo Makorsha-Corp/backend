@@ -28,12 +28,14 @@ def list_purchase_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
     return purchase_order_service.list_purchase_orders(
         db, workspace_id=workspace.id,
         account_id=account_id,
+        invoice_id=invoice_id,
         skip=skip, limit=limit
     )
 

@@ -57,11 +57,13 @@ class PurchaseOrderService(BaseService):
     def list_purchase_orders(
         self, db: Session, workspace_id: int,
         account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[PurchaseOrder]:
         return self.manager.list_purchase_orders(
             db, workspace_id=workspace_id,
             account_id=account_id,
+            invoice_id=invoice_id,
             skip=skip, limit=limit
         )
 
