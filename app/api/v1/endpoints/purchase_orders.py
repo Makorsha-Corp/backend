@@ -102,6 +102,26 @@ def delete_purchase_order(
     purchase_order_service.delete_purchase_order(db, po_id=po_id, workspace_id=workspace.id)
 
 
+@router.post(
+    "/{po_id}/create-invoice",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create invoice from purchase order"
+)
+def create_invoice_from_purchase_order(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    return purchase_order_service.create_invoice_for_purchase_order(
+        db,
+        po_id=po_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id
+    )
+
+
 # ─── Purchase Order Items ──────────────────────────────────────
 
 @router.get(

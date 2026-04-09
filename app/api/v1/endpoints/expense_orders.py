@@ -103,6 +103,26 @@ def delete_expense_order(
     expense_order_service.delete_expense_order(db, eo_id=eo_id, workspace_id=workspace.id)
 
 
+@router.post(
+    "/{eo_id}/create-invoice",
+    response_model=ExpenseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create invoice from expense order"
+)
+def create_invoice_from_expense_order(
+    eo_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    return expense_order_service.create_invoice_for_expense_order(
+        db,
+        eo_id=eo_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id
+    )
+
+
 # ─── Expense Order Items ──────────────────────────────────────
 
 @router.get(

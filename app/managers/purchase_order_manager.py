@@ -94,6 +94,14 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         record = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Purchase order with ID {po_id} not found")
+        # Delete line items explicitly to avoid FK issues when DB constraints
+        # were created without cascading deletes.
+        line_items = self.item_dao.get_by_order(
+            session, purchase_order_id=po_id, workspace_id=workspace_id
+        )
+        for line_item in line_items:
+            session.delete(line_item)
+        session.flush()
         session.delete(record)
         session.flush()
 
