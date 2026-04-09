@@ -29,9 +29,6 @@ class AccountBase(BaseModel):
     # Banking Info
     bank_details: Optional[str] = None
 
-    # Notes
-    notes: Optional[str] = None
-
     # Admin Controls
     allow_invoices: bool = True
 
@@ -65,9 +62,6 @@ class AccountUpdate(BaseModel):
 
     # Banking Info
     bank_details: Optional[str] = None
-
-    # Notes
-    notes: Optional[str] = None
 
     # Admin Controls
     allow_invoices: Optional[bool] = None
