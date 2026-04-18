@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from app.services.base_service import BaseService
 from app.managers.account_manager import account_manager
 from app.models.account import Account
-from app.models.profile import Profile
 from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.dao.account import account_dao
+from app.dao.account_tag import account_tag_dao
 
 
 class AccountService(BaseService):
@@ -303,6 +304,121 @@ class AccountService(BaseService):
             self._rollback_transaction(db)
             raise
         except Exception as e:
+            self._rollback_transaction(db)
+            raise
+
+    def get_accounts_by_tag_id(
+        self,
+        db: Session,
+        tag_id: int,
+        workspace_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[dict]:
+        """
+        Get all accounts that have a specific tag assigned.
+
+        Raises:
+            NotFoundError: If the tag does not exist in the workspace
+        """
+        tag = account_tag_dao.get_by_id_and_workspace(db, id=tag_id, workspace_id=workspace_id)
+        if not tag:
+            raise NotFoundError(f"Account tag {tag_id} not found")
+
+        accounts = account_dao.get_accounts_by_tag_id(
+            db, workspace_id=workspace_id, tag_id=tag_id, skip=skip, limit=limit
+        )
+
+        result = []
+        for account in accounts:
+            tags = self.account_manager.get_tags_for_account(
+                session=db, account_id=account.id, workspace_id=workspace_id
+            )
+            result.append({
+                "id": account.id,
+                "workspace_id": account.workspace_id,
+                "name": account.name,
+                "account_code": account.account_code,
+                "primary_contact_person": account.primary_contact_person,
+                "primary_email": account.primary_email,
+                "primary_phone": account.primary_phone,
+                "secondary_contact_person": account.secondary_contact_person,
+                "secondary_email": account.secondary_email,
+                "secondary_phone": account.secondary_phone,
+                "address": account.address,
+                "city": account.city,
+                "country": account.country,
+                "postal_code": account.postal_code,
+                "payment_preferences": account.payment_preferences,
+                "bank_details": account.bank_details,
+                "allow_invoices": account.allow_invoices,
+                "created_at": account.created_at,
+                "account_tags": [
+                    {
+                        "id": t.id,
+                        "name": t.name,
+                        "tag_code": t.tag_code,
+                        "color": t.color,
+                        "icon": t.icon,
+                        "is_system_tag": t.is_system_tag
+                    }
+                    for t in tags
+                ]
+            })
+        return result
+
+    def assign_tag(
+        self,
+        db: Session,
+        account_id: int,
+        tag_id: int,
+        workspace_id: int,
+        user_id: int
+    ) -> dict:
+        """Assign a tag to an account. Returns updated account with tags."""
+        try:
+            self.account_manager.assign_tag(
+                session=db,
+                account_id=account_id,
+                tag_id=tag_id,
+                workspace_id=workspace_id,
+                user_id=user_id
+            )
+            self._commit_transaction(db)
+            return self.get_account_with_tags(db, account_id, workspace_id=workspace_id)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def unassign_tag(
+        self,
+        db: Session,
+        account_id: int,
+        tag_id: int,
+        workspace_id: int
+    ) -> None:
+        """Remove a tag from an account."""
+        try:
+            self.account_manager.unassign_tag(
+                session=db,
+                account_id=account_id,
+                tag_id=tag_id,
+                workspace_id=workspace_id
+            )
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
             self._rollback_transaction(db)
             raise
 

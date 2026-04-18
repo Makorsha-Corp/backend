@@ -346,6 +346,69 @@ class AccountManager(BaseManager[Account]):
             # Increment tag usage count
             account_tag_dao.increment_usage_count(session, tag_id=tag_id, workspace_id=workspace_id)
 
+    def assign_tag(
+        self,
+        session: Session,
+        account_id: int,
+        tag_id: int,
+        workspace_id: int,
+        user_id: int
+    ) -> None:
+        """
+        Assign a single tag to an account.
+
+        Validates account and tag exist in workspace. No-ops if already assigned.
+        Does NOT commit.
+        """
+        account = self.account_dao.get(session, id=account_id)
+        if not account or account.workspace_id != workspace_id:
+            raise ValueError(f"Account {account_id} not found")
+
+        tag = account_tag_dao.get_by_id_and_workspace(session, id=tag_id, workspace_id=workspace_id)
+        if not tag:
+            raise ValueError(f"Account tag {tag_id} not found")
+        if not tag.is_active:
+            raise ValueError(f"Account tag {tag_id} is not active")
+
+        if account_tag_assignment_dao.assignment_exists(
+            session, account_id=account_id, tag_id=tag_id, workspace_id=workspace_id
+        ):
+            return  # Already assigned — idempotent
+
+        assignment_data = {
+            'account_id': account_id,
+            'tag_id': tag_id,
+            'workspace_id': workspace_id,
+            'assigned_by': user_id
+        }
+        account_tag_assignment_dao.create(session, obj_in=assignment_data)
+        account_tag_dao.increment_usage_count(session, tag_id=tag_id, workspace_id=workspace_id)
+
+    def unassign_tag(
+        self,
+        session: Session,
+        account_id: int,
+        tag_id: int,
+        workspace_id: int
+    ) -> None:
+        """
+        Remove a single tag from an account.
+
+        Validates account exists in workspace. Raises ValueError if assignment not found.
+        Does NOT commit.
+        """
+        account = self.account_dao.get(session, id=account_id)
+        if not account or account.workspace_id != workspace_id:
+            raise ValueError(f"Account {account_id} not found")
+
+        deleted = account_tag_assignment_dao.delete_assignment(
+            session, account_id=account_id, tag_id=tag_id, workspace_id=workspace_id
+        )
+        if not deleted:
+            raise ValueError(f"Tag {tag_id} is not assigned to account {account_id}")
+
+        account_tag_dao.decrement_usage_count(session, tag_id=tag_id, workspace_id=workspace_id)
+
     def get_tags_for_account(
         self,
         session: Session,

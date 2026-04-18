@@ -136,6 +136,44 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
 
         return query.offset(skip).limit(limit).distinct().all()
 
+    def get_accounts_by_tag_id(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        tag_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Account]:
+        """
+        Get all active accounts that have a specific tag assigned (SECURITY-CRITICAL)
+
+        Args:
+            db: Database session
+            workspace_id: Workspace ID to filter by
+            tag_id: Tag ID to filter by
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of accounts tagged with the given tag
+        """
+        return (
+            db.query(Account)
+            .join(AccountTagAssignment, Account.id == AccountTagAssignment.account_id)
+            .filter(
+                Account.workspace_id == workspace_id,
+                Account.is_active == True,
+                Account.is_deleted == False,
+                AccountTagAssignment.workspace_id == workspace_id,
+                AccountTagAssignment.tag_id == tag_id
+            )
+            .offset(skip)
+            .limit(limit)
+            .distinct()
+            .all()
+        )
+
     def get_accounts_with_invoices_enabled(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
     ) -> List[Account]:

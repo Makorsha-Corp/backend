@@ -45,6 +45,26 @@ def get_accounts(
 
 
 @router.get(
+    "/by-tag/{tag_id}/",
+    response_model=List[AccountWithTagsResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get accounts by tag",
+    description="Get all accounts that have a specific tag assigned. Raises 404 if the tag does not exist."
+)
+def get_accounts_by_tag(
+    tag_id: int,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, le=100, description="Maximum number of records to return"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Get all accounts with a specific tag"""
+    return account_service.get_accounts_by_tag_id(
+        db, tag_id=tag_id, workspace_id=workspace.id, skip=skip, limit=limit
+    )
+
+
+@router.get(
     "/{account_id}/",
     response_model=AccountWithTagsResponse,
     status_code=status.HTTP_200_OK,
@@ -110,6 +130,41 @@ def update_account(
     """
     account = account_service.update_account(db, account_id, account_in, workspace.id, current_user.id)
     return account_service.get_account_with_tags(db, account.id, workspace_id=workspace.id)
+
+
+@router.post(
+    "/{account_id}/tags/{tag_id}/",
+    response_model=AccountWithTagsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Assign tag to account",
+    description="Assign a tag to an account. No-op if the tag is already assigned."
+)
+def assign_tag(
+    account_id: int,
+    tag_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Assign a tag to an account"""
+    return account_service.assign_tag(db, account_id, tag_id, workspace.id, current_user.id)
+
+
+@router.delete(
+    "/{account_id}/tags/{tag_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unassign tag from account",
+    description="Remove a tag from an account. Raises 404 if the tag is not assigned."
+)
+def unassign_tag(
+    account_id: int,
+    tag_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    _current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Remove a tag from an account"""
+    account_service.unassign_tag(db, account_id, tag_id, workspace.id)
 
 
 @router.delete(
