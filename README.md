@@ -2,6 +2,8 @@
 
 FastAPI backend for the ERP system. By default it runs against a local SQLite database and exposes a versioned REST API under `/api/v1`.
 
+**Pagination:** each list endpoint sets its own `limit` maximum (`le=` in FastAPI). Those caps are easy to outgrow; see the full-stack note at `frontend/docs/api-pagination-limits.md` (in the Marker-Corp workspace) and grep `le=` under `app/api/v1/endpoints/` when changing limits.
+
 ---
 
 ## Getting Started (First Time Setup)

@@ -29,12 +29,13 @@ def list_expense_orders(
     limit: int = Query(100, ge=1, le=1000),
     expense_category: Optional[str] = Query(None),
     account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
     return expense_order_service.list_expense_orders(
         db, workspace_id=workspace.id,
-        expense_category=expense_category, account_id=account_id,
+        expense_category=expense_category, account_id=account_id, invoice_id=invoice_id,
         skip=skip, limit=limit
     )
 
@@ -101,6 +102,26 @@ def delete_expense_order(
     db: Session = Depends(get_db)
 ):
     expense_order_service.delete_expense_order(db, eo_id=eo_id, workspace_id=workspace.id)
+
+
+@router.post(
+    "/{eo_id}/create-invoice",
+    response_model=ExpenseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create invoice from expense order"
+)
+def create_invoice_from_expense_order(
+    eo_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    return expense_order_service.create_invoice_for_expense_order(
+        db,
+        eo_id=eo_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id
+    )
 
 
 # ─── Expense Order Items ──────────────────────────────────────

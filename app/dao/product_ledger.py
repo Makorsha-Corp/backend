@@ -29,6 +29,21 @@ class ProductLedgerDAO(BaseDAO[ProductLedger, ProductLedgerCreate, ProductLedger
             query = query.filter(ProductLedger.item_id == item_id)
         return query.order_by(desc(ProductLedger.performed_at)).offset(skip).limit(limit).all()
 
+    def exists_for_production_batch(
+        self, db: Session, *, workspace_id: int, batch_id: int
+    ) -> bool:
+        """True if any product ledger row was created from this production batch."""
+        return (
+            db.query(ProductLedger.id)
+            .filter(
+                ProductLedger.workspace_id == workspace_id,
+                ProductLedger.source_type == "production_batch",
+                ProductLedger.source_id == batch_id,
+            )
+            .first()
+            is not None
+        )
+
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
     ) -> Optional[ProductLedger]:

@@ -9,10 +9,21 @@ from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderUpdate,
 
 
 class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrderUpdate]):
-    def get_by_workspace(self, db: Session, *, workspace_id: int, account_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[PurchaseOrder]:
+    def get_by_workspace(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[PurchaseOrder]:
         query = db.query(PurchaseOrder).filter(PurchaseOrder.workspace_id == workspace_id)
         if account_id:
             query = query.filter(PurchaseOrder.account_id == account_id)
+        if invoice_id is not None:
+            query = query.filter(PurchaseOrder.invoice_id == invoice_id)
         return query.order_by(desc(PurchaseOrder.created_at)).offset(skip).limit(limit).all()
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:

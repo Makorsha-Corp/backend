@@ -181,12 +181,15 @@ class ProductionBatchService(BaseService):
         user_id: int,
         actual_output_quantity: Optional[int] = None,
         actual_duration_minutes: Optional[int] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        post_outputs_to_finished_goods: bool = False,
+        post_finished_goods_include_byproducts: bool = True,
     ) -> ProductionBatch:
         """
         Complete a production batch (in_progress → completed).
 
         Calculates variance between expected and actual values.
+        Optionally posts output/byproduct quantities to factory finished goods in the same transaction.
         """
         try:
             batch = self.batch_manager.complete_batch(
@@ -198,14 +201,59 @@ class ProductionBatchService(BaseService):
                 actual_duration_minutes=actual_duration_minutes,
                 notes=notes
             )
+            if post_outputs_to_finished_goods:
+                self.batch_manager.post_outputs_to_finished_goods(
+                    session=db,
+                    batch_id=batch.id,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    include_byproducts=post_finished_goods_include_byproducts,
+                )
             self._commit_transaction(db)
             db.refresh(batch)
             return batch
         except ValueError as e:
             self._rollback_transaction(db)
             error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
+            if "not found" in error_msg.lower():
+                if "production batch" in error_msg.lower():
+                    raise NotFoundError(error_msg)
+                raise BusinessRuleError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def post_outputs_to_finished_goods(
+        self,
+        db: Session,
+        batch_id: int,
+        workspace_id: int,
+        user_id: int,
+        include_byproducts: bool = True,
+    ) -> ProductionBatch:
+        """Post a completed batch's outputs to factory finished goods (products)."""
+        try:
+            self.batch_manager.post_outputs_to_finished_goods(
+                session=db,
+                batch_id=batch_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                include_byproducts=include_byproducts,
+            )
+            self._commit_transaction(db)
+            batch = self.batch_manager.get_batch(db, batch_id, workspace_id)
+            if not batch:
+                raise NotFoundError(f"Production batch with ID {batch_id} not found")
+            db.refresh(batch)
+            return batch
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg.lower():
+                if "production batch" in error_msg.lower():
+                    raise NotFoundError(error_msg)
+                raise BusinessRuleError(error_msg)
             raise BusinessRuleError(error_msg)
         except Exception:
             self._rollback_transaction(db)

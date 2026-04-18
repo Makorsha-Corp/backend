@@ -31,7 +31,7 @@ router = APIRouter()
 )
 def get_accounts(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, le=100, description="Maximum number of records to return"),
+    limit: int = Query(100, le=500, description="Maximum number of records to return"),
     search: Optional[str] = Query(None, description="Search by account name"),
     tag_code: Optional[str] = Query(None, description="Filter by tag code (e.g. supplier, client, vendor)"),
     workspace: Workspace = Depends(get_current_workspace),

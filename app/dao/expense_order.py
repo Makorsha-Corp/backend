@@ -9,12 +9,24 @@ from app.schemas.expense_order import ExpenseOrderCreate, ExpenseOrderUpdate, Ex
 
 
 class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpdate]):
-    def get_by_workspace(self, db: Session, *, workspace_id: int, expense_category: Optional[str] = None, account_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[ExpenseOrder]:
+    def get_by_workspace(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        expense_category: Optional[str] = None,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[ExpenseOrder]:
         query = db.query(ExpenseOrder).filter(ExpenseOrder.workspace_id == workspace_id)
         if expense_category:
             query = query.filter(ExpenseOrder.expense_category == expense_category)
         if account_id:
             query = query.filter(ExpenseOrder.account_id == account_id)
+        if invoice_id is not None:
+            query = query.filter(ExpenseOrder.invoice_id == invoice_id)
         return query.order_by(desc(ExpenseOrder.created_at)).offset(skip).limit(limit).all()
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[ExpenseOrder]:

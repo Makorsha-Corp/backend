@@ -28,12 +28,14 @@ def list_purchase_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
     return purchase_order_service.list_purchase_orders(
         db, workspace_id=workspace.id,
         account_id=account_id,
+        invoice_id=invoice_id,
         skip=skip, limit=limit
     )
 
@@ -100,6 +102,26 @@ def delete_purchase_order(
     db: Session = Depends(get_db)
 ):
     purchase_order_service.delete_purchase_order(db, po_id=po_id, workspace_id=workspace.id)
+
+
+@router.post(
+    "/{po_id}/create-invoice",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create invoice from purchase order"
+)
+def create_invoice_from_purchase_order(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    return purchase_order_service.create_invoice_for_purchase_order(
+        db,
+        po_id=po_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id
+    )
 
 
 # ─── Purchase Order Items ──────────────────────────────────────

@@ -1,5 +1,6 @@
 """Product Manager - business logic for finished goods"""
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -152,6 +153,89 @@ class ProductManager(BaseManager[Product]):
         if record.is_deleted:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product record is already deleted")
         return self.product_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
+
+    def apply_production_output(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        factory_id: int,
+        item_id: int,
+        quantity: int,
+        batch_id: int,
+        unit_cost: Optional[Decimal] = None,
+    ) -> Product:
+        """
+        Increase finished-goods (products) quantity from a completed batch.
+        Uses the not-for-sale product row per factory/item (warehouse / storage bucket).
+        Caller must enforce idempotent batch posting.
+        """
+        if quantity <= 0:
+            raise ValueError("Production output quantity must be positive")
+
+        record = self.product_dao.get_by_factory_item_available(
+            session,
+            factory_id=factory_id,
+            item_id=item_id,
+            is_available_for_sale=False,
+            workspace_id=workspace_id,
+        )
+        if not record:
+            prod_dict = {
+                "workspace_id": workspace_id,
+                "item_id": item_id,
+                "factory_id": factory_id,
+                "qty": 0,
+                "avg_cost": unit_cost,
+                "is_available_for_sale": False,
+                "created_by": user_id,
+            }
+            record = self.product_dao.create(session, obj_in=prod_dict)
+
+        old_qty = record.qty
+        old_avg = record.avg_cost
+        new_qty = old_qty + quantity
+
+        new_avg: Optional[Decimal]
+        if unit_cost is not None:
+            if old_qty > 0 and old_avg is not None:
+                numer = Decimal(old_qty) * old_avg + Decimal(quantity) * unit_cost
+                new_avg = (numer / Decimal(new_qty)).quantize(Decimal("0.01"))
+            else:
+                new_avg = unit_cost
+        else:
+            new_avg = old_avg
+
+        ledger_dict = {
+            "workspace_id": workspace_id,
+            "factory_id": factory_id,
+            "item_id": item_id,
+            "transaction_type": "production",
+            "quantity": quantity,
+            "unit_cost": unit_cost,
+            "total_cost": (unit_cost * Decimal(quantity)) if unit_cost is not None else None,
+            "qty_before": old_qty,
+            "qty_after": new_qty,
+            "avg_cost_before": old_avg,
+            "avg_cost_after": new_avg,
+            "source_type": "production_batch",
+            "source_id": batch_id,
+            "notes": f"Production batch output (batch id {batch_id})",
+            "performed_by": user_id,
+        }
+        self.ledger_dao.create(session, obj_in=ledger_dict)
+
+        self.product_dao.update(
+            session,
+            db_obj=record,
+            obj_in={
+                "qty": new_qty,
+                "avg_cost": new_avg,
+                "updated_by": user_id,
+            },
+        )
+        return record
 
 
 product_manager = ProductManager()
