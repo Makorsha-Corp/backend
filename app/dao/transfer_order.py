@@ -1,7 +1,7 @@
 """Transfer order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc, and_, or_
 from app.dao.base import BaseDAO
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
@@ -12,6 +12,36 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
     def get_by_workspace(self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100) -> List[TransferOrder]:
         query = db.query(TransferOrder).filter(TransferOrder.workspace_id == workspace_id)
         return query.order_by(desc(TransferOrder.created_at)).offset(skip).limit(limit).all()
+
+    def list_touching_location_incomplete(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        location_type: str,
+        location_id: int,
+    ) -> List[TransferOrder]:
+        touch = or_(
+            and_(
+                TransferOrder.source_location_type == location_type,
+                TransferOrder.source_location_id == location_id,
+            ),
+            and_(
+                TransferOrder.destination_location_type == location_type,
+                TransferOrder.destination_location_id == location_id,
+            ),
+        )
+        return (
+            db.query(TransferOrder)
+            .options(joinedload(TransferOrder.current_status))
+            .filter(
+                TransferOrder.workspace_id == workspace_id,
+                TransferOrder.completed_at.is_(None),
+                touch,
+            )
+            .order_by(desc(TransferOrder.created_at))
+            .all()
+        )
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[TransferOrder]:
         return db.query(TransferOrder).filter(TransferOrder.id == id, TransferOrder.workspace_id == workspace_id).first()

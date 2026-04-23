@@ -1,8 +1,23 @@
 """Purchase order schemas"""
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel, ConfigDict
+
+
+class ActiveOrderRow(BaseModel):
+    """Unified row for purchase + transfer orders in context (machine / storage / project)."""
+
+    order_kind: Literal["purchase", "transfer"]
+    id: int
+    number: str
+    summary: str | None = None
+    current_status_id: int
+    status_name: str | None = None
+    created_at: datetime
+    total_amount: Decimal | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PurchaseOrderItemCreate(BaseModel):
