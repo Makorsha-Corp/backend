@@ -168,42 +168,51 @@ class MachineManager(BaseManager[Machine]):
         factory_section_id: Optional[int] = None,
         is_running: Optional[bool] = None,
         search: Optional[str] = None,
+        maintenance_window: str = "all",
+        has_model_number: Optional[bool] = None,
+        has_manufacturer: Optional[bool] = None,
+        latest_event_type: Optional[MachineEventTypeEnum] = None,
+        sort_by: str = "name",
+        sort_dir: str = "asc",
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
     ) -> List[Machine]:
         """Search machines in workspace with optional filters."""
-        if factory_section_id:
-            machines = self.machine_dao.get_by_section(
-                session, factory_section_id=factory_section_id,
-                workspace_id=workspace_id, include_deleted=include_deleted,
-                skip=skip, limit=limit
+        if include_deleted:
+            # Preserve existing behavior for include_deleted callers.
+            machines = self.machine_dao.get_by_workspace(
+                session, workspace_id=workspace_id, skip=skip, limit=limit
             )
-        else:
-            if include_deleted:
-                machines = self.machine_dao.get_by_workspace(
-                    session, workspace_id=workspace_id, skip=skip, limit=limit
-                )
-            else:
-                machines = self.machine_dao.get_active_by_workspace(
-                    session, workspace_id=workspace_id, skip=skip, limit=limit
-                )
+            if factory_section_id is not None:
+                machines = [m for m in machines if m.factory_section_id == factory_section_id]
+            if is_running is not None:
+                machines = [m for m in machines if m.is_running == is_running]
+            if search:
+                s = search.lower()
+                machines = [
+                    m for m in machines
+                    if s in m.name.lower()
+                    or (m.model_number and s in m.model_number.lower())
+                    or (m.manufacturer and s in m.manufacturer.lower())
+                ]
+            return machines
 
-        # Apply is_running filter
-        if is_running is not None:
-            machines = [m for m in machines if m.is_running == is_running]
-
-        # Apply search filter
-        if search:
-            search_lower = search.lower()
-            machines = [
-                m for m in machines
-                if search_lower in m.name.lower()
-                or (m.model_number and search_lower in m.model_number.lower())
-                or (m.manufacturer and search_lower in m.manufacturer.lower())
-            ]
-
-        return machines
+        return self.machine_dao.search_advanced(
+            session,
+            workspace_id=workspace_id,
+            factory_section_id=factory_section_id,
+            is_running=is_running,
+            search=search,
+            maintenance_window=maintenance_window,
+            has_model_number=has_model_number,
+            has_manufacturer=has_manufacturer,
+            latest_event_type=latest_event_type,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+            skip=skip,
+            limit=limit,
+        )
 
     def delete_machine(
         self,

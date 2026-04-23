@@ -34,6 +34,15 @@ def get_machines(
     factory_section_id: Optional[int] = Query(None, description="Filter by factory section ID"),
     is_running: Optional[bool] = Query(None, description="Filter by running status"),
     search: Optional[str] = Query(None, description="Search by name, model_number, or manufacturer"),
+    maintenance_window: str = Query(
+        "all",
+        description="Maintenance filter: all | overdue | next_7_days | next_30_days | none_scheduled"
+    ),
+    has_model_number: Optional[bool] = Query(None, description="Filter by model number presence"),
+    has_manufacturer: Optional[bool] = Query(None, description="Filter by manufacturer presence"),
+    latest_event_type: Optional[MachineEventTypeEnum] = Query(None, description="Filter by latest machine event type"),
+    sort_by: str = Query("name", description="Sort field: name | created_at | maintenance_date"),
+    sort_dir: str = Query("asc", description="Sort direction: asc | desc"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -42,6 +51,12 @@ def get_machines(
         db, workspace_id=workspace.id,
         factory_section_id=factory_section_id,
         is_running=is_running, search=search,
+        maintenance_window=maintenance_window,
+        has_model_number=has_model_number,
+        has_manufacturer=has_manufacturer,
+        latest_event_type=latest_event_type,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
         skip=skip, limit=limit
     )
 
