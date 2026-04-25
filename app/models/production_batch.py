@@ -1,5 +1,5 @@
 """Production Batch model - actual production logs"""
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Date, Numeric
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Date, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -20,7 +20,7 @@ class ProductionBatch(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Batch identification
-    batch_number = Column(String(50), nullable=False, unique=True, index=True)  # e.g., "BATCH-2025-001"
+    batch_number = Column(String(50), nullable=False, index=True)  # e.g., "BATCH-2025-001"
 
     # Links
     production_line_id = Column(Integer, ForeignKey("production_lines.id", ondelete="RESTRICT"), nullable=False, index=True)
@@ -62,6 +62,10 @@ class ProductionBatch(Base):
 
     completed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     completed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('workspace_id', 'batch_number', name='uq_batch_workspace_number'),
+    )
 
     # Relationships
     workspace = relationship("Workspace", backref="production_batches")
