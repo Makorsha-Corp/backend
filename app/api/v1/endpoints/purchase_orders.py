@@ -9,6 +9,7 @@ from app.models.profile import Profile
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
+    ActiveOrderRow,
 )
 from app.services.purchase_order_service import purchase_order_service
 
@@ -37,6 +38,29 @@ def list_purchase_orders(
         account_id=account_id,
         invoice_id=invoice_id,
         skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/active/",
+    response_model=List[ActiveOrderRow],
+    status_code=status.HTTP_200_OK,
+    summary="Active orders for a machine, factory storage, or project component",
+    description="Exactly one of machine_id, factory_id, or project_component_id must be set.",
+)
+def list_active_orders_for_context(
+    machine_id: Optional[int] = Query(None),
+    factory_id: Optional[int] = Query(None),
+    project_component_id: Optional[int] = Query(None),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.list_active_orders_for_context(
+        db,
+        workspace_id=workspace.id,
+        machine_id=machine_id,
+        factory_id=factory_id,
+        project_component_id=project_component_id,
     )
 
 

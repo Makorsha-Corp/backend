@@ -1,6 +1,6 @@
 """Purchase order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from app.dao.base import BaseDAO
 from app.models.purchase_order import PurchaseOrder
@@ -25,6 +25,26 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         if invoice_id is not None:
             query = query.filter(PurchaseOrder.invoice_id == invoice_id)
         return query.order_by(desc(PurchaseOrder.created_at)).offset(skip).limit(limit).all()
+
+    def list_for_destination(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        destination_type: str,
+        destination_id: int,
+    ) -> List[PurchaseOrder]:
+        return (
+            db.query(PurchaseOrder)
+            .options(joinedload(PurchaseOrder.current_status))
+            .filter(
+                PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.destination_type == destination_type,
+                PurchaseOrder.destination_id == destination_id,
+            )
+            .order_by(desc(PurchaseOrder.created_at))
+            .all()
+        )
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:
         return db.query(PurchaseOrder).filter(PurchaseOrder.id == id, PurchaseOrder.workspace_id == workspace_id).first()

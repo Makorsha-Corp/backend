@@ -53,6 +53,12 @@ class MachineService(BaseService):
         factory_section_id: Optional[int] = None,
         is_running: Optional[bool] = None,
         search: Optional[str] = None,
+        maintenance_window: str = "all",
+        has_model_number: Optional[bool] = None,
+        has_manufacturer: Optional[bool] = None,
+        latest_event_type: Optional[MachineEventTypeEnum] = None,
+        sort_by: str = "name",
+        sort_dir: str = "asc",
         skip: int = 0, limit: int = 100
     ) -> List[Machine]:
         """Get machines in workspace with optional filters."""
@@ -60,6 +66,12 @@ class MachineService(BaseService):
             session=db, workspace_id=workspace_id,
             factory_section_id=factory_section_id,
             is_running=is_running, search=search,
+            maintenance_window=maintenance_window,
+            has_model_number=has_model_number,
+            has_manufacturer=has_manufacturer,
+            latest_event_type=latest_event_type,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
             skip=skip, limit=limit
         )
 
