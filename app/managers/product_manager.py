@@ -165,6 +165,7 @@ class ProductManager(BaseManager[Product]):
         quantity: int,
         batch_id: int,
         unit_cost: Optional[Decimal] = None,
+        notes: Optional[str] = None,
     ) -> Product:
         """
         Increase finished-goods (products) quantity from a completed batch.
@@ -221,7 +222,7 @@ class ProductManager(BaseManager[Product]):
             "avg_cost_after": new_avg,
             "source_type": "production_batch",
             "source_id": batch_id,
-            "notes": f"Production batch output (batch id {batch_id})",
+            "notes": notes or f"SYSTEM - PRODUCTION BATCH COMPLETE | batch id {batch_id}",
             "performed_by": user_id,
         }
         self.ledger_dao.create(session, obj_in=ledger_dict)

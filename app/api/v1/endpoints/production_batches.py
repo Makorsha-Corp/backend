@@ -56,14 +56,6 @@ class CompleteBatchRequest(BaseModel):
     actual_output_quantity: Optional[int] = Field(None, gt=0, description="Actual output produced")
     actual_duration_minutes: Optional[int] = Field(None, ge=0, description="Actual time taken in minutes")
     notes: Optional[str] = Field(None, description="Completion notes")
-    post_outputs_to_finished_goods: bool = Field(
-        False,
-        description="If true, post output (and optionally byproduct) quantities to factory finished goods (products) in the same request.",
-    )
-    post_finished_goods_include_byproducts: bool = Field(
-        True,
-        description="When posting to finished goods, include byproduct line quantities.",
-    )
 
 
 class PostFinishedGoodsRequest(BaseModel):
@@ -211,8 +203,6 @@ def complete_batch(
         actual_output_quantity=body.actual_output_quantity,
         actual_duration_minutes=body.actual_duration_minutes,
         notes=body.notes,
-        post_outputs_to_finished_goods=body.post_outputs_to_finished_goods,
-        post_finished_goods_include_byproducts=body.post_finished_goods_include_byproducts,
     )
     return _batch_response(db, workspace.id, result)
 

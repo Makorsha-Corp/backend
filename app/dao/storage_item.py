@@ -36,27 +36,18 @@ class DAOStorageItem(BaseDAO[StorageItem, StorageItemCreate, StorageItemUpdate])
             .all()
         )
 
-    def get_by_factory_and_part(
-        self, db: Session, *, factory_id: int, part_id: int, workspace_id: int
+    def get_by_factory_and_item(
+        self, db: Session, *, factory_id: int, item_id: int, workspace_id: int
     ) -> Optional[StorageItem]:
         """
-        Get storage item by factory and part ID (SECURITY-CRITICAL: workspace-filtered)
-
-        Args:
-            db: Database session
-            factory_id: Factory ID
-            part_id: Part ID
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            Storage item if found in workspace, None otherwise
+        Get storage item by factory and item ID (SECURITY-CRITICAL: workspace-filtered)
         """
         return (
             db.query(StorageItem)
             .filter(
-                StorageItem.workspace_id == workspace_id,  # SECURITY: workspace isolation
+                StorageItem.workspace_id == workspace_id,
                 StorageItem.factory_id == factory_id,
-                StorageItem.part_id == part_id
+                StorageItem.item_id == item_id
             )
             .first()
         )

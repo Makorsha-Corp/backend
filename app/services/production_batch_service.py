@@ -182,14 +182,11 @@ class ProductionBatchService(BaseService):
         actual_output_quantity: Optional[int] = None,
         actual_duration_minutes: Optional[int] = None,
         notes: Optional[str] = None,
-        post_outputs_to_finished_goods: bool = False,
-        post_finished_goods_include_byproducts: bool = True,
     ) -> ProductionBatch:
         """
         Complete a production batch (in_progress → completed).
 
-        Calculates variance between expected and actual values.
-        Optionally posts output/byproduct quantities to factory finished goods in the same transaction.
+        Auto-posts outputs/byproducts to finished goods and waste to damaged ledger.
         """
         try:
             batch = self.batch_manager.complete_batch(
@@ -199,16 +196,8 @@ class ProductionBatchService(BaseService):
                 user_id=user_id,
                 actual_output_quantity=actual_output_quantity,
                 actual_duration_minutes=actual_duration_minutes,
-                notes=notes
+                notes=notes,
             )
-            if post_outputs_to_finished_goods:
-                self.batch_manager.post_outputs_to_finished_goods(
-                    session=db,
-                    batch_id=batch.id,
-                    workspace_id=workspace_id,
-                    user_id=user_id,
-                    include_byproducts=post_finished_goods_include_byproducts,
-                )
             self._commit_transaction(db)
             db.refresh(batch)
             return batch

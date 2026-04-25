@@ -13,8 +13,10 @@ from app.dao.production_line import production_line_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
 from app.dao.item import item_dao
-from app.dao.production_line import production_line_dao
-from app.dao.production_formula_item import production_formula_item_dao
+from app.dao.storage_item import storage_item_dao
+from app.dao.storage_item_ledger import storage_item_ledger_dao
+from app.dao.damaged_item import damaged_item_dao
+from app.dao.damaged_item_ledger import damaged_item_ledger_dao
 from app.dao.product_ledger import product_ledger_dao
 from app.managers.product_manager import product_manager
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
@@ -206,22 +208,14 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        target_output_quantity: Optional[int] = None
+        target_output_quantity: Optional[int] = None,
     ) -> ProductionBatch:
         """
         Start a production batch (draft → in_progress).
 
-        If formula is attached:
-        - Calculates expected values based on formula and target_output_quantity
-        - Creates batch items from formula items with expected quantities
-        - Sets expected_duration_minutes from formula
-
-        If no formula (simple mode):
-        - Just transitions status to in_progress
-
-        Args:
-            target_output_quantity: How much to produce. If None, uses the sum
-                                   of formula's product items as base quantity.
+        Validates all input items have sufficient storage — hard blocks if any are short.
+        Deducts input items from storage and writes ledger entries.
+        Stores target_output_quantity as expected_output_quantity for record-keeping.
         """
         batch = self.batch_dao.get_by_id_and_workspace(
             session, id=batch_id, workspace_id=workspace_id
@@ -231,6 +225,96 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         if batch.status != 'draft':
             raise ValueError(f"Can only start draft batches. Current status: {batch.status}")
 
+        # Get factory_id from production line (default source for storage deductions)
+        line = production_line_dao.get_by_id_and_workspace(
+            session, id=batch.production_line_id, workspace_id=workspace_id
+        )
+        if not line:
+            raise ValueError(f"Production line {batch.production_line_id} not found")
+        factory_id = line.factory_id
+
+        # Require at least one item before starting
+        all_batch_items = self.batch_item_dao.get_by_batch(
+            session, batch_id=batch_id, workspace_id=workspace_id
+        )
+        if not all_batch_items:
+            raise ValueError("Cannot start a batch with no items. Add at least one item before starting.")
+
+        # Validate all input items have sufficient storage before doing anything
+        input_items = [bi for bi in all_batch_items if bi.item_role == 'input']
+
+        shortfalls = []
+        for bi in input_items:
+            qty_needed = bi.actual_quantity or bi.expected_quantity
+            if not qty_needed:
+                continue
+            source_factory_id = (
+                bi.source_location_id
+                if bi.source_location_type == 'storage' and bi.source_location_id
+                else factory_id
+            )
+            storage = storage_item_dao.get_by_factory_and_item(
+                session, factory_id=source_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+            )
+            available = storage.qty if storage else 0
+            if available < qty_needed:
+                shortfalls.append({
+                    'item_id': bi.item_id,
+                    'required_qty': qty_needed,
+                    'available_qty': available,
+                })
+
+        if shortfalls:
+            lines = [
+                f"item_id={s['item_id']} (required {s['required_qty']}, available {s['available_qty']})"
+                for s in shortfalls
+            ]
+            raise ValueError(
+                f"Insufficient storage for {len(shortfalls)} input item(s): {'; '.join(lines)}. "
+                f"Replenish storage before starting this batch."
+            )
+
+        # All items OK — deduct from storage and write ledger entries
+        note = f"SYSTEM - PRODUCTION BATCH START | {batch.batch_number}"
+        for bi in input_items:
+            qty_to_deduct = bi.actual_quantity or bi.expected_quantity
+            if not qty_to_deduct:
+                continue
+            source_factory_id = (
+                bi.source_location_id
+                if bi.source_location_type == 'storage' and bi.source_location_id
+                else factory_id
+            )
+            storage = storage_item_dao.get_by_factory_and_item(
+                session, factory_id=source_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+            )
+            old_qty = storage.qty
+            new_qty = old_qty - qty_to_deduct
+            avg_price = storage.avg_price or Decimal('0')
+
+            storage.qty = new_qty
+            session.flush()
+
+            storage_item_ledger_dao.create(session, obj_in={
+                'workspace_id': workspace_id,
+                'factory_id': source_factory_id,
+                'item_id': bi.item_id,
+                'transaction_type': 'consumption',
+                'quantity': qty_to_deduct,
+                'unit_cost': avg_price,
+                'total_cost': avg_price * qty_to_deduct,
+                'qty_before': old_qty,
+                'qty_after': new_qty,
+                'value_before': old_qty * avg_price,
+                'value_after': new_qty * avg_price,
+                'avg_price_before': avg_price,
+                'avg_price_after': avg_price,
+                'source_type': 'production_batch',
+                'source_id': batch.id,
+                'notes': note,
+                'performed_by': user_id,
+            })
+
         now = datetime.utcnow()
         update_data = {
             'status': 'in_progress',
@@ -239,54 +323,8 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
             'actual_start_time': now,
             'updated_by': user_id,
         }
-
-        # If formula is attached, calculate expected values and create batch items
-        if batch.formula_id:
-            formula = self.formula_dao.get_by_id_and_workspace(
-                session, id=batch.formula_id, workspace_id=workspace_id
-            )
-            if not formula:
-                raise ValueError(f"Formula {batch.formula_id} no longer exists")
-
-            # Get base output quantity from formula's output items
-            output_items = self.formula_item_dao.get_by_formula_and_role(
-                session, formula_id=formula.id, item_role='output', workspace_id=workspace_id
-            )
-            if not output_items:
-                raise ValueError(
-                    f"Formula {formula.id} has no output items defined. "
-                    f"Add at least one item with role='output' before starting a batch."
-                )
-            base_output_qty = sum(item.quantity for item in output_items)
-
-            # Calculate multiplier
-            output_qty = target_output_quantity or base_output_qty
-            multiplier = output_qty / base_output_qty
-
-            update_data['expected_output_quantity'] = output_qty
-            if formula.estimated_duration_minutes:
-                update_data['expected_duration_minutes'] = int(
-                    formula.estimated_duration_minutes * multiplier
-                )
-
-            # Create batch items from formula items
-            formula_items = self.formula_item_dao.get_by_formula(
-                session, formula_id=formula.id, workspace_id=workspace_id
-            )
-            for fi in formula_items:
-                expected_qty = int(fi.quantity * multiplier)
-                batch_item_dict = {
-                    'workspace_id': workspace_id,
-                    'batch_id': batch.id,
-                    'item_id': fi.item_id,
-                    'item_role': fi.item_role,
-                    'expected_quantity': expected_qty,
-                }
-                self.batch_item_dao.create(session, obj_in=batch_item_dict)
-        else:
-            # Simple mode: set target output if provided
-            if target_output_quantity:
-                update_data['expected_output_quantity'] = target_output_quantity
+        if target_output_quantity is not None:
+            update_data['expected_output_quantity'] = target_output_quantity
 
         return self.batch_dao.update(session, db_obj=batch, obj_in=update_data)
 
@@ -303,8 +341,10 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         """
         Complete a production batch (in_progress → completed).
 
-        Calculates variance between expected and actual values.
-        Also calculates variance for each batch item that has actual_quantity set.
+        - Calculates variance between expected and actual values.
+        - Auto-posts output/byproduct items to finished goods (products).
+        - Auto-posts waste items to damaged ledger.
+        - All ledger entries are tagged SYSTEM - PRODUCTION BATCH COMPLETE.
         """
         batch = self.batch_dao.get_by_id_and_workspace(
             session, id=batch_id, workspace_id=workspace_id
@@ -313,6 +353,14 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
             raise ValueError(f"Production batch {batch_id} not found")
         if batch.status != 'in_progress':
             raise ValueError(f"Can only complete in-progress batches. Current status: {batch.status}")
+
+        # Get factory from production line
+        line = production_line_dao.get_by_id_and_workspace(
+            session, id=batch.production_line_id, workspace_id=workspace_id
+        )
+        if not line:
+            raise ValueError(f"Production line {batch.production_line_id} not found")
+        factory_id = line.factory_id
 
         now = datetime.utcnow()
         update_data = {
@@ -345,8 +393,74 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
 
         updated_batch = self.batch_dao.update(session, db_obj=batch, obj_in=update_data)
 
-        # Calculate variance for batch items
+        # Calculate per-item variances
         self._calculate_batch_item_variances(session, batch_id, workspace_id)
+
+        # Post outputs and byproducts to finished goods
+        system_note = f"SYSTEM - PRODUCTION BATCH COMPLETE | {batch.batch_number}"
+        all_items = self.batch_item_dao.get_by_batch(session, batch_id=batch_id, workspace_id=workspace_id)
+
+        for bi in all_items:
+            qty = bi.actual_quantity or bi.expected_quantity
+            if not qty or qty <= 0:
+                continue
+
+            dest_factory_id = (
+                bi.destination_location_id
+                if bi.destination_location_type == 'inventory' and bi.destination_location_id
+                else factory_id
+            )
+
+            if bi.item_role in ('output', 'byproduct'):
+                product_manager.apply_production_output(
+                    session,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    factory_id=dest_factory_id,
+                    item_id=bi.item_id,
+                    quantity=qty,
+                    batch_id=batch_id,
+                    notes=system_note,
+                )
+
+            elif bi.item_role == 'waste':
+                damaged = damaged_item_dao.get_by_factory_and_item(
+                    session, factory_id=dest_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+                )
+                if not damaged:
+                    damaged = damaged_item_dao.create(session, obj_in={
+                        'workspace_id': workspace_id,
+                        'factory_id': dest_factory_id,
+                        'item_id': bi.item_id,
+                        'qty': 0,
+                        'avg_price': None,
+                    })
+
+                old_qty = damaged.qty
+                new_qty = old_qty + qty
+                avg_price = damaged.avg_price or Decimal('0')
+                damaged.qty = new_qty
+                session.flush()
+
+                damaged_item_ledger_dao.create(session, obj_in={
+                    'workspace_id': workspace_id,
+                    'factory_id': dest_factory_id,
+                    'item_id': bi.item_id,
+                    'transaction_type': 'damaged',
+                    'quantity': qty,
+                    'unit_cost': avg_price,
+                    'total_cost': avg_price * qty,
+                    'qty_before': old_qty,
+                    'qty_after': new_qty,
+                    'value_before': old_qty * avg_price,
+                    'value_after': new_qty * avg_price,
+                    'avg_price_before': avg_price,
+                    'avg_price_after': avg_price,
+                    'source_type': 'production_batch',
+                    'source_id': batch_id,
+                    'notes': system_note,
+                    'performed_by': user_id,
+                })
 
         return updated_batch
 

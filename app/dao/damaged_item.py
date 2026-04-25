@@ -1,5 +1,5 @@
 """DAO operations"""
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.damaged_item import DamagedItem
@@ -8,6 +8,20 @@ from app.schemas.damaged_item import DamagedItemCreate, DamagedItemUpdate
 
 class DAODamagedItem(BaseDAO[DamagedItem, DamagedItemCreate, DamagedItemUpdate]):
     """DAO operations for DamagedItem model"""
+
+    def get_by_factory_and_item(
+        self, db: Session, *, factory_id: int, item_id: int, workspace_id: int
+    ) -> Optional[DamagedItem]:
+        """Get damaged item snapshot by factory and item (SECURITY-CRITICAL: workspace-filtered)"""
+        return (
+            db.query(DamagedItem)
+            .filter(
+                DamagedItem.workspace_id == workspace_id,
+                DamagedItem.factory_id == factory_id,
+                DamagedItem.item_id == item_id
+            )
+            .first()
+        )
 
     def get_by_factory(
         self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100
