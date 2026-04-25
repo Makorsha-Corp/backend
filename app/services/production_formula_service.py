@@ -112,14 +112,16 @@ class ProductionFormulaService(BaseService):
         self,
         db: Session,
         formula_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> None:
         """Soft delete a production formula."""
         try:
             self.formula_manager.delete_formula(
                 session=db,
                 formula_id=formula_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                user_id=user_id
             )
             self._commit_transaction(db)
         except ValueError as e:

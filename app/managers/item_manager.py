@@ -201,34 +201,28 @@ class ItemManager(BaseManager[Item]):
         self,
         session: Session,
         item_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> Item:
         """
-        Delete a item (soft delete).
+        Soft delete an item (sets is_active=False).
 
-        Args:
-            session: Database session
-            item_id: Item ID
-            workspace_id: Workspace ID (for multi-tenancy)
-
-        Returns:
-            Deleted item (not yet committed)
-
-        Raises:
-            ValueError: If item not found or workspace mismatch
-
-        Note:
-            This method does NOT commit. The service layer must commit.
+        Does NOT commit. The service layer must commit.
         """
         item = self.item_dao.get(session, id=item_id)
         if not item:
             raise ValueError(f"Item {item_id} not found")
 
-        # Validate workspace ownership
         if item.workspace_id != workspace_id:
             raise ValueError(f"Item {item_id} does not belong to workspace {workspace_id}")
 
-        return self.item_dao.remove(session, id=item_id)
+        if not item.is_active:
+            raise ValueError(f"Item {item_id} is already deleted")
+
+        return self.item_dao.update(session, db_obj=item, obj_in={
+            'is_active': False,
+            'updated_by': user_id,
+        })
 
     def _assign_tags_to_item(
         self,

@@ -263,7 +263,8 @@ class ItemService(BaseService):
             self.item_manager.delete_item(
                 session=db,
                 item_id=item_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                user_id=user_id
             )
 
             # Commit transaction

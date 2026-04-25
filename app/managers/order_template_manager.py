@@ -79,12 +79,13 @@ class OrderTemplateManager(BaseManager[OrderTemplate]):
             skip=skip, limit=limit
         )
 
-    def delete_template(self, session: Session, tpl_id: int, workspace_id: int) -> None:
+    def delete_template(self, session: Session, tpl_id: int, workspace_id: int, user_id: int) -> None:
         record = self.tpl_dao.get_by_id_and_workspace(session, id=tpl_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Order template with ID {tpl_id} not found")
-        session.delete(record)
-        session.flush()
+        if not record.is_active:
+            return  # Already deleted — idempotent
+        self.tpl_dao.update(session, db_obj=record, obj_in={'is_active': False, 'updated_by': user_id})
 
     # ─── Template Items ────────────────────────────────────────
     def add_item(

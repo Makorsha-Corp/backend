@@ -33,7 +33,8 @@ class DAOOrderItem(BaseDAO[OrderItem, OrderItemCreate, OrderItemUpdate]):
             db.query(OrderItem)
             .filter(
                 OrderItem.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                OrderItem.order_id == order_id
+                OrderItem.order_id == order_id,
+                OrderItem.is_deleted == False
             )
             .offset(skip)
             .limit(limit)
@@ -62,7 +63,8 @@ class DAOOrderItem(BaseDAO[OrderItem, OrderItemCreate, OrderItemUpdate]):
             db.query(OrderItem)
             .filter(
                 OrderItem.workspace_id == workspace_id,  # SECURITY: CRITICAL filter
-                OrderItem.approved_pending_order == False
+                OrderItem.approved_pending_order == False,
+                OrderItem.is_deleted == False
             )
             .offset(skip)
             .limit(limit)
@@ -89,7 +91,8 @@ class DAOOrderItem(BaseDAO[OrderItem, OrderItemCreate, OrderItemUpdate]):
             db.query(OrderItem)
             .filter(
                 OrderItem.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                OrderItem.vendor_id == vendor_id
+                OrderItem.vendor_id == vendor_id,
+                OrderItem.is_deleted == False
             )
             .offset(skip)
             .limit(limit)

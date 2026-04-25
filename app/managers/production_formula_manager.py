@@ -128,7 +128,8 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         self,
         session: Session,
         formula_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> ProductionFormula:
         """Soft delete a formula (set is_active=False)."""
         formula = self.formula_dao.get(session, id=formula_id)
@@ -138,9 +139,11 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
             raise ValueError(
                 f"Production formula {formula_id} does not belong to workspace {workspace_id}"
             )
+        if not formula.is_active:
+            return formula  # Already deleted — idempotent
 
         return self.formula_dao.update(
-            session, db_obj=formula, obj_in={'is_active': False, 'is_default': False}
+            session, db_obj=formula, obj_in={'is_active': False, 'is_default': False, 'updated_by': user_id}
         )
 
     # ─── Formula Item CRUD ──────────────────────────────────────────

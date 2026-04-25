@@ -60,9 +60,9 @@ class OrderTemplateService(BaseService):
             skip=skip, limit=limit
         )
 
-    def delete_template(self, db: Session, tpl_id: int, workspace_id: int) -> None:
+    def delete_template(self, db: Session, tpl_id: int, workspace_id: int, user_id: int) -> None:
         try:
-            self.manager.delete_template(db, tpl_id=tpl_id, workspace_id=workspace_id)
+            self.manager.delete_template(db, tpl_id=tpl_id, workspace_id=workspace_id, user_id=user_id)
             self._commit_transaction(db)
         except Exception:
             self._rollback_transaction(db)

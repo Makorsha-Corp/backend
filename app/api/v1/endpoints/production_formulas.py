@@ -133,7 +133,7 @@ def delete_formula(
     db: Session = Depends(get_db),
 ):
     """Delete production formula (soft delete)"""
-    production_formula_service.delete_formula(db, formula_id, workspace.id)
+    production_formula_service.delete_formula(db, formula_id, workspace.id, current_user.id)
 
 
 # ─── Formula Item Endpoints ─────────────────────────────────────────

@@ -27,7 +27,7 @@ router = APIRouter()
 def list_order_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    is_active: Optional[bool] = Query(None),
+    is_active: Optional[bool] = Query(True),
     expense_category: Optional[str] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
@@ -98,9 +98,10 @@ def update_order_template(
 def delete_order_template(
     tpl_id: int,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    order_template_service.delete_template(db, tpl_id=tpl_id, workspace_id=workspace.id)
+    order_template_service.delete_template(db, tpl_id=tpl_id, workspace_id=workspace.id, user_id=current_user.id)
 
 
 # ─── Template Items ───────────────────────────────────────────

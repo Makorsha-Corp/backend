@@ -1,5 +1,6 @@
 """Account Manager for account business logic"""
 from typing import List, Optional
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.managers.base_manager import BaseManager
 from app.models.account import Account
@@ -258,32 +259,23 @@ class AccountManager(BaseManager[Account]):
         self,
         session: Session,
         account_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> Account:
         """
-        Delete an account (soft delete).
+        Soft delete an account (sets is_deleted=True, is_active=False).
 
-        Args:
-            session: Database session
-            account_id: Account ID
-            workspace_id: Workspace ID (for multi-tenancy)
-
-        Returns:
-            Deleted account (not yet committed)
-
-        Raises:
-            ValueError: If account not found or workspace mismatch
-
-        Note:
-            This method does NOT commit. The service layer must commit.
+        Does NOT commit. The service layer must commit.
         """
         account = self.account_dao.get(session, id=account_id)
         if not account:
             raise ValueError(f"Account {account_id} not found")
 
-        # Validate workspace ownership
         if account.workspace_id != workspace_id:
             raise ValueError(f"Account {account_id} does not belong to workspace {workspace_id}")
+
+        if account.is_deleted:
+            raise ValueError(f"Account {account_id} is already deleted")
 
         # Audit log before deletion
         log_financial_audit(
@@ -292,14 +284,19 @@ class AccountManager(BaseManager[Account]):
             entity_type='account',
             entity_id=account.id,
             action_type='deleted',
-            performed_by=0,  # No user_id passed to delete method currently
+            performed_by=user_id,
             changes=create_change_dict(before=extract_relevant_fields(
                 account, ['name', 'primary_contact_person', 'primary_email']
             )),
             description=f"Account '{account.name}' deleted"
         )
 
-        return self.account_dao.remove(session, id=account_id)
+        return self.account_dao.update(session, db_obj=account, obj_in={
+            'is_deleted': True,
+            'is_active': False,
+            'deleted_at': datetime.utcnow(),
+            'deleted_by': user_id,
+        })
 
     def _assign_tags_to_account(
         self,

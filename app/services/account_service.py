@@ -451,7 +451,8 @@ class AccountService(BaseService):
             self.account_manager.delete_account(
                 session=db,
                 account_id=account_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                user_id=user_id
             )
 
             # Commit transaction
