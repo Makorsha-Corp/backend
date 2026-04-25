@@ -45,7 +45,6 @@ from app.models.project_attachment import ProjectAttachment
 from app.models.project_component_attachment import ProjectComponentAttachment
 from app.models.machine_event import MachineEvent
 from app.models.machine_maintenance_log import MachineMaintenanceLog
-from app.models.vendor import Vendor
 from app.models.account import Account
 from app.models.account_tag import AccountTag
 from app.models.account_tag_assignment import AccountTagAssignment

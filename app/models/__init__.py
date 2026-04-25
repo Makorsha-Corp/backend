@@ -88,8 +88,6 @@ from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_invoice import AccountInvoice
 from app.models.invoice_payment import InvoicePayment
 
-# Vendors & Settings (Vendor deprecated - use Account)
-from app.models.vendor import Vendor
 from app.models.app_settings import AppSettings
 
 __all__ = [
@@ -167,7 +165,5 @@ __all__ = [
     "AccountTagAssignment",
     "AccountInvoice",
     "InvoicePayment",
-    # Vendors & Settings
-    "Vendor",
     "AppSettings",
 ]
