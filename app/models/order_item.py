@@ -17,7 +17,7 @@ class OrderItem(Base):
     qty = Column(Integer, nullable=False)
     unit_cost = Column(Numeric(15, 2), nullable=True)
     note = Column(Text, nullable=True)
-    vendor_id = Column(Integer, ForeignKey("vendors.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     brand = Column(String, nullable=True)
     office_note = Column(Text, nullable=True)
     mrr_number = Column(String, nullable=True)
@@ -49,4 +49,4 @@ class OrderItem(Base):
     # Relationships
     order = relationship("Order", backref="order_items")
     item = relationship("Item", backref="order_items")
-    vendor = relationship("Vendor", backref="order_items")
+    account = relationship("Account", backref="order_items")

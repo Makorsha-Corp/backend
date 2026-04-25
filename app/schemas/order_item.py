@@ -11,7 +11,7 @@ class OrderItemBase(BaseModel):
     qty: int
     unit_cost: float | None = None
     note: str | None = None
-    vendor_id: int | None = None
+    account_id: int | None = None
     brand: str | None = None
     office_note: str | None = None
     mrr_number: str | None = None
@@ -27,7 +27,7 @@ class OrderItemUpdate(BaseModel):
     qty: int | None = None
     unit_cost: float | None = None
     note: str | None = None
-    vendor_id: int | None = None
+    account_id: int | None = None
     brand: str | None = None
     office_note: str | None = None
     mrr_number: str | None = None
