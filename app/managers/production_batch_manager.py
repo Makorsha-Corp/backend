@@ -13,12 +13,11 @@ from app.dao.production_line import production_line_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
 from app.dao.item import item_dao
-from app.dao.storage_item import storage_item_dao
-from app.dao.storage_item_ledger import storage_item_ledger_dao
-from app.dao.damaged_item import damaged_item_dao
-from app.dao.damaged_item_ledger import damaged_item_ledger_dao
+from app.dao.inventory import inventory_dao
+from app.dao.inventory_ledger import inventory_ledger_dao
 from app.dao.product_ledger import product_ledger_dao
 from app.managers.product_manager import product_manager
+from app.models.enums import InventoryTypeEnum
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
 from app.schemas.production_batch_item import ProductionBatchItemCreate, ProductionBatchItemUpdate
 
@@ -240,7 +239,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         if not all_batch_items:
             raise ValueError("Cannot start a batch with no items. Add at least one item before starting.")
 
-        # Validate all input items have sufficient storage before doing anything
+        # Validate all input items have sufficient inventory before doing anything
         input_items = [bi for bi in all_batch_items if bi.item_role == 'input']
 
         shortfalls = []
@@ -253,10 +252,11 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 if bi.source_location_type == 'storage' and bi.source_location_id
                 else factory_id
             )
-            storage = storage_item_dao.get_by_factory_and_item(
-                session, factory_id=source_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+            inv = inventory_dao.get_by_factory_item_type(
+                session, factory_id=source_factory_id, item_id=bi.item_id,
+                inventory_type=InventoryTypeEnum.STORAGE, workspace_id=workspace_id
             )
-            available = storage.qty if storage else 0
+            available = inv.qty if inv else 0
             if available < qty_needed:
                 shortfalls.append({
                     'item_id': bi.item_id,
@@ -270,11 +270,11 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 for s in shortfalls
             ]
             raise ValueError(
-                f"Insufficient storage for {len(shortfalls)} input item(s): {'; '.join(lines)}. "
+                f"Insufficient inventory for {len(shortfalls)} input item(s): {'; '.join(lines)}. "
                 f"Replenish storage before starting this batch."
             )
 
-        # All items OK — deduct from storage and write ledger entries
+        # All items OK — deduct from inventory and write ledger entries
         note = f"SYSTEM - PRODUCTION BATCH START | {batch.batch_number}"
         for bi in input_items:
             qty_to_deduct = bi.actual_quantity or bi.expected_quantity
@@ -285,30 +285,30 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 if bi.source_location_type == 'storage' and bi.source_location_id
                 else factory_id
             )
-            storage = storage_item_dao.get_by_factory_and_item(
-                session, factory_id=source_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+            inv = inventory_dao.get_by_factory_item_type(
+                session, factory_id=source_factory_id, item_id=bi.item_id,
+                inventory_type=InventoryTypeEnum.STORAGE, workspace_id=workspace_id
             )
-            old_qty = storage.qty
+            old_qty = inv.qty
             new_qty = old_qty - qty_to_deduct
-            avg_price = storage.avg_price or Decimal('0')
+            avg_price = inv.avg_price if inv.avg_price is not None else Decimal('0')
 
-            storage.qty = new_qty
+            inv.qty = new_qty
             session.flush()
 
-            storage_item_ledger_dao.create(session, obj_in={
+            inventory_ledger_dao.create(session, obj_in={
                 'workspace_id': workspace_id,
+                'inventory_type': InventoryTypeEnum.STORAGE,
                 'factory_id': source_factory_id,
                 'item_id': bi.item_id,
                 'transaction_type': 'consumption',
                 'quantity': qty_to_deduct,
-                'unit_cost': avg_price,
-                'total_cost': avg_price * qty_to_deduct,
+                'unit_cost': avg_price if avg_price else None,
+                'total_cost': (avg_price * qty_to_deduct) if avg_price else None,
                 'qty_before': old_qty,
                 'qty_after': new_qty,
-                'value_before': old_qty * avg_price,
-                'value_after': new_qty * avg_price,
-                'avg_price_before': avg_price,
-                'avg_price_after': avg_price,
+                'avg_price_before': avg_price if avg_price else None,
+                'avg_price_after': avg_price if avg_price else None,
                 'source_type': 'production_batch',
                 'source_id': batch.id,
                 'notes': note,
@@ -424,36 +424,39 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 )
 
             elif bi.item_role == 'waste':
-                damaged = damaged_item_dao.get_by_factory_and_item(
-                    session, factory_id=dest_factory_id, item_id=bi.item_id, workspace_id=workspace_id
+                inv_type = InventoryTypeEnum.DAMAGED
+                damaged = inventory_dao.get_by_factory_item_type(
+                    session, factory_id=dest_factory_id, item_id=bi.item_id,
+                    inventory_type=inv_type, workspace_id=workspace_id
                 )
                 if not damaged:
-                    damaged = damaged_item_dao.create(session, obj_in={
+                    damaged = inventory_dao.create(session, obj_in={
                         'workspace_id': workspace_id,
+                        'inventory_type': inv_type,
                         'factory_id': dest_factory_id,
                         'item_id': bi.item_id,
                         'qty': 0,
                         'avg_price': None,
+                        'created_by': user_id,
                     })
 
                 old_qty = damaged.qty
                 new_qty = old_qty + qty
-                avg_price = damaged.avg_price or Decimal('0')
+                avg_price = damaged.avg_price if damaged.avg_price is not None else None
                 damaged.qty = new_qty
                 session.flush()
 
-                damaged_item_ledger_dao.create(session, obj_in={
+                inventory_ledger_dao.create(session, obj_in={
                     'workspace_id': workspace_id,
+                    'inventory_type': inv_type,
                     'factory_id': dest_factory_id,
                     'item_id': bi.item_id,
                     'transaction_type': 'damaged',
                     'quantity': qty,
                     'unit_cost': avg_price,
-                    'total_cost': avg_price * qty,
+                    'total_cost': (avg_price * qty) if avg_price else None,
                     'qty_before': old_qty,
                     'qty_after': new_qty,
-                    'value_before': old_qty * avg_price,
-                    'value_after': new_qty * avg_price,
                     'avg_price_before': avg_price,
                     'avg_price_after': avg_price,
                     'source_type': 'production_batch',

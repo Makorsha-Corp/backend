@@ -13,9 +13,7 @@ from app.api.v1.endpoints import (
     # Items & Inventory
     items,
     item_tags,
-    storage_items,
     machine_items,
-    damaged_items,
     inventory,
     products,
     # Accounts & Financial
@@ -81,9 +79,7 @@ api_router.include_router(statuses.router, prefix="/statuses", tags=["organizati
 # Items & Inventory
 api_router.include_router(items.router, prefix="/items", tags=["items"])
 api_router.include_router(item_tags.router, prefix="/item-tags", tags=["items"])
-api_router.include_router(storage_items.router, prefix="/storage-items", tags=["inventory"])
 api_router.include_router(machine_items.router, prefix="/machine-items", tags=["inventory"])
-api_router.include_router(damaged_items.router, prefix="/damaged-items", tags=["inventory"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 api_router.include_router(products.router, prefix="/products", tags=["inventory"])
 

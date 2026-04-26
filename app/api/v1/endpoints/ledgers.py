@@ -1,12 +1,10 @@
 """
 Ledger endpoints
 
-Provides read-only access to all 5 ledger types:
-- Storage Item Ledger
+Provides read-only access to ledger types:
 - Machine Item Ledger
-- Damaged Item Ledger
 - Project Component Item Ledger
-- Inventory Ledger (Finished Goods)
+- Inventory Ledger (unified: STORAGE, DAMAGED, WASTE, SCRAP, finished goods)
 
 Also provides reconciliation and cross-ledger reporting endpoints.
 """
@@ -18,9 +16,7 @@ from datetime import datetime
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.storage_item_ledger import StorageItemLedgerResponse
 from app.schemas.machine_item_ledger import MachineItemLedgerResponse
-from app.schemas.damaged_item_ledger import DamagedItemLedgerResponse
 from app.schemas.project_component_item_ledger import ProjectComponentItemLedgerResponse
 from app.schemas.inventory_ledger import InventoryLedgerResponse
 from app.schemas.response import ActionResponse
@@ -28,116 +24,6 @@ from app.services.ledger_service import ledger_service
 
 
 router = APIRouter()
-
-
-# ============================================================================
-# STORAGE LEDGER ENDPOINTS
-# ============================================================================
-
-@router.get(
-    "/storage/",
-    response_model=List[StorageItemLedgerResponse],
-    status_code=status.HTTP_200_OK,
-    summary="Get storage ledger entries",
-    description="Query storage item ledger with filters (factory, item, date range, transaction type)"
-)
-def get_storage_ledger(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter (ISO format)"),
-    end_date: Optional[datetime] = Query(None, description="End date filter (ISO format)"),
-    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
-    skip: int = Query(0, ge=0, description="Pagination offset"),
-    limit: int = Query(100, le=100, description="Pagination limit"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """
-    Get storage ledger entries with optional filters.
-
-    Returns list of ledger transactions ordered by date (newest first).
-    """
-    entries = ledger_service.get_storage_ledger(
-        db=db,
-        factory_id=factory_id,
-        item_id=item_id,
-        workspace_id=workspace.id,
-        start_date=start_date,
-        end_date=end_date,
-        transaction_type=transaction_type,
-        skip=skip,
-        limit=limit
-    )
-    return entries
-
-
-@router.get(
-    "/storage/balance/",
-    response_model=Dict[str, Any],
-    status_code=status.HTTP_200_OK,
-    summary="Get storage balance",
-    description="Calculate current storage balance from ledger (source of truth)"
-)
-def get_storage_balance(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """
-    Calculate current storage balance from ledger.
-
-    Returns: {factory_id, item_id, quantity, total_value}
-    """
-    balance = ledger_service.get_storage_balance(
-        db=db,
-        factory_id=factory_id,
-        item_id=item_id,
-        workspace_id=workspace.id
-    )
-    return balance
-
-
-@router.post(
-    "/storage/reconcile/",
-    response_model=ActionResponse[Dict[str, Any]],
-    status_code=status.HTTP_200_OK,
-    summary="Reconcile storage inventory",
-    description="""
-    Compare storage ledger (source of truth) vs snapshot table.
-    If discrepancy found, creates adjustment transaction and updates snapshot.
-
-    Returns reconciliation result with messages about what happened.
-    """
-)
-def reconcile_storage_item(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """
-    Reconcile storage inventory.
-
-    Backend performs:
-    1. Compare ledger balance vs storage_items snapshot
-    2. If mismatch, create adjustment transaction
-    3. Update snapshot to match ledger
-
-    Returns result + messages about what happened.
-    """
-    result, messages = ledger_service.reconcile_storage_item(
-        db=db,
-        factory_id=factory_id,
-        item_id=item_id,
-        workspace_id=workspace.id,
-        current_user=current_user
-    )
-
-    return ActionResponse(data=result, messages=messages)
 
 
 # ============================================================================
@@ -220,92 +106,6 @@ def reconcile_machine_item(
     result, messages = ledger_service.reconcile_machine_item(
         db=db,
         machine_id=machine_id,
-        item_id=item_id,
-        workspace_id=workspace.id,
-        current_user=current_user
-    )
-
-    return ActionResponse(data=result, messages=messages)
-
-
-# ============================================================================
-# DAMAGED LEDGER ENDPOINTS
-# ============================================================================
-
-@router.get(
-    "/damaged/",
-    response_model=List[DamagedItemLedgerResponse],
-    status_code=status.HTTP_200_OK,
-    summary="Get damaged items ledger entries",
-    description="Query damaged items ledger with filters"
-)
-def get_damaged_ledger(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, le=100),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """Get damaged items ledger entries with optional filters."""
-    entries = ledger_service.get_damaged_ledger(
-        db=db,
-        factory_id=factory_id,
-        item_id=item_id,
-        workspace_id=workspace.id,
-        start_date=start_date,
-        end_date=end_date,
-        skip=skip,
-        limit=limit
-    )
-    return entries
-
-
-@router.get(
-    "/damaged/balance/",
-    response_model=Dict[str, Any],
-    status_code=status.HTTP_200_OK,
-    summary="Get damaged items balance",
-    description="Calculate current damaged items balance from ledger"
-)
-def get_damaged_balance(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """Calculate current damaged items balance from ledger."""
-    balance = ledger_service.get_damaged_balance(
-        db=db,
-        factory_id=factory_id,
-        item_id=item_id,
-        workspace_id=workspace.id
-    )
-    return balance
-
-
-@router.post(
-    "/damaged/reconcile/",
-    response_model=ActionResponse[Dict[str, Any]],
-    status_code=status.HTTP_200_OK,
-    summary="Reconcile damaged inventory",
-    description="Compare damaged ledger vs snapshot and fix discrepancies"
-)
-def reconcile_damaged_item(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """Reconcile damaged inventory."""
-    result, messages = ledger_service.reconcile_damaged_item(
-        db=db,
-        factory_id=factory_id,
         item_id=item_id,
         workspace_id=workspace.id,
         current_user=current_user

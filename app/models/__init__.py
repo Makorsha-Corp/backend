@@ -17,15 +17,11 @@ from app.models.item_tag import ItemTag
 from app.models.item_tag_assignment import ItemTagAssignment
 
 # Inventory (Snapshot Tables)
-from app.models.storage_item import StorageItem
 from app.models.machine_item import MachineItem
-from app.models.damaged_item import DamagedItem
 from app.models.inventory import Inventory
 
 # Inventory Ledgers (Transaction Logs)
-from app.models.storage_item_ledger import StorageItemLedger
 from app.models.machine_item_ledger import MachineItemLedger
-from app.models.damaged_item_ledger import DamagedItemLedger
 from app.models.inventory_ledger import InventoryLedger
 from app.models.project_component_item_ledger import ProjectComponentItemLedger
 
@@ -105,14 +101,10 @@ __all__ = [
     "ItemTag",
     "ItemTagAssignment",
     # Inventory (Snapshot Tables)
-    "StorageItem",
     "MachineItem",
-    "DamagedItem",
     "Inventory",
     # Inventory Ledgers (Transaction Logs)
-    "StorageItemLedger",
     "MachineItemLedger",
-    "DamagedItemLedger",
     "InventoryLedger",
     "ProjectComponentItemLedger",
     # Production Module
