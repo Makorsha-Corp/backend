@@ -9,6 +9,7 @@ from app.dao.sales_delivery import sales_delivery_dao
 from app.dao.sales_delivery_item import sales_delivery_item_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
 from app.dao.inventory import inventory_dao
+from app.models.enums import InventoryTypeEnum
 
 
 class SalesManager(BaseManager[SalesOrder]):
@@ -208,36 +209,42 @@ class SalesManager(BaseManager[SalesOrder]):
             order_item.quantity_delivered += delivery_item.quantity_delivered
             session.flush()
 
-            # Create inventory ledger entry (transfer_out)
-            from app.schemas.inventory_ledger import InventoryLedgerCreate
-            ledger_entry = InventoryLedgerCreate(
-                workspace_id=workspace_id,
-                factory_id=sales_order.factory_id,
-                item_id=delivery_item.item_id,
-                transaction_type='transfer_out',
-                quantity=delivery_item.quantity_delivered,
-                unit_cost=0,  # TODO: Get actual cost from inventory
-                total_cost=0,
-                qty_before=0,  # TODO: Get from inventory snapshot
-                qty_after=0,
-                source_type='sales_delivery',
-                source_id=delivery_id,
-                transfer_destination_type='customer',
-                transfer_destination_id=sales_order.account_id,
-                notes=f"Delivery {delivery.delivery_number} for SO-{sales_order.sales_order_number}",
-                performed_by=user_id
-            )
-            self.inventory_ledger_dao.create(session, obj_in=ledger_entry)
-
-            # Update inventory snapshot (deduct quantity)
-            inventory = self.inventory_dao.get_by_factory_and_item(
+            # Fetch inventory snapshot first so ledger has accurate before/after values
+            inventory = self.inventory_dao.get_by_factory_item_type(
                 session,
                 factory_id=sales_order.factory_id,
                 item_id=delivery_item.item_id,
-                workspace_id=workspace_id
+                inventory_type=InventoryTypeEnum.STORAGE,
+                workspace_id=workspace_id,
             )
+            qty_before = inventory.qty if inventory else 0
+            avg_price = inventory.avg_price if (inventory and inventory.avg_price) else 0
+            qty_after = max(0, qty_before - delivery_item.quantity_delivered)
+
+            self.inventory_ledger_dao.create(session, obj_in={
+                'workspace_id': workspace_id,
+                'inventory_type': InventoryTypeEnum.STORAGE,
+                'factory_id': sales_order.factory_id,
+                'item_id': delivery_item.item_id,
+                'transaction_type': 'transfer_out',
+                'quantity': delivery_item.quantity_delivered,
+                'unit_cost': avg_price if avg_price else None,
+                'total_cost': (avg_price * delivery_item.quantity_delivered) if avg_price else None,
+                'qty_before': qty_before,
+                'qty_after': qty_after,
+                'avg_price_before': avg_price if avg_price else None,
+                'avg_price_after': avg_price if avg_price else None,
+                'source_type': 'sales_delivery',
+                'source_id': delivery_id,
+                'transfer_destination_type': 'customer',
+                'transfer_destination_id': sales_order.account_id,
+                'notes': f"Delivery {delivery.delivery_number} for SO-{sales_order.sales_order_number}",
+                'performed_by': user_id,
+            })
+
+            # Update inventory snapshot
             if inventory:
-                inventory.qty -= delivery_item.quantity_delivered
+                inventory.qty = qty_after
                 session.flush()
 
         # Check if sales order is fully delivered
