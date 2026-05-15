@@ -1,7 +1,8 @@
 """
-Unified inventory API endpoints (STORAGE, DAMAGED, WASTE, SCRAP)
+Unified inventory API endpoints (STORAGE, DAMAGED, WASTE, SCRAP).
 
-Provides operations for managing inventory records and querying ledger.
+Inventory ledger queries live at `/api/v1/ledgers/inventory/*` — this module
+only handles inventory snapshot CRUD.
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
@@ -12,7 +13,6 @@ from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.models.enums import InventoryTypeEnum
 from app.schemas.inventory import InventoryCreate, InventoryUpdate, InventoryResponse
-from app.schemas.inventory_ledger import InventoryLedgerResponse
 from app.services.inventory_service import inventory_service
 
 
@@ -38,29 +38,6 @@ def list_inventory(
         db, workspace_id=workspace.id,
         inventory_type=inventory_type, factory_id=factory_id,
         skip=skip, limit=limit
-    )
-
-
-@router.get(
-    "/ledger/",
-    response_model=List[InventoryLedgerResponse],
-    status_code=status.HTTP_200_OK,
-    summary="List inventory ledger entries",
-    description="Get ledger entries, optionally filtered by type, factory, or item"
-)
-def list_ledger(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    inventory_type: Optional[InventoryTypeEnum] = Query(None, description="Filter by inventory type"),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    item_id: Optional[int] = Query(None, description="Filter by item ID"),
-    workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
-):
-    return inventory_service.list_ledger(
-        db, workspace_id=workspace.id,
-        inventory_type=inventory_type, factory_id=factory_id,
-        item_id=item_id, skip=skip, limit=limit
     )
 
 

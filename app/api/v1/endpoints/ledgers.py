@@ -21,6 +21,7 @@ from app.schemas.project_component_item_ledger import ProjectComponentItemLedger
 from app.schemas.inventory_ledger import InventoryLedgerResponse
 from app.schemas.response import ActionResponse
 from app.services.ledger_service import ledger_service
+from app.models.enums import InventoryTypeEnum
 
 
 router = APIRouter()
@@ -181,11 +182,17 @@ def get_project_component_total_cost(
     response_model=List[InventoryLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get inventory ledger entries",
-    description="Query finished goods inventory ledger with filters"
+    description=(
+        "Query the unified inventory ledger (STORAGE / DAMAGED / WASTE / SCRAP). "
+        "All scoping filters are optional — omit them to list every entry in the workspace."
+    ),
 )
 def get_inventory_ledger(
-    factory_id: int = Query(..., description="Factory ID"),
-    item_id: int = Query(..., description="Item ID"),
+    inventory_type: Optional[InventoryTypeEnum] = Query(
+        None, description="Optional inventory_type filter (STORAGE/DAMAGED/WASTE/SCRAP)"
+    ),
+    factory_id: Optional[int] = Query(None, description="Optional factory filter"),
+    item_id: Optional[int] = Query(None, description="Optional item filter"),
     start_date: Optional[datetime] = Query(None, description="Start date filter"),
     end_date: Optional[datetime] = Query(None, description="End date filter"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
@@ -193,19 +200,20 @@ def get_inventory_ledger(
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
+    current_user: Profile = Depends(get_current_active_user),
 ):
-    """Get finished goods inventory ledger entries with optional filters."""
+    """Get unified inventory ledger entries with optional filters."""
     entries = ledger_service.get_inventory_ledger(
         db=db,
+        workspace_id=workspace.id,
+        inventory_type=inventory_type,
         factory_id=factory_id,
         item_id=item_id,
-        workspace_id=workspace.id,
         start_date=start_date,
         end_date=end_date,
         transaction_type=transaction_type,
         skip=skip,
-        limit=limit
+        limit=limit,
     )
     return entries
 
@@ -215,21 +223,28 @@ def get_inventory_ledger(
     response_model=Dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get inventory balance",
-    description="Calculate current finished goods balance from ledger"
+    description=(
+        "Calculate the current ledger balance for a single (factory, item, inventory_type) "
+        "bucket. Each inventory_type is an independent balance, so all three params are required."
+    ),
 )
 def get_inventory_balance(
     factory_id: int = Query(..., description="Factory ID"),
     item_id: int = Query(..., description="Item ID"),
+    inventory_type: InventoryTypeEnum = Query(
+        ..., description="Inventory type bucket (STORAGE/DAMAGED/WASTE/SCRAP)"
+    ),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
+    current_user: Profile = Depends(get_current_active_user),
 ):
-    """Calculate current finished goods balance from ledger."""
+    """Calculate current inventory balance from ledger for one bucket."""
     balance = ledger_service.get_inventory_balance(
         db=db,
         factory_id=factory_id,
         item_id=item_id,
-        workspace_id=workspace.id
+        inventory_type=inventory_type,
+        workspace_id=workspace.id,
     )
     return balance
 
@@ -238,23 +253,30 @@ def get_inventory_balance(
     "/inventory/reconcile/",
     response_model=ActionResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
-    summary="Reconcile finished goods inventory",
-    description="Compare inventory ledger vs snapshot and fix discrepancies"
+    summary="Reconcile inventory bucket",
+    description=(
+        "Compare ledger vs snapshot for a single (factory, item, inventory_type) bucket "
+        "and create an adjustment entry if there is a discrepancy."
+    ),
 )
 def reconcile_inventory(
     factory_id: int = Query(..., description="Factory ID"),
     item_id: int = Query(..., description="Item ID"),
+    inventory_type: InventoryTypeEnum = Query(
+        ..., description="Inventory type bucket to reconcile (STORAGE/DAMAGED/WASTE/SCRAP)"
+    ),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
+    current_user: Profile = Depends(get_current_active_user),
 ):
-    """Reconcile finished goods inventory."""
+    """Reconcile a single inventory bucket."""
     result, messages = ledger_service.reconcile_inventory(
         db=db,
         factory_id=factory_id,
         item_id=item_id,
+        inventory_type=inventory_type,
         workspace_id=workspace.id,
-        current_user=current_user
+        current_user=current_user,
     )
 
     return ActionResponse(data=result, messages=messages)

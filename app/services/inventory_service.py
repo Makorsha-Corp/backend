@@ -5,10 +5,8 @@ from sqlalchemy.orm import Session
 from app.services.base_service import BaseService
 from app.managers.inventory_manager import inventory_manager
 from app.models.inventory import Inventory
-from app.models.inventory_ledger import InventoryLedger
 from app.models.enums import InventoryTypeEnum
 from app.schemas.inventory import InventoryCreate, InventoryUpdate
-from app.dao.inventory_ledger import inventory_ledger_dao
 
 
 class InventoryService(BaseService):
@@ -17,7 +15,6 @@ class InventoryService(BaseService):
     def __init__(self):
         super().__init__()
         self.manager = inventory_manager
-        self.ledger_dao = inventory_ledger_dao
 
     def create_inventory(
         self, db: Session, inv_in: InventoryCreate,
@@ -69,20 +66,6 @@ class InventoryService(BaseService):
         except Exception:
             self._rollback_transaction(db)
             raise
-
-    # Ledger queries
-    def list_ledger(
-        self, db: Session, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
-        return self.ledger_dao.get_by_workspace(
-            db, workspace_id=workspace_id,
-            inventory_type=inventory_type, factory_id=factory_id,
-            item_id=item_id, skip=skip, limit=limit
-        )
 
 
 inventory_service = InventoryService()

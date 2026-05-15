@@ -7,6 +7,7 @@ from app.managers.base_manager import BaseManager
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.project_component_item_ledger import ProjectComponentItemLedger
 from app.models.inventory_ledger import InventoryLedger
+from app.models.enums import InventoryTypeEnum
 from app.dao.machine_item_ledger import machine_item_ledger_dao
 from app.dao.project_component_item_ledger import project_component_item_ledger_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
@@ -313,9 +314,10 @@ class LedgerManager(BaseManager[MachineItemLedger]):
     def get_inventory_ledger(
         self,
         session: Session,
-        factory_id: int,
-        item_id: int,
         workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         transaction_type: Optional[str] = None,
@@ -323,13 +325,18 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         limit: int = 100
     ) -> List[InventoryLedger]:
         """
-        Get finished goods inventory ledger entries with optional filters.
+        Get unified inventory ledger entries with optional filters.
+
+        All scoping params (inventory_type, factory_id, item_id) are optional —
+        callers can list every ledger entry in a workspace by passing only
+        workspace_id.
 
         Args:
             session: Database session
-            factory_id: Factory ID
-            item_id: Item ID
-            workspace_id: Workspace ID
+            workspace_id: Workspace ID (required for isolation)
+            inventory_type: Optional inventory type filter (STORAGE/DAMAGED/WASTE/SCRAP)
+            factory_id: Optional factory filter
+            item_id: Optional item filter
             start_date: Optional start date filter
             end_date: Optional end date filter
             transaction_type: Optional transaction type filter
@@ -345,41 +352,50 @@ class LedgerManager(BaseManager[MachineItemLedger]):
                 workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
+                inventory_type=inventory_type,
+                factory_id=factory_id,
+                item_id=item_id,
                 skip=skip,
-                limit=limit
+                limit=limit,
             )
-        elif transaction_type:
+        if transaction_type:
             return self.inventory_ledger_dao.get_by_transaction_type(
                 session,
                 transaction_type=transaction_type,
                 workspace_id=workspace_id,
-                skip=skip,
-                limit=limit
-            )
-        else:
-            return self.inventory_ledger_dao.get_by_factory_and_item(
-                session,
+                inventory_type=inventory_type,
                 factory_id=factory_id,
                 item_id=item_id,
-                workspace_id=workspace_id,
                 skip=skip,
-                limit=limit
+                limit=limit,
             )
+        return self.inventory_ledger_dao.get_by_workspace(
+            session,
+            workspace_id=workspace_id,
+            inventory_type=inventory_type,
+            factory_id=factory_id,
+            item_id=item_id,
+            skip=skip,
+            limit=limit,
+        )
 
     def get_inventory_balance(
         self,
         session: Session,
         factory_id: int,
         item_id: int,
+        inventory_type: InventoryTypeEnum,
         workspace_id: int
     ) -> Tuple[int, Decimal]:
         """
-        Calculate current finished goods balance from ledger.
+        Calculate current inventory balance from ledger for a single
+        (factory, item, inventory_type) bucket.
 
         Args:
             session: Database session
             factory_id: Factory ID
             item_id: Item ID
+            inventory_type: Inventory type bucket (each type has its own balance)
             workspace_id: Workspace ID
 
         Returns:
@@ -389,7 +405,8 @@ class LedgerManager(BaseManager[MachineItemLedger]):
             session,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id
+            inventory_type=inventory_type,
+            workspace_id=workspace_id,
         )
 
     def reconcile_inventory(
@@ -397,16 +414,19 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         session: Session,
         factory_id: int,
         item_id: int,
+        inventory_type: InventoryTypeEnum,
         workspace_id: int,
         user_id: int
     ) -> Dict[str, Any]:
         """
-        Reconcile inventory ledger vs inventory snapshot.
+        Reconcile inventory ledger vs the matching inventory snapshot
+        for one (factory, item, inventory_type) bucket.
 
         Args:
             session: Database session
             factory_id: Factory ID
             item_id: Item ID
+            inventory_type: Inventory type bucket to reconcile
             workspace_id: Workspace ID
             user_id: User performing reconciliation
 
@@ -416,20 +436,20 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         Note:
             This method does NOT commit. Service layer must commit.
         """
-        # Get balance from ledger
-        ledger_qty, ledger_value = self.inventory_ledger_dao.calculate_balance(
+        ledger_qty, _ledger_value = self.inventory_ledger_dao.calculate_balance(
             session,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id
+            inventory_type=inventory_type,
+            workspace_id=workspace_id,
         )
 
-        # Get snapshot
-        snapshot = self.inventory_dao.get_by_factory_and_item(
+        snapshot = self.inventory_dao.get_by_factory_item_type(
             session,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id
+            inventory_type=inventory_type,
+            workspace_id=workspace_id,
         )
 
         if not snapshot:
@@ -439,7 +459,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
                 'snapshot_qty': 0,
                 'discrepancy': ledger_qty,
                 'adjustment_created': False,
-                'error': 'Snapshot missing for item with ledger transactions'
+                'error': 'Snapshot missing for item with ledger transactions',
             }
 
         snapshot_qty = snapshot.qty
@@ -451,41 +471,44 @@ class LedgerManager(BaseManager[MachineItemLedger]):
                 'ledger_qty': ledger_qty,
                 'snapshot_qty': snapshot_qty,
                 'discrepancy': 0,
-                'adjustment_created': False
+                'adjustment_created': False,
             }
 
-        # Create adjustment
         latest_entry = self.inventory_ledger_dao.get_latest_entry(
             session,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id
+            inventory_type=inventory_type,
+            workspace_id=workspace_id,
         )
 
         avg_price = latest_entry.avg_price_after if latest_entry else Decimal('0.00')
 
-        adjustment = InventoryLedgerCreate(
-            workspace_id=workspace_id,
-            factory_id=factory_id,
-            item_id=item_id,
-            transaction_type='inventory_adjustment',
-            quantity=abs(discrepancy),
-            unit_cost=avg_price,
-            total_cost=abs(discrepancy) * avg_price,
-            qty_before=snapshot_qty,
-            qty_after=ledger_qty,
-            value_before=snapshot_qty * avg_price,
-            value_after=ledger_qty * avg_price,
-            avg_price_before=avg_price,
-            avg_price_after=avg_price,
-            source_type='reconciliation',
-            notes=f"Reconciliation adjustment: Snapshot was {snapshot_qty}, ledger shows {ledger_qty}. Discrepancy: {discrepancy}",
-            performed_by=user_id
-        )
+        # Build dict directly so we can inject workspace_id + performed_by,
+        # which are NOT part of InventoryLedgerCreate.
+        adjustment_payload: Dict[str, Any] = {
+            'workspace_id': workspace_id,
+            'inventory_type': inventory_type,
+            'factory_id': factory_id,
+            'item_id': item_id,
+            'transaction_type': 'inventory_adjustment',
+            'quantity': abs(discrepancy),
+            'unit_cost': avg_price,
+            'total_cost': abs(discrepancy) * avg_price,
+            'qty_before': snapshot_qty,
+            'qty_after': ledger_qty,
+            'avg_price_before': avg_price,
+            'avg_price_after': avg_price,
+            'source_type': 'reconciliation',
+            'notes': (
+                f"Reconciliation adjustment: Snapshot was {snapshot_qty}, "
+                f"ledger shows {ledger_qty}. Discrepancy: {discrepancy}"
+            ),
+            'performed_by': user_id,
+        }
 
-        self.inventory_ledger_dao.create(session, obj_in=adjustment)
+        self.inventory_ledger_dao.create(session, obj_in=adjustment_payload)
 
-        # Update snapshot
         snapshot.qty = ledger_qty
         snapshot.avg_price = avg_price
         session.flush()
@@ -495,7 +518,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
             'ledger_qty': ledger_qty,
             'snapshot_qty': snapshot_qty,
             'discrepancy': discrepancy,
-            'adjustment_created': True
+            'adjustment_created': True,
         }
 
     # ============================================================================

@@ -8,6 +8,7 @@ from app.managers.ledger_manager import ledger_manager
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.project_component_item_ledger import ProjectComponentItemLedger
 from app.models.inventory_ledger import InventoryLedger
+from app.models.enums import InventoryTypeEnum
 from app.models.profile import Profile
 from app.schemas.response import ActionMessage, success_message, info_message, warning_message
 from app.core.exceptions import NotFoundError
@@ -167,26 +168,33 @@ class LedgerService(BaseService):
     def get_inventory_ledger(
         self,
         db: Session,
-        factory_id: int,
-        item_id: int,
         workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         transaction_type: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[InventoryLedger]:
-        """Get finished goods inventory ledger entries with optional filters."""
+        """Get unified inventory ledger entries with optional filters.
+
+        Each (factory_id, item_id, inventory_type) is an independent balance
+        bucket. None of those three scoping params are required; callers can
+        list every entry in a workspace by only passing workspace_id.
+        """
         return self.ledger_manager.get_inventory_ledger(
             session=db,
+            workspace_id=workspace_id,
+            inventory_type=inventory_type,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=transaction_type,
             skip=skip,
-            limit=limit
+            limit=limit,
         )
 
     def get_inventory_balance(
@@ -194,20 +202,23 @@ class LedgerService(BaseService):
         db: Session,
         factory_id: int,
         item_id: int,
+        inventory_type: InventoryTypeEnum,
         workspace_id: int
     ) -> Dict[str, Any]:
-        """Get current finished goods balance from ledger."""
+        """Get current inventory balance from ledger for one bucket."""
         qty, value = self.ledger_manager.get_inventory_balance(
             session=db,
             factory_id=factory_id,
             item_id=item_id,
-            workspace_id=workspace_id
+            inventory_type=inventory_type,
+            workspace_id=workspace_id,
         )
         return {
             'factory_id': factory_id,
             'item_id': item_id,
+            'inventory_type': inventory_type.value if hasattr(inventory_type, 'value') else inventory_type,
             'quantity': qty,
-            'total_value': float(value)
+            'total_value': float(value),
         }
 
     def reconcile_inventory(
@@ -215,10 +226,11 @@ class LedgerService(BaseService):
         db: Session,
         factory_id: int,
         item_id: int,
+        inventory_type: InventoryTypeEnum,
         workspace_id: int,
         current_user: Profile
     ) -> Tuple[Dict[str, Any], List[ActionMessage]]:
-        """Reconcile inventory ledger vs snapshot and return messages."""
+        """Reconcile inventory ledger vs snapshot for one bucket and return messages."""
         messages = []
 
         try:
@@ -226,18 +238,19 @@ class LedgerService(BaseService):
                 session=db,
                 factory_id=factory_id,
                 item_id=item_id,
+                inventory_type=inventory_type,
                 workspace_id=workspace_id,
-                user_id=current_user.id
+                user_id=current_user.id,
             )
 
             if result['status'] == 'balanced':
                 messages.append(success_message(
-                    f"Finished goods inventory is balanced at {result['ledger_qty']} units."
+                    f"Inventory is balanced at {result['ledger_qty']} units."
                 ))
             elif result['status'] == 'adjusted':
                 messages.append(warning_message(
                     f"Discrepancy found and corrected: {abs(result['discrepancy'])} units adjusted.",
-                    details=result
+                    details=result,
                 ))
                 messages.append(success_message("Snapshot updated to match ledger."))
             elif result['status'] == 'error':
