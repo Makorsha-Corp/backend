@@ -37,15 +37,15 @@ class LedgerService(BaseService):
         self,
         db: Session,
         machine_id: int,
-        item_id: int,
         workspace_id: int,
+        item_id: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         transaction_type: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[MachineItemLedger]:
-        """Get machine ledger entries with optional filters."""
+        """Get machine ledger entries; `item_id` is optional (lists the whole machine when omitted)."""
         return self.ledger_manager.get_machine_ledger(
             session=db,
             machine_id=machine_id,

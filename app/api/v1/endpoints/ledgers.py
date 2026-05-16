@@ -40,7 +40,10 @@ router = APIRouter()
 )
 def get_machine_ledger(
     machine_id: int = Query(..., description="Machine ID"),
-    item_id: int = Query(..., description="Item ID"),
+    item_id: Optional[int] = Query(
+        None,
+        description="Optional item filter — omit to list every entry for the machine",
+    ),
     start_date: Optional[datetime] = Query(None, description="Start date filter"),
     end_date: Optional[datetime] = Query(None, description="End date filter"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),

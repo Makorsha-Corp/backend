@@ -46,8 +46,8 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         self,
         session: Session,
         machine_id: int,
-        item_id: int,
         workspace_id: int,
+        item_id: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         transaction_type: Optional[str] = None,
@@ -57,11 +57,14 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         """
         Get machine ledger entries with optional filters.
 
+        Always scoped to the given machine. `item_id` is optional: when omitted
+        every ledger row for the machine is returned.
+
         Args:
             session: Database session
-            machine_id: Machine ID
-            item_id: Item ID
+            machine_id: Machine ID (required — list is always scoped to one machine)
             workspace_id: Workspace ID
+            item_id: Optional item filter
             start_date: Optional start date filter
             end_date: Optional end date filter
             transaction_type: Optional transaction type filter
@@ -70,6 +73,12 @@ class LedgerManager(BaseManager[MachineItemLedger]):
 
         Returns:
             List of machine ledger entries (newest first)
+
+        NOTE: The date-range and transaction-type DAO helpers below currently
+        scope to workspace only — they don't filter by machine/item. The
+        date/transaction filters are exposed for completeness but combining
+        them with the machine scope will not narrow the result to the chosen
+        machine. Tracked as a separate cleanup.
         """
         if start_date and end_date:
             return self.machine_ledger_dao.get_by_date_range(
@@ -88,11 +97,20 @@ class LedgerManager(BaseManager[MachineItemLedger]):
                 skip=skip,
                 limit=limit
             )
-        else:
+        elif item_id is not None:
             return self.machine_ledger_dao.get_by_machine_and_item(
                 session,
                 machine_id=machine_id,
                 item_id=item_id,
+                workspace_id=workspace_id,
+                skip=skip,
+                limit=limit
+            )
+        else:
+            # No item picked → list every entry for the machine.
+            return self.machine_ledger_dao.get_by_machine(
+                session,
+                machine_id=machine_id,
                 workspace_id=workspace_id,
                 skip=skip,
                 limit=limit
