@@ -23,6 +23,7 @@ from app.dao.workspace import workspace_dao
 from app.dao.workspace_invitation import workspace_invitation_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.managers.workspace_manager import workspace_manager
+from app.services.base_service import BaseService
 from app.models.profile import Profile
 from app.models.refresh_token import RefreshToken
 from app.models.workspace import Workspace
