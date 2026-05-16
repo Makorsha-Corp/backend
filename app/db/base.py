@@ -12,6 +12,7 @@ from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.models.workspace_audit_log import WorkspaceAuditLog
+from app.models.refresh_token import RefreshToken
 from app.models.subscription_plan import SubscriptionPlan
 from app.models.department import Department
 from app.models.factory import Factory

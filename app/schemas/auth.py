@@ -18,6 +18,46 @@ class TokenData(BaseModel):
 
 
 # ============================================================================
+# REFRESH TOKEN SCHEMAS (rotation flow)
+# ============================================================================
+
+class TokenPair(BaseModel):
+    """Common shape for any endpoint that issues both an access + refresh pair.
+
+    `expires_in`         — access-token lifetime, in seconds
+    `refresh_expires_in` — refresh-token lifetime, in seconds (constant per
+                           login until rotation; clients use it to schedule
+                           proactive re-logins if desired).
+    """
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    refresh_expires_in: int
+
+
+class RefreshTokenRequest(BaseModel):
+    """POST /auth/refresh/ — exchange a refresh token for a new pair."""
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    """POST /auth/logout/ — revoke a refresh token (current device by default).
+
+    Setting `all_devices=True` revokes every active refresh token for the user,
+    effectively logging them out everywhere.
+    """
+    refresh_token: Optional[str] = Field(
+        None,
+        description=(
+            "Refresh token to revoke. Required unless `all_devices=True` and "
+            "the request is authenticated (so we can identify the user)."
+        ),
+    )
+    all_devices: bool = False
+
+
+# ============================================================================
 # REGISTRATION SCHEMAS
 # ============================================================================
 
@@ -34,7 +74,10 @@ class RegisterRequest(BaseModel):
 class RegisterResponse(BaseModel):
     """Registration response schema"""
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int
+    refresh_expires_in: int
     user: dict
     workspace: dict
     messages: list[dict] = []
@@ -53,7 +96,10 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     """Login response schema (workspace NOT included - user selects after login)"""
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int
+    refresh_expires_in: int
     user: dict
     messages: list[dict] = []
 
@@ -66,7 +112,10 @@ class SwitchWorkspaceRequest(BaseModel):
 class SwitchWorkspaceResponse(BaseModel):
     """Switch workspace response schema"""
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int
+    refresh_expires_in: int
     workspace: dict
     messages: list[dict] = []
 

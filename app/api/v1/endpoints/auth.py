@@ -10,7 +10,9 @@ Provides comprehensive authentication:
 - Invitation validation
 """
 from datetime import timedelta
-from fastapi import APIRouter, Depends, status, HTTPException
+from typing import Optional, Tuple
+
+from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
@@ -31,10 +33,29 @@ from app.schemas.auth import (
     AdminResetPasswordResponse,
     ValidateInvitationRequest,
     ValidateInvitationResponse,
+    RefreshTokenRequest,
+    TokenPair as TokenPairResponse,
+    LogoutRequest,
 )
 from app.services.auth_service import auth_service
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+
+
+def _client_context(request: Request) -> Tuple[Optional[str], Optional[str]]:
+    """Best-effort extraction of (user_agent, ip_address) for diagnostics.
+
+    Stored on the refresh_tokens row so we can build an "active sessions" UI
+    later. NOT used for any auth decision — never trust client-supplied data
+    for security gates.
+    """
+    ua = request.headers.get("user-agent")
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        ip = forwarded.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else None
+    return ua, ip
 
 
 router = APIRouter()
@@ -66,33 +87,40 @@ router = APIRouter()
     """
 )
 def register(
-    request: RegisterRequest,
+    body: RegisterRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Register a new user.
 
     Either workspace_name OR invitation_token must be provided.
-    Returns access token, user, workspace, and messages.
+    Returns access token, refresh token, user, workspace, and messages.
 
     Raises:
         - 409 Conflict: Email already registered
         - 400 Bad Request: Validation errors
     """
     try:
-        user, workspace, jwt_token, messages = auth_service.register_user(
+        user_agent, ip_address = _client_context(request)
+        user, workspace, token_pair, messages = auth_service.register_user(
             db=db,
-            name=request.name,
-            email=request.email,
-            password=request.password,
-            position=request.position,
-            workspace_name=request.workspace_name,
-            invitation_token=request.invitation_token
+            name=body.name,
+            email=body.email,
+            password=body.password,
+            position=body.position,
+            workspace_name=body.workspace_name,
+            invitation_token=body.invitation_token,
+            user_agent=user_agent,
+            ip_address=ip_address,
         )
 
         return RegisterResponse(
-            access_token=jwt_token,
+            access_token=token_pair.access_token,
+            refresh_token=token_pair.refresh_token,
             token_type="bearer",
+            expires_in=token_pair.expires_in,
+            refresh_expires_in=token_pair.refresh_expires_in,
             user={
                 "id": user.id,
                 "name": user.name,
@@ -139,30 +167,39 @@ def register(
 )
 def login(
     credentials: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Login with email and password (workspace selection happens after).
 
     Returns:
-        - access_token: JWT token for authentication
-        - token_type: Always "bearer"
-        - user: User profile data
-        - messages: Informational messages
+        - access_token: short-lived JWT (sent in Authorization: Bearer <…>)
+        - refresh_token: long-lived opaque credential used by POST /auth/refresh/
+        - token_type: "bearer"
+        - expires_in / refresh_expires_in: lifetimes in seconds
+        - user: profile data
+        - messages: informational messages
 
     Raises:
         - 401 Unauthorized: Invalid credentials
     """
     try:
-        user, jwt_token, messages = auth_service.login_user(
+        user_agent, ip_address = _client_context(request)
+        user, token_pair, messages = auth_service.login_user(
             db=db,
             email=credentials.email,
-            password=credentials.password
+            password=credentials.password,
+            user_agent=user_agent,
+            ip_address=ip_address,
         )
 
         return LoginResponse(
-            access_token=jwt_token,
+            access_token=token_pair.access_token,
+            refresh_token=token_pair.refresh_token,
             token_type="bearer",
+            expires_in=token_pair.expires_in,
+            refresh_expires_in=token_pair.refresh_expires_in,
             user={
                 "id": user.id,
                 "name": user.name,
@@ -193,29 +230,36 @@ def login(
     """
 )
 def switch_workspace(
-    request: SwitchWorkspaceRequest,
+    body: SwitchWorkspaceRequest,
+    request: Request,
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
     Switch to a different workspace.
 
-    Returns new JWT token with new workspace context.
+    Returns a NEW token pair (access + refresh) with the new workspace context.
 
     Raises:
         - 401 Unauthorized: User not authenticated
         - 403 Forbidden: User not member of target workspace
     """
     try:
-        workspace, jwt_token, messages = auth_service.switch_workspace(
+        user_agent, ip_address = _client_context(request)
+        workspace, token_pair, messages = auth_service.switch_workspace(
             db=db,
             user_id=current_user.id,
-            workspace_id=request.workspace_id
+            workspace_id=body.workspace_id,
+            user_agent=user_agent,
+            ip_address=ip_address,
         )
 
         return SwitchWorkspaceResponse(
-            access_token=jwt_token,
+            access_token=token_pair.access_token,
+            refresh_token=token_pair.refresh_token,
             token_type="bearer",
+            expires_in=token_pair.expires_in,
+            refresh_expires_in=token_pair.refresh_expires_in,
             workspace={
                 "id": workspace.id,
                 "name": workspace.name,
@@ -468,25 +512,110 @@ def get_current_user_info(
 
 
 @router.post(
-    "/logout/",
+    "/refresh/",
+    response_model=TokenPairResponse,
     status_code=status.HTTP_200_OK,
-    summary="User logout",
+    summary="Exchange refresh token for new access + refresh pair",
     description="""
-    Logout current user.
+    Exchange a refresh token for a brand-new access + refresh pair.
 
-    **Note**: Since we're using stateless JWT, logout is handled client-side
-    by deleting the token. This endpoint is a placeholder for potential
-    future token blacklisting or session management.
+    **Rotation:** the presented refresh token is revoked on success; a new
+    refresh token is returned and must replace the old one client-side.
+
+    **Reuse detection:** if a refresh token that has already been rotated is
+    presented again, the entire token family is revoked (likely theft) and
+    the user is forced to log in again everywhere.
+
+    Returns 401 on any failure (invalid, expired, revoked, or reuse detected).
     """
 )
-def logout():
-    """
-    Logout user (client-side operation).
+def refresh(
+    body: RefreshTokenRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Refresh the access token using a long-lived refresh token."""
+    try:
+        user_agent, ip_address = _client_context(request)
+        token_pair, _ = auth_service.refresh_access_token(
+            db=db,
+            raw_refresh_token=body.refresh_token,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+        return TokenPairResponse(
+            access_token=token_pair.access_token,
+            refresh_token=token_pair.refresh_token,
+            token_type="bearer",
+            expires_in=token_pair.expires_in,
+            refresh_expires_in=token_pair.refresh_expires_in,
+        )
+    except ValueError as e:
+        # Don't leak which specific failure (invalid vs expired vs reused) to
+        # the network. Server logs have the detail; client just gets 401.
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Token refresh failed: {str(e)}")
 
-    Frontend should delete the JWT token from storage.
 
-    Future: Could implement token blacklist here.
+@router.post(
+    "/logout/",
+    status_code=status.HTTP_200_OK,
+    summary="Revoke a refresh token (logout)",
+    description="""
+    Revoke the presented refresh token (default) or every active refresh
+    token for the user (when `all_devices=true`).
+
+    Best-effort: unknown or already-revoked tokens succeed silently. The
+    client should always clear its in-memory + persisted tokens regardless
+    of this endpoint's response.
+    """,
+)
+def logout(
+    body: LogoutRequest,
+    db: Session = Depends(get_db),
+):
+    """Revoke the refresh token (this device, or all devices).
+
+    Note: this endpoint does NOT require an access token. A stale/expired
+    access token shouldn't block logout — the client just needs to drop the
+    refresh token from the DB so it can't be used by anyone.
     """
-    return {
-        "message": "Logged out successfully. Please delete your token on the client side."
-    }
+    try:
+        # For `all_devices=True` we need to know who the user is. We resolve
+        # that by hashing the presented refresh token and looking it up — this
+        # avoids requiring a valid (un-expired) access token to log out.
+        user_id = None
+        if body.all_devices:
+            if not body.refresh_token:
+                raise HTTPException(
+                    status_code=400,
+                    detail="refresh_token is required for all_devices logout",
+                )
+            from app.core.security import hash_refresh_token
+            from app.dao.refresh_token import refresh_token_dao
+            row = refresh_token_dao.get_by_hash(
+                db, token_hash=hash_refresh_token(body.refresh_token)
+            )
+            if row:
+                user_id = row.user_id
+            # If the row is unknown we still 200 — treat as already logged out.
+
+        messages = auth_service.logout_session(
+            db=db,
+            raw_refresh_token=body.refresh_token,
+            user_id=user_id,
+            all_devices=body.all_devices,
+        )
+
+        return {
+            "message": "Logged out.",
+            "messages": [msg.model_dump() for msg in messages],
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Logout failed: {str(e)}")

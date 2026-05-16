@@ -1,23 +1,48 @@
 """Authentication Service for user registration, login, and password management"""
-from typing import Tuple, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
 import secrets
-from app.services.base_service import BaseService
-from app.managers.workspace_manager import workspace_manager
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Tuple, Dict, Any, Optional
+
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.exceptions import NotFoundError
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+    hash_refresh_token,
+    verify_password,
+)
 from app.dao.profile import profile_dao
-from app.dao.workspace import workspace_dao
-from app.dao.workspace_member import workspace_member_dao
-from app.dao.workspace_invitation import workspace_invitation_dao
+from app.dao.refresh_token import refresh_token_dao
 from app.dao.subscription_plan import subscription_plan_dao
-from app.schemas.profile import ProfileCreate
-from app.schemas.workspace import WorkspaceCreate
+from app.dao.workspace import workspace_dao
+from app.dao.workspace_invitation import workspace_invitation_dao
+from app.dao.workspace_member import workspace_member_dao
+from app.managers.workspace_manager import workspace_manager
 from app.models.profile import Profile
+from app.models.refresh_token import RefreshToken
 from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember
-from app.core.security import create_access_token, get_password_hash, verify_password
-from app.core.exceptions import NotFoundError
+from app.schemas.profile import ProfileCreate
 from app.schemas.response import ActionMessage, success_message, error_message, info_message
+from app.schemas.workspace import WorkspaceCreate
+
+
+@dataclass
+class TokenPair:
+    """Internal result type returned by `_issue_token_pair`.
+
+    The raw refresh token is the value handed to the client; only its hash is
+    stored. `expires_in` / `refresh_expires_in` are in seconds.
+    """
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    refresh_expires_in: int
 
 
 class AuthService(BaseService):
@@ -41,6 +66,68 @@ class AuthService(BaseService):
         self.workspace_member_dao = workspace_member_dao
         self.workspace_invitation_dao = workspace_invitation_dao
         self.subscription_dao = subscription_plan_dao
+        self.refresh_token_dao = refresh_token_dao
+
+    # ============================================================================
+    # TOKEN ISSUANCE HELPERS
+    # ============================================================================
+
+    def _issue_token_pair(
+        self,
+        db: Session,
+        *,
+        user: Profile,
+        workspace_id: Optional[int],
+        family_id: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> TokenPair:
+        """Mint an (access_token, refresh_token) pair and persist the refresh row.
+
+        Args:
+            user:          authenticated user.
+            workspace_id:  optional — included in the access-token JWT claim,
+                           and stored on the refresh-token row for diagnostics.
+                           May be None when the user hasn't picked a workspace yet
+                           (immediately after `/auth/login/`).
+            family_id:     when continuing an existing rotation chain (e.g. on
+                           `/auth/refresh/`), the caller passes the same family.
+                           Pass None for fresh logins to start a new family.
+            user_agent / ip_address: best-effort diagnostics for "active sessions".
+
+        Does NOT commit. Caller is responsible.
+        """
+        access_claims: Dict[str, Any] = {
+            "sub": str(user.id),
+            "email": user.email,
+        }
+        if workspace_id is not None:
+            access_claims["workspace_id"] = workspace_id
+
+        access_token = create_access_token(data=access_claims)
+
+        raw_refresh, refresh_hash = create_refresh_token()
+        expires_at = datetime.utcnow() + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+
+        self.refresh_token_dao.create(
+            db,
+            user_id=user.id,
+            workspace_id=workspace_id,
+            token_hash=refresh_hash,
+            family_id=family_id or uuid.uuid4().hex,
+            expires_at=expires_at,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+
+        return TokenPair(
+            access_token=access_token,
+            refresh_token=raw_refresh,
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            refresh_expires_in=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        )
 
     # ============================================================================
     # REGISTRATION WORKFLOWS
@@ -54,8 +141,10 @@ class AuthService(BaseService):
         password: str,
         position: str = "User",
         workspace_name: Optional[str] = None,
-        invitation_token: Optional[str] = None
-    ) -> Tuple[Profile, Workspace, str, list[ActionMessage]]:
+        invitation_token: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register new user with workspace creation OR invitation acceptance.
 
@@ -101,25 +190,29 @@ class AuthService(BaseService):
 
             # PATH 1: Accept Invitation
             if invitation_token:
-                user, workspace, jwt_token, invite_messages = self._register_with_invitation(
+                user, workspace, token_pair, invite_messages = self._register_with_invitation(
                     db=db,
                     name=name,
                     email=email,
                     password=password,
                     position=position,
-                    invitation_token=invitation_token
+                    invitation_token=invitation_token,
+                    user_agent=user_agent,
+                    ip_address=ip_address,
                 )
                 messages.extend(invite_messages)
 
             # PATH 2: Create New Workspace
             else:
-                user, workspace, jwt_token, workspace_messages = self._register_with_new_workspace(
+                user, workspace, token_pair, workspace_messages = self._register_with_new_workspace(
                     db=db,
                     name=name,
                     email=email,
                     password=password,
                     position=position,
-                    workspace_name=workspace_name
+                    workspace_name=workspace_name,
+                    user_agent=user_agent,
+                    ip_address=ip_address,
                 )
                 messages.extend(workspace_messages)
 
@@ -132,7 +225,7 @@ class AuthService(BaseService):
                 f"Welcome {name}! Your account has been created successfully."
             ))
 
-            return user, workspace, jwt_token, messages
+            return user, workspace, token_pair, messages
 
         except Exception as e:
             self._rollback_transaction(db)
@@ -145,8 +238,10 @@ class AuthService(BaseService):
         email: str,
         password: str,
         position: str,
-        invitation_token: str
-    ) -> Tuple[Profile, Workspace, str, list[ActionMessage]]:
+        invitation_token: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register user by accepting workspace invitation.
 
@@ -199,16 +294,17 @@ class AuthService(BaseService):
             f"You've been added to workspace '{workspace.name}' with role '{invitation.role}'"
         ))
 
-        # Generate JWT token
-        jwt_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "email": user.email,
-                "workspace_id": workspace.id
-            }
+        # Issue access + refresh token pair (new family, workspace already
+        # known because invitation determines membership).
+        token_pair = self._issue_token_pair(
+            db,
+            user=user,
+            workspace_id=workspace.id,
+            user_agent=user_agent,
+            ip_address=ip_address,
         )
 
-        return user, workspace, jwt_token, messages
+        return user, workspace, token_pair, messages
 
     def _register_with_new_workspace(
         self,
@@ -217,8 +313,10 @@ class AuthService(BaseService):
         email: str,
         password: str,
         position: str,
-        workspace_name: str
-    ) -> Tuple[Profile, Workspace, str, list[ActionMessage]]:
+        workspace_name: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register user and create new workspace.
 
@@ -273,16 +371,16 @@ class AuthService(BaseService):
             f"Workspace '{workspace_name}' created successfully with 14-day trial"
         ))
 
-        # Generate JWT token
-        jwt_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "email": user.email,
-                "workspace_id": workspace.id
-            }
+        # Issue access + refresh token pair (new family).
+        token_pair = self._issue_token_pair(
+            db,
+            user=user,
+            workspace_id=workspace.id,
+            user_agent=user_agent,
+            ip_address=ip_address,
         )
 
-        return user, workspace, jwt_token, messages
+        return user, workspace, token_pair, messages
 
     # ============================================================================
     # LOGIN WORKFLOWS
@@ -292,30 +390,15 @@ class AuthService(BaseService):
         self,
         db: Session,
         email: str,
-        password: str
-    ) -> Tuple[Profile, str, list[ActionMessage]]:
+        password: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Profile, TokenPair, list[ActionMessage]]:
         """
-        Authenticate user and generate JWT token (WITHOUT workspace).
+        Authenticate user and issue an access + refresh token pair (no workspace
+        claim — user picks workspace next via `/auth/switch-workspace/`).
 
-        Business rules:
-        - Email and password must match
-        - User must be active
-        - User selects workspace AFTER login via GET /workspaces
-
-        Args:
-            db: Database session
-            email: User's email
-            password: User's password
-
-        Returns:
-            Tuple of (user, jwt_token, messages)
-
-        Raises:
-            ValueError: If authentication fails
-
-        Note:
-            This is a read-only operation (no commit needed).
-            Frontend should call GET /workspaces after login to let user select workspace.
+        This method DOES commit because it inserts a refresh-token row.
         """
         messages = []
 
@@ -324,48 +407,43 @@ class AuthService(BaseService):
         if not user:
             raise ValueError("Invalid email or password")
 
-        # Check if user is active (assuming profile has is_active field)
-        # If not, you can skip this check
-        # if hasattr(user, 'is_active') and not user.is_active:
-        #     raise ValueError("Account is inactive. Please contact support.")
-
         messages.append(success_message(f"Welcome back, {user.name}!"))
 
-        # Generate JWT token WITHOUT workspace (user will select workspace after login)
-        jwt_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "email": user.email
-            }
-        )
+        try:
+            # New rotation family; no workspace selected yet.
+            token_pair = self._issue_token_pair(
+                db,
+                user=user,
+                workspace_id=None,
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
-        return user, jwt_token, messages
+        return user, token_pair, messages
 
     def switch_workspace(
         self,
         db: Session,
         user_id: int,
-        workspace_id: int
-    ) -> Tuple[Workspace, str, list[ActionMessage]]:
+        workspace_id: int,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Workspace, TokenPair, list[ActionMessage]]:
         """
         Switch user to a different workspace.
 
-        Business rules:
-        - User must be active member of target workspace
+        Issues a brand-new token pair (with a new family) reflecting the new
+        workspace. The caller's previous refresh token is NOT revoked here —
+        if the client still holds it, it remains valid until expiry or until
+        the user logs out. We don't try to identify "the previous session"
+        because switch is also reachable from a freshly-restored client where
+        the in-memory refresh token may differ from what's on disk.
 
-        Args:
-            db: Database session
-            user_id: User ID
-            workspace_id: Target workspace ID
-
-        Returns:
-            Tuple of (workspace, jwt_token, messages)
-
-        Raises:
-            ValueError: If user is not member of workspace
-
-        Note:
-            This is a read-only operation (no commit needed)
+        This method commits (inserts a refresh-token row).
         """
         messages = []
 
@@ -380,21 +458,156 @@ class AuthService(BaseService):
         if not workspace:
             raise ValueError("Workspace not found")
 
-        # Get user for token
         user = self.profile_dao.get(db, id=user_id)
 
-        # Generate new JWT token with new workspace
-        jwt_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "email": user.email,
-                "workspace_id": workspace.id
-            }
-        )
+        try:
+            token_pair = self._issue_token_pair(
+                db,
+                user=user,
+                workspace_id=workspace.id,
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
         messages.append(success_message(f"Switched to workspace: {workspace.name}"))
 
-        return workspace, jwt_token, messages
+        return workspace, token_pair, messages
+
+    # ============================================================================
+    # REFRESH + LOGOUT FLOWS
+    # ============================================================================
+
+    def refresh_access_token(
+        self,
+        db: Session,
+        raw_refresh_token: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[TokenPair, list[ActionMessage]]:
+        """Exchange a refresh token for a fresh access + refresh pair.
+
+        Rotation + reuse-detection rules:
+        - If the presented token doesn't exist → 401 (unknown).
+        - If it exists, is revoked, AND has a `replaced_by_id` → that means a
+          rotated-out token is being replayed. Likely theft. Revoke the entire
+          family and refuse.
+        - If revoked or expired (without replaced_by_id) → 401 (just denied).
+        - Otherwise: revoke this row, point `replaced_by_id` at the new row,
+          and issue (access, refresh) with the same `family_id`.
+
+        Workspace claim on the new access token comes from the refresh row's
+        `workspace_id` — that's the workspace the session was issued for.
+
+        Raises:
+            ValueError on any reject condition (caller maps to HTTP 401).
+        """
+        messages = []
+
+        token_hash = hash_refresh_token(raw_refresh_token)
+        row = self.refresh_token_dao.get_by_hash(db, token_hash=token_hash)
+
+        try:
+            if row is None:
+                raise ValueError("Invalid refresh token")
+
+            # --- Reuse detection ---
+            if row.revoked_at is not None and row.replaced_by_id is not None:
+                # A successor exists AND the original was already revoked, but
+                # the original is being presented again. Treat as theft.
+                self.refresh_token_dao.revoke_family(db, family_id=row.family_id)
+                self._commit_transaction(db)
+                raise ValueError(
+                    "Refresh token reuse detected; all sessions for this login have been revoked"
+                )
+
+            # --- Plain rejection cases ---
+            if row.revoked_at is not None:
+                raise ValueError("Refresh token has been revoked")
+            if row.expires_at <= datetime.utcnow():
+                raise ValueError("Refresh token has expired")
+
+            # --- Healthy path: rotate ---
+            user = self.profile_dao.get(db, id=row.user_id)
+            if not user:
+                raise ValueError("User no longer exists")
+
+            workspace_id = row.workspace_id  # may be None pre-workspace-pick
+
+            new_pair = self._issue_token_pair(
+                db,
+                user=user,
+                workspace_id=workspace_id,
+                family_id=row.family_id,
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+            # Look up the just-created row so we can link old.replaced_by_id.
+            new_row = self.refresh_token_dao.get_by_hash(
+                db, token_hash=hash_refresh_token(new_pair.refresh_token)
+            )
+            self.refresh_token_dao.revoke(
+                db, row=row, replaced_by_id=new_row.id if new_row else None
+            )
+            self.refresh_token_dao.touch_last_used(db, row=row)
+
+            self._commit_transaction(db)
+            return new_pair, messages
+
+        except ValueError:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def logout_session(
+        self,
+        db: Session,
+        raw_refresh_token: Optional[str],
+        user_id: Optional[int] = None,
+        all_devices: bool = False,
+    ) -> list[ActionMessage]:
+        """Revoke either the presented refresh token, or every active refresh
+        token for the user (when `all_devices=True`).
+
+        Best-effort: missing / already-revoked tokens are not an error — the
+        net effect is "the client is logged out".
+
+        `user_id` is required when `all_devices=True` (we need to know whom).
+        """
+        messages = []
+
+        try:
+            if all_devices:
+                if user_id is None:
+                    raise ValueError(
+                        "Cannot logout all devices without an authenticated user"
+                    )
+                count = self.refresh_token_dao.revoke_all_for_user(
+                    db, user_id=user_id
+                )
+                messages.append(success_message(
+                    f"Revoked {count} active session(s)."
+                ))
+            elif raw_refresh_token:
+                token_hash = hash_refresh_token(raw_refresh_token)
+                row = self.refresh_token_dao.get_by_hash(db, token_hash=token_hash)
+                if row and row.revoked_at is None:
+                    self.refresh_token_dao.revoke(db, row=row)
+                # Silently succeed even if unknown/already revoked.
+                messages.append(success_message("Logged out."))
+            else:
+                messages.append(info_message("No refresh token provided; nothing to revoke."))
+
+            self._commit_transaction(db)
+            return messages
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
     # ============================================================================
     # PASSWORD MANAGEMENT
@@ -587,12 +800,22 @@ class AuthService(BaseService):
             target_user.hashed_password = get_password_hash(new_password)
             db.flush()
 
+            # SECURITY: invalidate every active session for this user so a
+            # leaked/old password can't keep a stolen refresh token alive.
+            revoked = self.refresh_token_dao.revoke_all_for_user(
+                db, user_id=target_user_id
+            )
+
             # Commit transaction
             self._commit_transaction(db)
 
             messages.append(success_message(
                 f"Password reset successfully for user: {target_user.email}"
             ))
+            if revoked:
+                messages.append(info_message(
+                    f"Revoked {revoked} active session(s); user must log in again."
+                ))
             messages.append(info_message(
                 "User should be notified of password change via email."
             ))
