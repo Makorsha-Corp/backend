@@ -1,12 +1,19 @@
 """
 Security utilities for authentication and authorization
 """
+import hashlib
+import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import bcrypt
 from app.core.config import settings
+
+
+# Length (in url-safe base64 characters) of the raw refresh token returned to
+# clients. 64 bytes of entropy ≈ 86 characters; ample for a non-JWT credential.
+REFRESH_TOKEN_BYTES = 64
 
 
 # Password hashing context
@@ -99,6 +106,34 @@ def get_password_hash(password: str) -> str:
     
     # Return as string (bcrypt returns bytes)
     return hashed.decode('utf-8')
+
+
+def create_refresh_token() -> Tuple[str, str]:
+    """Generate a refresh token pair (raw value, sha256 hex digest).
+
+    The raw token is the credential returned to the client and is never
+    persisted server-side. The hash is what gets stored in `refresh_tokens`
+    and used for lookups.
+
+    Returns:
+        Tuple of (raw_token, token_hash). Always send the raw value to the
+        client; always persist the hash.
+    """
+    raw = secrets.token_urlsafe(REFRESH_TOKEN_BYTES)
+    token_hash = hash_refresh_token(raw)
+    return raw, token_hash
+
+
+def hash_refresh_token(raw: str) -> str:
+    """Compute the sha256 hex digest used to look up a refresh token row.
+
+    Uses a plain sha256 (not bcrypt) because:
+    - The input has high entropy (`secrets.token_urlsafe(64)`), so we don't
+      need a slow hash to defend against brute-force.
+    - We need to look it up cheaply on every refresh; bcrypt would force a
+      table scan.
+    """
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
