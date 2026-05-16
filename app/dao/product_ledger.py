@@ -2,6 +2,7 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -17,16 +18,28 @@ class ProductLedgerDAO(BaseDAO[ProductLedger, ProductLedgerCreate, ProductLedger
         self, db: Session, *, workspace_id: int,
         factory_id: Optional[int] = None,
         item_id: Optional[int] = None,
-        skip: int = 0, limit: int = 100
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        transaction_type: Optional[str] = None,
+        skip: int = 0, limit: int = 100,
     ) -> List[ProductLedger]:
-        """Get ledger entries with optional filters, newest first."""
+        """Get ledger entries with optional filters, newest first.
+
+        All filters are AND-combined and all are optional except workspace_id.
+        """
         query = db.query(ProductLedger).filter(
             ProductLedger.workspace_id == workspace_id,
         )
-        if factory_id:
+        if factory_id is not None:
             query = query.filter(ProductLedger.factory_id == factory_id)
-        if item_id:
+        if item_id is not None:
             query = query.filter(ProductLedger.item_id == item_id)
+        if start_date is not None:
+            query = query.filter(ProductLedger.performed_at >= start_date)
+        if end_date is not None:
+            query = query.filter(ProductLedger.performed_at <= end_date)
+        if transaction_type:
+            query = query.filter(ProductLedger.transaction_type == transaction_type)
         return query.order_by(desc(ProductLedger.performed_at)).offset(skip).limit(limit).all()
 
     def exists_for_production_batch(

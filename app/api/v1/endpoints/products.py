@@ -3,6 +3,7 @@ Product API endpoints (finished goods)
 
 Provides operations for managing product records and querying ledger.
 """
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
@@ -69,20 +70,32 @@ def list_products(
     response_model=List[ProductLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="List product ledger entries",
-    description="Get ledger entries, optionally filtered by factory or item"
+    description=(
+        "Get ledger entries — all filters optional. Combine `factory_id`, `item_id`, "
+        "`start_date`/`end_date`, and `transaction_type` to narrow the result."
+    ),
 )
 def list_ledger(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
     item_id: Optional[int] = Query(None, description="Filter by item ID"),
+    start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
+    end_date: Optional[datetime] = Query(None, description="End date filter (inclusive)"),
+    transaction_type: Optional[str] = Query(
+        None, description="Filter by transaction_type (e.g. 'production', 'manual_add', 'inventory_adjustment')"
+    ),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return product_service.list_ledger(
         db, workspace_id=workspace.id,
         factory_id=factory_id,
-        item_id=item_id, skip=skip, limit=limit
+        item_id=item_id,
+        start_date=start_date,
+        end_date=end_date,
+        transaction_type=transaction_type,
+        skip=skip, limit=limit,
     )
 
 

@@ -1,4 +1,5 @@
 """Product Service - transaction orchestration for finished goods"""
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
@@ -75,12 +76,19 @@ class ProductService(BaseService):
         self, db: Session, workspace_id: int,
         factory_id: Optional[int] = None,
         item_id: Optional[int] = None,
-        skip: int = 0, limit: int = 100
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        transaction_type: Optional[str] = None,
+        skip: int = 0, limit: int = 100,
     ) -> List[ProductLedger]:
         return self.ledger_dao.get_by_workspace(
             db, workspace_id=workspace_id,
             factory_id=factory_id,
-            item_id=item_id, skip=skip, limit=limit
+            item_id=item_id,
+            start_date=start_date,
+            end_date=end_date,
+            transaction_type=transaction_type,
+            skip=skip, limit=limit,
         )
 
 

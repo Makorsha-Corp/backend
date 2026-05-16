@@ -57,47 +57,33 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         """
         Get machine ledger entries with optional filters.
 
-        Always scoped to the given machine. `item_id` is optional: when omitted
-        every ledger row for the machine is returned.
-
-        Args:
-            session: Database session
-            machine_id: Machine ID (required — list is always scoped to one machine)
-            workspace_id: Workspace ID
-            item_id: Optional item filter
-            start_date: Optional start date filter
-            end_date: Optional end date filter
-            transaction_type: Optional transaction type filter
-            skip: Pagination offset
-            limit: Pagination limit
-
-        Returns:
-            List of machine ledger entries (newest first)
-
-        NOTE: The date-range and transaction-type DAO helpers below currently
-        scope to workspace only — they don't filter by machine/item. The
-        date/transaction filters are exposed for completeness but combining
-        them with the machine scope will not narrow the result to the chosen
-        machine. Tracked as a separate cleanup.
+        Always scoped to the given machine. `item_id`, `start_date`/`end_date`,
+        and `transaction_type` are all optional and combine where applicable.
         """
+        # Date range takes precedence over a bare transaction_type filter, but
+        # both correctly narrow by machine/item now (DAO helpers updated).
         if start_date and end_date:
             return self.machine_ledger_dao.get_by_date_range(
                 session,
                 workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
+                machine_id=machine_id,
+                item_id=item_id,
                 skip=skip,
                 limit=limit
             )
-        elif transaction_type:
+        if transaction_type:
             return self.machine_ledger_dao.get_by_transaction_type(
                 session,
                 transaction_type=transaction_type,
                 workspace_id=workspace_id,
+                machine_id=machine_id,
+                item_id=item_id,
                 skip=skip,
                 limit=limit
             )
-        elif item_id is not None:
+        if item_id is not None:
             return self.machine_ledger_dao.get_by_machine_and_item(
                 session,
                 machine_id=machine_id,
@@ -106,15 +92,14 @@ class LedgerManager(BaseManager[MachineItemLedger]):
                 skip=skip,
                 limit=limit
             )
-        else:
-            # No item picked → list every entry for the machine.
-            return self.machine_ledger_dao.get_by_machine(
-                session,
-                machine_id=machine_id,
-                workspace_id=workspace_id,
-                skip=skip,
-                limit=limit
-            )
+        # No item picked → list every entry for the machine.
+        return self.machine_ledger_dao.get_by_machine(
+            session,
+            machine_id=machine_id,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit
+        )
 
     def get_machine_balance(
         self,

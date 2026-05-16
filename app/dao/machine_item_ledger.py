@@ -44,28 +44,25 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_transaction_type(
         self, db: Session, *, transaction_type: str, workspace_id: int,
+        machine_id: Optional[int] = None,
+        item_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[MachineItemLedger]:
         """
-        Get ledger entries by transaction type (SECURITY-CRITICAL)
+        Get ledger entries by transaction type (SECURITY-CRITICAL).
 
-        Args:
-            db: Database session
-            transaction_type: Transaction type to filter by
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of ledger entries
+        Optional `machine_id` and `item_id` narrow the result further.
         """
+        query = db.query(MachineItemLedger).filter(
+            MachineItemLedger.workspace_id == workspace_id,
+            MachineItemLedger.transaction_type == transaction_type,
+        )
+        if machine_id is not None:
+            query = query.filter(MachineItemLedger.machine_id == machine_id)
+        if item_id is not None:
+            query = query.filter(MachineItemLedger.item_id == item_id)
         return (
-            db.query(MachineItemLedger)
-            .filter(
-                MachineItemLedger.workspace_id == workspace_id,
-                MachineItemLedger.transaction_type == transaction_type
-            )
-            .order_by(MachineItemLedger.performed_at.desc())
+            query.order_by(MachineItemLedger.performed_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
@@ -97,30 +94,26 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_date_range(
         self, db: Session, *, workspace_id: int, start_date: datetime, end_date: datetime,
+        machine_id: Optional[int] = None,
+        item_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[MachineItemLedger]:
         """
-        Get ledger entries within date range (SECURITY-CRITICAL)
+        Get ledger entries within date range (SECURITY-CRITICAL).
 
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            start_date: Start datetime (inclusive)
-            end_date: End datetime (inclusive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of ledger entries in date range
+        Optional `machine_id` and `item_id` narrow the result further.
         """
+        query = db.query(MachineItemLedger).filter(
+            MachineItemLedger.workspace_id == workspace_id,
+            MachineItemLedger.performed_at >= start_date,
+            MachineItemLedger.performed_at <= end_date,
+        )
+        if machine_id is not None:
+            query = query.filter(MachineItemLedger.machine_id == machine_id)
+        if item_id is not None:
+            query = query.filter(MachineItemLedger.item_id == item_id)
         return (
-            db.query(MachineItemLedger)
-            .filter(
-                MachineItemLedger.workspace_id == workspace_id,
-                MachineItemLedger.performed_at >= start_date,
-                MachineItemLedger.performed_at <= end_date
-            )
-            .order_by(MachineItemLedger.performed_at.desc())
+            query.order_by(MachineItemLedger.performed_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
