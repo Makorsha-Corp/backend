@@ -13,7 +13,6 @@ from app.dao.project_component_item_ledger import project_component_item_ledger_
 from app.dao.inventory_ledger import inventory_ledger_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.inventory import inventory_dao
-from app.schemas.machine_item_ledger import MachineItemLedgerCreate
 from app.schemas.inventory_ledger import InventoryLedgerCreate
 
 
@@ -202,26 +201,29 @@ class LedgerManager(BaseManager[MachineItemLedger]):
 
         avg_price = latest_entry.avg_price_after if latest_entry else Decimal('0.00')
 
-        adjustment = MachineItemLedgerCreate(
-            workspace_id=workspace_id,
-            machine_id=machine_id,
-            item_id=item_id,
-            transaction_type='inventory_adjustment',
-            quantity=abs(discrepancy),
-            unit_cost=avg_price,
-            total_cost=abs(discrepancy) * avg_price,
-            qty_before=snapshot_qty,
-            qty_after=ledger_qty,
-            value_before=snapshot_qty * avg_price,
-            value_after=ledger_qty * avg_price,
-            avg_price_before=avg_price,
-            avg_price_after=avg_price,
-            source_type='reconciliation',
-            notes=f"Reconciliation adjustment: Snapshot was {snapshot_qty}, ledger shows {ledger_qty}. Discrepancy: {discrepancy}",
-            performed_by=user_id
-        )
+        # NOTE: Build as a dict (bypassing MachineItemLedgerCreate) so that
+        # workspace_id and performed_by actually persist — they're not part of
+        # the Pydantic schema and would otherwise be silently dropped.
+        adjustment_payload: Dict[str, Any] = {
+            'workspace_id': workspace_id,
+            'machine_id': machine_id,
+            'item_id': item_id,
+            'transaction_type': 'inventory_adjustment',
+            'quantity': abs(discrepancy),
+            'unit_cost': avg_price,
+            'total_cost': abs(discrepancy) * avg_price,
+            'qty_before': snapshot_qty,
+            'qty_after': ledger_qty,
+            'value_before': snapshot_qty * avg_price,
+            'value_after': ledger_qty * avg_price,
+            'avg_price_before': avg_price,
+            'avg_price_after': avg_price,
+            'source_type': 'reconciliation',
+            'notes': f"Reconciliation adjustment: Snapshot was {snapshot_qty}, ledger shows {ledger_qty}. Discrepancy: {discrepancy}",
+            'performed_by': user_id,
+        }
 
-        self.machine_ledger_dao.create(session, obj_in=adjustment)
+        self.machine_ledger_dao.create(session, obj_in=adjustment_payload)
 
         # Update snapshot
         snapshot.qty = ledger_qty

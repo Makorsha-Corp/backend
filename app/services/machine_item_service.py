@@ -37,12 +37,14 @@ class MachineItemService(BaseService):
     def create_machine_item(
         self, db: Session,
         item_in: MachineItemCreate,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int,
     ) -> MachineItem:
-        """Create a machine item with transaction management"""
+        """Create a machine item with transaction management (logs ledger entry)."""
         try:
             item = self.machine_item_manager.create_machine_item(
-                session=db, item_data=item_in, workspace_id=workspace_id
+                session=db, item_data=item_in,
+                workspace_id=workspace_id, user_id=user_id,
             )
             self._commit_transaction(db)
             db.refresh(item)
@@ -55,13 +57,15 @@ class MachineItemService(BaseService):
         self, db: Session,
         machine_item_id: int,
         item_in: MachineItemUpdate,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int,
     ) -> MachineItem:
-        """Update a machine item with transaction management"""
+        """Update a machine item with transaction management (logs ledger entry on qty change)."""
         try:
             item = self.machine_item_manager.update_machine_item(
                 session=db, machine_item_id=machine_item_id,
-                item_data=item_in, workspace_id=workspace_id
+                item_data=item_in, workspace_id=workspace_id,
+                user_id=user_id,
             )
             self._commit_transaction(db)
             db.refresh(item)
@@ -73,13 +77,14 @@ class MachineItemService(BaseService):
     def delete_machine_item(
         self, db: Session,
         machine_item_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int,
     ) -> None:
-        """Delete a machine item with transaction management"""
+        """Delete a machine item with transaction management (logs final adjustment ledger entry)."""
         try:
             self.machine_item_manager.delete_machine_item(
                 session=db, machine_item_id=machine_item_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id, user_id=user_id,
             )
             self._commit_transaction(db)
         except Exception:

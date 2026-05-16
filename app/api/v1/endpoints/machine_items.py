@@ -69,7 +69,8 @@ def create_machine_item(
 ):
     """Assign an item to a machine"""
     return machine_item_service.create_machine_item(
-        db, item_in=item_in, workspace_id=workspace.id
+        db, item_in=item_in, workspace_id=workspace.id,
+        user_id=current_user.id,
     )
 
 
@@ -89,7 +90,8 @@ def update_machine_item(
     """Update machine item quantities"""
     return machine_item_service.update_machine_item(
         db, machine_item_id=machine_item_id,
-        item_in=item_in, workspace_id=workspace.id
+        item_in=item_in, workspace_id=workspace.id,
+        user_id=current_user.id,
     )
 
 
@@ -106,5 +108,6 @@ def delete_machine_item(
 ):
     """Remove an item from a machine"""
     machine_item_service.delete_machine_item(
-        db, machine_item_id=machine_item_id, workspace_id=workspace.id
+        db, machine_item_id=machine_item_id, workspace_id=workspace.id,
+        user_id=current_user.id,
     )
