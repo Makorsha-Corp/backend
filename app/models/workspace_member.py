@@ -19,6 +19,7 @@ class WorkspaceMember(Base):
 
     # Role assignment
     role = Column(String(50), nullable=False)  # 'owner', 'finance', 'ground-team', 'ground-team-manager'
+    position = Column(String(255), nullable=True)
 
     # Invitation tracking
     invited_by_user_id = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
@@ -27,6 +28,7 @@ class WorkspaceMember(Base):
 
     # Status
     status = Column(String(50), nullable=False, default='active')  # 'active', 'suspended', 'invited'
+    left_at = Column(DateTime, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

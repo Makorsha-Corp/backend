@@ -140,7 +140,6 @@ class AuthService(BaseService):
         name: str,
         email: str,
         password: str,
-        position: str = "User",
         workspace_name: Optional[str] = None,
         invitation_token: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -181,13 +180,10 @@ class AuthService(BaseService):
 
         try:
             # Validate: email not already registered
+            # Generic error — don't reveal whether the email exists (enumeration prevention)
             existing_user = self.profile_dao.get_by_email(db, email=email)
             if existing_user:
-                raise ValueError(f"Email {email} is already registered")
-
-            # Validate: must provide either workspace_name or invitation_token
-            if not workspace_name and not invitation_token:
-                raise ValueError("Must provide either workspace_name (to create workspace) or invitation_token (to join workspace)")
+                raise ValueError("An account with this email already exists. Try logging in instead.")
 
             # PATH 1: Accept Invitation
             if invitation_token:
@@ -196,7 +192,6 @@ class AuthService(BaseService):
                     name=name,
                     email=email,
                     password=password,
-                    position=position,
                     invitation_token=invitation_token,
                     user_agent=user_agent,
                     ip_address=ip_address,
@@ -204,23 +199,35 @@ class AuthService(BaseService):
                 messages.extend(invite_messages)
 
             # PATH 2: Create New Workspace
-            else:
+            elif workspace_name:
                 user, workspace, token_pair, workspace_messages = self._register_with_new_workspace(
                     db=db,
                     name=name,
                     email=email,
                     password=password,
-                    position=position,
                     workspace_name=workspace_name,
                     user_agent=user_agent,
                     ip_address=ip_address,
                 )
                 messages.extend(workspace_messages)
 
+            # PATH 3: Account only — workspace created later
+            else:
+                user, workspace, token_pair, user_messages = self._register_user_only(
+                    db=db,
+                    name=name,
+                    email=email,
+                    password=password,
+                    user_agent=user_agent,
+                    ip_address=ip_address,
+                )
+                messages.extend(user_messages)
+
             # Commit transaction
             self._commit_transaction(db)
             db.refresh(user)
-            db.refresh(workspace)
+            if workspace:
+                db.refresh(workspace)
 
             messages.append(success_message(
                 f"Welcome {name}! Your account has been created successfully."
@@ -232,13 +239,44 @@ class AuthService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def _register_user_only(
+        self,
+        db: Session,
+        name: str,
+        email: str,
+        password: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[Profile, None, TokenPair, list[ActionMessage]]:
+        """Register user with no workspace — workspace selected/created on next step."""
+        messages = []
+
+        profile_in = ProfileCreate(
+            name=name,
+            email=email,
+            password=password,
+        )
+        user = self.profile_dao.create(db, obj_in=profile_in)
+        db.flush()
+
+        messages.append(success_message("User profile created"))
+
+        token_pair = self._issue_token_pair(
+            db,
+            user=user,
+            workspace_id=None,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+
+        return user, None, token_pair, messages
+
     def _register_with_invitation(
         self,
         db: Session,
         name: str,
         email: str,
         password: str,
-        position: str,
         invitation_token: str,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
@@ -273,8 +311,6 @@ class AuthService(BaseService):
             name=name,
             email=email,
             password=password,
-            position=position,
-            permission='ground-team'  # Default role, will be overridden by invitation.role
         )
         user = self.profile_dao.create(db, obj_in=profile_in)
         db.flush()  # Get user.id
@@ -313,7 +349,6 @@ class AuthService(BaseService):
         name: str,
         email: str,
         password: str,
-        position: str,
         workspace_name: str,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
@@ -336,8 +371,6 @@ class AuthService(BaseService):
             name=name,
             email=email,
             password=password,
-            position=position,
-            permission='owner'  # Owner of their own workspace
         )
         user = self.profile_dao.create(db, obj_in=profile_in)
         db.flush()  # Get user.id
@@ -439,10 +472,11 @@ class AuthService(BaseService):
 
         Issues a brand-new token pair (with a new family) reflecting the new
         workspace. The caller's previous refresh token is NOT revoked here —
-        if the client still holds it, it remains valid until expiry or until
-        the user logs out. We don't try to identify "the previous session"
-        because switch is also reachable from a freshly-restored client where
-        the in-memory refresh token may differ from what's on disk.
+        deliberate tradeoff: switch-workspace doesn't receive the old refresh
+        token (it's not in the request), so we can't identify which row to
+        revoke. The old token will expire naturally (REFRESH_TOKEN_EXPIRE_DAYS).
+        Users wanting immediate revocation of all sessions should call logout
+        with all_devices=True before switching.
 
         This method commits (inserts a refresh-token row).
         """
@@ -873,18 +907,13 @@ class AuthService(BaseService):
         # Get workspace details
         workspace = self.workspace_dao.get(db, id=invitation.workspace_id)
 
-        # Get inviter details
-        inviter = None
-        if invitation.invited_by:
-            inviter = self.profile_dao.get(db, id=invitation.invited_by)
-
         details = {
             'invitation_id': invitation.id,
             'email': invitation.email,
             'role': invitation.role,
+            'position': invitation.position,
             'workspace_id': workspace.id,
             'workspace_name': workspace.name,
-            'inviter_name': inviter.name if inviter else None,
             'expires_at': invitation.expires_at.isoformat()
         }
 

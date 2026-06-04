@@ -54,41 +54,26 @@ def get_current_user(
     )
 
     token = credentials.credentials
-    print(f"DEBUG [get_current_user]: Received token (first 50 chars): {token[:50]}...")
-    
     payload = decode_token(token)
 
     if payload is None:
-        print("DEBUG [get_current_user]: Token decode failed - payload is None")
         raise credentials_exception
-
-    print(f"DEBUG [get_current_user]: Decoded payload: {payload}")
 
     user_id_str: Optional[str] = payload.get("sub")
-    print(f"DEBUG [get_current_user]: User ID from token ('sub' field): {user_id_str}")
-    
+
     if user_id_str is None:
-        print("DEBUG [get_current_user]: No 'sub' field in token payload")
         raise credentials_exception
 
-    # Convert string back to integer (JWT 'sub' must be string, but our DB uses int)
     try:
         user_id = int(user_id_str)
     except (ValueError, TypeError):
-        print(f"DEBUG [get_current_user]: Invalid user ID format: {user_id_str}")
         raise credentials_exception
 
     user = db.query(Profile).filter(Profile.id == user_id).first()
-    print(f"DEBUG [get_current_user]: User found in DB: {user is not None}")
-    
+
     if user is None:
-        print(f"DEBUG [get_current_user]: User with ID {user_id} not found in database")
-        # Check what users exist in DB
-        all_users = db.query(Profile.id, Profile.email).limit(5).all()
-        print(f"DEBUG [get_current_user]: Sample users in DB: {all_users}")
         raise credentials_exception
 
-    print(f"DEBUG [get_current_user]: Authentication successful for user: {user.email} (ID: {user.id})")
     return user
 
 

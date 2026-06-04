@@ -1,7 +1,8 @@
 """Authentication schemas"""
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
+
 
 
 class Token(BaseModel):
@@ -70,6 +71,13 @@ class RegisterRequest(BaseModel):
     workspace_name: Optional[str] = Field(None, min_length=1, max_length=255)
     invitation_token: Optional[str] = None
 
+    @field_validator('password')
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        if len(v.encode('utf-8')) > 72:
+            raise ValueError("Password must not exceed 72 bytes when UTF-8 encoded")
+        return v
+
 
 class RegisterResponse(BaseModel):
     """Registration response schema"""
@@ -79,7 +87,7 @@ class RegisterResponse(BaseModel):
     expires_in: int
     refresh_expires_in: int
     user: dict
-    workspace: dict
+    workspace: Optional[dict] = None
     messages: list[dict] = []
 
 
@@ -140,6 +148,13 @@ class ResetPasswordRequest(BaseModel):
     reset_token: str
     new_password: str = Field(..., min_length=8, max_length=72)
 
+    @field_validator('new_password')
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        if len(v.encode('utf-8')) > 72:
+            raise ValueError("Password must not exceed 72 bytes when UTF-8 encoded")
+        return v
+
 
 class ResetPasswordResponse(BaseModel):
     """Reset password response schema"""
@@ -151,6 +166,13 @@ class AdminResetPasswordRequest(BaseModel):
     """Admin reset password request schema"""
     target_user_id: int
     new_password: str = Field(..., min_length=8, max_length=72)
+
+    @field_validator('new_password')
+    @classmethod
+    def password_fits_bcrypt(cls, v: str) -> str:
+        if len(v.encode('utf-8')) > 72:
+            raise ValueError("Password must not exceed 72 bytes when UTF-8 encoded")
+        return v
 
 
 class AdminResetPasswordResponse(BaseModel):

@@ -63,3 +63,6 @@ alembic/versions/*.pyc
 
 #Claude
 .claude
+
+# Planning
+.plan/

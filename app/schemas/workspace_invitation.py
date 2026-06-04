@@ -1,17 +1,25 @@
 """WorkspaceInvitation schemas"""
 from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime
+from typing import Optional
+
+VALID_INVITE_ROLES = {'manager', 'member', 'viewer', 'ground-team'}
 
 
 class WorkspaceInvitationBase(BaseModel):
     """Base workspace invitation schema"""
     email: EmailStr
-    role: str  # 'owner', 'finance', 'ground-team', 'ground-team-manager'
+    role: str
+    position: str | None = None
 
 
 class WorkspaceInvitationCreate(WorkspaceInvitationBase):
     """Workspace invitation creation schema"""
     workspace_id: int
+    token: str
+    invited_by_user_id: Optional[int] = None
+    expires_at: datetime
+    status: str = 'pending'
 
 
 class WorkspaceInvitationResponse(WorkspaceInvitationBase):
@@ -38,8 +46,10 @@ class InviteUserRequest(BaseModel):
     """Request schema for inviting user to workspace"""
     email: EmailStr
     role: str
+    position: str | None = None
 
 
 class AcceptInvitationRequest(BaseModel):
     """Request schema for accepting invitation"""
     token: str
+    position: str | None = None

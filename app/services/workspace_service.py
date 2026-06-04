@@ -1,415 +1,359 @@
-"""Workspace Service for workspace management operations"""
+"""Workspace Service — owns transaction boundaries for all workspace operations."""
+import logging
+from typing import List, Optional, Tuple
+
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from typing import List
-import secrets
-from app.services.base_service import BaseService
+
+from app.core.exceptions import NotFoundError, PermissionDeniedError, ValidationError
+from app.dao.profile import profile_dao
 from app.dao.workspace import workspace_dao
-from app.dao.workspace_member import workspace_member_dao
 from app.dao.workspace_invitation import workspace_invitation_dao
-from app.dao.workspace_audit_log import workspace_audit_log_dao
-from app.dao.subscription_plan import subscription_plan_dao
-from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceListItem
-from app.schemas.workspace_member import WorkspaceMemberCreate
-from app.schemas.workspace_invitation import WorkspaceInvitationCreate, InviteUserRequest
-from app.models.workspace import Workspace
+from app.dao.workspace_member import workspace_member_dao
+from app.managers.workspace_manager import workspace_manager
 from app.models.profile import Profile
-from app.db.seed_default_statuses import seed_default_statuses
-from app.db.seed_default_departments import seed_default_departments
-from app.db.seed_default_tags import seed_default_tags
-from app.db.seed_default_account_tags import seed_default_account_tags
+from app.models.workspace import Workspace
+from app.models.workspace_invitation import WorkspaceInvitation
+from app.models.workspace_member import WorkspaceMember
+from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
+from app.services.base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceService(BaseService):
-    """Service for workspace management workflows"""
+    """
+    Service for workspace workflows.
+
+    Owns:
+    - Authorization checks (membership and role requirements)
+    - Transaction boundaries (commit/rollback)
+    - Orchestration of the workspace_manager for business logic
+    - Data enrichment for read operations
+
+    Raises APIException subclasses (PermissionDeniedError, NotFoundError,
+    ValidationError) so the global exception handler in main.py formats them
+    correctly — endpoints do not need try/except for business errors.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.workspace_manager = workspace_manager
+        self.workspace_dao = workspace_dao
+        self.member_dao = workspace_member_dao
+        self.invitation_dao = workspace_invitation_dao
+        self.profile_dao = profile_dao
+
+    # -------------------------------------------------------------------------
+    # Internal helpers
+    # -------------------------------------------------------------------------
+
+    def _require_active_membership(
+        self, db: Session, workspace_id: int, user_id: int
+    ) -> WorkspaceMember:
+        """Return active membership or raise PermissionDeniedError (403)."""
+        membership = self.member_dao.get_by_workspace_and_user(
+            db, workspace_id=workspace_id, user_id=user_id
+        )
+        if not membership or membership.status != 'active':
+            raise PermissionDeniedError("You are not a member of this workspace")
+        return membership
+
+    def _require_owner(
+        self, db: Session, workspace_id: int, user_id: int
+    ) -> WorkspaceMember:
+        """Return membership and assert owner role or raise PermissionDeniedError (403)."""
+        membership = self._require_active_membership(db, workspace_id, user_id)
+        if membership.role != 'owner':
+            raise PermissionDeniedError("Only the workspace owner can perform this action")
+        return membership
+
+    # -------------------------------------------------------------------------
+    # Workspace CRUD
+    # -------------------------------------------------------------------------
+
+    def list_user_workspaces(
+        self, db: Session, user_id: int
+    ) -> List[Tuple[Workspace, WorkspaceMember]]:
+        """Return all active (workspace, membership) pairs for a user."""
+        memberships = self.member_dao.get_by_user(db, user_id=user_id)
+        result = []
+        for m in memberships:
+            if m.status != 'active':
+                continue
+            workspace = self.workspace_dao.get(db, id=m.workspace_id)
+            if workspace:
+                result.append((workspace, m))
+        return result
 
     def create_workspace(
-        self, db: Session, *, workspace_in: WorkspaceCreate, creator: Profile
+        self, db: Session, workspace_data: WorkspaceCreate, owner_user_id: int
     ) -> Workspace:
-        """
-        Create new workspace with creator as owner
-
-        Args:
-            db: Database session
-            workspace_in: Workspace creation data
-            creator: User creating the workspace
-
-        Returns:
-            Created workspace
-        """
+        """Create workspace with owner, seed defaults, and commit."""
         try:
-            # Get subscription plan (use provided or default)
-            if workspace_in.subscription_plan_id:
-                plan = subscription_plan_dao.get(db, id=workspace_in.subscription_plan_id)
-                if not plan or not plan.is_active:
-                    raise ValueError("Invalid subscription plan")
-            else:
-                plan = subscription_plan_dao.get_default_plan(db)
-                if not plan:
-                    raise ValueError("No default subscription plan found")
-
-            # Create workspace
-            workspace_data = workspace_in.model_dump(exclude={'subscription_plan_id'})
-            workspace_data['subscription_plan_id'] = plan.id
-            workspace_data['owner_user_id'] = creator.id
-            workspace_data['created_by_user_id'] = creator.id
-            workspace_data['trial_ends_at'] = datetime.utcnow() + timedelta(days=14)  # 14-day trial
-
-            workspace = Workspace(**workspace_data)
-            db.add(workspace)
-            db.flush()
-
-            # Add creator as owner member
-            member_in = WorkspaceMemberCreate(
-                workspace_id=workspace.id,
-                user_id=creator.id,
-                role='owner',
-                status='active'
+            workspace = self.workspace_manager.create_workspace_with_owner(
+                session=db,
+                workspace_data=workspace_data,
+                owner_user_id=owner_user_id,
+                subscription_plan_id=workspace_data.subscription_plan_id,
+                owner_position=workspace_data.owner_position,
             )
-            member_in.joined_at = datetime.utcnow()
-            member = workspace_member_dao.create(db, obj_in=member_in)
-
-            # Seed default data for workspace
-            seed_default_statuses(db, workspace_id=workspace.id)
-            seed_default_departments(db, workspace_id=workspace.id)
-            seed_default_tags(db, workspace_id=workspace.id, created_by_user_id=creator.id)
-            seed_default_account_tags(db, workspace_id=workspace.id, created_by_user_id=creator.id)
-
-            # Log workspace creation
-            workspace_audit_log_dao.log_action(
-                db,
-                workspace_id=workspace.id,
-                user_id=creator.id,
-                action='workspace_created',
-                metadata={'plan': plan.name}
-            )
-
             self._commit_transaction(db)
             db.refresh(workspace)
             return workspace
-
-        except Exception as e:
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise ValidationError(str(e))
+        except Exception:
             self._rollback_transaction(db)
             raise
 
-    def get_user_workspaces(
-        self, db: Session, *, user_id: int
-    ) -> List[WorkspaceListItem]:
-        """
-        Get all workspaces user belongs to
+    def get_workspace_with_plan(
+        self, db: Session, workspace_id: int, requesting_user_id: int
+    ) -> Tuple[Workspace, Optional[object]]:
+        """Return (workspace, plan) for a member — plan may be None."""
+        self._require_active_membership(db, workspace_id, requesting_user_id)
+        workspace = self.workspace_dao.get(db, id=workspace_id)
+        if not workspace:
+            raise NotFoundError("Workspace not found")
+        plan = getattr(workspace, 'subscription_plan', None)
+        return workspace, plan
 
-        Args:
-            user_id: User ID
-
-        Returns:
-            List of workspaces with user's role
-        """
-        memberships = workspace_member_dao.get_user_workspaces(db, user_id=user_id)
-
-        workspaces = []
-        for membership in memberships:
-            workspace = workspace_dao.get(db, id=membership.workspace_id)
-            if workspace:
-                workspaces.append(
-                    WorkspaceListItem(
-                        id=workspace.id,
-                        name=workspace.name,
-                        slug=workspace.slug,
-                        subscription_status=workspace.subscription_status,
-                        role=membership.role,
-                        is_owner=(workspace.owner_user_id == user_id)
-                    )
-                )
-
-        return workspaces
-
-    def invite_user(
+    def update_workspace(
         self,
         db: Session,
-        *,
         workspace_id: int,
-        invite_request: InviteUserRequest,
-        inviter: Profile
-    ) -> str:
-        """
-        Invite user to workspace
-
-        Args:
-            workspace_id: Workspace ID
-            invite_request: Invitation details (email, role)
-            inviter: User sending invitation
-
-        Returns:
-            Invitation token
-        """
-        try:
-            # Check if user is already a member
-            # (Would need to query profiles by email first, but simplified for now)
-            existing_invite = workspace_invitation_dao.get_by_workspace_and_email(
-                db, workspace_id=workspace_id, email=invite_request.email
-            )
-
-            if existing_invite and existing_invite.status == 'pending':
-                raise ValueError("User already has a pending invitation")
-
-            # Generate unique token
-            token = secrets.token_urlsafe(32)
-
-            # Create invitation
-            invitation_in = WorkspaceInvitationCreate(
-                workspace_id=workspace_id,
-                email=invite_request.email,
-                role=invite_request.role
-            )
-
-            invitation_data = invitation_in.model_dump()
-            invitation_data['invited_by_user_id'] = inviter.id
-            invitation_data['token'] = token
-            invitation_data['expires_at'] = datetime.utcnow() + timedelta(days=7)  # 7-day expiry
-
-            from app.models.workspace_invitation import WorkspaceInvitation
-            invitation = WorkspaceInvitation(**invitation_data)
-            db.add(invitation)
-            db.flush()
-
-            # Log invitation
-            workspace_audit_log_dao.log_action(
-                db,
-                workspace_id=workspace_id,
-                user_id=inviter.id,
-                action='member_invited',
-                metadata={'email': invite_request.email, 'role': invite_request.role}
-            )
-
-            self._commit_transaction(db)
-            return token
-
-        except Exception as e:
-            self._rollback_transaction(db)
-            raise
-
-    def accept_invitation(
-        self, db: Session, *, token: str, user: Profile
+        current_user_id: int,
+        workspace_update: WorkspaceUpdate,
     ) -> Workspace:
-        """
-        Accept workspace invitation
-
-        Args:
-            token: Invitation token
-            user: User accepting invitation
-
-        Returns:
-            Workspace user joined
-        """
+        """Update workspace details (owner only)."""
+        workspace = self.workspace_dao.get(db, id=workspace_id)
+        if not workspace:
+            raise NotFoundError("Workspace not found")
+        if workspace.owner_user_id != current_user_id:
+            raise PermissionDeniedError("Only workspace owner can update workspace")
         try:
-            # Get invitation
-            invitation = workspace_invitation_dao.get_by_token(db, token=token)
-            if not invitation:
-                raise ValueError("Invalid invitation token")
-
-            if invitation.status != 'pending':
-                raise ValueError("Invitation is no longer valid")
-
-            if invitation.expires_at < datetime.utcnow():
-                workspace_invitation_dao.mark_as_expired(db, invitation=invitation)
-                raise ValueError("Invitation has expired")
-
-            # Check if user email matches
-            if user.email != invitation.email:
-                raise ValueError("This invitation is for a different email address")
-
-            # Add user to workspace
-            member_in = WorkspaceMemberCreate(
-                workspace_id=invitation.workspace_id,
-                user_id=user.id,
-                role=invitation.role,
-                invited_by_user_id=invitation.invited_by_user_id,
-                status='active'
-            )
-            member_data = member_in.model_dump()
-            member_data['joined_at'] = datetime.utcnow()
-
-            from app.models.workspace_member import WorkspaceMember
-            member = WorkspaceMember(**member_data)
-            db.add(member)
-            db.flush()
-
-            # Mark invitation as accepted
-            workspace_invitation_dao.mark_as_accepted(db, invitation=invitation)
-
-            # Increment member count
-            workspace_dao.increment_usage(
-                db, workspace_id=invitation.workspace_id, field='members'
-            )
-
-            # Log action
-            workspace_audit_log_dao.log_action(
-                db,
-                workspace_id=invitation.workspace_id,
-                user_id=user.id,
-                action='member_joined',
-                metadata={'role': invitation.role}
-            )
-
+            updated = self.workspace_dao.update(db, db_obj=workspace, obj_in=workspace_update)
             self._commit_transaction(db)
-
-            workspace = workspace_dao.get(db, id=invitation.workspace_id)
-            return workspace
-
-        except Exception as e:
+            db.refresh(updated)
+            return updated
+        except Exception:
             self._rollback_transaction(db)
             raise
 
-    def change_member_role(
+    # -------------------------------------------------------------------------
+    # Member management
+    # -------------------------------------------------------------------------
+
+    def list_members(
         self,
         db: Session,
-        *,
         workspace_id: int,
-        user_id: int,
+        requesting_user_id: int,
+        include_inactive: bool = False,
+    ) -> List[Tuple[WorkspaceMember, Optional[Profile]]]:
+        """Return enriched (member, user_profile) list."""
+        self._require_active_membership(db, workspace_id, requesting_user_id)
+        members = self.member_dao.get_by_workspace(db, workspace_id=workspace_id)
+        if not include_inactive:
+            members = [m for m in members if m.status == 'active']
+        return [
+            (m, self.profile_dao.get(db, id=m.user_id))
+            for m in members
+        ]
+
+    def update_member_role(
+        self,
+        db: Session,
+        workspace_id: int,
+        owner_user_id: int,
+        target_user_id: int,
         new_role: str,
-        changer: Profile
-    ) -> None:
-        """
-        Change user's role in workspace
-
-        Args:
-            workspace_id: Workspace ID
-            user_id: User ID whose role to change
-            new_role: New role
-            changer: User making the change
-        """
+        position: str | None = None,
+    ) -> WorkspaceMember:
+        """Update a member's role and/or position (owner only; cannot demote owner)."""
+        workspace = self.workspace_dao.get(db, id=workspace_id)
+        if not workspace:
+            raise NotFoundError("Workspace not found")
+        if workspace.owner_user_id != owner_user_id:
+            raise PermissionDeniedError("Only workspace owner can change member roles")
+        member = self.member_dao.get_by_workspace_and_user(
+            db, workspace_id=workspace_id, user_id=target_user_id
+        )
+        if not member:
+            raise NotFoundError("Member not found")
+        if member.role == 'owner':
+            raise PermissionDeniedError("Cannot change workspace owner's role")
         try:
-            # Get member
-            member = workspace_member_dao.get_by_workspace_and_user(
-                db, workspace_id=workspace_id, user_id=user_id
-            )
-            if not member:
-                raise ValueError("User is not a member of this workspace")
-
-            old_role = member.role
-
-            # Update role
-            workspace_member_dao.update_role(
-                db, workspace_id=workspace_id, user_id=user_id, new_role=new_role
-            )
-
-            # Log action
-            workspace_audit_log_dao.log_action(
-                db,
-                workspace_id=workspace_id,
-                user_id=changer.id,
-                action='role_changed',
-                resource_type='member',
-                resource_id=user_id,
-                metadata={'old_role': old_role, 'new_role': new_role}
-            )
-
+            member.role = new_role
+            if position is not None:
+                member.position = position
             self._commit_transaction(db)
-
-        except Exception as e:
+            db.refresh(member)
+            return member
+        except Exception:
             self._rollback_transaction(db)
             raise
 
     def remove_member(
         self,
         db: Session,
-        *,
         workspace_id: int,
-        user_id: int,
-        remover: Profile
+        remover_user_id: int,
+        target_user_id: int,
     ) -> None:
-        """
-        Remove user from workspace
-
-        Args:
-            workspace_id: Workspace ID
-            user_id: User ID to remove
-            remover: User removing the member
-        """
+        """Remove a member from workspace (business rules enforced by manager)."""
+        current_membership = self._require_active_membership(db, workspace_id, remover_user_id)
         try:
-            # Get workspace
-            workspace = workspace_dao.get(db, id=workspace_id)
-            if not workspace:
-                raise ValueError("Workspace not found")
-
-            # Cannot remove workspace owner
-            if workspace.owner_user_id == user_id:
-                raise ValueError("Cannot remove workspace owner")
-
-            # Get member
-            member = workspace_member_dao.get_by_workspace_and_user(
-                db, workspace_id=workspace_id, user_id=user_id
-            )
-            if not member:
-                raise ValueError("User is not a member of this workspace")
-
-            # Remove member
-            db.delete(member)
-            db.flush()
-
-            # Decrement member count
-            workspace_dao.decrement_usage(db, workspace_id=workspace_id, field='members')
-
-            # Log action
-            workspace_audit_log_dao.log_action(
-                db,
+            self.workspace_manager.remove_member_from_workspace(
+                session=db,
                 workspace_id=workspace_id,
-                user_id=remover.id,
-                action='member_removed',
-                resource_type='member',
-                resource_id=user_id,
-                metadata={'removed_user_role': member.role}
+                user_id=target_user_id,
+                remover_id=remover_user_id,
+                remover_role=current_membership.role,
             )
-
             self._commit_transaction(db)
-
-        except Exception as e:
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise PermissionDeniedError(str(e))
+        except Exception:
             self._rollback_transaction(db)
             raise
 
-    def update_workspace(
+    # -------------------------------------------------------------------------
+    # Invitation management
+    # -------------------------------------------------------------------------
+
+    def send_invitation(
         self,
         db: Session,
-        *,
         workspace_id: int,
-        workspace_update: WorkspaceUpdate,
-        updater: Profile
-    ) -> Workspace:
-        """
-        Update workspace settings
-
-        Args:
-            workspace_id: Workspace ID
-            workspace_update: Update data
-            updater: User updating workspace
-
-        Returns:
-            Updated workspace
-        """
+        inviter_user_id: int,
+        email: str,
+        role: str,
+        position: str | None = None,
+    ) -> WorkspaceInvitation:
+        """Create and persist a workspace invitation (owner only)."""
+        self._require_owner(db, workspace_id, inviter_user_id)
         try:
-            workspace = workspace_dao.get(db, id=workspace_id)
-            if not workspace:
-                raise ValueError("Workspace not found")
-
-            # Update workspace
-            workspace = workspace_dao.update(db, db_obj=workspace, obj_in=workspace_update)
-
-            # Log action
-            workspace_audit_log_dao.log_action(
-                db,
+            invitation = self.workspace_manager.create_invitation(
+                session=db,
                 workspace_id=workspace_id,
-                user_id=updater.id,
-                action='workspace_updated',
-                metadata=workspace_update.model_dump(exclude_unset=True)
+                email=email,
+                role=role,
+                position=position,
+                inviter_id=inviter_user_id,
             )
-
             self._commit_transaction(db)
-            db.refresh(workspace)
-            return workspace
-
-        except Exception as e:
+            db.refresh(invitation)
+            return invitation
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise ValidationError(str(e))
+        except Exception:
             self._rollback_transaction(db)
             raise
+
+    def list_invitations(
+        self,
+        db: Session,
+        workspace_id: int,
+        requesting_user_id: int,
+        include_expired: bool = False,
+    ) -> List[Tuple[WorkspaceInvitation, Optional[Workspace], Optional[Profile]]]:
+        """Return enriched (invitation, workspace, inviter) list (owner only)."""
+        self._require_owner(db, workspace_id, requesting_user_id)
+        if include_expired:
+            invitations = self.invitation_dao.get_all_invitations(db, workspace_id=workspace_id)
+        else:
+            invitations = self.invitation_dao.get_pending_invitations(db, workspace_id=workspace_id)
+        workspace = self.workspace_dao.get(db, id=workspace_id)
+        return [
+            (
+                inv,
+                workspace,
+                self.profile_dao.get(db, id=inv.invited_by_user_id) if inv.invited_by_user_id else None,
+            )
+            for inv in invitations
+        ]
+
+    def accept_invitation(
+        self,
+        db: Session,
+        workspace_id: int,
+        token: str,
+        current_user_id: int,
+        current_user_email: str,
+        position: str | None = None,
+    ) -> WorkspaceMember:
+        """Validate and accept an invitation for an existing authenticated user."""
+        try:
+            invitation = self.workspace_manager.validate_invitation_for_user(
+                session=db,
+                invitation_token=token,
+                user_email=current_user_email,
+            )
+            if invitation.workspace_id != workspace_id:
+                raise ValidationError("Invitation does not belong to this workspace")
+            # User-entered position overrides inviter's pre-filled position
+            if position is not None:
+                invitation.position = position
+                db.flush()
+            member = self.workspace_manager.accept_invitation(
+                session=db,
+                invitation_id=invitation.id,
+                user_id=current_user_id,
+            )
+            self._commit_transaction(db)
+            db.refresh(member)
+            return member
+        except (ValidationError, PermissionDeniedError, NotFoundError):
+            self._rollback_transaction(db)
+            raise
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise ValidationError(str(e))
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def cancel_invitation(
+        self,
+        db: Session,
+        workspace_id: int,
+        invitation_id: int,
+        canceller_user_id: int,
+    ) -> None:
+        """Cancel a pending invitation (owner only, business rules in manager)."""
+        current_membership = self._require_active_membership(db, workspace_id, canceller_user_id)
+        try:
+            self.workspace_manager.cancel_invitation(
+                session=db,
+                invitation_id=invitation_id,
+                canceller_id=canceller_user_id,
+                canceller_role=current_membership.role,
+                workspace_id=workspace_id,
+            )
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise PermissionDeniedError(str(e))
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def get_my_invitations(
+        self, db: Session, user_email: str
+    ) -> List[Tuple[WorkspaceInvitation, Optional[Workspace], Optional[Profile]]]:
+        """Return enriched pending invitations for the current user's email."""
+        invitations = self.invitation_dao.get_user_invitations(db, email=user_email)
+        return [
+            (
+                inv,
+                self.workspace_dao.get(db, id=inv.workspace_id),
+                self.profile_dao.get(db, id=inv.invited_by_user_id) if inv.invited_by_user_id else None,
+            )
+            for inv in invitations
+        ]
 
 
 workspace_service = WorkspaceService()

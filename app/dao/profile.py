@@ -37,9 +37,7 @@ class DAOProfile(BaseDAO[Profile, ProfileCreate, ProfileUpdate]):
         db_obj = Profile(
             name=obj_in.name,
             email=obj_in.email,
-            permission=obj_in.permission,
-            position=obj_in.position,
-            user_id=obj_in.email,  # Use email as user_id for now
+            user_id=obj_in.email,
             hashed_password=get_password_hash(obj_in.password),
         )
         db.add(db_obj)

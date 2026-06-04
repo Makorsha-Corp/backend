@@ -15,6 +15,8 @@ from typing import Optional, Tuple
 from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter
+
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.core.config import settings
 from app.core.exceptions import ConflictError, AuthenticationError, NotFoundError
@@ -86,6 +88,7 @@ router = APIRouter()
     Returns JWT token, user profile, and workspace details.
     """
 )
+@limiter.limit("5/minute")
 def register(
     body: RegisterRequest,
     request: Request,
@@ -108,7 +111,6 @@ def register(
             name=body.name,
             email=body.email,
             password=body.password,
-            position=body.position,
             workspace_name=body.workspace_name,
             invitation_token=body.invitation_token,
             user_agent=user_agent,
@@ -125,14 +127,12 @@ def register(
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
-                "permission": user.permission,
-                "position": user.position
             },
             workspace={
                 "id": workspace.id,
                 "name": workspace.name,
                 "slug": workspace.slug
-            },
+            } if workspace else None,
             messages=[msg.model_dump() for msg in messages]
         )
 
@@ -165,6 +165,7 @@ def register(
     Token should be sent in Authorization header as: `Bearer <token>`
     """
 )
+@limiter.limit("10/minute")
 def login(
     credentials: LoginRequest,
     request: Request,
@@ -204,8 +205,6 @@ def login(
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
-                "permission": user.permission,
-                "position": user.position
             },
             messages=[msg.model_dump() for msg in messages]
         )
@@ -292,8 +291,10 @@ def switch_workspace(
     **Note**: Reset token should be sent via email, not in API response.
     """
 )
+@limiter.limit("5/minute")
 def forgot_password(
-    request: ForgotPasswordRequest,
+    body: ForgotPasswordRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -308,12 +309,12 @@ def forgot_password(
     try:
         reset_token, expires_at, messages = auth_service.request_password_reset(
             db=db,
-            email=request.email
+            email=body.email
         )
 
         # TODO: Send email with reset token
         # email_service.send_password_reset_email(
-        #     to=request.email,
+        #     to=body.email,
         #     reset_token=reset_token,
         #     expires_at=expires_at
         # )
@@ -446,8 +447,10 @@ def admin_reset_password(
     Useful for showing invitation preview before user registers.
     """
 )
+@limiter.limit("20/minute")
 def validate_invitation(
-    request: ValidateInvitationRequest,
+    body: ValidateInvitationRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -461,7 +464,7 @@ def validate_invitation(
     try:
         details, messages = auth_service.validate_invitation_token(
             db=db,
-            invitation_token=request.invitation_token
+            invitation_token=body.invitation_token
         )
 
         return ValidateInvitationResponse(
@@ -500,8 +503,6 @@ def get_current_user_info(
             "id": current_user.id,
             "name": current_user.name,
             "email": current_user.email,
-            "permission": current_user.permission,
-            "position": current_user.position
         },
         "workspace": {
             "id": workspace.id,

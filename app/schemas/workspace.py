@@ -12,8 +12,9 @@ class WorkspaceBase(BaseModel):
 
 class WorkspaceCreate(WorkspaceBase):
     """Workspace creation schema"""
-    subscription_plan_id: int | None = None  # If None, use default plan
+    subscription_plan_id: int | None = None
     billing_email: str | None = None
+    owner_position: str | None = None
 
 
 class WorkspaceUpdate(BaseModel):

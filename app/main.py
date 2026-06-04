@@ -6,8 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError, OperationalError
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.db.init_db import init_db
 from app.db.session import SessionLocal
 
@@ -41,9 +46,15 @@ app = FastAPI(
     description="Production-ready ERP API with standardized error handling and request tracking"
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # ==================== MIDDLEWARE ====================
 # Order matters: first added = outermost layer
+
+# Rate limiting
+app.add_middleware(SlowAPIMiddleware)
 
 # Request context (adds request ID and logging)
 app.add_middleware(RequestContextMiddleware)

@@ -78,6 +78,28 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
         db.flush()
         return invitation
 
+    def count_pending_invitations(self, db: Session, *, workspace_id: int) -> int:
+        """Get count of pending non-expired invitations for workspace"""
+        return (
+            db.query(WorkspaceInvitation)
+            .filter(
+                WorkspaceInvitation.workspace_id == workspace_id,
+                WorkspaceInvitation.status == 'pending',
+                WorkspaceInvitation.expires_at > datetime.utcnow()
+            )
+            .count()
+        )
+
+    def get_all_invitations(
+        self, db: Session, *, workspace_id: int
+    ) -> List[WorkspaceInvitation]:
+        """Get all invitations for workspace regardless of status"""
+        return (
+            db.query(WorkspaceInvitation)
+            .filter(WorkspaceInvitation.workspace_id == workspace_id)
+            .all()
+        )
+
     def cleanup_expired_invitations(self, db: Session) -> int:
         """Mark expired invitations as expired (returns count)"""
         count = (

@@ -6,7 +6,6 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 import bcrypt
 from app.core.config import settings
 
@@ -14,12 +13,6 @@ from app.core.config import settings
 # Length (in url-safe base64 characters) of the raw refresh token returned to
 # clients. 64 bytes of entropy ≈ 86 characters; ample for a non-JWT credential.
 REFRESH_TOKEN_BYTES = 64
-
-
-# Password hashing context
-# Use passlib for verification (handles different hash formats)
-# Use bcrypt directly for hashing to avoid passlib's bug detection issues
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -57,21 +50,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    # Use bcrypt directly to avoid passlib's initialization bug detection issues
-    # Convert password to bytes and truncate if necessary
+    if not hashed_password:
+        return False
+
     password_bytes = plain_password.encode('utf-8')
     if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    
-    # Convert hashed_password back to bytes if it's a string
-    if isinstance(hashed_password, str):
-        hashed_password_bytes = hashed_password.encode('utf-8')
-    else:
-        hashed_password_bytes = hashed_password
-    
-    # Use bcrypt to verify
+        raise ValueError("Password exceeds bcrypt's 72-byte limit")
+
+    hashed_bytes = hashed_password.encode('utf-8') if isinstance(hashed_password, str) else hashed_password
     try:
-        return bcrypt.checkpw(password_bytes, hashed_password_bytes)
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
     except Exception:
         return False
 
@@ -91,21 +79,12 @@ def get_password_hash(password: str) -> str:
         will be truncated. Consider validating password length in
         your schemas to prevent this.
     """
-    # Convert to bytes and truncate to 72 bytes if necessary
-    # Bcrypt requires bytes, not strings, and has a 72-byte limit
     password_bytes = password.encode('utf-8')
-    
     if len(password_bytes) > 72:
-        # Truncate to exactly 72 bytes
-        password_bytes = password_bytes[:72]
-    
-    # Use bcrypt directly to avoid passlib's initialization bug detection issues
-    # Generate salt and hash
+        raise ValueError("Password exceeds bcrypt's 72-byte limit")
+
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password_bytes, salt)
-    
-    # Return as string (bcrypt returns bytes)
-    return hashed.decode('utf-8')
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
 def create_refresh_token() -> Tuple[str, str]:
@@ -148,11 +127,6 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        print(f"DEBUG [decode_token]: Successfully decoded token. Payload: {payload}")
         return payload
-    except JWTError as e:
-        print(f"DEBUG [decode_token]: JWT decode error: {type(e).__name__}: {e}")
-        print(f"DEBUG [decode_token]: Token (first 50 chars): {token[:50]}...")
-        print(f"DEBUG [decode_token]: Using SECRET_KEY: {settings.SECRET_KEY[:20]}...")
-        print(f"DEBUG [decode_token]: Using ALGORITHM: {settings.ALGORITHM}")
+    except JWTError:
         return None

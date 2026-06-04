@@ -16,8 +16,8 @@ from app.dao.workspace_invitation import workspace_invitation_dao
 from app.dao.workspace_audit_log import workspace_audit_log_dao
 from app.dao.subscription_plan import subscription_plan_dao
 from app.schemas.workspace import WorkspaceCreate
-from app.schemas.workspace_member import WorkspaceMemberCreate
-from app.schemas.workspace_invitation import WorkspaceInvitationCreate
+from app.schemas.workspace_member import WorkspaceMemberCreate, VALID_MEMBER_ROLES
+from app.schemas.workspace_invitation import WorkspaceInvitationCreate, VALID_INVITE_ROLES
 from app.db.seed_default_statuses import seed_default_statuses
 from app.db.seed_default_departments import seed_default_departments
 from app.db.seed_default_tags import seed_default_tags
@@ -53,7 +53,8 @@ class WorkspaceManager(BaseManager[Workspace]):
         session: Session,
         workspace_data: WorkspaceCreate,
         owner_user_id: int,
-        subscription_plan_id: Optional[int] = None
+        subscription_plan_id: Optional[int] = None,
+        owner_position: Optional[str] = None,
     ) -> Workspace:
         """
         Create workspace with owner as first member.
@@ -91,43 +92,37 @@ class WorkspaceManager(BaseManager[Workspace]):
             if not plan:
                 raise ValueError("No default subscription plan found")
 
+        # Check slug uniqueness before hitting the DB constraint
+        if self.workspace_dao.get_by_slug(session, slug=workspace_data.slug):
+            raise ValueError(f"Workspace slug '{workspace_data.slug}' is already taken. Please choose a different name.")
+
         # Create workspace
         workspace_dict = workspace_data.model_dump()
+        workspace_dict.pop('owner_position', None)  # lives on WorkspaceMember, not Workspace
         workspace_dict['subscription_plan_id'] = plan.id
         workspace_dict['owner_user_id'] = owner_user_id
         workspace_dict['created_by_user_id'] = owner_user_id
 
         # Create trial_ends_at datetime
         trial_ends = datetime.utcnow() + timedelta(days=14)  # 14-day trial
-        logger.info(f"[WORKSPACE] Created trial_ends_at: type={type(trial_ends).__name__}, value={repr(trial_ends)}")
         workspace_dict['trial_ends_at'] = trial_ends
 
-        logger.info(f"[WORKSPACE] workspace_dict keys: {workspace_dict.keys()}")
-        logger.info(f"[WORKSPACE] Creating Workspace object...")
-
         workspace = Workspace(**workspace_dict)
-
-        logger.info(f"[WORKSPACE] Workspace object created, adding to session...")
         session.add(workspace)
-
-        logger.info(f"[WORKSPACE] Flushing to database...")
         session.flush()  # Get workspace.id
-        logger.info(f"[WORKSPACE] Flush successful! workspace.id={workspace.id}")
 
         # Add owner as member
         joined_at = datetime.utcnow()
-        logger.info(f"[WORKSPACE] Created joined_at: type={type(joined_at).__name__}, value={repr(joined_at)}")
 
         member_in = WorkspaceMemberCreate(
             workspace_id=workspace.id,
             user_id=owner_user_id,
             role='owner',
+            position=owner_position,
             status='active',
             joined_at=joined_at
         )
-        logger.info(f"[WORKSPACE] Creating workspace member...")
         self.member_dao.create(session, obj_in=member_in)
-        logger.info(f"[WORKSPACE] Member created successfully")
 
         # Seed default data for workspace
         seed_default_statuses(session, workspace_id=workspace.id)
@@ -152,7 +147,8 @@ class WorkspaceManager(BaseManager[Workspace]):
         workspace_id: int,
         user_id: int,
         role: str,
-        inviter_id: int
+        inviter_id: int,
+        position: Optional[str] = None,
     ) -> WorkspaceMember:
         """
         Add member to workspace with validation.
@@ -179,9 +175,8 @@ class WorkspaceManager(BaseManager[Workspace]):
             This method does NOT commit. Service layer must commit.
         """
         # Validate role
-        valid_roles = ['owner', 'finance', 'ground-team-manager', 'ground-team']
-        if role not in valid_roles:
-            raise ValueError(f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+        if role not in VALID_MEMBER_ROLES:
+            raise ValueError(f"Invalid role. Must be one of: {', '.join(sorted(VALID_MEMBER_ROLES))}")
 
         # Check if user already member
         existing = self.member_dao.get_by_workspace_and_user(
@@ -211,6 +206,7 @@ class WorkspaceManager(BaseManager[Workspace]):
             workspace_id=workspace_id,
             user_id=user_id,
             role=role,
+            position=position,
             status='active',
             joined_at=datetime.utcnow()
         )
@@ -295,7 +291,8 @@ class WorkspaceManager(BaseManager[Workspace]):
         workspace_id: int,
         email: str,
         role: str,
-        inviter_id: int
+        inviter_id: int,
+        position: Optional[str] = None,
     ) -> WorkspaceInvitation:
         """
         Create workspace invitation with validation.
@@ -322,10 +319,9 @@ class WorkspaceManager(BaseManager[Workspace]):
         Note:
             This method does NOT commit. Service layer must commit.
         """
-        # Validate role
-        valid_roles = ['finance', 'ground-team-manager', 'ground-team']
-        if role not in valid_roles:
-            raise ValueError(f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+        # Validate role (owner cannot be invited — owner is assigned at workspace creation)
+        if role not in VALID_INVITE_ROLES:
+            raise ValueError(f"Invalid role. Must be one of: {', '.join(sorted(VALID_INVITE_ROLES))}")
 
         # Check if email already member
         from app.dao.profile import profile_dao
@@ -336,14 +332,6 @@ class WorkspaceManager(BaseManager[Workspace]):
             )
             if existing_member and existing_member.status == 'active':
                 raise ValueError("User with this email is already a member of this workspace")
-
-        # Check if already invited (pending)
-        existing_invitation = self.invitation_dao.get_by_workspace_and_email(
-            session, workspace_id=workspace_id, email=email
-        )
-        if existing_invitation and existing_invitation.status == 'pending':
-            if existing_invitation.expires_at > datetime.utcnow():
-                raise ValueError("An invitation has already been sent to this email")
 
         # Check subscription limits
         workspace = self.workspace_dao.get(session, id=workspace_id)
@@ -371,11 +359,12 @@ class WorkspaceManager(BaseManager[Workspace]):
         # Create invitation
         invitation_in = WorkspaceInvitationCreate(
             workspace_id=workspace_id,
-            email=email.lower(),  # Normalize to lowercase
+            email=email.lower(),
             role=role,
-            invitation_token=invitation_token,
-            invited_by=inviter_id,
-            expires_at=datetime.utcnow() + timedelta(days=7),  # 7-day expiration
+            position=position,
+            token=invitation_token,
+            invited_by_user_id=inviter_id,
+            expires_at=datetime.utcnow() + timedelta(days=3),
             status='pending'
         )
         invitation = self.invitation_dao.create(session, obj_in=invitation_in)
@@ -474,13 +463,14 @@ class WorkspaceManager(BaseManager[Workspace]):
         if not invitation:
             raise ValueError("Invitation not found")
 
-        # Add user to workspace
+        # Add user to workspace, carrying over position pre-filled by inviter
         member = self.add_member_to_workspace(
             session=session,
             workspace_id=invitation.workspace_id,
             user_id=user_id,
             role=invitation.role,
-            inviter_id=invitation.invited_by
+            position=invitation.position,
+            inviter_id=invitation.invited_by_user_id
         )
 
         # Update invitation status
@@ -538,9 +528,9 @@ class WorkspaceManager(BaseManager[Workspace]):
         if invitation.status != 'pending':
             raise ValueError(f"Cannot cancel invitation that is {invitation.status}")
 
-        # Check permissions
-        if canceller_role not in ['owner', 'ground-team-manager'] and canceller_id != invitation.invited_by:
-            raise ValueError("You do not have permission to cancel this invitation")
+        # Only owner can cancel invitations
+        if canceller_role != 'owner':
+            raise ValueError("Only the workspace owner can cancel invitations")
 
         # Cancel invitation
         invitation.status = 'cancelled'

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/erp_db"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/marker_db"
 
     # Security
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
@@ -46,3 +46,9 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+_DEFAULT_SECRET = "your-secret-key-change-this-in-production"
+if settings.ENVIRONMENT == "production" and settings.SECRET_KEY == _DEFAULT_SECRET:
+    raise RuntimeError(
+        "SECRET_KEY must be changed from the default before running in production."
+    )

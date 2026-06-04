@@ -42,12 +42,12 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
         )
 
     def get_workspace_members(
-        self, db: Session, *, workspace_id: int, status: str = 'active'
+        self, db: Session, *, workspace_id: int, status: Optional[str] = 'active'
     ) -> List[WorkspaceMember]:
         """Get all members in workspace"""
         query = db.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == workspace_id)
 
-        if status:
+        if status is not None:
             query = query.filter(WorkspaceMember.status == status)
 
         return query.all()
@@ -64,16 +64,33 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
         return query.count()
 
     def update_role(
-        self, db: Session, *, workspace_id: int, user_id: int, new_role: str
+        self, db: Session, *, workspace_id: int, user_id: int, new_role: str, position: str | None = None
     ) -> WorkspaceMember:
-        """Update user's role in workspace"""
+        """Update user's role (and optionally position) in workspace"""
         member = self.get_by_workspace_and_user(db, workspace_id=workspace_id, user_id=user_id)
         if not member:
             raise ValueError("User is not a member of this workspace")
 
         member.role = new_role
+        if position is not None:
+            member.position = position
         db.flush()
         return member
+
+    def get_by_workspace(self, db: Session, *, workspace_id: int) -> List[WorkspaceMember]:
+        """Get all members in workspace (alias for get_workspace_members)"""
+        return self.get_workspace_members(db, workspace_id=workspace_id, status=None)
+
+    def count_active_members(self, db: Session, *, workspace_id: int) -> int:
+        """Get count of active members in workspace"""
+        return (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.status == 'active'
+            )
+            .count()
+        )
 
     def has_access(
         self, db: Session, *, user_id: int, workspace_id: int

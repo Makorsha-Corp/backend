@@ -8,55 +8,60 @@ FastAPI backend for the ERP system. By default it runs against a local SQLite da
 
 ## Getting Started (First Time Setup)
 
-### 1. Prerequisites
+### Prerequisites
 
-- **Python**: 3.10 or higher
-- **pip**: Python package manager
-- (Optional) **Git** if you’re cloning from a repository
+- **Python** 3.10 or higher
+- **Docker** (for the local Postgres database)
 
-### 2. Create and Activate Virtual Environment
+### 1. Start the database
 
-From the **backend repo root** (where `requirements.txt` and `app/` live):
+```bash
+docker-compose -f docker/docker-compose.yml up -d
+```
+
+This starts a Postgres 16 container on `localhost:5432` with the credentials already in `.env.example`. Data is persisted in a Docker volume so it survives restarts.
+
+To stop it later: `docker-compose -f docker/docker-compose.yml down`  
+To wipe all data and start fresh: `docker-compose -f docker/docker-compose.yml down -v`
+
+### 2. Create and activate a virtual environment
 
 ```bash
 python -m venv .venv
 ```
 
-Activate it:
+- **Windows (PowerShell):** `.venv\Scripts\activate`
+- **macOS / Linux:** `source .venv/bin/activate`
 
-- **Windows (PowerShell / CMD):**
-
-```bash
-.venv\Scripts\activate
-```
-
-- **Linux / macOS:**
-
-```bash
-source .venv/bin/activate
-```
-
-You should now see `(.venv)` in your shell prompt.
-
-### 3. Install Dependencies
-
-With the virtual environment active:
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-This installs FastAPI, Uvicorn, SQLAlchemy, Alembic, Pydantic, and the other required packages.
+### 4. Configure environment
 
-### 4. Environment Configuration
+```bash
+cp .env.example .env
+```
 
-By default, the app uses SQLite and built‑in defaults from `app/core/config.py`:
+The defaults in `.env.example` already match the Docker Postgres container, so no edits are needed for local dev.
 
-- `DATABASE_URL = "sqlite:///./erp.db"`
-- `ENVIRONMENT = "development"`
-- `DEBUG = True`
+### 5. Run database migrations
 
-If you have an `.env` file, it will be loaded automatically and can override these values. For local development you can usually run without any extra configuration.
+```bash
+alembic upgrade head
+```
+
+This creates all tables. Re-run this command any time a new migration is added.
+
+### 6. Start the API
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The server starts at `http://localhost:8000`. On startup it automatically seeds global reference data (subscription plans).
 
 ---
 
@@ -68,13 +73,7 @@ From the `backend` directory with the virtualenv active:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-This will:
-
-- Create / migrate the SQLite database file `erp.db` in the project root (via `Base.metadata.create_all`).
-- Run any lightweight startup initialization in `app/main.py`.
-- Start the API at: `http://localhost:8000`
-
-You should see logs in the terminal showing Uvicorn starting and requests being handled.
+The API will be available at `http://localhost:8000`.
 
 ---
 
@@ -153,30 +152,36 @@ Typical flow after login:
 
 ## Database Notes
 
-- **Default DB**: SQLite file `erp.db` in the backend root.
-- Tables are created automatically on startup via SQLAlchemy models in `app/models` and `app/db/base.py`.
-- When a workspace is created, default workspace‑scoped data (statuses, departments, tags, account tags) is seeded by the workspace service.
+- **Local DB**: PostgreSQL 16 running in Docker (`docker-compose up -d`).
+- **Schema**: managed by Alembic migrations — always run `alembic upgrade head` after pulling new changes.
+- When a workspace is created, default workspace‑scoped data (statuses, departments, tags, account tags) is seeded automatically.
 
-### Alembic Migrations (Optional)
+### Alembic Migrations
 
-For more controlled schema management:
-
-- **Create migration**:
-
-```bash
-alembic revision --autogenerate -m "description"
-```
-
-- **Apply migrations**:
+- **Apply all pending migrations**:
 
 ```bash
 alembic upgrade head
 ```
 
-- **Rollback**:
+- **Create a new migration** (after changing a model):
+
+```bash
+alembic revision --autogenerate -m "description"
+```
+
+- **Rollback one step**:
 
 ```bash
 alembic downgrade -1
+```
+
+- **Reset local DB** (wipe everything and re-apply from scratch):
+
+```bash
+docker-compose -f docker/docker-compose.yml down -v
+docker-compose -f docker/docker-compose.yml up -d
+alembic upgrade head
 ```
 
 ---
