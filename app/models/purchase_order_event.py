@@ -8,7 +8,8 @@ from app.db.base_class import Base
 class PurchaseOrderEvent(Base):
     """
     Append-only activity log for a purchase order.
-    event_type: 'created', 'received', 'approved', 'approval_withdrawn'.
+    event_type: 'created', 'received', 'approved', 'approval_withdrawn',
+    'details_updated', 'notes_updated', section lock events, etc.
     """
 
     __tablename__ = "purchase_order_events"

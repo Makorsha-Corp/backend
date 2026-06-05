@@ -25,6 +25,18 @@ INVOICE_LOCKED_DETAIL_FIELDS = frozenset({
     'account_id', 'destination_type', 'destination_id', 'order_date',
 })
 NOTES_FIELDS = frozenset({'description', 'order_note', 'internal_note'})
+DETAIL_LOG_FIELDS = {
+    'account_id': 'Supplier',
+    'destination_type': 'Destination type',
+    'destination_id': 'Destination',
+    'order_date': 'Order date',
+    'expected_delivery_date': 'Expected delivery',
+}
+NOTE_LOG_FIELDS = {
+    'description': 'Description',
+    'order_note': 'Order note',
+    'internal_note': 'Internal note',
+}
 INVOICE_LOCK_MSG = 'Locked after invoice creation'
 SECTION_LOCK_FIELDS = {
     'details_locked': ('details', 'Order details'),
@@ -148,7 +160,47 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     user_id,
                 )
 
+        self._log_section_field_updates(
+            session, po_id, workspace_id, user_id, record, update_dict,
+        )
+
         return self.po_dao.update(session, db_obj=record, obj_in=update_dict)
+
+    def _changed_field_labels(
+        self, record: PurchaseOrder, update_dict: dict, fields: dict[str, str],
+    ) -> List[str]:
+        labels: List[str] = []
+        for field, label in fields.items():
+            if field not in update_dict:
+                continue
+            if getattr(record, field) != update_dict[field]:
+                labels.append(label)
+        return labels
+
+    def _log_section_field_updates(
+        self,
+        session: Session,
+        po_id: int,
+        workspace_id: int,
+        user_id: int,
+        record: PurchaseOrder,
+        update_dict: dict,
+    ) -> None:
+        detail_labels = self._changed_field_labels(record, update_dict, DETAIL_LOG_FIELDS)
+        if detail_labels:
+            self.log_event(
+                session, po_id, workspace_id, 'details_updated',
+                f"Updated order details: {', '.join(detail_labels)}",
+                user_id,
+            )
+
+        note_labels = self._changed_field_labels(record, update_dict, NOTE_LOG_FIELDS)
+        if note_labels:
+            self.log_event(
+                session, po_id, workspace_id, 'notes_updated',
+                f"Updated order notes: {', '.join(note_labels)}",
+                user_id,
+            )
 
     def _locked_detail_update_fields(self, record: PurchaseOrder) -> frozenset:
         if record.invoice_id is not None:
