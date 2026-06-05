@@ -1,5 +1,5 @@
 """Purchase order model - for external procurement with items"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -27,6 +27,11 @@ class PurchaseOrder(Base):
     destination_type = Column(String(50), nullable=False)  # 'storage', 'machine', 'project'
     destination_id = Column(Integer, nullable=False)  # factory_id, machine_id, project_component_id
 
+    # === DATES ===
+    order_date = Column(Date, nullable=True)
+    expected_delivery_date = Column(Date, nullable=True)
+    actual_delivery_date = Column(Date, nullable=True)  # auto-set when all items received
+
     # === TOTALS (calculated from line items) ===
     subtotal = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of all line_subtotals
     total_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Same as subtotal
@@ -35,6 +40,9 @@ class PurchaseOrder(Base):
     current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
     order_workflow_id = Column(Integer, ForeignKey("order_workflows.id", ondelete="RESTRICT"), nullable=True, index=True)
 
+    # === APPROVALS ===
+    required_approvals = Column(Integer, nullable=True)  # threshold; null = all assigned approvers
+
     # === INVOICE LINKAGE ===
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
 
@@ -42,6 +50,11 @@ class PurchaseOrder(Base):
     description = Column(Text, nullable=True)
     order_note = Column(Text, nullable=True)
     internal_note = Column(Text, nullable=True)
+
+    # === SECTION LOCKS ===
+    details_locked = Column(Boolean, nullable=False, default=False)
+    notes_locked = Column(Boolean, nullable=False, default=False)
+    items_locked = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
@@ -56,3 +69,8 @@ class PurchaseOrder(Base):
     invoice = relationship("AccountInvoice", backref="purchase_orders")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_purchase_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_purchase_orders")
+    approvers = relationship(
+        "PurchaseOrderApprover",
+        back_populates="purchase_order",
+        cascade="all, delete-orphan",
+    )

@@ -6,12 +6,34 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_workspace, get_current_active_user
 from app.models.workspace import Workspace
 from app.models.profile import Profile
+from app.dao.profile import profile_dao
+from app.dao.workspace_member import workspace_member_dao
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
     ActiveOrderRow,
+    PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
+    ApprovalSummaryResponse, PurchaseOrderApproversList,
+    PurchaseOrderEventResponse,
+    PurchaseOrderSectionLockRequest,
 )
 from app.services.purchase_order_service import purchase_order_service
+
+
+def _approver_response(record, profile=None, position=None) -> PurchaseOrderApproverResponse:
+    return PurchaseOrderApproverResponse(
+        id=record.id,
+        workspace_id=record.workspace_id,
+        purchase_order_id=record.purchase_order_id,
+        user_id=record.user_id,
+        user_name=profile.name if profile else None,
+        user_email=profile.email if profile else None,
+        user_position=position,
+        assigned_by=record.assigned_by,
+        assigned_at=record.assigned_at,
+        approved=record.approved,
+        approved_at=record.approved_at,
+    )
 
 
 router = APIRouter()
@@ -115,6 +137,36 @@ def update_purchase_order(
     )
 
 
+_SECTION_LOCK_FIELDS = {
+    'details': 'details_locked',
+    'notes': 'notes_locked',
+    'items': 'items_locked',
+}
+
+
+@router.patch(
+    "/{po_id}/section-lock/",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Lock or unlock a purchase order section",
+)
+def set_purchase_order_section_lock(
+    po_id: int,
+    body: PurchaseOrderSectionLockRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    lock_field = _SECTION_LOCK_FIELDS[body.section]
+    return purchase_order_service.update_purchase_order(
+        db,
+        po_id=po_id,
+        po_in=PurchaseOrderUpdate(**{lock_field: body.locked}),
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+    )
+
+
 @router.delete(
     "/{po_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -146,6 +198,138 @@ def create_invoice_from_purchase_order(
         workspace_id=workspace.id,
         user_id=current_user.id
     )
+
+
+# ─── Purchase Order Approvers ──────────────────────────────────
+
+@router.get(
+    "/{po_id}/approvers/",
+    response_model=PurchaseOrderApproversList,
+    status_code=status.HTTP_200_OK,
+    summary="List purchase order approvers + approval summary"
+)
+def list_purchase_order_approvers(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db)
+):
+    rows = purchase_order_service.list_approvers(db, po_id=po_id, workspace_id=workspace.id)
+    approved_count, required, met = purchase_order_service.approval_summary_for(
+        db, po_id=po_id, workspace_id=workspace.id
+    )
+    return PurchaseOrderApproversList(
+        approvers=[_approver_response(a, profile, position) for a, profile, position in rows],
+        summary=ApprovalSummaryResponse(approved_count=approved_count, required=required, met=met),
+    )
+
+
+@router.post(
+    "/{po_id}/approvers/",
+    response_model=PurchaseOrderApproverResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Assign an approver to a purchase order"
+)
+def add_purchase_order_approver(
+    po_id: int,
+    body: PurchaseOrderApproverCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    record = purchase_order_service.add_approver(
+        db, po_id=po_id, user_id=body.user_id,
+        workspace_id=workspace.id, assigned_by=current_user.id
+    )
+    profile = profile_dao.get(db, id=record.user_id)
+    member = workspace_member_dao.get_by_workspace_and_user(
+        db, workspace_id=workspace.id, user_id=record.user_id
+    )
+    return _approver_response(record, profile, member.position if member else None)
+
+
+@router.delete(
+    "/{po_id}/approvers/{user_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove an approver from a purchase order"
+)
+def remove_purchase_order_approver(
+    po_id: int,
+    user_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db)
+):
+    purchase_order_service.remove_approver(db, po_id=po_id, user_id=user_id, workspace_id=workspace.id)
+
+
+@router.post(
+    "/{po_id}/approvers/me/approve/",
+    response_model=PurchaseOrderApproverResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Current user approves the purchase order"
+)
+def approve_purchase_order(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    record = purchase_order_service.set_approval(
+        db, po_id=po_id, user_id=current_user.id, workspace_id=workspace.id, approved=True
+    )
+    member = workspace_member_dao.get_by_workspace_and_user(
+        db, workspace_id=workspace.id, user_id=current_user.id
+    )
+    return _approver_response(record, current_user, member.position if member else None)
+
+
+@router.delete(
+    "/{po_id}/approvers/me/approve/",
+    response_model=PurchaseOrderApproverResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Current user withdraws their approval"
+)
+def unapprove_purchase_order(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    record = purchase_order_service.set_approval(
+        db, po_id=po_id, user_id=current_user.id, workspace_id=workspace.id, approved=False
+    )
+    member = workspace_member_dao.get_by_workspace_and_user(
+        db, workspace_id=workspace.id, user_id=current_user.id
+    )
+    return _approver_response(record, current_user, member.position if member else None)
+
+
+# ─── Purchase Order Events ─────────────────────────────────────
+
+@router.get(
+    "/{po_id}/events/",
+    response_model=List[PurchaseOrderEventResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List purchase order activity events"
+)
+def list_purchase_order_events(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db)
+):
+    rows = purchase_order_service.list_events(db, po_id=po_id, workspace_id=workspace.id)
+    return [
+        PurchaseOrderEventResponse(
+            id=e.id,
+            workspace_id=e.workspace_id,
+            purchase_order_id=e.purchase_order_id,
+            event_type=e.event_type,
+            description=e.description,
+            performed_by=e.performed_by,
+            user_name=profile.name if profile else None,
+            created_at=e.created_at,
+        )
+        for e, profile in rows
+    ]
 
 
 # ─── Purchase Order Items ──────────────────────────────────────
@@ -191,10 +375,11 @@ def update_purchase_order_item(
     item_id: int,
     item_in: PurchaseOrderItemUpdate,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     return purchase_order_service.update_item(
-        db, item_id=item_id, item_in=item_in, workspace_id=workspace.id
+        db, item_id=item_id, item_in=item_in, workspace_id=workspace.id, user_id=current_user.id
     )
 
 

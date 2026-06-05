@@ -1,7 +1,9 @@
 """Purchase order schemas"""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
+
+PurchaseOrderSection = Literal['details', 'notes', 'items']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -55,21 +57,37 @@ class PurchaseOrderCreate(BaseModel):
     account_id: int
     destination_type: str
     destination_id: int
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
     current_status_id: int = 1
     order_workflow_id: int | None = None
+    required_approvals: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
+
+
+class PurchaseOrderSectionLockRequest(BaseModel):
+    section: PurchaseOrderSection
+    locked: bool
 
 
 class PurchaseOrderUpdate(BaseModel):
     account_id: int | None = None
+    destination_type: str | None = None
+    destination_id: int | None = None
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
     current_status_id: int | None = None
     invoice_id: int | None = None
+    required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
+    details_locked: bool | None = None
+    notes_locked: bool | None = None
+    items_locked: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -79,17 +97,68 @@ class PurchaseOrderResponse(BaseModel):
     account_id: int
     destination_type: str
     destination_id: int
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
+    actual_delivery_date: date | None = None
     subtotal: Decimal
     total_amount: Decimal
     current_status_id: int
     order_workflow_id: int | None = None
     invoice_id: int | None = None
+    required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
+    details_locked: bool = False
+    notes_locked: bool = False
+    items_locked: bool = False
     created_by: int
     created_at: datetime
     updated_by: int | None = None
     updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseOrderApproverCreate(BaseModel):
+    user_id: int
+
+
+class PurchaseOrderApproverResponse(BaseModel):
+    id: int
+    workspace_id: int
+    purchase_order_id: int
+    user_id: int
+    user_name: str | None = None
+    user_email: str | None = None
+    user_position: str | None = None
+    assigned_by: int | None = None
+    assigned_at: datetime
+    approved: bool
+    approved_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApprovalSummaryResponse(BaseModel):
+    approved_count: int
+    required: int
+    met: bool
+
+
+class PurchaseOrderApproversList(BaseModel):
+    approvers: List[PurchaseOrderApproverResponse]
+    summary: ApprovalSummaryResponse
+
+
+class PurchaseOrderEventResponse(BaseModel):
+    id: int
+    workspace_id: int
+    purchase_order_id: int
+    event_type: str
+    description: str
+    performed_by: int | None = None
+    user_name: str | None = None
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
