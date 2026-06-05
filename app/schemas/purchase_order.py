@@ -62,6 +62,7 @@ class PurchaseOrderCreate(BaseModel):
     internal_note: str | None = None
     current_status_id: int = 1
     order_workflow_id: int | None = None
+    required_approvals: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
 
 
@@ -73,6 +74,7 @@ class PurchaseOrderUpdate(BaseModel):
     expected_delivery_date: date | None = None
     current_status_id: int | None = None
     invoice_id: int | None = None
+    required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
@@ -93,6 +95,7 @@ class PurchaseOrderResponse(BaseModel):
     current_status_id: int
     order_workflow_id: int | None = None
     invoice_id: int | None = None
+    required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
@@ -102,3 +105,34 @@ class PurchaseOrderResponse(BaseModel):
     updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseOrderApproverCreate(BaseModel):
+    user_id: int
+
+
+class PurchaseOrderApproverResponse(BaseModel):
+    id: int
+    workspace_id: int
+    purchase_order_id: int
+    user_id: int
+    user_name: str | None = None
+    user_email: str | None = None
+    user_position: str | None = None
+    assigned_by: int | None = None
+    assigned_at: datetime
+    approved: bool
+    approved_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApprovalSummaryResponse(BaseModel):
+    approved_count: int
+    required: int
+    met: bool
+
+
+class PurchaseOrderApproversList(BaseModel):
+    approvers: List[PurchaseOrderApproverResponse]
+    summary: ApprovalSummaryResponse

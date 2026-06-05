@@ -40,6 +40,9 @@ class PurchaseOrder(Base):
     current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
     order_workflow_id = Column(Integer, ForeignKey("order_workflows.id", ondelete="RESTRICT"), nullable=True, index=True)
 
+    # === APPROVALS ===
+    required_approvals = Column(Integer, nullable=True)  # threshold; null = all assigned approvers
+
     # === INVOICE LINKAGE ===
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
 
@@ -61,3 +64,8 @@ class PurchaseOrder(Base):
     invoice = relationship("AccountInvoice", backref="purchase_orders")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_purchase_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_purchase_orders")
+    approvers = relationship(
+        "PurchaseOrderApprover",
+        back_populates="purchase_order",
+        cascade="all, delete-orphan",
+    )

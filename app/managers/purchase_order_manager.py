@@ -1,17 +1,23 @@
 """Purchase Order Manager - business logic for purchase orders"""
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from decimal import Decimal
+from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
+from app.models.purchase_order_approver import PurchaseOrderApprover
+from app.models.profile import Profile
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
 )
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
+from app.dao.purchase_order_approver import purchase_order_approver_dao
+from app.dao.workspace_member import workspace_member_dao
+from app.dao.profile import profile_dao
 
 
 class PurchaseOrderManager(BaseManager[PurchaseOrder]):
@@ -21,6 +27,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         super().__init__(PurchaseOrder)
         self.po_dao = purchase_order_dao
         self.item_dao = purchase_order_item_dao
+        self.approver_dao = purchase_order_approver_dao
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -177,6 +184,95 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po.subtotal = subtotal
         po.total_amount = subtotal
         session.flush()
+
+    # ─── Approvers ─────────────────────────────────────────────
+    def list_approvers(
+        self, session: Session, po_id: int, workspace_id: int
+    ) -> List[Tuple[PurchaseOrderApprover, Optional[Profile], Optional[str]]]:
+        """Approvers for an order, enriched with profile + workspace position."""
+        self.get_purchase_order(session, po_id, workspace_id)  # 404 guard
+        approvers = self.approver_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
+        result: List[Tuple[PurchaseOrderApprover, Optional[Profile], Optional[str]]] = []
+        for a in approvers:
+            profile = profile_dao.get(session, id=a.user_id)
+            member = workspace_member_dao.get_by_workspace_and_user(
+                session, workspace_id=workspace_id, user_id=a.user_id
+            )
+            result.append((a, profile, member.position if member else None))
+        return result
+
+    def approval_summary(self, session: Session, po: PurchaseOrder) -> Tuple[int, int, bool]:
+        """(approved_count, required, met). required null -> all assigned must approve."""
+        approvers = self.approver_dao.get_by_order(
+            session, purchase_order_id=po.id, workspace_id=po.workspace_id
+        )
+        approved_count = sum(1 for a in approvers if a.approved)
+        if po.required_approvals is not None:
+            required = po.required_approvals
+        elif len(approvers) > 0:
+            required = len(approvers)
+        else:
+            required = 0
+        return approved_count, required, approved_count >= required
+
+    def approvals_met(self, session: Session, po: PurchaseOrder) -> bool:
+        return self.approval_summary(session, po)[2]
+
+    def add_approver(
+        self, session: Session, po_id: int, user_id: int, workspace_id: int, assigned_by: int
+    ) -> PurchaseOrderApprover:
+        self.get_purchase_order(session, po_id, workspace_id)  # 404 guard
+        member = workspace_member_dao.get_by_workspace_and_user(
+            session, workspace_id=workspace_id, user_id=user_id
+        )
+        if not member or member.status != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is not an active member of this workspace"
+            )
+        existing = self.approver_dao.get_by_order_and_user(
+            session, purchase_order_id=po_id, user_id=user_id, workspace_id=workspace_id
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="User is already an approver for this order"
+            )
+        obj = PurchaseOrderApprover(
+            workspace_id=workspace_id,
+            purchase_order_id=po_id,
+            user_id=user_id,
+            assigned_by=assigned_by,
+            approved=False,
+        )
+        session.add(obj)
+        session.flush()
+        return obj
+
+    def remove_approver(self, session: Session, po_id: int, user_id: int, workspace_id: int) -> None:
+        rec = self.approver_dao.get_by_order_and_user(
+            session, purchase_order_id=po_id, user_id=user_id, workspace_id=workspace_id
+        )
+        if not rec:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approver not found")
+        session.delete(rec)
+        session.flush()
+
+    def set_approval(
+        self, session: Session, po_id: int, user_id: int, workspace_id: int, approved: bool
+    ) -> PurchaseOrderApprover:
+        rec = self.approver_dao.get_by_order_and_user(
+            session, purchase_order_id=po_id, user_id=user_id, workspace_id=workspace_id
+        )
+        if not rec:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not an assigned approver for this order"
+            )
+        rec.approved = approved
+        rec.approved_at = datetime.utcnow() if approved else None
+        session.flush()
+        return rec
 
 
 purchase_order_manager = PurchaseOrderManager()

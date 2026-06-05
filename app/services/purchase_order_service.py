@@ -227,6 +227,46 @@ class PurchaseOrderService(BaseService):
     def get_items(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
         return self.manager.get_items(db, po_id, workspace_id)
 
+    # ─── Approvers ─────────────────────────────────────────────
+    def list_approvers(self, db: Session, po_id: int, workspace_id: int):
+        return self.manager.list_approvers(db, po_id=po_id, workspace_id=workspace_id)
+
+    def approval_summary_for(self, db: Session, po_id: int, workspace_id: int):
+        po = self.manager.get_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
+        return self.manager.approval_summary(db, po)
+
+    def add_approver(self, db: Session, po_id: int, user_id: int, workspace_id: int, assigned_by: int):
+        try:
+            record = self.manager.add_approver(
+                db, po_id=po_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_approver(self, db: Session, po_id: int, user_id: int, workspace_id: int) -> None:
+        try:
+            self.manager.remove_approver(db, po_id=po_id, user_id=user_id, workspace_id=workspace_id)
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def set_approval(self, db: Session, po_id: int, user_id: int, workspace_id: int, approved: bool):
+        try:
+            record = self.manager.set_approval(
+                db, po_id=po_id, user_id=user_id, workspace_id=workspace_id, approved=approved
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def create_invoice_for_purchase_order(
         self, db: Session, po_id: int, workspace_id: int, user_id: int
     ) -> PurchaseOrder:
@@ -250,6 +290,13 @@ class PurchaseOrderService(BaseService):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="Cannot create invoice: purchase order has no account selected"
+                )
+
+            approved_count, required, met = self.manager.approval_summary(db, po)
+            if not met:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Requires {required} approval(s); {approved_count} so far"
                 )
 
             invoice_in = AccountInvoiceCreate(

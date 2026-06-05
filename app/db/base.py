@@ -59,6 +59,7 @@ from app.models.work_order_item import WorkOrderItem
 # Purchase Orders
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
+from app.models.purchase_order_approver import PurchaseOrderApprover
 # Transfer Orders
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
