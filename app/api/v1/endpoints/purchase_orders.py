@@ -14,6 +14,7 @@ from app.schemas.purchase_order import (
     ActiveOrderRow,
     PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
     ApprovalSummaryResponse, PurchaseOrderApproversList,
+    PurchaseOrderEventResponse,
 )
 from app.services.purchase_order_service import purchase_order_service
 
@@ -271,6 +272,35 @@ def unapprove_purchase_order(
     return _approver_response(record, current_user, member.position if member else None)
 
 
+# ─── Purchase Order Events ─────────────────────────────────────
+
+@router.get(
+    "/{po_id}/events/",
+    response_model=List[PurchaseOrderEventResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List purchase order activity events"
+)
+def list_purchase_order_events(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db)
+):
+    rows = purchase_order_service.list_events(db, po_id=po_id, workspace_id=workspace.id)
+    return [
+        PurchaseOrderEventResponse(
+            id=e.id,
+            workspace_id=e.workspace_id,
+            purchase_order_id=e.purchase_order_id,
+            event_type=e.event_type,
+            description=e.description,
+            performed_by=e.performed_by,
+            user_name=profile.name if profile else None,
+            created_at=e.created_at,
+        )
+        for e, profile in rows
+    ]
+
+
 # ─── Purchase Order Items ──────────────────────────────────────
 
 @router.get(
@@ -314,10 +344,11 @@ def update_purchase_order_item(
     item_id: int,
     item_in: PurchaseOrderItemUpdate,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     return purchase_order_service.update_item(
-        db, item_id=item_id, item_in=item_in, workspace_id=workspace.id
+        db, item_id=item_id, item_in=item_in, workspace_id=workspace.id, user_id=current_user.id
     )
 
 

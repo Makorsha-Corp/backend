@@ -9,6 +9,7 @@ from app.managers.base_manager import BaseManager
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.purchase_order_approver import PurchaseOrderApprover
+from app.models.purchase_order_event import PurchaseOrderEvent
 from app.models.profile import Profile
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate,
@@ -16,6 +17,7 @@ from app.schemas.purchase_order import (
 )
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
 from app.dao.purchase_order_approver import purchase_order_approver_dao
+from app.dao.purchase_order_event import purchase_order_event_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.dao.profile import profile_dao
 
@@ -28,6 +30,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         self.po_dao = purchase_order_dao
         self.item_dao = purchase_order_item_dao
         self.approver_dao = purchase_order_approver_dao
+        self.event_dao = purchase_order_event_dao
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -43,6 +46,18 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po_dict['created_by'] = user_id
 
         po = self.po_dao.create(session, obj_in=po_dict)
+
+        # Auto-add the creator as an approver.
+        session.add(PurchaseOrderApprover(
+            workspace_id=workspace_id,
+            purchase_order_id=po.id,
+            user_id=user_id,
+            assigned_by=user_id,
+            approved=False,
+        ))
+        session.flush()
+
+        self.log_event(session, po.id, workspace_id, 'created', 'Order created', user_id)
 
         subtotal = Decimal('0')
 
@@ -142,13 +157,20 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def update_item(
         self, session: Session, item_id: int, data: PurchaseOrderItemUpdate,
-        workspace_id: int
+        workspace_id: int, user_id: Optional[int] = None
     ) -> PurchaseOrderItem:
-        """Update purchase order item."""
+        """Update purchase order item. Logs a 'received' event when quantity_received changes."""
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order item not found")
         update_dict = data.model_dump(exclude_unset=True)
+
+        prev_received = Decimal(str(record.quantity_received or 0))
+        received_changed = (
+            'quantity_received' in update_dict
+            and update_dict['quantity_received'] is not None
+            and Decimal(str(update_dict['quantity_received'])) != prev_received
+        )
 
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
@@ -159,6 +181,27 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(session, id=record.purchase_order_id, workspace_id=workspace_id)
         if po:
             self._recalc_totals(session, po)
+
+        if received_changed:
+            item_label = getattr(record, 'item_name', None) or f"item #{record.item_id}"
+            new_received = Decimal(str(update_dict['quantity_received']))
+            delta = new_received - prev_received
+            if delta > 0:
+                description = (
+                    f"Received {delta} more "
+                    f"({new_received} of {record.quantity_ordered}) {item_label}"
+                )
+            else:
+                description = (
+                    f"Receiving adjusted to {new_received} of "
+                    f"{record.quantity_ordered} {item_label}"
+                )
+            self.log_event(
+                session, record.purchase_order_id, workspace_id, 'received',
+                description,
+                user_id,
+            )
+
         return result
 
     def remove_item(self, session: Session, item_id: int, workspace_id: int) -> PurchaseOrderItem:
@@ -272,7 +315,40 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None
         session.flush()
+
+        self.log_event(
+            session, po_id, workspace_id,
+            'approved' if approved else 'approval_withdrawn',
+            'Approved order' if approved else 'Withdrew approval',
+            user_id,
+        )
         return rec
+
+    # ─── Events ────────────────────────────────────────────────
+    def log_event(
+        self, session: Session, po_id: int, workspace_id: int,
+        event_type: str, description: str, performed_by: Optional[int] = None
+    ) -> PurchaseOrderEvent:
+        ev = PurchaseOrderEvent(
+            workspace_id=workspace_id,
+            purchase_order_id=po_id,
+            event_type=event_type,
+            description=description,
+            performed_by=performed_by,
+        )
+        session.add(ev)
+        session.flush()
+        return ev
+
+    def list_events(
+        self, session: Session, po_id: int, workspace_id: int
+    ) -> List[Tuple[PurchaseOrderEvent, Optional[Profile]]]:
+        self.get_purchase_order(session, po_id, workspace_id)  # 404 guard
+        events = self.event_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
+        return [
+            (e, profile_dao.get(session, id=e.performed_by) if e.performed_by else None)
+            for e in events
+        ]
 
 
 purchase_order_manager = PurchaseOrderManager()

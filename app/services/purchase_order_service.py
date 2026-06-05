@@ -204,10 +204,12 @@ class PurchaseOrderService(BaseService):
 
     def update_item(
         self, db: Session, item_id: int, item_in: PurchaseOrderItemUpdate,
-        workspace_id: int
+        workspace_id: int, user_id: Optional[int] = None
     ) -> PurchaseOrderItem:
         try:
-            record = self.manager.update_item(db, item_id=item_id, data=item_in, workspace_id=workspace_id)
+            record = self.manager.update_item(
+                db, item_id=item_id, data=item_in, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -226,6 +228,10 @@ class PurchaseOrderService(BaseService):
 
     def get_items(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
         return self.manager.get_items(db, po_id, workspace_id)
+
+    # ─── Events ────────────────────────────────────────────────
+    def list_events(self, db: Session, po_id: int, workspace_id: int):
+        return self.manager.list_events(db, po_id=po_id, workspace_id=workspace_id)
 
     # ─── Approvers ─────────────────────────────────────────────
     def list_approvers(self, db: Session, po_id: int, workspace_id: int):

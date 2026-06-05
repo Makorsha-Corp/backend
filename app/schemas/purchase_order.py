@@ -136,3 +136,16 @@ class ApprovalSummaryResponse(BaseModel):
 class PurchaseOrderApproversList(BaseModel):
     approvers: List[PurchaseOrderApproverResponse]
     summary: ApprovalSummaryResponse
+
+
+class PurchaseOrderEventResponse(BaseModel):
+    id: int
+    workspace_id: int
+    purchase_order_id: int
+    event_type: str
+    description: str
+    performed_by: int | None = None
+    user_name: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
