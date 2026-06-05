@@ -15,6 +15,7 @@ from app.schemas.purchase_order import (
     PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
     ApprovalSummaryResponse, PurchaseOrderApproversList,
     PurchaseOrderEventResponse,
+    PurchaseOrderSectionLockRequest,
 )
 from app.services.purchase_order_service import purchase_order_service
 
@@ -133,6 +134,36 @@ def update_purchase_order(
     return purchase_order_service.update_purchase_order(
         db, po_id=po_id, po_in=po_in,
         workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+_SECTION_LOCK_FIELDS = {
+    'details': 'details_locked',
+    'notes': 'notes_locked',
+    'items': 'items_locked',
+}
+
+
+@router.patch(
+    "/{po_id}/section-lock/",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Lock or unlock a purchase order section",
+)
+def set_purchase_order_section_lock(
+    po_id: int,
+    body: PurchaseOrderSectionLockRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    lock_field = _SECTION_LOCK_FIELDS[body.section]
+    return purchase_order_service.update_purchase_order(
+        db,
+        po_id=po_id,
+        po_in=PurchaseOrderUpdate(**{lock_field: body.locked}),
+        workspace_id=workspace.id,
+        user_id=current_user.id,
     )
 
 

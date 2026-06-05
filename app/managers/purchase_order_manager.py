@@ -21,6 +21,16 @@ from app.dao.purchase_order_event import purchase_order_event_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.dao.profile import profile_dao
 
+DETAILS_FIELDS = frozenset({
+    'account_id', 'destination_type', 'destination_id', 'order_date', 'expected_delivery_date',
+})
+NOTES_FIELDS = frozenset({'description', 'order_note', 'internal_note'})
+SECTION_LOCK_FIELDS = {
+    'details_locked': ('details', 'Order details'),
+    'notes_locked': ('notes', 'Order notes'),
+    'items_locked': ('items', 'Order items'),
+}
+
 
 class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     """Manager for purchase order business logic."""
@@ -93,6 +103,32 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         update_dict = data.model_dump(exclude_unset=True)
         update_dict['updated_by'] = user_id
+
+        if record.details_locked and DETAILS_FIELDS.intersection(update_dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Order details are locked',
+            )
+        if record.notes_locked and NOTES_FIELDS.intersection(update_dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Order notes are locked',
+            )
+
+        for lock_field, (section_key, label) in SECTION_LOCK_FIELDS.items():
+            if lock_field not in update_dict:
+                continue
+            new_locked = bool(update_dict[lock_field])
+            old_locked = bool(getattr(record, lock_field, False))
+            if new_locked != old_locked:
+                event_suffix = 'locked' if new_locked else 'unlocked'
+                self.log_event(
+                    session, po_id, workspace_id,
+                    f'{section_key}_{event_suffix}',
+                    f'{label} {event_suffix}',
+                    user_id,
+                )
+
         return self.po_dao.update(session, db_obj=record, obj_in=update_dict)
 
     def get_purchase_order(self, session: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
@@ -138,6 +174,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not po:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
+        if po.items_locked:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Order items are locked',
+            )
 
         existing = self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
         next_line = max((i.line_number for i in existing), default=0) + 1
@@ -165,6 +206,17 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order item not found")
         update_dict = data.model_dump(exclude_unset=True)
 
+        po = self.po_dao.get_by_id_and_workspace(
+            session, id=record.purchase_order_id, workspace_id=workspace_id
+        )
+        if po and po.items_locked:
+            structural = set(update_dict.keys()) - {'quantity_received'}
+            if structural:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Order items are locked (receiving still allowed)',
+                )
+
         prev_received = Decimal(str(record.quantity_received or 0))
         received_changed = (
             'quantity_received' in update_dict
@@ -188,21 +240,18 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             ordered = Decimal(str(record.quantity_ordered))
             delta = new_received - prev_received
             fully_received = new_received >= ordered
+
+            def _qty(d: Decimal) -> str:
+                return str(int(d)) if d == d.to_integral_value() else str(d.normalize())
+
+            xy = f"({_qty(new_received)} of {_qty(ordered)})"
             if delta > 0:
                 if fully_received:
-                    description = (
-                        f"Received {delta} more — {item_label} fully received "
-                        f"({ordered} total)"
-                    )
+                    description = f"Received {_qty(delta)} more — {xy} {item_label} fully received"
                 else:
-                    description = (
-                        f"Received {delta} more "
-                        f"({new_received} of {ordered}) {item_label}"
-                    )
+                    description = f"Received {_qty(delta)} more {xy} {item_label}"
             else:
-                description = (
-                    f"Receiving adjusted to {new_received} of {ordered} {item_label}"
-                )
+                description = f"Receiving adjusted to {_qty(new_received)} of {_qty(ordered)} {item_label}"
             self.log_event(
                 session, record.purchase_order_id, workspace_id, 'received',
                 description,
@@ -239,6 +288,14 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order item not found")
+        po = self.po_dao.get_by_id_and_workspace(
+            session, id=record.purchase_order_id, workspace_id=workspace_id
+        )
+        if po and po.items_locked:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Order items are locked',
+            )
         po_id = record.purchase_order_id
         session.delete(record)
         session.flush()

@@ -1,5 +1,5 @@
 """Purchase order model - for external procurement with items"""
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -50,6 +50,11 @@ class PurchaseOrder(Base):
     description = Column(Text, nullable=True)
     order_note = Column(Text, nullable=True)
     internal_note = Column(Text, nullable=True)
+
+    # === SECTION LOCKS ===
+    details_locked = Column(Boolean, nullable=False, default=False)
+    notes_locked = Column(Boolean, nullable=False, default=False)
+    items_locked = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

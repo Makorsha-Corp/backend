@@ -2,6 +2,8 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
+
+PurchaseOrderSection = Literal['details', 'notes', 'items']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -66,6 +68,11 @@ class PurchaseOrderCreate(BaseModel):
     items: List[PurchaseOrderItemCreate] | None = None
 
 
+class PurchaseOrderSectionLockRequest(BaseModel):
+    section: PurchaseOrderSection
+    locked: bool
+
+
 class PurchaseOrderUpdate(BaseModel):
     account_id: int | None = None
     destination_type: str | None = None
@@ -78,6 +85,9 @@ class PurchaseOrderUpdate(BaseModel):
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
+    details_locked: bool | None = None
+    notes_locked: bool | None = None
+    items_locked: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -99,6 +109,9 @@ class PurchaseOrderResponse(BaseModel):
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
+    details_locked: bool = False
+    notes_locked: bool = False
+    items_locked: bool = False
     created_by: int
     created_at: datetime
     updated_by: int | None = None
