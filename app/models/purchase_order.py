@@ -1,5 +1,5 @@
 """Purchase order model - for external procurement with items"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -26,6 +26,11 @@ class PurchaseOrder(Base):
     # === DESTINATION ===
     destination_type = Column(String(50), nullable=False)  # 'storage', 'machine', 'project'
     destination_id = Column(Integer, nullable=False)  # factory_id, machine_id, project_component_id
+
+    # === DATES ===
+    order_date = Column(Date, nullable=True)
+    expected_delivery_date = Column(Date, nullable=True)
+    actual_delivery_date = Column(Date, nullable=True)  # auto-set when all items received
 
     # === TOTALS (calculated from line items) ===
     subtotal = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of all line_subtotals

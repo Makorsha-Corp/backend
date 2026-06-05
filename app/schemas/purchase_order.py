@@ -1,5 +1,5 @@
 """Purchase order schemas"""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
 from pydantic import BaseModel, ConfigDict
@@ -55,6 +55,8 @@ class PurchaseOrderCreate(BaseModel):
     account_id: int
     destination_type: str
     destination_id: int
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
     description: str | None = None
     order_note: str | None = None
     internal_note: str | None = None
@@ -65,6 +67,10 @@ class PurchaseOrderCreate(BaseModel):
 
 class PurchaseOrderUpdate(BaseModel):
     account_id: int | None = None
+    destination_type: str | None = None
+    destination_id: int | None = None
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
     current_status_id: int | None = None
     invoice_id: int | None = None
     description: str | None = None
@@ -79,6 +85,9 @@ class PurchaseOrderResponse(BaseModel):
     account_id: int
     destination_type: str
     destination_id: int
+    order_date: date | None = None
+    expected_delivery_date: date | None = None
+    actual_delivery_date: date | None = None
     subtotal: Decimal
     total_amount: Decimal
     current_status_id: int
