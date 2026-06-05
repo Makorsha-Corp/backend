@@ -185,22 +185,52 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         if received_changed:
             item_label = getattr(record, 'item_name', None) or f"item #{record.item_id}"
             new_received = Decimal(str(update_dict['quantity_received']))
+            ordered = Decimal(str(record.quantity_ordered))
             delta = new_received - prev_received
+            fully_received = new_received >= ordered
             if delta > 0:
-                description = (
-                    f"Received {delta} more "
-                    f"({new_received} of {record.quantity_ordered}) {item_label}"
-                )
+                if fully_received:
+                    description = (
+                        f"Received {delta} more — {item_label} fully received "
+                        f"({ordered} total)"
+                    )
+                else:
+                    description = (
+                        f"Received {delta} more "
+                        f"({new_received} of {ordered}) {item_label}"
+                    )
             else:
                 description = (
-                    f"Receiving adjusted to {new_received} of "
-                    f"{record.quantity_ordered} {item_label}"
+                    f"Receiving adjusted to {new_received} of {ordered} {item_label}"
                 )
             self.log_event(
                 session, record.purchase_order_id, workspace_id, 'received',
                 description,
                 user_id,
             )
+
+            # If this completed the final outstanding item, log an order-level
+            # "all items received" milestone (once).
+            if fully_received:
+                po_items = self.item_dao.get_by_order(
+                    session, purchase_order_id=record.purchase_order_id, workspace_id=workspace_id
+                )
+                all_done = po_items and all(
+                    Decimal(str(i.quantity_received)) >= Decimal(str(i.quantity_ordered))
+                    for i in po_items
+                )
+                if all_done:
+                    already_logged = any(
+                        e.event_type == 'all_received'
+                        for e in self.event_dao.get_by_order(
+                            session, purchase_order_id=record.purchase_order_id, workspace_id=workspace_id
+                        )
+                    )
+                    if not already_logged:
+                        self.log_event(
+                            session, record.purchase_order_id, workspace_id, 'all_received',
+                            'All items received', user_id,
+                        )
 
         return result
 
