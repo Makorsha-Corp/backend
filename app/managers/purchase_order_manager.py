@@ -1,7 +1,7 @@
 """Purchase Order Manager - business logic for purchase orders"""
 from typing import List, Optional, Tuple
 from decimal import Decimal
-from datetime import datetime
+from datetime import date, datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -21,10 +21,11 @@ from app.dao.purchase_order_event import purchase_order_event_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.dao.profile import profile_dao
 
-DETAILS_FIELDS = frozenset({
-    'account_id', 'destination_type', 'destination_id', 'order_date', 'expected_delivery_date',
+INVOICE_LOCKED_DETAIL_FIELDS = frozenset({
+    'account_id', 'destination_type', 'destination_id', 'order_date',
 })
 NOTES_FIELDS = frozenset({'description', 'order_note', 'internal_note'})
+INVOICE_LOCK_MSG = 'Locked after invoice creation'
 SECTION_LOCK_FIELDS = {
     'details_locked': ('details', 'Order details'),
     'notes_locked': ('notes', 'Order notes'),
@@ -54,6 +55,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po_dict['workspace_id'] = workspace_id
         po_dict['po_number'] = po_number
         po_dict['created_by'] = user_id
+        if not po_dict.get('order_date'):
+            po_dict['order_date'] = date.today()
 
         po = self.po_dao.create(session, obj_in=po_dict)
 
@@ -104,11 +107,27 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         update_dict = data.model_dump(exclude_unset=True)
         update_dict['updated_by'] = user_id
 
-        if record.details_locked and DETAILS_FIELDS.intersection(update_dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order details are locked',
+        if record.invoice_id is not None:
+            if update_dict.get('details_locked') is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot unlock order details after invoice is created',
+                )
+            if update_dict.get('items_locked') is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot unlock order items after invoice is created',
+                )
+
+        blocked_details = self._locked_detail_update_fields(record).intersection(update_dict)
+        if blocked_details:
+            detail = (
+                INVOICE_LOCK_MSG
+                if record.invoice_id is not None
+                else 'Order details are locked'
             )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
         if record.notes_locked and NOTES_FIELDS.intersection(update_dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -130,6 +149,46 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
 
         return self.po_dao.update(session, db_obj=record, obj_in=update_dict)
+
+    def _locked_detail_update_fields(self, record: PurchaseOrder) -> frozenset:
+        if record.invoice_id is not None:
+            return INVOICE_LOCKED_DETAIL_FIELDS
+        if record.details_locked:
+            return INVOICE_LOCKED_DETAIL_FIELDS
+        return frozenset()
+
+    def _items_structure_locked(self, po: PurchaseOrder) -> bool:
+        return bool(po.items_locked or po.invoice_id is not None)
+
+    def details_complete_for_invoice(self, po: PurchaseOrder) -> bool:
+        return (
+            po.account_id is not None
+            and bool(po.destination_type)
+            and po.destination_id is not None
+            and po.order_date is not None
+        )
+
+    def apply_post_invoice_locks(
+        self, session: Session, po: PurchaseOrder, workspace_id: int, user_id: int
+    ) -> None:
+        """Set section locks and log events after an invoice is linked to the order."""
+        self.log_event(
+            session, po.id, workspace_id, 'invoice_created',
+            'Invoice created', user_id,
+        )
+        if not po.details_locked:
+            po.details_locked = True
+            self.log_event(
+                session, po.id, workspace_id, 'details_locked',
+                'Order details locked after invoice created', user_id,
+            )
+        if not po.items_locked:
+            po.items_locked = True
+            self.log_event(
+                session, po.id, workspace_id, 'items_locked',
+                'Order items locked after invoice created', user_id,
+            )
+        session.flush()
 
     def get_purchase_order(self, session: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
         record = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
@@ -174,10 +233,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not po:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
-        if po.items_locked:
+        if self._items_structure_locked(po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order items are locked',
+                detail=INVOICE_LOCK_MSG if po.invoice_id is not None else 'Order items are locked',
             )
 
         existing = self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
@@ -209,13 +268,15 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and po.items_locked:
+        if po and self._items_structure_locked(po):
             structural = set(update_dict.keys()) - {'quantity_received'}
             if structural:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Order items are locked (receiving still allowed)',
+                detail = (
+                    f'{INVOICE_LOCK_MSG} (receiving still allowed)'
+                    if po.invoice_id is not None
+                    else 'Order items are locked (receiving still allowed)'
                 )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
         prev_received = Decimal(str(record.quantity_received or 0))
         received_changed = (
@@ -291,10 +352,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and po.items_locked:
+        if po and self._items_structure_locked(po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order items are locked',
+                detail=INVOICE_LOCK_MSG if po.invoice_id is not None else 'Order items are locked',
             )
         po_id = record.purchase_order_id
         session.delete(record)

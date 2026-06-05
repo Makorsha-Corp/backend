@@ -292,10 +292,20 @@ class PurchaseOrderService(BaseService):
                     detail="Invoice already exists for this purchase order"
                 )
 
-            if po.account_id is None:
+            if not self.manager.details_complete_for_invoice(po):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Cannot create invoice: purchase order has no account selected"
+                    detail=(
+                        'Cannot create invoice: order details incomplete '
+                        '(supplier, destination type, location, and order date required)'
+                    ),
+                )
+
+            po_items = self.manager.get_items(db, po_id=po_id, workspace_id=workspace_id)
+            if not po_items:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail='Cannot create invoice: purchase order has no line items',
                 )
 
             approved_count, required, met = self.manager.approval_summary(db, po)
@@ -336,7 +346,9 @@ class PurchaseOrderService(BaseService):
                     ) from exc
                 raise
             po.invoice_id = invoice.id
-            db.flush()
+            self.manager.apply_post_invoice_locks(
+                db, po, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             db.refresh(po)
             return po
