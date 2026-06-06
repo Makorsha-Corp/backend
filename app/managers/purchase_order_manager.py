@@ -1,5 +1,5 @@
 """Purchase Order Manager - business logic for purchase orders"""
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from decimal import Decimal
 from datetime import date, datetime
 from sqlalchemy.orm import Session
@@ -20,28 +20,53 @@ from app.dao.purchase_order_approver import purchase_order_approver_dao
 from app.dao.purchase_order_event import purchase_order_event_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.dao.profile import profile_dao
+from app.dao.account import account_dao
+from app.dao.factory import factory_dao
+from app.dao.machine import machine_dao
+from app.dao.project_component import project_component_dao
+from app.dao.status import status_dao
+from app.dao.item import item_dao
 
-INVOICE_LOCKED_DETAIL_FIELDS = frozenset({
-    'account_id', 'destination_type', 'destination_id', 'order_date',
+INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
+    'destination_type', 'destination_id', 'order_date', 'description',
 })
-NOTES_FIELDS = frozenset({'description', 'order_note', 'internal_note'})
+SUPPLIER_CONFIRMED_FIELDS = frozenset({'account_id'})
+NOTES_FIELDS = frozenset({'order_note'})
 DETAIL_LOG_FIELDS = {
-    'account_id': 'Supplier',
     'destination_type': 'Destination type',
     'destination_id': 'Destination',
     'order_date': 'Order date',
     'expected_delivery_date': 'Expected delivery',
+    'description': 'Description',
+}
+SUPPLIER_LOG_FIELDS = {
+    'account_id': 'Supplier',
 }
 NOTE_LOG_FIELDS = {
-    'description': 'Description',
     'order_note': 'Order note',
-    'internal_note': 'Internal note',
 }
-INVOICE_LOCK_MSG = 'Locked after invoice creation'
-SECTION_LOCK_FIELDS = {
-    'details_locked': ('details', 'Order details'),
-    'notes_locked': ('notes', 'Order notes'),
-    'items_locked': ('items', 'Order items'),
+STATUS_LOG_FIELDS = {
+    'current_status_id': 'Status',
+}
+THRESHOLD_LOG_FIELDS = {
+    'required_approvals': 'Approval threshold',
+}
+ITEM_UPDATE_LOG_FIELDS = {
+    'quantity_ordered': 'Quantity ordered',
+    'unit_price': 'Unit price',
+    'notes': 'Notes',
+}
+DESTINATION_TYPE_LABELS = {
+    'storage': 'Storage',
+    'machine': 'Machine',
+    'project': 'Project',
+}
+INVOICE_CONFIRM_MSG = 'Confirmed after invoice creation'
+SECTION_CONFIRM_FIELDS = {
+    'supplier_confirmed': ('supplier', 'Supplier'),
+    'details_confirmed': ('details', 'Order details'),
+    'notes_confirmed': ('notes', 'Order notes'),
+    'items_confirmed': ('items', 'Order items'),
 }
 
 
@@ -120,39 +145,55 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         update_dict['updated_by'] = user_id
 
         if record.invoice_id is not None:
-            if update_dict.get('details_locked') is False:
+            if update_dict.get('supplier_confirmed') is False:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot unlock order details after invoice is created',
+                    detail='Cannot unconfirm supplier after invoice is created',
                 )
-            if update_dict.get('items_locked') is False:
+            if update_dict.get('details_confirmed') is False:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot unlock order items after invoice is created',
+                    detail='Cannot unconfirm order details after invoice is created',
+                )
+            if update_dict.get('items_confirmed') is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot unconfirm order items after invoice is created',
                 )
 
-        blocked_details = self._locked_detail_update_fields(record).intersection(update_dict)
-        if blocked_details:
+        blocked_supplier = self._confirmed_supplier_update_fields(record).intersection(update_dict)
+        if blocked_supplier:
             detail = (
-                INVOICE_LOCK_MSG
+                INVOICE_CONFIRM_MSG
                 if record.invoice_id is not None
-                else 'Order details are locked'
+                else 'Supplier is confirmed'
             )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-        if record.notes_locked and NOTES_FIELDS.intersection(update_dict):
+        blocked_details = self._confirmed_detail_update_fields(record).intersection(update_dict)
+        if blocked_details:
+            detail = (
+                INVOICE_CONFIRM_MSG
+                if record.invoice_id is not None
+                else 'Order details are confirmed'
+            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
+        if record.notes_confirmed and NOTES_FIELDS.intersection(update_dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order notes are locked',
+                detail='Order notes are confirmed',
             )
 
-        for lock_field, (section_key, label) in SECTION_LOCK_FIELDS.items():
-            if lock_field not in update_dict:
+        self._validate_section_confirm(record, update_dict, session, workspace_id)
+
+        for confirm_field, (section_key, label) in SECTION_CONFIRM_FIELDS.items():
+            if confirm_field not in update_dict:
                 continue
-            new_locked = bool(update_dict[lock_field])
-            old_locked = bool(getattr(record, lock_field, False))
-            if new_locked != old_locked:
-                event_suffix = 'locked' if new_locked else 'unlocked'
+            new_confirmed = bool(update_dict[confirm_field])
+            old_confirmed = bool(getattr(record, confirm_field, False))
+            if new_confirmed != old_confirmed:
+                event_suffix = 'confirmed' if new_confirmed else 'unconfirmed'
                 self.log_event(
                     session, po_id, workspace_id,
                     f'{section_key}_{event_suffix}',
@@ -163,19 +204,145 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         self._log_section_field_updates(
             session, po_id, workspace_id, user_id, record, update_dict,
         )
+        self._log_admin_field_updates(
+            session, po_id, workspace_id, user_id, record, update_dict,
+        )
 
         return self.po_dao.update(session, db_obj=record, obj_in=update_dict)
 
-    def _changed_field_labels(
-        self, record: PurchaseOrder, update_dict: dict, fields: dict[str, str],
-    ) -> List[str]:
-        labels: List[str] = []
+    def _format_scalar_value(self, field: str, value: Any) -> str:
+        if value is None:
+            if field in ('description', 'order_note', 'notes'):
+                return '—'
+            if field == 'required_approvals':
+                return 'All assigned'
+            return '—'
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, Decimal):
+            return str(int(value)) if value == value.to_integral_value() else str(value.normalize())
+        text = str(value).strip()
+        return text if text else '—'
+
+    def _format_destination_id(
+        self, session: Session, workspace_id: int, destination_type: str | None, destination_id: Any,
+    ) -> str:
+        if destination_id is None:
+            return '—'
+        dtype = (destination_type or '').lower()
+        if dtype == 'storage':
+            factory = factory_dao.get_by_id_and_workspace(
+                session, id=destination_id, workspace_id=workspace_id
+            )
+            return factory.name if factory else f'Factory #{destination_id}'
+        if dtype == 'machine':
+            machine = machine_dao.get_by_id_and_workspace(
+                session, id=destination_id, workspace_id=workspace_id
+            )
+            return machine.name if machine else f'Machine #{destination_id}'
+        if dtype == 'project':
+            component = project_component_dao.get_by_id_and_workspace(
+                session, id=destination_id, workspace_id=workspace_id
+            )
+            return component.name if component else f'Project component #{destination_id}'
+        return f'#{destination_id}'
+
+    def _format_field_value(
+        self,
+        session: Session,
+        workspace_id: int,
+        field: str,
+        value: Any,
+        *,
+        destination_type: str | None = None,
+    ) -> str:
+        if field == 'account_id':
+            if value is None:
+                return '—'
+            account = account_dao.get_by_id_and_workspace(session, id=value, workspace_id=workspace_id)
+            return account.name if account else f'Account #{value}'
+        if field == 'destination_type':
+            if not value:
+                return '—'
+            return DESTINATION_TYPE_LABELS.get(str(value).lower(), str(value))
+        if field == 'destination_id':
+            return self._format_destination_id(session, workspace_id, destination_type, value)
+        if field == 'current_status_id':
+            if value is None:
+                return '—'
+            status = status_dao.get(session, id=value)
+            return status.name if status else f'Status #{value}'
+        if field == 'required_approvals':
+            if value is None:
+                return 'All assigned'
+            return str(value)
+        return self._format_scalar_value(field, value)
+
+    def _collect_field_changes(
+        self,
+        session: Session,
+        workspace_id: int,
+        record: PurchaseOrder,
+        update_dict: dict,
+        fields: dict[str, str],
+    ) -> List[dict]:
+        changes: List[dict] = []
+        new_destination_type = update_dict.get('destination_type', record.destination_type)
         for field, label in fields.items():
             if field not in update_dict:
                 continue
-            if getattr(record, field) != update_dict[field]:
-                labels.append(label)
-        return labels
+            old_val = getattr(record, field)
+            new_val = update_dict[field]
+            if old_val == new_val:
+                continue
+            changes.append({
+                'field': field,
+                'label': label,
+                'from_value': self._format_field_value(
+                    session, workspace_id, field, old_val,
+                    destination_type=record.destination_type,
+                ),
+                'to_value': self._format_field_value(
+                    session, workspace_id, field, new_val,
+                    destination_type=new_destination_type,
+                ),
+            })
+        return changes
+
+    def _collect_item_field_changes(
+        self, record: PurchaseOrderItem, update_dict: dict,
+    ) -> List[dict]:
+        changes: List[dict] = []
+        for field, label in ITEM_UPDATE_LOG_FIELDS.items():
+            if field not in update_dict:
+                continue
+            old_val = getattr(record, field)
+            new_val = update_dict[field]
+            if old_val == new_val:
+                continue
+            changes.append({
+                'field': field,
+                'label': label,
+                'from_value': self._format_scalar_value(field, old_val),
+                'to_value': self._format_scalar_value(field, new_val),
+            })
+        return changes
+
+    def _log_field_change_event(
+        self,
+        session: Session,
+        po_id: int,
+        workspace_id: int,
+        user_id: int,
+        event_type: str,
+        description: str,
+        changes: List[dict],
+        extra_metadata: dict | None = None,
+    ) -> None:
+        metadata: dict = {'changes': changes}
+        if extra_metadata:
+            metadata.update(extra_metadata)
+        self.log_event(session, po_id, workspace_id, event_type, description, user_id, metadata)
 
     def _log_section_field_updates(
         self,
@@ -186,31 +353,76 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         record: PurchaseOrder,
         update_dict: dict,
     ) -> None:
-        detail_labels = self._changed_field_labels(record, update_dict, DETAIL_LOG_FIELDS)
-        if detail_labels:
-            self.log_event(
-                session, po_id, workspace_id, 'details_updated',
-                f"Updated order details: {', '.join(detail_labels)}",
-                user_id,
+        supplier_changes = self._collect_field_changes(
+            session, workspace_id, record, update_dict, SUPPLIER_LOG_FIELDS
+        )
+        if supplier_changes:
+            self._log_field_change_event(
+                session, po_id, workspace_id, user_id,
+                'supplier_updated', 'Changed supplier', supplier_changes,
             )
 
-        note_labels = self._changed_field_labels(record, update_dict, NOTE_LOG_FIELDS)
-        if note_labels:
-            self.log_event(
-                session, po_id, workspace_id, 'notes_updated',
-                f"Updated order notes: {', '.join(note_labels)}",
-                user_id,
+        detail_changes = self._collect_field_changes(
+            session, workspace_id, record, update_dict, DETAIL_LOG_FIELDS
+        )
+        if detail_changes:
+            self._log_field_change_event(
+                session, po_id, workspace_id, user_id,
+                'details_updated', 'Changed order details', detail_changes,
             )
 
-    def _locked_detail_update_fields(self, record: PurchaseOrder) -> frozenset:
+        note_changes = self._collect_field_changes(
+            session, workspace_id, record, update_dict, NOTE_LOG_FIELDS
+        )
+        if note_changes:
+            self._log_field_change_event(
+                session, po_id, workspace_id, user_id,
+                'notes_updated', 'Changed order notes', note_changes,
+            )
+
+    def _log_admin_field_updates(
+        self,
+        session: Session,
+        po_id: int,
+        workspace_id: int,
+        user_id: int,
+        record: PurchaseOrder,
+        update_dict: dict,
+    ) -> None:
+        status_changes = self._collect_field_changes(
+            session, workspace_id, record, update_dict, STATUS_LOG_FIELDS
+        )
+        if status_changes:
+            self._log_field_change_event(
+                session, po_id, workspace_id, user_id,
+                'status_updated', 'Changed status', status_changes,
+            )
+
+        threshold_changes = self._collect_field_changes(
+            session, workspace_id, record, update_dict, THRESHOLD_LOG_FIELDS
+        )
+        if threshold_changes:
+            self._log_field_change_event(
+                session, po_id, workspace_id, user_id,
+                'approvals_threshold_updated', 'Changed approval threshold', threshold_changes,
+            )
+
+    def _confirmed_supplier_update_fields(self, record: PurchaseOrder) -> frozenset:
         if record.invoice_id is not None:
-            return INVOICE_LOCKED_DETAIL_FIELDS
-        if record.details_locked:
-            return INVOICE_LOCKED_DETAIL_FIELDS
+            return SUPPLIER_CONFIRMED_FIELDS
+        if record.supplier_confirmed:
+            return SUPPLIER_CONFIRMED_FIELDS
         return frozenset()
 
-    def _items_structure_locked(self, po: PurchaseOrder) -> bool:
-        return bool(po.items_locked or po.invoice_id is not None)
+    def _confirmed_detail_update_fields(self, record: PurchaseOrder) -> frozenset:
+        if record.invoice_id is not None:
+            return INVOICE_CONFIRMED_DETAIL_FIELDS
+        if record.details_confirmed:
+            return INVOICE_CONFIRMED_DETAIL_FIELDS
+        return frozenset()
+
+    def _items_structure_confirmed(self, po: PurchaseOrder) -> bool:
+        return bool(po.items_confirmed or po.invoice_id is not None)
 
     def details_complete_for_invoice(self, po: PurchaseOrder) -> bool:
         return (
@@ -220,25 +432,78 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             and po.order_date is not None
         )
 
-    def apply_post_invoice_locks(
+    def _all_sections_confirmed(self, po: PurchaseOrder) -> bool:
+        return bool(
+            po.supplier_confirmed
+            and po.details_confirmed
+            and po.items_confirmed
+        )
+
+    def _validate_section_confirm(
+        self,
+        record: PurchaseOrder,
+        update_dict: dict,
+        session: Session,
+        workspace_id: int,
+    ) -> None:
+        account_id = update_dict.get('account_id', record.account_id)
+        if (
+            update_dict.get('supplier_confirmed') is True
+            and not record.supplier_confirmed
+            and account_id is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Select a supplier before confirming',
+            )
+        dest_type = update_dict.get('destination_type', record.destination_type)
+        dest_id = update_dict.get('destination_id', record.destination_id)
+        order_date = update_dict.get('order_date', record.order_date)
+        details_ready = bool(dest_type) and dest_id is not None and order_date is not None
+        if (
+            update_dict.get('details_confirmed') is True
+            and not record.details_confirmed
+            and not details_ready
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Complete destination, location, and order date before confirming',
+            )
+        if update_dict.get('items_confirmed') is True and not record.items_confirmed:
+            po_items = self.item_dao.get_by_order(
+                session, purchase_order_id=record.id, workspace_id=workspace_id
+            )
+            if not po_items:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Add at least one line item before confirming',
+                )
+
+    def apply_post_invoice_confirms(
         self, session: Session, po: PurchaseOrder, workspace_id: int, user_id: int
     ) -> None:
-        """Set section locks and log events after an invoice is linked to the order."""
+        """Set section confirms and log events after an invoice is linked to the order."""
         self.log_event(
             session, po.id, workspace_id, 'invoice_created',
             'Invoice created', user_id,
         )
-        if not po.details_locked:
-            po.details_locked = True
+        if not po.supplier_confirmed:
+            po.supplier_confirmed = True
             self.log_event(
-                session, po.id, workspace_id, 'details_locked',
-                'Order details locked after invoice created', user_id,
+                session, po.id, workspace_id, 'supplier_confirmed',
+                'Supplier confirmed after invoice created', user_id,
             )
-        if not po.items_locked:
-            po.items_locked = True
+        if not po.details_confirmed:
+            po.details_confirmed = True
             self.log_event(
-                session, po.id, workspace_id, 'items_locked',
-                'Order items locked after invoice created', user_id,
+                session, po.id, workspace_id, 'details_confirmed',
+                'Order details confirmed after invoice created', user_id,
+            )
+        if not po.items_confirmed:
+            po.items_confirmed = True
+            self.log_event(
+                session, po.id, workspace_id, 'items_confirmed',
+                'Order items confirmed after invoice created', user_id,
             )
         session.flush()
 
@@ -279,16 +544,16 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     # ─── Purchase Order Items ──────────────────────────────────
     def add_item(
         self, session: Session, po_id: int, data: PurchaseOrderItemCreate,
-        workspace_id: int
+        workspace_id: int, user_id: Optional[int] = None
     ) -> PurchaseOrderItem:
         """Add item to purchase order and recalculate totals."""
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not po:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
-        if self._items_structure_locked(po):
+        if self._items_structure_confirmed(po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=INVOICE_LOCK_MSG if po.invoice_id is not None else 'Order items are locked',
+                detail=INVOICE_CONFIRM_MSG if po.invoice_id is not None else 'Order items are confirmed',
             )
 
         existing = self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
@@ -305,6 +570,23 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         item = self.item_dao.create(session, obj_in=item_dict)
         self._recalc_totals(session, po)
+        session.refresh(item)
+        catalog_item = item_dao.get_by_id_and_workspace(
+            session, id=item.item_id, workspace_id=workspace_id
+        )
+        item_name = catalog_item.name if catalog_item else f'Item #{item.item_id}'
+        self.log_event(
+            session, po_id, workspace_id, 'item_added',
+            f'Added {item_name} (line {item.line_number})',
+            user_id,
+            metadata={
+                'item_id': item.item_id,
+                'item_name': item_name,
+                'line_number': item.line_number,
+                'quantity_ordered': self._format_scalar_value('quantity_ordered', qty),
+                'unit_price': self._format_scalar_value('unit_price', price),
+            },
+        )
         return item
 
     def update_item(
@@ -320,13 +602,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and self._items_structure_locked(po):
+        if po and self._items_structure_confirmed(po):
             structural = set(update_dict.keys()) - {'quantity_received'}
             if structural:
                 detail = (
-                    f'{INVOICE_LOCK_MSG} (receiving still allowed)'
+                    f'{INVOICE_CONFIRM_MSG} (receiving still allowed)'
                     if po.invoice_id is not None
-                    else 'Order items are locked (receiving still allowed)'
+                    else 'Order items are confirmed (receiving still allowed)'
                 )
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
@@ -337,6 +619,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             and Decimal(str(update_dict['quantity_received'])) != prev_received
         )
 
+        item_changes = self._collect_item_field_changes(record, update_dict)
+
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
             price = Decimal(str(update_dict.get('unit_price', record.unit_price)))
@@ -346,6 +630,18 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(session, id=record.purchase_order_id, workspace_id=workspace_id)
         if po:
             self._recalc_totals(session, po)
+
+        if item_changes:
+            item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
+            self._log_field_change_event(
+                session, record.purchase_order_id, workspace_id, user_id,
+                'item_updated', f'Updated {item_label}', item_changes,
+                extra_metadata={
+                    'item_id': record.item_id,
+                    'item_name': item_label,
+                    'line_number': record.line_number,
+                },
+            )
 
         if received_changed:
             item_label = getattr(record, 'item_name', None) or f"item #{record.item_id}"
@@ -369,6 +665,18 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 session, record.purchase_order_id, workspace_id, 'received',
                 description,
                 user_id,
+                metadata={
+                    'changes': [{
+                        'field': 'quantity_received',
+                        'label': f'{item_label} received',
+                        'from_value': _qty(prev_received),
+                        'to_value': _qty(new_received),
+                    }],
+                    'item_id': record.item_id,
+                    'item_name': item_label,
+                    'line_number': record.line_number,
+                    'quantity_ordered': _qty(ordered),
+                },
             )
 
             # If this completed the final outstanding item, log an order-level
@@ -396,7 +704,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         return result
 
-    def remove_item(self, session: Session, item_id: int, workspace_id: int) -> PurchaseOrderItem:
+    def remove_item(
+        self, session: Session, item_id: int, workspace_id: int, user_id: Optional[int] = None
+    ) -> PurchaseOrderItem:
         """Remove item from purchase order."""
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
@@ -404,17 +714,30 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and self._items_structure_locked(po):
+        if po and self._items_structure_confirmed(po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=INVOICE_LOCK_MSG if po.invoice_id is not None else 'Order items are locked',
+                detail=INVOICE_CONFIRM_MSG if po.invoice_id is not None else 'Order items are confirmed',
             )
         po_id = record.purchase_order_id
+        item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
+        line_number = record.line_number
+        catalog_item_id = record.item_id
         session.delete(record)
         session.flush()
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if po:
             self._recalc_totals(session, po)
+        self.log_event(
+            session, po_id, workspace_id, 'item_removed',
+            f'Removed {item_label} (line {line_number})',
+            user_id,
+            metadata={
+                'item_id': catalog_item_id,
+                'item_name': item_label,
+                'line_number': line_number,
+            },
+        )
         return record
 
     def get_items(self, session: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
@@ -490,16 +813,35 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         )
         session.add(obj)
         session.flush()
+        profile = profile_dao.get(session, id=user_id)
+        user_name = profile.name if profile else f'User #{user_id}'
+        self.log_event(
+            session, po_id, workspace_id, 'approver_added',
+            f'Added {user_name} as approver',
+            assigned_by,
+            metadata={'user_id': user_id, 'user_name': user_name},
+        )
         return obj
 
-    def remove_approver(self, session: Session, po_id: int, user_id: int, workspace_id: int) -> None:
+    def remove_approver(
+        self, session: Session, po_id: int, user_id: int, workspace_id: int,
+        performed_by: Optional[int] = None,
+    ) -> None:
         rec = self.approver_dao.get_by_order_and_user(
             session, purchase_order_id=po_id, user_id=user_id, workspace_id=workspace_id
         )
         if not rec:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approver not found")
+        profile = profile_dao.get(session, id=user_id)
+        user_name = profile.name if profile else f'User #{user_id}'
         session.delete(rec)
         session.flush()
+        self.log_event(
+            session, po_id, workspace_id, 'approver_removed',
+            f'Removed {user_name} as approver',
+            performed_by,
+            metadata={'user_id': user_id, 'user_name': user_name},
+        )
 
     def set_approval(
         self, session: Session, po_id: int, user_id: int, workspace_id: int, approved: bool
@@ -527,13 +869,15 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     # ─── Events ────────────────────────────────────────────────
     def log_event(
         self, session: Session, po_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None
+        event_type: str, description: str, performed_by: Optional[int] = None,
+        metadata: dict | None = None,
     ) -> PurchaseOrderEvent:
         ev = PurchaseOrderEvent(
             workspace_id=workspace_id,
             purchase_order_id=po_id,
             event_type=event_type,
             description=description,
+            metadata_json=metadata,
             performed_by=performed_by,
         )
         session.add(ev)

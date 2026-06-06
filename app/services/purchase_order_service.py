@@ -191,10 +191,12 @@ class PurchaseOrderService(BaseService):
     # ─── Items ─────────────────────────────────────────────────
     def add_item(
         self, db: Session, po_id: int, item_in: PurchaseOrderItemCreate,
-        workspace_id: int
+        workspace_id: int, user_id: Optional[int] = None
     ) -> PurchaseOrderItem:
         try:
-            record = self.manager.add_item(db, po_id=po_id, data=item_in, workspace_id=workspace_id)
+            record = self.manager.add_item(
+                db, po_id=po_id, data=item_in, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -217,9 +219,13 @@ class PurchaseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def remove_item(self, db: Session, item_id: int, workspace_id: int) -> PurchaseOrderItem:
+    def remove_item(
+        self, db: Session, item_id: int, workspace_id: int, user_id: Optional[int] = None
+    ) -> PurchaseOrderItem:
         try:
-            record = self.manager.remove_item(db, item_id=item_id, workspace_id=workspace_id)
+            record = self.manager.remove_item(
+                db, item_id=item_id, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             return record
         except Exception:
@@ -253,9 +259,13 @@ class PurchaseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def remove_approver(self, db: Session, po_id: int, user_id: int, workspace_id: int) -> None:
+    def remove_approver(
+        self, db: Session, po_id: int, user_id: int, workspace_id: int, performed_by: Optional[int] = None
+    ) -> None:
         try:
-            self.manager.remove_approver(db, po_id=po_id, user_id=user_id, workspace_id=workspace_id)
+            self.manager.remove_approver(
+                db, po_id=po_id, user_id=user_id, workspace_id=workspace_id, performed_by=performed_by
+            )
             self._commit_transaction(db)
         except Exception:
             self._rollback_transaction(db)
@@ -292,12 +302,18 @@ class PurchaseOrderService(BaseService):
                     detail="Invoice already exists for this purchase order"
                 )
 
+            if not self.manager._all_sections_confirmed(po):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail='Confirm all sections first',
+                )
+
             if not self.manager.details_complete_for_invoice(po):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=(
                         'Cannot create invoice: order details incomplete '
-                        '(supplier, destination type, location, and order date required)'
+                        '(supplier required for invoice; destination type, location, and order date required)'
                     ),
                 )
 
@@ -346,7 +362,7 @@ class PurchaseOrderService(BaseService):
                     ) from exc
                 raise
             po.invoice_id = invoice.id
-            self.manager.apply_post_invoice_locks(
+            self.manager.apply_post_invoice_confirms(
                 db, po, workspace_id=workspace_id, user_id=user_id
             )
             self._commit_transaction(db)

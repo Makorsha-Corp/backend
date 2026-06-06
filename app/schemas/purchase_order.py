@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
 
-PurchaseOrderSection = Literal['details', 'notes', 'items']
+PurchaseOrderSection = Literal['supplier', 'details', 'notes', 'items']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -54,23 +54,22 @@ class PurchaseOrderItemResponse(BaseModel):
 
 
 class PurchaseOrderCreate(BaseModel):
-    account_id: int
+    account_id: int | None = None
     destination_type: str
     destination_id: int
     order_date: date | None = None
     expected_delivery_date: date | None = None
     description: str | None = None
     order_note: str | None = None
-    internal_note: str | None = None
     current_status_id: int = 1
     order_workflow_id: int | None = None
     required_approvals: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
 
 
-class PurchaseOrderSectionLockRequest(BaseModel):
+class PurchaseOrderSectionConfirmRequest(BaseModel):
     section: PurchaseOrderSection
-    locked: bool
+    confirmed: bool
 
 
 class PurchaseOrderUpdate(BaseModel):
@@ -84,17 +83,17 @@ class PurchaseOrderUpdate(BaseModel):
     required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
-    internal_note: str | None = None
-    details_locked: bool | None = None
-    notes_locked: bool | None = None
-    items_locked: bool | None = None
+    supplier_confirmed: bool | None = None
+    details_confirmed: bool | None = None
+    notes_confirmed: bool | None = None
+    items_confirmed: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):
     id: int
     workspace_id: int
     po_number: str
-    account_id: int
+    account_id: int | None = None
     destination_type: str
     destination_id: int
     order_date: date | None = None
@@ -108,10 +107,10 @@ class PurchaseOrderResponse(BaseModel):
     required_approvals: int | None = None
     description: str | None = None
     order_note: str | None = None
-    internal_note: str | None = None
-    details_locked: bool = False
-    notes_locked: bool = False
-    items_locked: bool = False
+    supplier_confirmed: bool = False
+    details_confirmed: bool = False
+    notes_confirmed: bool = False
+    items_confirmed: bool = False
     created_by: int
     created_at: datetime
     updated_by: int | None = None
@@ -151,12 +150,31 @@ class PurchaseOrderApproversList(BaseModel):
     summary: ApprovalSummaryResponse
 
 
+class PurchaseOrderEventChange(BaseModel):
+    field: str
+    label: str
+    from_value: str | None = None
+    to_value: str | None = None
+
+
+class PurchaseOrderEventMetadata(BaseModel):
+    changes: list[PurchaseOrderEventChange] | None = None
+    item_id: int | None = None
+    item_name: str | None = None
+    line_number: int | None = None
+    quantity_ordered: str | None = None
+    unit_price: str | None = None
+    user_id: int | None = None
+    user_name: str | None = None
+
+
 class PurchaseOrderEventResponse(BaseModel):
     id: int
     workspace_id: int
     purchase_order_id: int
     event_type: str
     description: str
+    metadata: PurchaseOrderEventMetadata | None = None
     performed_by: int | None = None
     user_name: str | None = None
     created_at: datetime

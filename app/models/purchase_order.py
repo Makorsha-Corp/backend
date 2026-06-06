@@ -21,7 +21,7 @@ class PurchaseOrder(Base):
     # Auto-generated: PO-2025-001
 
     # === SUPPLIER (ACCOUNT) ===
-    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=True, index=True)
 
     # === DESTINATION ===
     destination_type = Column(String(50), nullable=False)  # 'storage', 'machine', 'project'
@@ -49,12 +49,12 @@ class PurchaseOrder(Base):
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
     order_note = Column(Text, nullable=True)
-    internal_note = Column(Text, nullable=True)
 
-    # === SECTION LOCKS ===
-    details_locked = Column(Boolean, nullable=False, default=False)
-    notes_locked = Column(Boolean, nullable=False, default=False)
-    items_locked = Column(Boolean, nullable=False, default=False)
+    # === SECTION CONFIRMS ===
+    supplier_confirmed = Column(Boolean, nullable=False, default=False)
+    details_confirmed = Column(Boolean, nullable=False, default=False)
+    notes_confirmed = Column(Boolean, nullable=False, default=False)
+    items_confirmed = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
