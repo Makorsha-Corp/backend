@@ -1,9 +1,11 @@
 """Purchase Order Service - transaction orchestration"""
+import logging
 from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
@@ -20,10 +22,13 @@ from app.dao.project_component import project_component_dao
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
+    PurchaseOrderItemSyncRequest,
     ActiveOrderRow,
 )
 from app.dao.account_invoice import account_invoice_dao
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
+
+logger = logging.getLogger(__name__)
 
 
 class PurchaseOrderService(BaseService):
@@ -33,6 +38,45 @@ class PurchaseOrderService(BaseService):
         super().__init__()
         self.manager = purchase_order_manager
         self.account_invoice_manager = account_invoice_manager
+
+    def _handle_item_integrity_error(self, exc: IntegrityError) -> None:
+        orig = getattr(exc, 'orig', None)
+        pgcode = getattr(orig, 'pgcode', None) if orig else None
+        err = str(exc).lower()
+        orig_err = str(orig).lower() if orig else ''
+        combined = f'{err} {orig_err}'
+
+        if pgcode == '23514' or 'check constraint' in combined or '23514' in combined:
+            if (
+                'quantity_ordered' in combined
+                or 'quantity_received' in combined
+                or ('ordered' in combined and 'received' in combined)
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Ordered quantity cannot be less than received quantity',
+                ) from exc
+            if 'invoice_amount' in combined or 'paid_amount' in combined:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Order total cannot be less than amount already paid on the linked invoice',
+                ) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Update violates a business rule. Check amounts and quantities.',
+            ) from exc
+
+        if pgcode == '23505' or 'unique constraint' in combined or 'duplicate' in combined:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='That catalog item is already on this purchase order',
+            ) from exc
+
+        logger.exception('IntegrityError during PO item operation')
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Could not save order items. Refresh the page and try again.',
+        ) from exc
 
     def _sync_draft_invoice_for_po(
         self,
@@ -96,6 +140,16 @@ class PurchaseOrderService(BaseService):
         if not invoice or invoice.invoice_status != 'draft':
             return
 
+        paid = Decimal(str(invoice.paid_amount or 0))
+        if total < paid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f'Order total ({total}) cannot be less than amount already paid '
+                    f'on the linked invoice ({paid})'
+                ),
+            )
+
         new_account_id = po.account_id
         amount_changed = Decimal(str(invoice.invoice_amount)) != total
         account_changed = invoice.account_id != new_account_id
@@ -139,6 +193,7 @@ class PurchaseOrderService(BaseService):
         self, db: Session, po_in: PurchaseOrderCreate,
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
+        last_integrity: IntegrityError | None = None
         try:
             for _ in range(5):
                 try:
@@ -334,6 +389,12 @@ class PurchaseOrderService(BaseService):
             self._commit_transaction(db)
             db.refresh(record)
             return record
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc)
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise
@@ -352,6 +413,12 @@ class PurchaseOrderService(BaseService):
             self._commit_transaction(db)
             db.refresh(record)
             return record
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc)
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise
@@ -368,6 +435,39 @@ class PurchaseOrderService(BaseService):
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             return record
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc)
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def sync_items(
+        self,
+        db: Session,
+        po_id: int,
+        sync_in: PurchaseOrderItemSyncRequest,
+        workspace_id: int,
+        user_id: Optional[int] = None,
+    ) -> PurchaseOrder:
+        try:
+            po = self.manager.sync_items(
+                db, po_id=po_id, data=sync_in, workspace_id=workspace_id, user_id=user_id
+            )
+            if user_id is not None:
+                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
+            self._commit_transaction(db)
+            db.refresh(po)
+            return po
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc)
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise

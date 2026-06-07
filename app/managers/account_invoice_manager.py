@@ -218,9 +218,24 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         # Guard: these fields are system-managed and must never be set via the update endpoint
         for protected in ('invoice_status', 'paid_amount', 'void_note'):
             update_dict.pop(protected, None)
+
+        if 'invoice_amount' in update_dict and update_dict['invoice_amount'] is not None:
+            new_amount = Decimal(str(update_dict['invoice_amount']))
+            paid = Decimal(str(invoice.paid_amount or 0))
+            if new_amount < paid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f'Invoice amount cannot be less than amount already paid ({paid})'
+                    ),
+                )
+
         update_dict['updated_by'] = user_id
 
         updated_invoice = self.account_invoice_dao.update(session, db_obj=invoice, obj_in=update_dict)
+
+        if 'invoice_amount' in update_dict:
+            self._recalculate_payment_status(updated_invoice)
 
         if dropped_to_draft:
             self._log_status_change(session, updated_invoice, 'confirmed', 'draft', user_id)

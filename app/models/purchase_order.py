@@ -1,5 +1,5 @@
 """Purchase order model - for external procurement with items"""
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Numeric, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -12,12 +12,15 @@ class PurchaseOrder(Base):
     """
 
     __tablename__ = "purchase_orders"
+    __table_args__ = (
+        UniqueConstraint('workspace_id', 'po_number', name='uq_po_workspace_number'),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # === REFERENCE ===
-    po_number = Column(String(100), nullable=False, unique=True, index=True)
+    po_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: PO-2025-001
 
     # === SUPPLIER (ACCOUNT) ===

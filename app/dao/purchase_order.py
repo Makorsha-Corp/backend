@@ -1,5 +1,6 @@
 """Purchase order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from typing import List, Optional
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from app.dao.base import BaseDAO
@@ -62,16 +63,50 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         )
 
     def get_next_number(self, db: Session, *, workspace_id: int) -> str:
+        """Backward-compatible alias for allocate_po_number."""
+        return self.allocate_po_number(db, workspace_id=workspace_id)
+
+    def allocate_po_number(self, db: Session, *, workspace_id: int) -> str:
+        """
+        Next PO number for this workspace/year, skipping any po_number already
+        taken globally (handles legacy global-unique constraint on po_number).
+        """
         from datetime import datetime
+
         year = datetime.now().year
         prefix = f"PO-{year}-"
-        last = db.query(PurchaseOrder).filter(PurchaseOrder.workspace_id == workspace_id, PurchaseOrder.po_number.like(f"{prefix}%")).order_by(desc(PurchaseOrder.po_number)).first()
-        if last:
+
+        rows = (
+            db.query(PurchaseOrder.po_number)
+            .filter(
+                PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.po_number.like(f"{prefix}%"),
+            )
+            .all()
+        )
+        max_seq = 0
+        for (num,) in rows:
             try:
-                return f"{prefix}{int(last.po_number.split('-')[-1]) + 1:03d}"
-            except (ValueError, IndexError):
-                pass
-        return f"{prefix}001"
+                max_seq = max(max_seq, int(str(num).rsplit("-", 1)[-1]))
+            except ValueError:
+                continue
+
+        seq = max_seq + 1 if max_seq else 1
+        for _ in range(1000):
+            candidate = f"{prefix}{seq:03d}"
+            taken = (
+                db.query(PurchaseOrder.id)
+                .filter(PurchaseOrder.po_number == candidate)
+                .first()
+            )
+            if not taken:
+                return candidate
+            seq += 1
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not allocate a unique purchase order number",
+        )
 
 
 class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, PurchaseOrderItemUpdate]):

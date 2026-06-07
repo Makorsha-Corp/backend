@@ -11,6 +11,7 @@ from app.dao.workspace_member import workspace_member_dao
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
+    PurchaseOrderItemSyncRequest,
     ActiveOrderRow,
     PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
     ApprovalSummaryResponse, PurchaseOrderApproversList,
@@ -374,6 +375,28 @@ def add_purchase_order_item(
 ):
     return purchase_order_service.add_item(
         db, po_id=po_id, item_in=item_in, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{po_id}/items/sync/",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sync purchase order items (batch add/update/remove)",
+)
+def sync_purchase_order_items(
+    po_id: int,
+    sync_in: PurchaseOrderItemSyncRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.sync_items(
+        db,
+        po_id=po_id,
+        sync_in=sync_in,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
     )
 
 

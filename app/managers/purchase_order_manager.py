@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
 from app.models.purchase_order import PurchaseOrder
+from app.models.status import Status
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.models.purchase_order_event import PurchaseOrderEvent
@@ -14,6 +15,7 @@ from app.models.profile import Profile
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
+    PurchaseOrderItemSyncRequest,
 )
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
 from app.dao.purchase_order_approver import purchase_order_approver_dao
@@ -146,17 +148,31 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 user_id,
             )
 
+    def _resolve_pending_status_id(self, session: Session, workspace_id: int) -> int:
+        pending = (
+            session.query(Status)
+            .filter(Status.workspace_id == workspace_id, Status.name == 'Pending')
+            .first()
+        )
+        if not pending:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Default 'Pending' status not found for this workspace",
+            )
+        return pending.id
+
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         """Create purchase order with auto-generated number and nested items."""
-        po_number = self.po_dao.get_next_number(session, workspace_id=workspace_id)
+        po_number = self.po_dao.allocate_po_number(session, workspace_id=workspace_id)
 
         items_data = data.items or []
         po_dict = data.model_dump(exclude={'items'})
         po_dict['workspace_id'] = workspace_id
         po_dict['po_number'] = po_number
+        po_dict['current_status_id'] = self._resolve_pending_status_id(session, workspace_id)
         po_dict['created_by'] = user_id
         if not po_dict.get('order_date'):
             po_dict['order_date'] = date.today()
@@ -187,6 +203,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             price = Decimal(str(item_dict['unit_price']))
             line_sub = qty * price
             item_dict['line_subtotal'] = line_sub
+            item_dict['quantity_received'] = Decimal('0')
 
             subtotal += line_sub
 
@@ -639,6 +656,42 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         session.flush()
 
     # ─── Purchase Order Items ──────────────────────────────────
+    def _validate_ordered_vs_received(
+        self, quantity_ordered: Decimal, quantity_received: Decimal
+    ) -> None:
+        if quantity_ordered < quantity_received:
+            received_display = (
+                str(int(quantity_received))
+                if quantity_received == quantity_received.to_integral_value()
+                else str(quantity_received.normalize())
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Ordered quantity cannot be less than received ({received_display})',
+            )
+
+    def _ensure_catalog_item_not_on_po(
+        self,
+        session: Session,
+        po_id: int,
+        item_id: int,
+        workspace_id: int,
+        *,
+        exclude_item_id: Optional[int] = None,
+    ) -> None:
+        for line in self.item_dao.get_by_order(
+            session, purchase_order_id=po_id, workspace_id=workspace_id
+        ):
+            if line.item_id == item_id and line.id != exclude_item_id:
+                catalog_item = item_dao.get_by_id_and_workspace(
+                    session, id=item_id, workspace_id=workspace_id
+                )
+                name = catalog_item.name if catalog_item else f'Item #{item_id}'
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f'{name} is already on this purchase order',
+                )
+
     def add_item(
         self, session: Session, po_id: int, data: PurchaseOrderItemCreate,
         workspace_id: int, user_id: Optional[int] = None
@@ -653,6 +706,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail=INVOICE_CONFIRM_MSG if self.is_po_financially_locked(session, po) else 'Order items are confirmed',
             )
 
+        self._ensure_catalog_item_not_on_po(session, po_id, data.item_id, workspace_id)
+
         existing = self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
         next_line = max((i.line_number for i in existing), default=0) + 1
 
@@ -660,6 +715,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         item_dict['workspace_id'] = workspace_id
         item_dict['purchase_order_id'] = po_id
         item_dict['line_number'] = next_line
+        item_dict['quantity_received'] = Decimal('0')
 
         qty = Decimal(str(item_dict['quantity_ordered']))
         price = Decimal(str(item_dict['unit_price']))
@@ -709,7 +765,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-        prev_received = Decimal(str(record.quantity_received or 0))
+        prev_received = Decimal(str(record.quantity_received))
         received_changed = (
             'quantity_received' in update_dict
             and update_dict['quantity_received'] is not None
@@ -732,6 +788,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
 
         item_changes = self._collect_item_field_changes(record, update_dict)
+
+        qty_ordered = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
+        qty_received = Decimal(str(
+            update_dict.get('quantity_received', record.quantity_received)
+        ))
+        self._validate_ordered_vs_received(qty_ordered, qty_received)
 
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
@@ -874,6 +936,124 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             },
         )
         return record
+
+    def sync_items(
+        self,
+        session: Session,
+        po_id: int,
+        data: PurchaseOrderItemSyncRequest,
+        workspace_id: int,
+        user_id: Optional[int] = None,
+    ) -> PurchaseOrder:
+        """Apply item removes, updates, and additions in one pass; recalc totals once."""
+        po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
+        if not po:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
+        if self._items_structure_confirmed(session, po):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVOICE_CONFIRM_MSG if self.is_po_financially_locked(session, po) else 'Order items are confirmed',
+            )
+
+        existing_by_id = {
+            i.id: i
+            for i in self.item_dao.get_by_order(
+                session, purchase_order_id=po_id, workspace_id=workspace_id
+            )
+        }
+
+        for rid in data.remove_ids:
+            record = existing_by_id.get(rid)
+            if not record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Purchase order item {rid} not found",
+                )
+            item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
+            line_number = record.line_number
+            catalog_item_id = record.item_id
+            session.delete(record)
+            del existing_by_id[rid]
+            self.log_event(
+                session, po_id, workspace_id, 'item_removed',
+                f'Removed {item_label} (line {line_number})',
+                user_id,
+                metadata={
+                    'item_id': catalog_item_id,
+                    'item_name': item_label,
+                    'line_number': line_number,
+                },
+            )
+        session.flush()
+
+        for upd in data.updates:
+            record = existing_by_id.get(upd.id)
+            if not record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Purchase order item {upd.id} not found",
+                )
+            session.refresh(record)
+            qty = Decimal(str(upd.quantity_ordered))
+            price = Decimal(str(upd.unit_price))
+            received = Decimal(str(record.quantity_received))
+            self._validate_ordered_vs_received(qty, received)
+            update_dict = {
+                'quantity_ordered': upd.quantity_ordered,
+                'unit_price': upd.unit_price,
+                'quantity_received': received,
+                'line_subtotal': qty * price,
+            }
+            item_changes = self._collect_item_field_changes(record, update_dict)
+            self.item_dao.update(session, db_obj=record, obj_in=update_dict)
+            if item_changes and user_id is not None:
+                item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
+                self._log_field_change_event(
+                    session, po_id, workspace_id, user_id,
+                    'item_updated', f'Updated {item_label}', item_changes,
+                    extra_metadata={
+                        'item_id': record.item_id,
+                        'item_name': item_label,
+                        'line_number': record.line_number,
+                    },
+                )
+        session.flush()
+
+        remaining = list(existing_by_id.values())
+        next_line = max((i.line_number for i in remaining), default=0) + 1
+
+        for add in data.additions:
+            self._ensure_catalog_item_not_on_po(session, po_id, add.item_id, workspace_id)
+            item_dict = add.model_dump()
+            item_dict['workspace_id'] = workspace_id
+            item_dict['purchase_order_id'] = po_id
+            item_dict['line_number'] = next_line
+            item_dict['quantity_received'] = Decimal('0')
+            qty = Decimal(str(item_dict['quantity_ordered']))
+            price = Decimal(str(item_dict['unit_price']))
+            item_dict['line_subtotal'] = qty * price
+            item = self.item_dao.create(session, obj_in=item_dict)
+            catalog_item = item_dao.get_by_id_and_workspace(
+                session, id=item.item_id, workspace_id=workspace_id
+            )
+            item_name = catalog_item.name if catalog_item else f'Item #{item.item_id}'
+            self.log_event(
+                session, po_id, workspace_id, 'item_added',
+                f'Added {item_name} (line {item.line_number})',
+                user_id,
+                metadata={
+                    'item_id': item.item_id,
+                    'item_name': item_name,
+                    'line_number': item.line_number,
+                    'quantity_ordered': self._format_scalar_value('quantity_ordered', qty),
+                    'unit_price': self._format_scalar_value('unit_price', price),
+                },
+            )
+            next_line += 1
+
+        self._recalc_totals(session, po)
+        session.refresh(po)
+        return po
 
     def get_items(self, session: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
         return self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)

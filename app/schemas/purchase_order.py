@@ -36,6 +36,18 @@ class PurchaseOrderItemUpdate(BaseModel):
     notes: str | None = None
 
 
+class PurchaseOrderItemSyncUpdate(BaseModel):
+    id: int
+    quantity_ordered: Decimal
+    unit_price: Decimal
+
+
+class PurchaseOrderItemSyncRequest(BaseModel):
+    remove_ids: List[int] = []
+    updates: List[PurchaseOrderItemSyncUpdate] = []
+    additions: List[PurchaseOrderItemCreate] = []
+
+
 class PurchaseOrderItemResponse(BaseModel):
     id: int
     workspace_id: int
@@ -61,7 +73,7 @@ class PurchaseOrderCreate(BaseModel):
     expected_delivery_date: date | None = None
     description: str | None = None
     order_note: str | None = None
-    current_status_id: int = 1
+    current_status_id: int | None = None
     order_workflow_id: int | None = None
     required_approvals: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
