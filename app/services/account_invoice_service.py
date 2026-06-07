@@ -1,9 +1,12 @@
 """Account Invoice Service for orchestrating invoice workflows"""
+from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
 from app.managers.account_invoice_manager import account_invoice_manager
+from app.managers.purchase_order_manager import purchase_order_manager
 from app.models.account_invoice import AccountInvoice
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 
@@ -188,7 +191,8 @@ class AccountInvoiceService(BaseService):
             HTTPException: If invoice not found or has payments
         """
         try:
-            # Delete invoice using manager
+            po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
+
             invoice = self.account_invoice_manager.delete_invoice(
                 session=db,
                 invoice_id=invoice_id,
@@ -196,7 +200,13 @@ class AccountInvoiceService(BaseService):
                 user_id=user_id
             )
 
-            # Commit transaction
+            if po:
+                purchase_order_manager.unlink_invoice_from_po(
+                    db, po, user_id,
+                    f'Draft invoice #{invoice_id} deleted',
+                    event_type='invoice_draft_deleted',
+                )
+
             self._commit_transaction(db)
 
             return invoice
@@ -213,9 +223,36 @@ class AccountInvoiceService(BaseService):
 
     def confirm_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int) -> AccountInvoice:
         try:
+            po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
+            if po:
+                approved_count, required, met = purchase_order_manager.approval_summary(db, po)
+                if not met:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Requires {required} approval(s); {approved_count} so far",
+                    )
+                invoice_pre = self.account_invoice_manager.get_invoice(
+                    db, invoice_id, workspace_id
+                )
+                if invoice_pre.invoice_status == 'draft':
+                    invoice_pre.invoice_amount = Decimal(str(po.total_amount or 0))
+                    db.flush()
+
             invoice = self.account_invoice_manager.confirm_invoice(
                 session=db, invoice_id=invoice_id, workspace_id=workspace_id, user_id=user_id
             )
+
+            if po:
+                purchase_order_manager.apply_post_invoice_confirms(
+                    db, po, workspace_id=workspace_id, user_id=user_id
+                )
+                purchase_order_manager.log_event(
+                    db, po.id, workspace_id, 'invoice_confirmed',
+                    f'Invoice #{invoice.id} confirmed — order locked',
+                    user_id,
+                    metadata={'invoice_id': invoice.id},
+                )
+
             self._commit_transaction(db)
             db.refresh(invoice)
             return invoice
@@ -225,10 +262,21 @@ class AccountInvoiceService(BaseService):
 
     def void_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int, void_note: str) -> AccountInvoice:
         try:
+            po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
+
             invoice = self.account_invoice_manager.void_invoice(
                 session=db, invoice_id=invoice_id, workspace_id=workspace_id,
                 user_id=user_id, void_note=void_note
             )
+
+            if po:
+                purchase_order_manager.reset_approvals(db, po.id, workspace_id, user_id)
+                purchase_order_manager.unlink_invoice_from_po(
+                    db, po, user_id,
+                    f'Invoice #{invoice_id} voided: {void_note}',
+                    event_type='invoice_voided',
+                )
+
             self._commit_transaction(db)
             db.refresh(invoice)
             return invoice

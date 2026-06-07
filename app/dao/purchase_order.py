@@ -49,6 +49,18 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:
         return db.query(PurchaseOrder).filter(PurchaseOrder.id == id, PurchaseOrder.workspace_id == workspace_id).first()
 
+    def get_by_invoice_id(
+        self, db: Session, *, invoice_id: int, workspace_id: int
+    ) -> Optional[PurchaseOrder]:
+        return (
+            db.query(PurchaseOrder)
+            .filter(
+                PurchaseOrder.invoice_id == invoice_id,
+                PurchaseOrder.workspace_id == workspace_id,
+            )
+            .first()
+        )
+
     def get_next_number(self, db: Session, *, workspace_id: int) -> str:
         from datetime import datetime
         year = datetime.now().year

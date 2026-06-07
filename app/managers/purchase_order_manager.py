@@ -26,6 +26,7 @@ from app.dao.machine import machine_dao
 from app.dao.project_component import project_component_dao
 from app.dao.status import status_dao
 from app.dao.item import item_dao
+from app.dao.account_invoice import account_invoice_dao
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -79,6 +80,59 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         self.item_dao = purchase_order_item_dao
         self.approver_dao = purchase_order_approver_dao
         self.event_dao = purchase_order_event_dao
+
+    def get_po_by_invoice_id(
+        self, session: Session, invoice_id: int, workspace_id: int
+    ) -> Optional[PurchaseOrder]:
+        return self.po_dao.get_by_invoice_id(
+            session, invoice_id=invoice_id, workspace_id=workspace_id
+        )
+
+    def is_po_financially_locked(self, session: Session, po: PurchaseOrder) -> bool:
+        """True when a linked invoice is confirmed (PO fields locked)."""
+        if po.invoice_id is None:
+            return False
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            session, id=po.invoice_id, workspace_id=po.workspace_id
+        )
+        if not invoice:
+            return False
+        return invoice.invoice_status == 'confirmed'
+
+    def unlink_invoice_from_po(
+        self,
+        session: Session,
+        po: PurchaseOrder,
+        user_id: int,
+        reason: str,
+        event_type: str = 'invoice_unlinked',
+    ) -> None:
+        old_invoice_id = po.invoice_id
+        po.invoice_id = None
+        session.flush()
+        self.log_event(
+            session, po.id, po.workspace_id, event_type, reason, user_id,
+            metadata={'invoice_id': old_invoice_id},
+        )
+
+    def reset_approvals(
+        self, session: Session, po_id: int, workspace_id: int, user_id: int
+    ) -> None:
+        approvers = self.approver_dao.get_by_order(
+            session, purchase_order_id=po_id, workspace_id=workspace_id
+        )
+        reset_count = 0
+        for approver in approvers:
+            if approver.approved:
+                approver.approved = False
+                reset_count += 1
+        if reset_count:
+            session.flush()
+            self.log_event(
+                session, po_id, workspace_id, 'approvals_reset',
+                f'Cleared {reset_count} approval(s) after invoice voided',
+                user_id,
+            )
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -144,37 +198,37 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         update_dict = data.model_dump(exclude_unset=True)
         update_dict['updated_by'] = user_id
 
-        if record.invoice_id is not None:
+        if self.is_po_financially_locked(session, record):
             if update_dict.get('supplier_confirmed') is False:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot unconfirm supplier after invoice is created',
+                    detail='Cannot unconfirm supplier after invoice is confirmed',
                 )
             if update_dict.get('details_confirmed') is False:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot unconfirm order details after invoice is created',
+                    detail='Cannot unconfirm order details after invoice is confirmed',
                 )
             if update_dict.get('items_confirmed') is False:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot unconfirm order items after invoice is created',
+                    detail='Cannot unconfirm order items after invoice is confirmed',
                 )
 
-        blocked_supplier = self._confirmed_supplier_update_fields(record).intersection(update_dict)
+        blocked_supplier = self._confirmed_supplier_update_fields(session, record).intersection(update_dict)
         if blocked_supplier:
             detail = (
                 INVOICE_CONFIRM_MSG
-                if record.invoice_id is not None
+                if self.is_po_financially_locked(session, record)
                 else 'Supplier is confirmed'
             )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-        blocked_details = self._confirmed_detail_update_fields(record).intersection(update_dict)
+        blocked_details = self._confirmed_detail_update_fields(session, record).intersection(update_dict)
         if blocked_details:
             detail = (
                 INVOICE_CONFIRM_MSG
-                if record.invoice_id is not None
+                if self.is_po_financially_locked(session, record)
                 else 'Order details are confirmed'
             )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
@@ -407,22 +461,22 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 'approvals_threshold_updated', 'Changed approval threshold', threshold_changes,
             )
 
-    def _confirmed_supplier_update_fields(self, record: PurchaseOrder) -> frozenset:
-        if record.invoice_id is not None:
+    def _confirmed_supplier_update_fields(self, session: Session, record: PurchaseOrder) -> frozenset:
+        if self.is_po_financially_locked(session, record):
             return SUPPLIER_CONFIRMED_FIELDS
         if record.supplier_confirmed:
             return SUPPLIER_CONFIRMED_FIELDS
         return frozenset()
 
-    def _confirmed_detail_update_fields(self, record: PurchaseOrder) -> frozenset:
-        if record.invoice_id is not None:
+    def _confirmed_detail_update_fields(self, session: Session, record: PurchaseOrder) -> frozenset:
+        if self.is_po_financially_locked(session, record):
             return INVOICE_CONFIRMED_DETAIL_FIELDS
         if record.details_confirmed:
             return INVOICE_CONFIRMED_DETAIL_FIELDS
         return frozenset()
 
-    def _items_structure_confirmed(self, po: PurchaseOrder) -> bool:
-        return bool(po.items_confirmed or po.invoice_id is not None)
+    def _items_structure_confirmed(self, session: Session, po: PurchaseOrder) -> bool:
+        return bool(po.items_confirmed or self.is_po_financially_locked(session, po))
 
     def details_complete_for_invoice(self, po: PurchaseOrder) -> bool:
         return (
@@ -550,10 +604,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not po:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
-        if self._items_structure_confirmed(po):
+        if self._items_structure_confirmed(session, po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=INVOICE_CONFIRM_MSG if po.invoice_id is not None else 'Order items are confirmed',
+                detail=INVOICE_CONFIRM_MSG if self.is_po_financially_locked(session, po) else 'Order items are confirmed',
             )
 
         existing = self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
@@ -602,12 +656,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and self._items_structure_confirmed(po):
+        if po and self._items_structure_confirmed(session, po):
             structural = set(update_dict.keys()) - {'quantity_received'}
             if structural:
                 detail = (
                     f'{INVOICE_CONFIRM_MSG} (receiving still allowed)'
-                    if po.invoice_id is not None
+                    if self.is_po_financially_locked(session, po)
                     else 'Order items are confirmed (receiving still allowed)'
                 )
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
@@ -714,10 +768,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
         )
-        if po and self._items_structure_confirmed(po):
+        if po and self._items_structure_confirmed(session, po):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=INVOICE_CONFIRM_MSG if po.invoice_id is not None else 'Order items are confirmed',
+                detail=INVOICE_CONFIRM_MSG if self.is_po_financially_locked(session, po) else 'Order items are confirmed',
             )
         po_id = record.purchase_order_id
         item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'

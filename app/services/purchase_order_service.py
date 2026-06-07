@@ -324,13 +324,6 @@ class PurchaseOrderService(BaseService):
                     detail='Cannot create invoice: purchase order has no line items',
                 )
 
-            approved_count, required, met = self.manager.approval_summary(db, po)
-            if not met:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Requires {required} approval(s); {approved_count} so far"
-                )
-
             invoice_in = AccountInvoiceCreate(
                 account_id=po.account_id,
                 order_id=None,  # Legacy orders FK; keep null for split order tables
@@ -362,8 +355,11 @@ class PurchaseOrderService(BaseService):
                     ) from exc
                 raise
             po.invoice_id = invoice.id
-            self.manager.apply_post_invoice_confirms(
-                db, po, workspace_id=workspace_id, user_id=user_id
+            self.manager.log_event(
+                db, po.id, workspace_id, 'invoice_draft_created',
+                f'Draft invoice #{invoice.id} created from {po.po_number}',
+                user_id,
+                metadata={'invoice_id': invoice.id},
             )
             self._commit_transaction(db)
             db.refresh(po)
