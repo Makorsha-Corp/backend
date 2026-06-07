@@ -65,6 +65,7 @@ class AccountUpdate(BaseModel):
 
     # Admin Controls
     allow_invoices: Optional[bool] = None
+    is_active: Optional[bool] = None
     tag_ids: Optional[List[int]] = None  # Update tags if provided
 
 
@@ -74,6 +75,7 @@ class AccountInDB(AccountBase):
 
     id: int
     workspace_id: int
+    is_active: bool
     created_at: datetime
 
 

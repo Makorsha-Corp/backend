@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, InvoicePaymentResponse
+from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, InvoicePaymentResponse, VoidPaymentRequest
 from app.services.invoice_payment_service import invoice_payment_service
 
 
@@ -109,6 +109,27 @@ def update_payment(
     return payment
 
 
+@router.post(
+    "/{payment_id}/void/",
+    response_model=InvoicePaymentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Void payment",
+    description="Void a payment and recalculate invoice totals. Irreversible."
+)
+def void_payment(
+    payment_id: int,
+    void_request: VoidPaymentRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Void a payment — recalculates invoice paid_amount and payment_status"""
+    return invoice_payment_service.void_payment(
+        db, payment_id=payment_id, workspace_id=workspace.id,
+        user_id=current_user.id, void_note=void_request.void_note
+    )
+
+
 @router.delete(
     "/{payment_id}/",
     response_model=InvoicePaymentResponse,
@@ -119,12 +140,14 @@ def update_payment(
 def delete_payment(
     payment_id: int,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Delete a payment (automatically recalculates invoice totals)"""
     payment = invoice_payment_service.delete_payment(
         db,
         payment_id=payment_id,
-        workspace_id=workspace.id
+        workspace_id=workspace.id,
+        user_id=current_user.id
     )
     return payment

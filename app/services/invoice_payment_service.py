@@ -161,7 +161,8 @@ class InvoicePaymentService(BaseService):
         self,
         db: Session,
         payment_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> InvoicePayment:
         """
         Delete payment and recalculate invoice totals.
@@ -182,7 +183,8 @@ class InvoicePaymentService(BaseService):
             payment = self.invoice_payment_manager.delete_payment(
                 session=db,
                 payment_id=payment_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                user_id=user_id
             )
 
             # Commit transaction
@@ -191,6 +193,20 @@ class InvoicePaymentService(BaseService):
             return payment
 
         except Exception as e:
+            self._rollback_transaction(db)
+            raise
+
+
+    def void_payment(self, db: Session, payment_id: int, workspace_id: int, user_id: int, void_note: str) -> InvoicePayment:
+        try:
+            payment = self.invoice_payment_manager.void_payment(
+                session=db, payment_id=payment_id, workspace_id=workspace_id,
+                user_id=user_id, void_note=void_note
+            )
+            self._commit_transaction(db)
+            db.refresh(payment)
+            return payment
+        except Exception:
             self._rollback_transaction(db)
             raise
 

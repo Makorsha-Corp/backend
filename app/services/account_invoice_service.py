@@ -92,32 +92,34 @@ class AccountInvoiceService(BaseService):
         account_id: Optional[int] = None,
         invoice_type: Optional[str] = None,
         payment_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from=None,
+        invoice_date_to=None,
+        due_date_from=None,
+        due_date_to=None,
+        amount_min=None,
+        amount_max=None,
         skip: int = 0,
         limit: int = 100
     ) -> List[AccountInvoice]:
-        """
-        List invoices with optional filters.
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID
-            account_id: Filter by account (optional)
-            invoice_type: Filter by type (optional)
-            payment_status: Filter by payment status (optional)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of invoices
-        """
+        """List invoices with all filters. Excludes invoices from soft-deleted accounts."""
         return self.account_invoice_manager.list_invoices(
             session=db,
             workspace_id=workspace_id,
             account_id=account_id,
             invoice_type=invoice_type,
             payment_status=payment_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
             skip=skip,
-            limit=limit
+            limit=limit,
         )
 
     def update_invoice(
@@ -168,7 +170,8 @@ class AccountInvoiceService(BaseService):
         self,
         db: Session,
         invoice_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> AccountInvoice:
         """
         Delete invoice.
@@ -189,7 +192,8 @@ class AccountInvoiceService(BaseService):
             invoice = self.account_invoice_manager.delete_invoice(
                 session=db,
                 invoice_id=invoice_id,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                user_id=user_id
             )
 
             # Commit transaction
@@ -198,6 +202,37 @@ class AccountInvoiceService(BaseService):
             return invoice
 
         except Exception as e:
+            self._rollback_transaction(db)
+            raise
+
+
+    def get_status_history(self, db: Session, invoice_id: int, workspace_id: int) -> list:
+        return self.account_invoice_manager.get_status_history(
+            session=db, invoice_id=invoice_id, workspace_id=workspace_id
+        )
+
+    def confirm_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int) -> AccountInvoice:
+        try:
+            invoice = self.account_invoice_manager.confirm_invoice(
+                session=db, invoice_id=invoice_id, workspace_id=workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(invoice)
+            return invoice
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def void_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int, void_note: str) -> AccountInvoice:
+        try:
+            invoice = self.account_invoice_manager.void_invoice(
+                session=db, invoice_id=invoice_id, workspace_id=workspace_id,
+                user_id=user_id, void_note=void_note
+            )
+            self._commit_transaction(db)
+            db.refresh(invoice)
+            return invoice
+        except Exception:
             self._rollback_transaction(db)
             raise
 

@@ -47,6 +47,7 @@ from app.models.account_tag import AccountTag
 from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_invoice import AccountInvoice
 from app.models.invoice_payment import InvoicePayment
+from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
 # Inventory & Products
 from app.models.inventory import Inventory

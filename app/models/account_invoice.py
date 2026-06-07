@@ -9,6 +9,9 @@ class AccountInvoice(Base):
     """
     Account invoice model - represents bills/invoices with accounts.
     Can be payable (you owe them) or receivable (they owe you).
+
+    Lifecycle: draft → confirmed → voided (terminal)
+    Full status transition history is in invoice_status_tracker.
     """
 
     __tablename__ = "account_invoices"
@@ -21,29 +24,35 @@ class AccountInvoice(Base):
     # Invoice Type
     invoice_type = Column(String(20), nullable=False, index=True)  # 'payable' or 'receivable'
 
+    # Invoice Lifecycle Status
+    invoice_status = Column(String(20), nullable=False, default='draft', index=True)  # 'draft', 'confirmed', 'voided'
+
     # Amounts
-    invoice_amount = Column(Numeric(15, 2), nullable=False)  # Original amount invoiced
-    paid_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Amount paid so far
+    invoice_amount = Column(Numeric(15, 2), nullable=False)
+    paid_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of active (non-voided) payments
     # outstanding_amount is CALCULATED: (invoice_amount - paid_amount)
 
     # Reference Numbers
-    invoice_number = Column(String(100), nullable=True)  # Your internal invoice number
-    vendor_invoice_number = Column(String(100), nullable=True)  # Their invoice number (if payable)
+    invoice_number = Column(String(100), nullable=True)
+    vendor_invoice_number = Column(String(100), nullable=True)
 
     # Dates
     invoice_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=True)
 
-    # Status
+    # Payment Status (only meaningful when invoice_status == 'confirmed')
     payment_status = Column(String(20), nullable=False, default='unpaid', index=True)  # 'unpaid', 'partial', 'paid', 'overdue'
 
     # Admin Controls
-    allow_payments = Column(Boolean, nullable=False, default=True)  # Admin can lock payments
-    payment_locked_reason = Column(Text, nullable=True)  # Why payments are locked
+    allow_payments = Column(Boolean, nullable=False, default=True)
+    payment_locked_reason = Column(Text, nullable=True)
 
     # Description
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # Void note (permanent record of why invoice was voided)
+    void_note = Column(Text, nullable=True)
 
     # Audit
     created_at = Column(DateTime, nullable=False, server_default=func.now())

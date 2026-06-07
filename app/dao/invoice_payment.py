@@ -118,7 +118,8 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
             db.query(func.sum(InvoicePayment.payment_amount))
             .filter(
                 InvoicePayment.workspace_id == workspace_id,
-                InvoicePayment.invoice_id == invoice_id
+                InvoicePayment.invoice_id == invoice_id,
+                InvoicePayment.is_voided == False,
             )
             .scalar()
         )

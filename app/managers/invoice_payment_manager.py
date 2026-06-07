@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from decimal import Decimal
 
+from datetime import datetime
 from app.managers.base_manager import BaseManager
 from app.models.invoice_payment import InvoicePayment
-from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate
+from app.models.account_invoice import AccountInvoice
+from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, VoidPaymentRequest
 from app.dao.invoice_payment import invoice_payment_dao
 from app.dao.account_invoice import account_invoice_dao
 from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
@@ -50,14 +52,37 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         Raises:
             HTTPException: If invoice not found or validation fails
         """
-        # Validate invoice exists in workspace
-        invoice = self.account_invoice_dao.get_by_id_and_workspace(
-            session, id=payment_data.invoice_id, workspace_id=workspace_id
+        # Lock the invoice row for the duration of this transaction to prevent
+        # concurrent payments from both passing the outstanding balance check.
+        invoice = (
+            session.query(AccountInvoice)
+            .filter(
+                AccountInvoice.id == payment_data.invoice_id,
+                AccountInvoice.workspace_id == workspace_id,
+            )
+            .with_for_update()
+            .one_or_none()
         )
         if not invoice:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Invoice with ID {payment_data.invoice_id} not found"
+            )
+
+        # Only confirmed invoices accept payments
+        if invoice.invoice_status != 'confirmed':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Payments can only be recorded against confirmed invoices. "
+                       f"This invoice is currently '{invoice.invoice_status}'."
+            )
+
+        # Enforce admin payment lock
+        if not invoice.allow_payments:
+            reason = invoice.payment_locked_reason or "Payments are locked for this invoice"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=reason
             )
 
         # Validate payment amount doesn't exceed outstanding balance
@@ -230,7 +255,8 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         self,
         session: Session,
         payment_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int
     ) -> InvoicePayment:
         """
         Delete payment and recalculate invoice totals.
@@ -266,34 +292,19 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 detail=f"Invoice with ID {payment.invoice_id} not found"
             )
 
-        # Capture invoice status before deletion
-        old_status = invoice.payment_status
+        # Capture before state while payment object is still valid
+        old_invoice_payment_status = invoice.payment_status
+        payment_snapshot = extract_relevant_fields(payment, ['payment_amount', 'payment_date', 'payment_method'])
+        payment_amount_str = payment.payment_amount
 
-        # Audit log before deletion
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='payment',
-            entity_id=payment.id,
-            action_type='deleted',
-            performed_by=0,  # No user_id passed to delete method currently
-            related_entity_type='invoice',
-            related_entity_id=invoice.id,
-            changes=create_change_dict(before=extract_relevant_fields(
-                payment, ['payment_amount', 'payment_date', 'payment_method']
-            )),
-            description=f"Payment of ${payment.payment_amount} deleted from invoice ID {invoice.id}"
-        )
-
-        # Delete payment
+        # Delete payment then flush so the recalculation query sees the deletion
         self.invoice_payment_dao.remove(session, id=payment_id)
+        session.flush()
 
-        # Recalculate invoice totals
+        # Recalculate invoice totals from remaining payments
         total_paid = self.invoice_payment_dao.get_total_paid_for_invoice(
             session, invoice_id=invoice.id, workspace_id=workspace_id
         )
-
-        # Update invoice
         invoice.paid_amount = total_paid
         if total_paid >= invoice.invoice_amount:
             invoice.payment_status = 'paid'
@@ -301,25 +312,105 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             invoice.payment_status = 'partial'
         else:
             invoice.payment_status = 'unpaid'
-
         session.flush()
 
-        # Capture invoice status after deletion
-        new_status = invoice.payment_status
+        new_invoice_payment_status = invoice.payment_status
 
-        # Log invoice status change if it happened
-        if old_status != new_status:
+        # Audit log after all mutations are applied
+        log_financial_audit(
+            session=session,
+            workspace_id=workspace_id,
+            entity_type='payment',
+            entity_id=payment_id,
+            action_type='deleted',
+            performed_by=user_id,
+            related_entity_type='invoice',
+            related_entity_id=invoice.id,
+            changes=create_change_dict(before=payment_snapshot),
+            description=f"Payment of ${payment_amount_str} deleted from invoice ID {invoice.id}"
+        )
+
+        if old_invoice_payment_status != new_invoice_payment_status:
             log_financial_audit(
                 session=session,
                 workspace_id=workspace_id,
                 entity_type='invoice',
                 entity_id=invoice.id,
                 action_type='status_changed',
-                performed_by=0,  # No user_id passed
-                changes={'status': {'before': old_status, 'after': new_status}},
-                description=f"Invoice status changed from {old_status} to {new_status} after payment deletion"
+                performed_by=user_id,
+                changes={'payment_status': {'before': old_invoice_payment_status, 'after': new_invoice_payment_status}},
+                description=f"Invoice payment status changed from {old_invoice_payment_status} to {new_invoice_payment_status} after payment deletion"
             )
 
+        return payment
+
+
+    def void_payment(
+        self,
+        session: Session,
+        payment_id: int,
+        workspace_id: int,
+        user_id: int,
+        void_note: str
+    ) -> InvoicePayment:
+        """Void a payment and recalculate invoice totals from remaining active payments."""
+        payment = self.invoice_payment_dao.get_by_id_and_workspace(
+            session, id=payment_id, workspace_id=workspace_id
+        )
+        if not payment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Payment with ID {payment_id} not found")
+        if payment.is_voided:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Payment is already voided")
+
+        invoice = self.account_invoice_dao.get_by_id_and_workspace(
+            session, id=payment.invoice_id, workspace_id=workspace_id
+        )
+        if not invoice:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Invoice with ID {payment.invoice_id} not found")
+
+        old_invoice_status = invoice.payment_status
+
+        # Void the payment
+        payment.is_voided = True
+        payment.voided_at = datetime.utcnow()
+        payment.voided_by = user_id
+        payment.void_note = void_note
+        session.flush()
+
+        # Recalculate invoice totals from remaining active payments
+        total_paid = self.invoice_payment_dao.get_total_paid_for_invoice(
+            session, invoice_id=invoice.id, workspace_id=workspace_id
+        )
+        invoice.paid_amount = total_paid
+        if total_paid >= invoice.invoice_amount:
+            invoice.payment_status = 'paid'
+        elif total_paid > 0:
+            invoice.payment_status = 'partial'
+        else:
+            invoice.payment_status = 'unpaid'
+        session.flush()
+
+        log_financial_audit(
+            session=session,
+            workspace_id=workspace_id,
+            entity_type='payment',
+            entity_id=payment.id,
+            action_type='voided',
+            performed_by=user_id,
+            related_entity_type='invoice',
+            related_entity_id=invoice.id,
+            changes={
+                'payment_voided': extract_relevant_fields(payment, ['payment_amount', 'payment_date', 'payment_method']),
+                **(
+                    {'invoice_payment_status': {'before': old_invoice_status, 'after': invoice.payment_status}}
+                    if old_invoice_status != invoice.payment_status else {}
+                ),
+            },
+            description=f"Payment of ${payment.payment_amount} voided for invoice ID {invoice.id}. Reason: {void_note}"
+        )
         return payment
 
 
