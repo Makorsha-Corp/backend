@@ -4,16 +4,16 @@ invoice_status: draft | confirmed | voided on account_invoices
 invoice_status_tracker: append-only log of every invoice status transition
 invoice_payments: is_voided + void audit columns
 
-Revision ID: 008_invoice_status_and_void
-Revises: 007_position_to_workspace_member
+Revision ID: 016_invoice_status_and_void
+Revises: 015_po_optional_supplier
 Create Date: 2026-06-07
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = '008_invoice_status_and_void'
-down_revision = '007_position_to_workspace_member'
+revision = '016_invoice_status_and_void'
+down_revision = '015_po_optional_supplier'
 branch_labels = None
 depends_on = None
 
