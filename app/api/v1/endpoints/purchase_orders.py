@@ -143,6 +143,7 @@ _SECTION_CONFIRM_FIELDS = {
     'details': 'details_confirmed',
     'notes': 'notes_confirmed',
     'items': 'items_confirmed',
+    'invoice': 'invoice_confirmed',
 }
 
 

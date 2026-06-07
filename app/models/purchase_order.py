@@ -55,6 +55,7 @@ class PurchaseOrder(Base):
     details_confirmed = Column(Boolean, nullable=False, default=False)
     notes_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
+    invoice_confirmed = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

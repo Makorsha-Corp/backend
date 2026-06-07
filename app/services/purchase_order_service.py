@@ -2,6 +2,7 @@
 from datetime import date
 from decimal import Decimal
 from typing import List, Optional
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -21,7 +22,8 @@ from app.schemas.purchase_order import (
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
     ActiveOrderRow,
 )
-from app.schemas.account_invoice import AccountInvoiceCreate
+from app.dao.account_invoice import account_invoice_dao
+from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 
 
 class PurchaseOrderService(BaseService):
@@ -32,15 +34,141 @@ class PurchaseOrderService(BaseService):
         self.manager = purchase_order_manager
         self.account_invoice_manager = account_invoice_manager
 
+    def _sync_draft_invoice_for_po(
+        self,
+        db: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Ensure a draft payable invoice exists and mirrors PO supplier + totals."""
+        if self.manager.is_po_financially_locked(db, po):
+            return
+        if po.account_id is None:
+            return
+
+        total = Decimal(str(po.total_amount or 0))
+        description = f"Purchase order {po.po_number}"
+        notes = po.order_note or po.description
+
+        if po.invoice_id is None:
+            invoice_in = AccountInvoiceCreate(
+                account_id=po.account_id,
+                order_id=None,
+                invoice_type="payable",
+                invoice_amount=total,
+                invoice_number=None,
+                vendor_invoice_number=None,
+                invoice_date=date.today(),
+                due_date=None,
+                description=description,
+                notes=notes,
+                allow_payments=True,
+                payment_locked_reason=None,
+            )
+            try:
+                invoice = self.account_invoice_manager.create_invoice(
+                    session=db,
+                    invoice_data=invoice_in,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                )
+            except HTTPException as exc:
+                if exc.status_code == status.HTTP_404_NOT_FOUND:
+                    return
+                raise
+            po.invoice_id = invoice.id
+            self.manager.log_event(
+                db,
+                po.id,
+                workspace_id,
+                'invoice_draft_created',
+                f'Draft invoice #{invoice.id} linked to {po.po_number}',
+                user_id,
+                metadata={'invoice_id': invoice.id},
+            )
+            db.flush()
+            return
+
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            db, id=po.invoice_id, workspace_id=workspace_id
+        )
+        if not invoice or invoice.invoice_status != 'draft':
+            return
+
+        new_account_id = po.account_id
+        amount_changed = Decimal(str(invoice.invoice_amount)) != total
+        account_changed = invoice.account_id != new_account_id
+        notes_changed = (invoice.notes or None) != (notes or None)
+        desc_changed = (invoice.description or None) != description
+
+        if (amount_changed or account_changed) and po.invoice_confirmed:
+            po.invoice_confirmed = False
+            self.manager.reset_approvals(
+                db,
+                po.id,
+                workspace_id,
+                user_id,
+                reason='Draft invoice changed after order update',
+            )
+            self.manager.log_event(
+                db,
+                po.id,
+                workspace_id,
+                'invoice_unconfirmed',
+                'Draft invoice unconfirmed after order sync',
+                user_id,
+            )
+
+        if amount_changed or account_changed or notes_changed or desc_changed:
+            self.account_invoice_manager.update_invoice(
+                db,
+                po.invoice_id,
+                AccountInvoiceUpdate(
+                    account_id=new_account_id if account_changed else None,
+                    invoice_amount=total if amount_changed else None,
+                    description=description if desc_changed else None,
+                    notes=notes if notes_changed else None,
+                ),
+                workspace_id,
+                user_id,
+            )
+            db.flush()
+
     def create_purchase_order(
         self, db: Session, po_in: PurchaseOrderCreate,
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         try:
-            record = self.manager.create_purchase_order(db, data=po_in, workspace_id=workspace_id, user_id=user_id)
-            self._commit_transaction(db)
-            db.refresh(record)
-            return record
+            for _ in range(5):
+                try:
+                    record = self.manager.create_purchase_order(
+                        db, data=po_in, workspace_id=workspace_id, user_id=user_id
+                    )
+                    self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
+                    self._commit_transaction(db)
+                    db.refresh(record)
+                    return record
+                except IntegrityError as exc:
+                    last_integrity = exc
+                    self._rollback_transaction(db)
+                    err = str(exc).lower()
+                    if 'po_number' not in err and 'uq_po_workspace_number' not in err:
+                        raise
+            if last_integrity:
+                err = str(last_integrity).lower()
+                if 'po_number' in err or 'uq_po_workspace_number' in err:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Could not assign a unique PO number. Please try again.",
+                    ) from last_integrity
+                raise last_integrity
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create purchase order",
+            )
+        except HTTPException:
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise
@@ -50,7 +178,10 @@ class PurchaseOrderService(BaseService):
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         try:
-            record = self.manager.update_purchase_order(db, po_id=po_id, data=po_in, workspace_id=workspace_id, user_id=user_id)
+            record = self.manager.update_purchase_order(
+                db, po_id=po_id, data=po_in, workspace_id=workspace_id, user_id=user_id
+            )
+            self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -197,6 +328,9 @@ class PurchaseOrderService(BaseService):
             record = self.manager.add_item(
                 db, po_id=po_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
+            po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            if user_id is not None:
+                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -212,6 +346,9 @@ class PurchaseOrderService(BaseService):
             record = self.manager.update_item(
                 db, item_id=item_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
+            if user_id is not None:
+                po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
+                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -226,6 +363,9 @@ class PurchaseOrderService(BaseService):
             record = self.manager.remove_item(
                 db, item_id=item_id, workspace_id=workspace_id, user_id=user_id
             )
+            if user_id is not None:
+                po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
+                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             return record
         except Exception:
@@ -286,84 +426,26 @@ class PurchaseOrderService(BaseService):
     def create_invoice_for_purchase_order(
         self, db: Session, po_id: int, workspace_id: int, user_id: int
     ) -> PurchaseOrder:
-        """
-        Create exactly one payable account invoice from a purchase order.
-
-        Rules:
-        - One order -> one invoice
-        - Account is required
-        """
+        """Ensure the PO has a synced draft invoice (idempotent backfill)."""
         try:
             po = self.manager.get_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
-
-            if po.invoice_id is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Invoice already exists for this purchase order"
-                )
-
-            if not self.manager._all_sections_confirmed(po):
+            self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
+            if po.account_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail='Confirm all sections first',
+                    detail='Assign a supplier before a draft invoice can be created',
                 )
-
-            if not self.manager.details_complete_for_invoice(po):
+            if po.invoice_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=(
-                        'Cannot create invoice: order details incomplete '
-                        '(supplier required for invoice; destination type, location, and order date required)'
-                    ),
+                    detail='Could not create draft invoice for this purchase order',
                 )
-
-            po_items = self.manager.get_items(db, po_id=po_id, workspace_id=workspace_id)
-            if not po_items:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail='Cannot create invoice: purchase order has no line items',
-                )
-
-            invoice_in = AccountInvoiceCreate(
-                account_id=po.account_id,
-                order_id=None,  # Legacy orders FK; keep null for split order tables
-                invoice_type="payable",
-                invoice_amount=Decimal(str(po.total_amount or 0)),
-                invoice_number=None,
-                vendor_invoice_number=None,
-                invoice_date=date.today(),
-                due_date=None,
-                description=f"Auto-created from purchase order {po.po_number}",
-                notes=po.order_note or po.description,
-                allow_payments=True,
-                payment_locked_reason=None
-            )
-
-            try:
-                invoice = self.account_invoice_manager.create_invoice(
-                    session=db,
-                    invoice_data=invoice_in,
-                    workspace_id=workspace_id,
-                    user_id=user_id
-                )
-            except HTTPException as exc:
-                # Surface a clearer message in this order workflow context.
-                if exc.status_code == status.HTTP_404_NOT_FOUND:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Cannot create invoice: selected account was not found in this workspace"
-                    ) from exc
-                raise
-            po.invoice_id = invoice.id
-            self.manager.log_event(
-                db, po.id, workspace_id, 'invoice_draft_created',
-                f'Draft invoice #{invoice.id} created from {po.po_number}',
-                user_id,
-                metadata={'invoice_id': invoice.id},
-            )
             self._commit_transaction(db)
             db.refresh(po)
             return po
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise

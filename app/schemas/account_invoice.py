@@ -11,7 +11,7 @@ class AccountInvoiceBase(BaseModel):
     order_id: Optional[int] = None
 
     invoice_type: str = Field(..., pattern=r'^(payable|receivable)$')
-    invoice_amount: Decimal = Field(..., gt=0)
+    invoice_amount: Decimal = Field(..., ge=0)
 
     invoice_number: Optional[str] = Field(None, max_length=100)
     vendor_invoice_number: Optional[str] = Field(None, max_length=100)
@@ -40,7 +40,7 @@ class AccountInvoiceUpdate(BaseModel):
     order_id: Optional[int] = None
 
     invoice_type: Optional[str] = Field(None, pattern=r'^(payable|receivable)$')
-    invoice_amount: Optional[Decimal] = Field(None, gt=0)
+    invoice_amount: Optional[Decimal] = Field(None, ge=0)
 
     invoice_number: Optional[str] = Field(None, max_length=100)
     vendor_invoice_number: Optional[str] = Field(None, max_length=100)

@@ -225,6 +225,11 @@ class AccountInvoiceService(BaseService):
         try:
             po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
             if po:
+                if not purchase_order_manager._all_sections_confirmed(po):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='Confirm all sections (including draft invoice) before finalizing',
+                    )
                 approved_count, required, met = purchase_order_manager.approval_summary(db, po)
                 if not met:
                     raise HTTPException(
@@ -276,6 +281,11 @@ class AccountInvoiceService(BaseService):
                     f'Invoice #{invoice_id} voided: {void_note}',
                     event_type='invoice_voided',
                 )
+                if po.account_id:
+                    from app.services.purchase_order_service import purchase_order_service
+                    purchase_order_service._sync_draft_invoice_for_po(
+                        db, po, workspace_id, user_id
+                    )
 
             self._commit_transaction(db)
             db.refresh(invoice)

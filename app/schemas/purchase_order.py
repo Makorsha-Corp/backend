@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
 
-PurchaseOrderSection = Literal['supplier', 'details', 'notes', 'items']
+PurchaseOrderSection = Literal['supplier', 'details', 'notes', 'items', 'invoice']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -87,6 +87,7 @@ class PurchaseOrderUpdate(BaseModel):
     details_confirmed: bool | None = None
     notes_confirmed: bool | None = None
     items_confirmed: bool | None = None
+    invoice_confirmed: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -111,6 +112,7 @@ class PurchaseOrderResponse(BaseModel):
     details_confirmed: bool = False
     notes_confirmed: bool = False
     items_confirmed: bool = False
+    invoice_confirmed: bool = False
     created_by: int
     created_at: datetime
     updated_by: int | None = None

@@ -68,6 +68,7 @@ SECTION_CONFIRM_FIELDS = {
     'details_confirmed': ('details', 'Order details'),
     'notes_confirmed': ('notes', 'Order notes'),
     'items_confirmed': ('items', 'Order items'),
+    'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
 
 
@@ -109,6 +110,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     ) -> None:
         old_invoice_id = po.invoice_id
         po.invoice_id = None
+        po.invoice_confirmed = False
         session.flush()
         self.log_event(
             session, po.id, po.workspace_id, event_type, reason, user_id,
@@ -116,7 +118,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         )
 
     def reset_approvals(
-        self, session: Session, po_id: int, workspace_id: int, user_id: int
+        self,
+        session: Session,
+        po_id: int,
+        workspace_id: int,
+        user_id: int,
+        reason: str = 'Cleared approvals after invoice voided',
     ) -> None:
         approvers = self.approver_dao.get_by_order(
             session, purchase_order_id=po_id, workspace_id=workspace_id
@@ -125,12 +132,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         for approver in approvers:
             if approver.approved:
                 approver.approved = False
+                approver.approved_at = None
                 reset_count += 1
         if reset_count:
             session.flush()
             self.log_event(
                 session, po_id, workspace_id, 'approvals_reset',
-                f'Cleared {reset_count} approval(s) after invoice voided',
+                f'{reason} ({reset_count} approval(s) cleared)',
                 user_id,
             )
 
@@ -214,6 +222,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Cannot unconfirm order items after invoice is confirmed',
                 )
+            if update_dict.get('invoice_confirmed') is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot unconfirm draft invoice after invoice is finalized',
+                )
 
         blocked_supplier = self._confirmed_supplier_update_fields(session, record).intersection(update_dict)
         if blocked_supplier:
@@ -241,12 +254,15 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         self._validate_section_confirm(record, update_dict, session, workspace_id)
 
+        section_unconfirmed = False
         for confirm_field, (section_key, label) in SECTION_CONFIRM_FIELDS.items():
             if confirm_field not in update_dict:
                 continue
             new_confirmed = bool(update_dict[confirm_field])
             old_confirmed = bool(getattr(record, confirm_field, False))
             if new_confirmed != old_confirmed:
+                if not new_confirmed:
+                    section_unconfirmed = True
                 event_suffix = 'confirmed' if new_confirmed else 'unconfirmed'
                 self.log_event(
                     session, po_id, workspace_id,
@@ -254,6 +270,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     f'{label} {event_suffix}',
                     user_id,
                 )
+
+        if section_unconfirmed:
+            self.reset_approvals(
+                session, po_id, workspace_id, user_id,
+                reason='Section unconfirmed',
+            )
 
         self._log_section_field_updates(
             session, po_id, workspace_id, user_id, record, update_dict,
@@ -486,11 +508,17 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             and po.order_date is not None
         )
 
-    def _all_sections_confirmed(self, po: PurchaseOrder) -> bool:
+    def _base_sections_confirmed(self, po: PurchaseOrder) -> bool:
         return bool(
             po.supplier_confirmed
             and po.details_confirmed
             and po.items_confirmed
+        )
+
+    def _all_sections_confirmed(self, po: PurchaseOrder) -> bool:
+        return bool(
+            self._base_sections_confirmed(po)
+            and po.invoice_confirmed
         )
 
     def _validate_section_confirm(
@@ -532,6 +560,25 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Add at least one line item before confirming',
                 )
+        if update_dict.get('invoice_confirmed') is True and not record.invoice_confirmed:
+            if not self._base_sections_confirmed(record):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Confirm supplier, order details, and items before confirming the draft invoice',
+                )
+            if record.invoice_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Draft invoice has not synced yet — assign a supplier and save the order',
+                )
+            invoice = account_invoice_dao.get_by_id_and_workspace(
+                session, id=record.invoice_id, workspace_id=workspace_id
+            )
+            if not invoice or invoice.invoice_status != 'draft':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Only a draft invoice can be confirmed as a section',
+                )
 
     def apply_post_invoice_confirms(
         self, session: Session, po: PurchaseOrder, workspace_id: int, user_id: int
@@ -558,6 +605,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self.log_event(
                 session, po.id, workspace_id, 'items_confirmed',
                 'Order items confirmed after invoice created', user_id,
+            )
+        if not po.invoice_confirmed:
+            po.invoice_confirmed = True
+            self.log_event(
+                session, po.id, workspace_id, 'invoice_confirmed',
+                'Draft invoice confirmed after invoice finalized', user_id,
             )
         session.flush()
 
@@ -908,6 +961,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not an assigned approver for this order"
             )
+        if approved:
+            po = self.get_purchase_order(session, po_id, workspace_id)
+            if not self._all_sections_confirmed(po):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Confirm all sections (including draft invoice) before approving',
+                )
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None
         session.flush()
