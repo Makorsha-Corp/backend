@@ -14,8 +14,9 @@ from app.schemas.purchase_order import (
     ActiveOrderRow,
     PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
     ApprovalSummaryResponse, PurchaseOrderApproversList,
+    PurchaseOrderEventMetadata,
     PurchaseOrderEventResponse,
-    PurchaseOrderSectionLockRequest,
+    PurchaseOrderSectionConfirmRequest,
 )
 from app.services.purchase_order_service import purchase_order_service
 
@@ -137,31 +138,32 @@ def update_purchase_order(
     )
 
 
-_SECTION_LOCK_FIELDS = {
-    'details': 'details_locked',
-    'notes': 'notes_locked',
-    'items': 'items_locked',
+_SECTION_CONFIRM_FIELDS = {
+    'supplier': 'supplier_confirmed',
+    'details': 'details_confirmed',
+    'notes': 'notes_confirmed',
+    'items': 'items_confirmed',
 }
 
 
 @router.patch(
-    "/{po_id}/section-lock/",
+    "/{po_id}/section-confirm/",
     response_model=PurchaseOrderResponse,
     status_code=status.HTTP_200_OK,
-    summary="Lock or unlock a purchase order section",
+    summary="Confirm or unconfirm a purchase order section",
 )
-def set_purchase_order_section_lock(
+def set_purchase_order_section_confirm(
     po_id: int,
-    body: PurchaseOrderSectionLockRequest,
+    body: PurchaseOrderSectionConfirmRequest,
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    lock_field = _SECTION_LOCK_FIELDS[body.section]
+    confirm_field = _SECTION_CONFIRM_FIELDS[body.section]
     return purchase_order_service.update_purchase_order(
         db,
         po_id=po_id,
-        po_in=PurchaseOrderUpdate(**{lock_field: body.locked}),
+        po_in=PurchaseOrderUpdate(**{confirm_field: body.confirmed}),
         workspace_id=workspace.id,
         user_id=current_user.id,
     )
@@ -256,9 +258,12 @@ def remove_purchase_order_approver(
     po_id: int,
     user_id: int,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    purchase_order_service.remove_approver(db, po_id=po_id, user_id=user_id, workspace_id=workspace.id)
+    purchase_order_service.remove_approver(
+        db, po_id=po_id, user_id=user_id, workspace_id=workspace.id, performed_by=current_user.id
+    )
 
 
 @router.post(
@@ -324,6 +329,11 @@ def list_purchase_order_events(
             purchase_order_id=e.purchase_order_id,
             event_type=e.event_type,
             description=e.description,
+            metadata=(
+                PurchaseOrderEventMetadata.model_validate(e.metadata_json)
+                if e.metadata_json
+                else None
+            ),
             performed_by=e.performed_by,
             user_name=profile.name if profile else None,
             created_at=e.created_at,
@@ -358,10 +368,11 @@ def add_purchase_order_item(
     po_id: int,
     item_in: PurchaseOrderItemCreate,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     return purchase_order_service.add_item(
-        db, po_id=po_id, item_in=item_in, workspace_id=workspace.id
+        db, po_id=po_id, item_in=item_in, workspace_id=workspace.id, user_id=current_user.id
     )
 
 
@@ -391,6 +402,9 @@ def update_purchase_order_item(
 def remove_purchase_order_item(
     item_id: int,
     workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    purchase_order_service.remove_item(db, item_id=item_id, workspace_id=workspace.id)
+    purchase_order_service.remove_item(
+        db, item_id=item_id, workspace_id=workspace.id, user_id=current_user.id
+    )

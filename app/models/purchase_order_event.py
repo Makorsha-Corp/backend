@@ -1,5 +1,5 @@
 """Purchase order event model - immutable activity log for a PO."""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -20,6 +20,7 @@ class PurchaseOrderEvent(Base):
 
     event_type = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
+    metadata_json = Column("metadata", JSON, nullable=True)
 
     performed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
