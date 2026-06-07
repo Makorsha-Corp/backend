@@ -153,7 +153,7 @@ class AccountManager(BaseManager[Account]):
             'primary_contact_person', 'primary_email', 'primary_phone',
             'secondary_contact_person', 'secondary_email', 'secondary_phone',
             'address', 'city', 'country', 'postal_code',
-            'payment_preferences', 'bank_details', 'allow_invoices'
+            'payment_preferences', 'bank_details', 'allow_invoices', 'is_active'
         ]:
             if key in update_input:
                 account_dict[key] = update_input[key]

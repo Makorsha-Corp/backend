@@ -139,6 +139,7 @@ class AccountService(BaseService):
             "payment_preferences": account.payment_preferences,
             "bank_details": account.bank_details,
             "allow_invoices": account.allow_invoices,
+            "is_active": account.is_active,
             "created_at": account.created_at,
             "account_tags": [
                 {
@@ -240,6 +241,7 @@ class AccountService(BaseService):
                 "payment_preferences": account.payment_preferences,
                 "bank_details": account.bank_details,
                 "allow_invoices": account.allow_invoices,
+                "is_active": account.is_active,
                 "created_at": account.created_at,
                 "account_tags": [
                     {
@@ -352,6 +354,7 @@ class AccountService(BaseService):
                 "payment_preferences": account.payment_preferences,
                 "bank_details": account.bank_details,
                 "allow_invoices": account.allow_invoices,
+                "is_active": account.is_active,
                 "created_at": account.created_at,
                 "account_tags": [
                     {
