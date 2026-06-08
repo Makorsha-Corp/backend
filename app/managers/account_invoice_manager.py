@@ -399,13 +399,14 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
             payment.void_note = system_payment_void_note
 
         # Void the invoice
+        prior_status = invoice.invoice_status
         invoice.invoice_status = 'voided'
         invoice.void_note = void_note
         invoice.paid_amount = Decimal('0.00')
         invoice.payment_status = 'unpaid'
         session.flush()
 
-        self._log_status_change(session, invoice, 'confirmed', 'voided', user_id)
+        self._log_status_change(session, invoice, prior_status, 'voided', user_id)
 
         log_financial_audit(
             session=session,

@@ -292,8 +292,16 @@ class AccountInvoiceService(BaseService):
                 purchase_order_manager.reset_approvals(db, po.id, workspace_id, user_id)
                 purchase_order_manager.unlink_invoice_from_po(
                     db, po, user_id,
-                    f'Invoice #{invoice_id} voided: {void_note}',
+                    f'Invoice #{invoice_id} voided',
                     event_type='invoice_voided',
+                    extra_metadata={
+                        'changes': [{
+                            'field': 'void_note',
+                            'label': 'Void reason',
+                            'from_value': None,
+                            'to_value': void_note,
+                        }],
+                    },
                 )
                 if po.account_id:
                     from app.services.purchase_order_service import purchase_order_service

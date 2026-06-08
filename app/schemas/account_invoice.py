@@ -81,7 +81,9 @@ class AccountInvoiceInDB(AccountInvoiceBase):
     @computed_field
     @property
     def outstanding_amount(self) -> Decimal:
-        """Calculate outstanding amount (invoice_amount - paid_amount)"""
+        """Outstanding balance; voided invoices always return zero."""
+        if self.invoice_status == 'voided':
+            return Decimal('0.00')
         return self.invoice_amount - self.paid_amount
 
 

@@ -107,14 +107,18 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         user_id: int,
         reason: str,
         event_type: str = 'invoice_unlinked',
+        extra_metadata: dict | None = None,
     ) -> None:
         old_invoice_id = po.invoice_id
         po.invoice_id = None
         po.invoice_confirmed = False
         session.flush()
+        metadata: dict = {'invoice_id': old_invoice_id}
+        if extra_metadata:
+            metadata.update(extra_metadata)
         self.log_event(
             session, po.id, po.workspace_id, event_type, reason, user_id,
-            metadata={'invoice_id': old_invoice_id},
+            metadata=metadata,
         )
 
     def reset_approvals(

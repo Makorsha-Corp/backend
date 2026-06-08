@@ -133,6 +133,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
                 AccountInvoice.workspace_id == workspace_id,
                 Account.is_deleted == False,
                 AccountInvoice.payment_status.in_(['unpaid', 'partial']),
+                AccountInvoice.invoice_status != 'voided',
                 AccountInvoice.due_date < as_of_date
             )
             .order_by(AccountInvoice.due_date)
