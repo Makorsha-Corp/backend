@@ -2,7 +2,7 @@
 Account Invoice Manager
 
 Business logic for account invoice operations.
-Lifecycle: draft → confirmed → voided (terminal)
+Lifecycle: draft → confirmed → locked → voided (terminal; void only from confirmed)
 """
 from datetime import datetime
 from typing import List, Optional
@@ -179,6 +179,12 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         # Capture original status BEFORE any mutation so dropped_to_draft is correct
         original_status = invoice.invoice_status
 
+        if invoice.invoice_status == 'locked':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Locked invoices cannot be edited",
+            )
+
         if invoice.invoice_status == 'confirmed':
             if invoice.paid_amount > 0:
                 raise HTTPException(
@@ -289,6 +295,9 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         if invoice.invoice_status == 'confirmed':
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Invoice is already confirmed")
+        if invoice.invoice_status == 'locked':
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Invoice is locked")
 
         invoice.invoice_status = 'confirmed'
         session.flush()
@@ -309,6 +318,42 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         )
         return invoice
 
+    def lock_invoice(
+        self,
+        session: Session,
+        invoice_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> AccountInvoice:
+        invoice = self._get_or_404(session, invoice_id, workspace_id)
+
+        if invoice.invoice_status == 'locked':
+            return invoice
+        if invoice.invoice_status != 'confirmed':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only confirmed invoices can be locked. This invoice is '{invoice.invoice_status}'.",
+            )
+
+        invoice.invoice_status = 'locked'
+        session.flush()
+
+        self._log_status_change(session, invoice, 'confirmed', 'locked', user_id)
+
+        log_financial_audit(
+            session=session,
+            workspace_id=workspace_id,
+            entity_type='invoice',
+            entity_id=invoice.id,
+            action_type='locked',
+            performed_by=user_id,
+            related_entity_type='account',
+            related_entity_id=invoice.account_id,
+            changes={'invoice_status': {'before': 'confirmed', 'after': 'locked'}},
+            description=f"Invoice {invoice.invoice_number or invoice.id} locked after receiving started",
+        )
+        return invoice
+
     def void_invoice(
         self,
         session: Session,
@@ -325,6 +370,11 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         if invoice.invoice_status == 'draft':
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Draft invoices cannot be voided — delete them instead")
+        if invoice.invoice_status == 'locked':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Locked invoices cannot be voided — receiving has started",
+            )
 
         now = datetime.utcnow()
         system_payment_void_note = (

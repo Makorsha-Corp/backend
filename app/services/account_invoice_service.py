@@ -225,10 +225,10 @@ class AccountInvoiceService(BaseService):
         try:
             po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
             if po:
-                if not purchase_order_manager._all_sections_confirmed(po):
+                if not purchase_order_manager._base_sections_confirmed(po):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Confirm all sections (including draft invoice) before finalizing',
+                        detail='Confirm supplier, order details, and items before finalizing',
                     )
                 approved_count, required, met = purchase_order_manager.approval_summary(db, po)
                 if not met:
@@ -268,6 +268,18 @@ class AccountInvoiceService(BaseService):
     def void_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int, void_note: str) -> AccountInvoice:
         try:
             po = purchase_order_manager.get_po_by_invoice_id(db, invoice_id, workspace_id)
+
+            if po:
+                po_items = purchase_order_manager.item_dao.get_by_order(
+                    db, purchase_order_id=po.id, workspace_id=workspace_id
+                )
+                if any(
+                    Decimal(str(i.quantity_received or 0)) > 0 for i in po_items
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='Cannot void invoice after receiving has been recorded on the linked order',
+                    )
 
             invoice = self.account_invoice_manager.void_invoice(
                 session=db, invoice_id=invoice_id, workspace_id=workspace_id,

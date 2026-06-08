@@ -67,7 +67,7 @@ class AccountInvoiceInDB(AccountInvoiceBase):
     id: int
     workspace_id: int
 
-    invoice_status: str  # 'draft', 'confirmed', 'voided'
+    invoice_status: str  # 'draft', 'confirmed', 'locked', 'voided'
     paid_amount: Decimal
     payment_status: str
 

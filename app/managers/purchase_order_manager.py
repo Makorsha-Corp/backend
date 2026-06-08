@@ -90,7 +90,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         )
 
     def is_po_financially_locked(self, session: Session, po: PurchaseOrder) -> bool:
-        """True when a linked invoice is confirmed (PO fields locked)."""
+        """True when a linked invoice is confirmed or locked (PO fields locked)."""
         if po.invoice_id is None:
             return False
         invoice = account_invoice_dao.get_by_id_and_workspace(
@@ -98,7 +98,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         )
         if not invoice:
             return False
-        return invoice.invoice_status == 'confirmed'
+        return invoice.invoice_status in ('confirmed', 'locked')
 
     def unlink_invoice_from_po(
         self,
@@ -561,24 +561,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     detail='Add at least one line item before confirming',
                 )
         if update_dict.get('invoice_confirmed') is True and not record.invoice_confirmed:
-            if not self._base_sections_confirmed(record):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Confirm supplier, order details, and items before confirming the draft invoice',
-                )
-            if record.invoice_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Draft invoice has not synced yet — assign a supplier and save the order',
-                )
-            invoice = account_invoice_dao.get_by_id_and_workspace(
-                session, id=record.invoice_id, workspace_id=workspace_id
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Draft invoice is confirmed when you finalize the invoice — use Finalize Invoice instead',
             )
-            if not invoice or invoice.invoice_status != 'draft':
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Only a draft invoice can be confirmed as a section',
-                )
 
     def apply_post_invoice_confirms(
         self, session: Session, po: PurchaseOrder, workspace_id: int, user_id: int
@@ -726,6 +712,21 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             and Decimal(str(update_dict['quantity_received'])) != prev_received
         )
 
+        if received_changed and po:
+            if po.invoice_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Finalize the invoice before recording receiving',
+                )
+            linked_invoice = account_invoice_dao.get_by_id_and_workspace(
+                session, id=po.invoice_id, workspace_id=workspace_id
+            )
+            if not linked_invoice or linked_invoice.invoice_status not in ('confirmed', 'locked'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Finalize the invoice before recording receiving',
+                )
+
         item_changes = self._collect_item_field_changes(record, update_dict)
 
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
@@ -807,6 +808,29 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                         self.log_event(
                             session, record.purchase_order_id, workspace_id, 'all_received',
                             'All items received', user_id,
+                        )
+
+            if po and po.invoice_id:
+                linked_invoice_for_lock = account_invoice_dao.get_by_id_and_workspace(
+                    session, id=po.invoice_id, workspace_id=workspace_id
+                )
+                if linked_invoice_for_lock and linked_invoice_for_lock.invoice_status == 'confirmed':
+                    po_items = self.item_dao.get_by_order(
+                        session, purchase_order_id=po.id, workspace_id=workspace_id
+                    )
+                    total_received = sum(
+                        Decimal(str(i.quantity_received or 0)) for i in po_items
+                    )
+                    if total_received > 0:
+                        from app.managers.account_invoice_manager import account_invoice_manager
+                        account_invoice_manager.lock_invoice(
+                            session, po.invoice_id, workspace_id, user_id or 0
+                        )
+                        self.log_event(
+                            session, po.id, workspace_id, 'invoice_locked',
+                            f'Invoice #{po.invoice_id} locked after first receipt',
+                            user_id,
+                            metadata={'invoice_id': po.invoice_id},
                         )
 
         return result
@@ -963,10 +987,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             )
         if approved:
             po = self.get_purchase_order(session, po_id, workspace_id)
-            if not self._all_sections_confirmed(po):
+            if not self._base_sections_confirmed(po):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Confirm all sections (including draft invoice) before approving',
+                    detail='Confirm supplier, order details, and items before approving',
                 )
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None

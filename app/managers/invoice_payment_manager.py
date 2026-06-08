@@ -69,8 +69,8 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 detail=f"Invoice with ID {payment_data.invoice_id} not found"
             )
 
-        # Only confirmed invoices accept payments
-        if invoice.invoice_status != 'confirmed':
+        # Only confirmed or locked invoices accept payments
+        if invoice.invoice_status not in ('confirmed', 'locked'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Payments can only be recorded against confirmed invoices. "
