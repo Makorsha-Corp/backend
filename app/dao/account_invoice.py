@@ -21,6 +21,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         account_id: Optional[int] = None,
         invoice_type: Optional[str] = None,
         payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
         invoice_number_search: Optional[str] = None,
         account_name_search: Optional[str] = None,
         invoice_date_from: Optional[date] = None,
@@ -51,6 +52,8 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
             query = query.filter(AccountInvoice.invoice_type == invoice_type)
         if payment_status:
             query = query.filter(AccountInvoice.payment_status == payment_status)
+        if invoice_status:
+            query = query.filter(AccountInvoice.invoice_status == invoice_status)
         if invoice_number_search:
             term = f"%{invoice_number_search}%"
             query = query.filter(

@@ -168,6 +168,7 @@ class PurchaseOrderEventMetadata(BaseModel):
     unit_price: str | None = None
     user_id: int | None = None
     user_name: str | None = None
+    invoice_id: int | None = None
 
 
 class PurchaseOrderEventResponse(BaseModel):

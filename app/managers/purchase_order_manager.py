@@ -992,6 +992,17 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Confirm supplier, order details, and items before approving',
                 )
+        else:
+            po = self.get_purchase_order(session, po_id, workspace_id)
+            if po.invoice_id is not None:
+                invoice = account_invoice_dao.get_by_id_and_workspace(
+                    session, id=po.invoice_id, workspace_id=workspace_id
+                )
+                if invoice and invoice.invoice_status == 'locked':
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='Cannot withdraw approval — invoice is locked',
+                    )
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None
         session.flush()
