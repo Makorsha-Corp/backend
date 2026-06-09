@@ -809,7 +809,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
             self._log_field_change_event(
                 session, record.purchase_order_id, workspace_id, user_id,
-                'item_updated', f'Updated {item_label}', item_changes,
+                'item_updated',
+                f'Updated item: {item_label}',
+                item_changes,
                 extra_metadata={
                     'item_id': record.item_id,
                     'item_name': item_label,
@@ -1010,7 +1012,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
                 self._log_field_change_event(
                     session, po_id, workspace_id, user_id,
-                    'item_updated', f'Updated {item_label}', item_changes,
+                    'item_updated',
+                    f'Updated item: {item_label}',
+                    item_changes,
                     extra_metadata={
                         'item_id': record.item_id,
                         'item_name': item_label,
