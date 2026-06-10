@@ -36,6 +36,7 @@ from app.db.seed_po_workflow import (
     ensure_po_stage_statuses,
     ensure_po_workflow_record,
 )
+from app.managers.po_storage_inventory import post_purchase_order_to_storage
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -321,6 +322,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail='All line items must be fully received before marking the order complete',
             )
 
+        lines_posted = 0
+        if po.destination_type == 'storage':
+            lines_posted = post_purchase_order_to_storage(
+                session, po, items, workspace_id, user_id
+            )
+
         po.current_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, 'Complete'
         )
@@ -330,6 +337,16 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         session.flush()
 
         self.sync_po_stage(session, po, workspace_id, user_id)
+        if lines_posted > 0:
+            self.log_event(
+                session,
+                po.id,
+                workspace_id,
+                'inventory_posted',
+                f'{lines_posted} line(s) added to factory storage',
+                user_id,
+                metadata={'factory_id': po.destination_id, 'lines_posted': lines_posted},
+            )
         self.log_event(
             session, po.id, workspace_id, 'order_completed',
             'Order marked complete', user_id,

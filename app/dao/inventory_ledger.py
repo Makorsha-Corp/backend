@@ -193,5 +193,25 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
             .first()
         )
 
+    def exists_for_source(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        source_type: str,
+        source_id: int,
+    ) -> bool:
+        """True if a ledger row already exists for this source (idempotency guard)."""
+        return (
+            db.query(InventoryLedger.id)
+            .filter(
+                InventoryLedger.workspace_id == workspace_id,
+                InventoryLedger.source_type == source_type,
+                InventoryLedger.source_id == source_id,
+            )
+            .first()
+            is not None
+        )
+
 
 inventory_ledger_dao = InventoryLedgerDAO(InventoryLedger)
