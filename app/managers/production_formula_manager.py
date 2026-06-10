@@ -88,7 +88,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
             )
 
         # If setting as default, clear other defaults
-        update_dict = formula_data.model_dump(exclude_unset=True)
+        update_dict = formula_data.model_dump(exclude_unset=True, exclude_none=True)
         if update_dict.get('is_default') is True:
             self._clear_other_defaults(session, workspace_id, exclude_id=formula_id)
 
@@ -203,7 +203,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         if not formula_item:
             raise ValueError(f"Formula item {formula_item_id} not found")
 
-        update_dict = item_data.model_dump(exclude_unset=True)
+        update_dict = item_data.model_dump(exclude_unset=True, exclude_none=True)
 
         # Validate item_role if being updated
         if 'item_role' in update_dict and update_dict['item_role'] not in self.VALID_ITEM_ROLES:

@@ -98,9 +98,10 @@ def log_financial_audit(
         user_agent=user_agent
     )
 
-    log_dict = audit_data.model_dump()
+    log_dict = audit_data.model_dump(exclude_none=True)
     log_dict['workspace_id'] = workspace_id
     log_dict['performed_by'] = performed_by
+    log_dict['performed_at'] = datetime.utcnow()
 
     financial_audit_log_dao.create(session, obj_in=log_dict)
 

@@ -180,7 +180,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             )
 
         # Update payment (non-amount fields only)
-        update_dict = payment_data.model_dump(exclude_unset=True)
+        update_dict = payment_data.model_dump(exclude_unset=True, exclude_none=True)
         updated_payment = self.invoice_payment_dao.update(session, db_obj=payment, obj_in=update_dict)
         return updated_payment
 

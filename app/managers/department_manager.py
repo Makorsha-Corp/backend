@@ -117,7 +117,7 @@ class DepartmentManager(BaseManager[Department]):
                 )
 
         # Update department with audit fields
-        update_dict = department_data.model_dump(exclude_unset=True)
+        update_dict = department_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated_department = self.department_dao.update(session, db_obj=department, obj_in=update_dict)

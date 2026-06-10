@@ -1,5 +1,5 @@
 """Order workflow model"""
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.types import TypeDecorator, Text
 import json
 from app.db.base_class import Base
@@ -25,11 +25,14 @@ class OrderWorkflow(Base):
     """Order workflow model"""
 
     __tablename__ = "order_workflows"
+    __table_args__ = (
+        UniqueConstraint('workspace_id', 'type', name='uq_order_workflows_workspace_type'),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
-    type = Column(String, nullable=False, unique=True)
+    type = Column(String, nullable=False)
     description = Column(String, nullable=True)
     status_sequence = Column(JSONEncodedList, nullable=False)
     allowed_reverts_json = Column(JSON, nullable=True)

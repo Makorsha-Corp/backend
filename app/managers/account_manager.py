@@ -146,7 +146,7 @@ class AccountManager(BaseManager[Account]):
         if hasattr(account_data, 'tag_ids') and account_data.tag_ids is not None:
             tag_ids = account_data.tag_ids
 
-        update_input = account_data.model_dump(exclude_unset=True, exclude={'tag_ids', 'notes'})
+        update_input = account_data.model_dump(exclude_unset=True, exclude_none=True, exclude={'tag_ids', 'notes'})
         account_dict = {}
         for key in [
             'name', 'account_code',

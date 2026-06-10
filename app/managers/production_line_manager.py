@@ -136,7 +136,7 @@ class ProductionLineManager(BaseManager[ProductionLine]):
                 )
 
         # Inject updated_by for audit
-        line_dict = line_data.model_dump(exclude_unset=True)
+        line_dict = line_data.model_dump(exclude_unset=True, exclude_none=True)
         line_dict['updated_by'] = user_id
 
         # Update the production line

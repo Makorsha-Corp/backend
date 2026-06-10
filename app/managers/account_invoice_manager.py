@@ -97,7 +97,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Invoices are not allowed for this account")
 
-        invoice_dict = invoice_data.model_dump()
+        invoice_dict = invoice_data.model_dump(exclude_none=True)
         invoice_dict['workspace_id'] = workspace_id
         invoice_dict['created_by'] = user_id
         invoice_dict['paid_amount'] = Decimal('0.00')
@@ -214,7 +214,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         dropped_to_draft = original_status == 'confirmed' and invoice.invoice_status == 'draft'
 
-        update_dict = invoice_data.model_dump(exclude_unset=True)
+        update_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
         # Guard: these fields are system-managed and must never be set via the update endpoint
         for protected in ('invoice_status', 'paid_amount', 'void_note'):
             update_dict.pop(protected, None)

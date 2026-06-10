@@ -138,7 +138,7 @@ class MachineManager(BaseManager[Machine]):
                     detail=f"Machine with name '{machine_data.name}' already exists in this section"
                 )
 
-        update_dict = machine_data.model_dump(exclude_unset=True)
+        update_dict = machine_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated_machine = self.machine_dao.update(session, db_obj=machine, obj_in=update_dict)

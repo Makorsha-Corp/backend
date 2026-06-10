@@ -113,7 +113,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         if batch.status in ('completed', 'cancelled'):
             raise ValueError(f"Cannot update a {batch.status} batch")
 
-        update_dict = batch_data.model_dump(exclude_unset=True)
+        update_dict = batch_data.model_dump(exclude_unset=True, exclude_none=True)
 
         # Don't allow direct status changes via update - use start/complete/cancel
         if 'status' in update_dict:
@@ -559,7 +559,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         if batch and batch.status in ('completed', 'cancelled'):
             raise ValueError(f"Cannot update items in a {batch.status} batch")
 
-        update_dict = item_data.model_dump(exclude_unset=True)
+        update_dict = item_data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'item_role' in update_dict and update_dict['item_role'] not in self.VALID_ITEM_ROLES:
             raise ValueError(

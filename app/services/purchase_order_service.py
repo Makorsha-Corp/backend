@@ -39,12 +39,22 @@ class PurchaseOrderService(BaseService):
         self.manager = purchase_order_manager
         self.account_invoice_manager = account_invoice_manager
 
-    def _handle_item_integrity_error(self, exc: IntegrityError) -> None:
+    def _integrity_context(self, exc: IntegrityError) -> tuple[str | None, str | None]:
+        orig = getattr(exc, 'orig', None)
+        diag = getattr(orig, 'diag', None) if orig else None
+        table = getattr(diag, 'table_name', None) if diag else None
+        column = getattr(diag, 'column_name', None) if diag else None
+        return table, column
+
+    def _handle_item_integrity_error(
+        self, exc: IntegrityError, *, phase: str = 'items'
+    ) -> None:
         orig = getattr(exc, 'orig', None)
         pgcode = getattr(orig, 'pgcode', None) if orig else None
         err = str(exc).lower()
         orig_err = str(orig).lower() if orig else ''
         combined = f'{err} {orig_err}'
+        table, column = self._integrity_context(exc)
 
         if pgcode == '23514' or 'check constraint' in combined or '23514' in combined:
             if (
@@ -67,12 +77,51 @@ class PurchaseOrderService(BaseService):
             ) from exc
 
         if pgcode == '23505' or 'unique constraint' in combined or 'duplicate' in combined:
+            if table == 'account_invoices' or phase == 'invoice':
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail='A draft invoice for this order already exists',
+                ) from exc
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail='That catalog item is already on this purchase order',
             ) from exc
 
-        logger.exception('IntegrityError during PO item operation')
+        if pgcode == '23502' or 'not-null constraint' in combined or 'null value' in combined:
+            if table in ('account_invoices', 'financial_audit_logs', 'invoice_status_tracker') or phase == 'invoice':
+                loc = f' ({table}.{column})' if table and column else ''
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f'Could not sync the draft invoice for this order{loc}. '
+                        'Save the supplier section again, then retry editing items.'
+                    ),
+                ) from exc
+            loc = f' ({table}.{column})' if table and column else ''
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f'Order line data is incomplete{loc}. Refresh the page and try again.'
+                ),
+            ) from exc
+
+        if pgcode == '23503' or 'foreign key constraint' in combined:
+            if table in ('account_invoices', 'financial_audit_logs') or phase == 'invoice':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='The selected supplier or linked invoice is invalid. Refresh and try again.',
+                ) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='A linked catalog item or order reference is missing. Refresh the page and try again.',
+            ) from exc
+
+        logger.exception('IntegrityError during PO %s operation (table=%s column=%s)', phase, table, column)
+        if phase == 'invoice':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Could not sync the draft invoice after saving items. Refresh and try again.',
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Could not save order items. Refresh the page and try again.',
@@ -174,16 +223,20 @@ class PurchaseOrderService(BaseService):
                 user_id,
             )
 
-        if amount_changed or account_changed or notes_changed or desc_changed:
+        invoice_updates: dict = {}
+        if account_changed:
+            invoice_updates['account_id'] = new_account_id
+        if amount_changed:
+            invoice_updates['invoice_amount'] = total
+        if desc_changed:
+            invoice_updates['description'] = description
+        if notes_changed:
+            invoice_updates['notes'] = notes
+        if invoice_updates:
             self.account_invoice_manager.update_invoice(
                 db,
                 po.invoice_id,
-                AccountInvoiceUpdate(
-                    account_id=new_account_id if account_changed else None,
-                    invoice_amount=total if amount_changed else None,
-                    description=description if desc_changed else None,
-                    notes=notes if notes_changed else None,
-                ),
+                AccountInvoiceUpdate(**invoice_updates),
                 workspace_id,
                 user_id,
             )
@@ -240,6 +293,12 @@ class PurchaseOrderService(BaseService):
             self._commit_transaction(db)
             db.refresh(record)
             return record
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc, phase='invoice')
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
         except Exception:
             self._rollback_transaction(db)
             raise
@@ -457,20 +516,34 @@ class PurchaseOrderService(BaseService):
             po = self.manager.sync_items(
                 db, po_id=po_id, data=sync_in, workspace_id=workspace_id, user_id=user_id
             )
-            if user_id is not None:
-                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(po)
-            return po
         except IntegrityError as exc:
             self._rollback_transaction(db)
-            self._handle_item_integrity_error(exc)
+            self._handle_item_integrity_error(exc, phase='items')
         except HTTPException:
             self._rollback_transaction(db)
             raise
         except Exception:
             self._rollback_transaction(db)
             raise
+
+        if user_id is not None and po.account_id is not None:
+            try:
+                self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
+                self._commit_transaction(db)
+                db.refresh(po)
+            except IntegrityError as exc:
+                self._rollback_transaction(db)
+                self._handle_item_integrity_error(exc, phase='invoice')
+            except HTTPException:
+                self._rollback_transaction(db)
+                raise
+            except Exception:
+                self._rollback_transaction(db)
+                raise
+
+        return po
 
     def get_items(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
         return self.manager.get_items(db, po_id, workspace_id)
@@ -543,6 +616,9 @@ class PurchaseOrderService(BaseService):
             self._commit_transaction(db)
             db.refresh(po)
             return po
+        except IntegrityError as exc:
+            self._rollback_transaction(db)
+            self._handle_item_integrity_error(exc, phase='invoice')
         except HTTPException:
             self._rollback_transaction(db)
             raise

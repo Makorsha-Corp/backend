@@ -259,16 +259,22 @@ async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSON
         detail = "This resource already exists. Please use a different value."
     elif "foreign key" in error_str:
         detail = "Referenced resource does not exist."
-    elif "not null" in error_str:
+    elif "not null" in error_str or "null value" in error_str:
         detail = "Required field is missing."
 
+    status_code = (
+        status.HTTP_400_BAD_REQUEST
+        if detail == "Required field is missing."
+        else status.HTTP_409_CONFLICT
+    )
+
     return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT,
+        status_code=status_code,
         headers={"X-Request-ID": request_id},
         content={
             "type": "https://api.yourdomain.com/errors/conflict",
             "title": "Resource Conflict",
-            "status": 409,
+            "status": status_code,
             "detail": detail,
             "instance": str(request.url.path),
             "request_id": request_id

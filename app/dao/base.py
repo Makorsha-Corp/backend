@@ -107,7 +107,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
-            update_data = obj_in.model_dump(exclude_unset=True, by_alias=True)
+            update_data = obj_in.model_dump(exclude_unset=True, exclude_none=True, by_alias=True)
 
         for field, value in update_data.items():
             if hasattr(db_obj, field):

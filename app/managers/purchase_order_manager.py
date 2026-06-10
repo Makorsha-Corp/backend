@@ -29,6 +29,13 @@ from app.dao.project_component import project_component_dao
 from app.dao.status import status_dao
 from app.dao.item import item_dao
 from app.dao.account_invoice import account_invoice_dao
+from app.dao.order_workflow import order_workflow_dao
+from app.models.order_workflow import OrderWorkflow
+from app.db.seed_po_workflow import (
+    PO_WORKFLOW_TYPE,
+    ensure_po_stage_statuses,
+    ensure_po_workflow_record,
+)
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -72,6 +79,7 @@ SECTION_CONFIRM_FIELDS = {
     'items_confirmed': ('items', 'Order items'),
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
+PO_STAGE_NAMES = ('Draft', 'Planning', 'Receiving', 'Complete')
 
 
 class PurchaseOrderManager(BaseManager[PurchaseOrder]):
@@ -148,18 +156,128 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 user_id,
             )
 
-    def _resolve_pending_status_id(self, session: Session, workspace_id: int) -> int:
-        pending = (
-            session.query(Status)
-            .filter(Status.workspace_id == workspace_id, Status.name == 'Pending')
+    def _ensure_po_stage_statuses(self, session: Session, workspace_id: int) -> None:
+        """Lazy backfill Draft/Planning/Receiving/Complete status rows for this workspace."""
+        has_draft = (
+            session.query(Status.id)
+            .filter(Status.workspace_id == workspace_id, Status.name == 'Draft')
             .first()
         )
-        if not pending:
+        if not has_draft:
+            ensure_po_stage_statuses(session, workspace_id)
+
+    def _raise_po_workflow_setup_error(self, session: Session, workspace_id: int) -> None:
+        foreign = (
+            session.query(OrderWorkflow.id)
+            .filter(
+                OrderWorkflow.type == PO_WORKFLOW_TYPE,
+                OrderWorkflow.workspace_id != workspace_id,
+            )
+            .first()
+        )
+        if foreign:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Default 'Pending' status not found for this workspace",
+                detail=(
+                    'Purchase order workflow requires database migration '
+                    '022_po_stage_workflow. Run: alembic upgrade head'
+                ),
             )
-        return pending.id
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail='Purchase order workflow is not configured for this workspace',
+        )
+
+    def _resolve_po_stage_status_id(
+        self, session: Session, workspace_id: int, stage_name: str
+    ) -> int:
+        self._ensure_po_stage_statuses(session, workspace_id)
+        record = (
+            session.query(Status)
+            .filter(Status.workspace_id == workspace_id, Status.name == stage_name)
+            .first()
+        )
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Purchase order stage status '{stage_name}' not found for this workspace",
+            )
+        return record.id
+
+    def _resolve_po_workflow_id(self, session: Session, workspace_id: int) -> int:
+        self._ensure_po_stage_statuses(session, workspace_id)
+        workflow = ensure_po_workflow_record(session, workspace_id)
+        if not workflow:
+            self._raise_po_workflow_setup_error(session, workspace_id)
+        return workflow.id
+
+    def _derive_po_stage_name(
+        self, po: PurchaseOrder, items: List[PurchaseOrderItem]
+    ) -> str:
+        if items:
+            if all(
+                self._quantity_received_decimal(i) >= Decimal(str(i.quantity_ordered))
+                for i in items
+            ):
+                return 'Complete'
+            if any(self._quantity_received_decimal(i) > 0 for i in items):
+                return 'Receiving'
+        if po.supplier_confirmed or po.details_confirmed or po.items_confirmed:
+            return 'Planning'
+        return 'Draft'
+
+    def sync_po_stage(
+        self,
+        session: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: Optional[int],
+    ) -> bool:
+        """Recompute and apply PO stage from business state. Returns True if status changed."""
+        items = self.item_dao.get_by_order(
+            session, purchase_order_id=po.id, workspace_id=workspace_id
+        )
+        target_stage = self._derive_po_stage_name(po, items)
+        target_status_id = self._resolve_po_stage_status_id(
+            session, workspace_id, target_stage
+        )
+        workflow_id = self._resolve_po_workflow_id(session, workspace_id)
+
+        changed = False
+        if po.order_workflow_id != workflow_id:
+            po.order_workflow_id = workflow_id
+            changed = True
+
+        if po.current_status_id != target_status_id:
+            old_status_id = po.current_status_id
+            po.current_status_id = target_status_id
+            changed = True
+            changes = [{
+                'field': 'current_status_id',
+                'label': 'Status',
+                'from_value': self._format_field_value(
+                    session, workspace_id, 'current_status_id', old_status_id,
+                    destination_type=po.destination_type,
+                ),
+                'to_value': target_stage,
+            }]
+            self._log_field_change_event(
+                session,
+                po.id,
+                workspace_id,
+                user_id,
+                'status_updated',
+                f'Stage updated to {target_stage}',
+                changes,
+            )
+
+        if target_stage == 'Complete' and po.actual_delivery_date is None:
+            po.actual_delivery_date = date.today()
+            changed = True
+
+        if changed:
+            session.flush()
+        return changed
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -172,7 +290,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po_dict = data.model_dump(exclude={'items'})
         po_dict['workspace_id'] = workspace_id
         po_dict['po_number'] = po_number
-        po_dict['current_status_id'] = self._resolve_pending_status_id(session, workspace_id)
+        po_dict['current_status_id'] = self._resolve_po_stage_status_id(
+            session, workspace_id, 'Draft'
+        )
+        po_dict['order_workflow_id'] = self._resolve_po_workflow_id(session, workspace_id)
         po_dict['created_by'] = user_id
         if not po_dict.get('order_date'):
             po_dict['order_date'] = date.today()
@@ -213,6 +334,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po.total_amount = subtotal
         session.flush()
 
+        self.sync_po_stage(session, po, workspace_id, user_id)
         return po
 
     def update_purchase_order(
@@ -224,7 +346,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Purchase order with ID {po_id} not found")
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict.pop('current_status_id', None)
         update_dict['updated_by'] = user_id
 
         if self.is_po_financially_locked(session, record):
@@ -305,7 +428,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             session, po_id, workspace_id, user_id, record, update_dict,
         )
 
-        return self.po_dao.update(session, db_obj=record, obj_in=update_dict)
+        updated = self.po_dao.update(session, db_obj=record, obj_in=update_dict)
+        self.sync_po_stage(session, updated, workspace_id, user_id)
+        return updated
 
     def _format_scalar_value(self, field: str, value: Any) -> str:
         if value is None:
@@ -656,6 +781,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         session.flush()
 
     # ─── Purchase Order Items ──────────────────────────────────
+    def _quantity_received_decimal(self, record: PurchaseOrderItem) -> Decimal:
+        """Coerce NULL legacy quantity_received rows to 0."""
+        raw = record.quantity_received
+        if raw is None:
+            return Decimal('0')
+        return Decimal(str(raw))
+
     def _validate_ordered_vs_received(
         self, quantity_ordered: Decimal, quantity_received: Decimal
     ) -> None:
@@ -740,6 +872,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 'unit_price': self._format_scalar_value('unit_price', price),
             },
         )
+        if user_id is not None:
+            po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
+            if po:
+                self.sync_po_stage(session, po, workspace_id, user_id)
         return item
 
     def update_item(
@@ -750,7 +886,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order item not found")
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
 
         po = self.po_dao.get_by_id_and_workspace(
             session, id=record.purchase_order_id, workspace_id=workspace_id
@@ -765,7 +901,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-        prev_received = Decimal(str(record.quantity_received))
+        prev_received = self._quantity_received_decimal(record)
         received_changed = (
             'quantity_received' in update_dict
             and update_dict['quantity_received'] is not None
@@ -790,9 +926,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         item_changes = self._collect_item_field_changes(record, update_dict)
 
         qty_ordered = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
-        qty_received = Decimal(str(
-            update_dict.get('quantity_received', record.quantity_received)
-        ))
+        qty_received = (
+            Decimal(str(update_dict['quantity_received']))
+            if update_dict.get('quantity_received') is not None
+            else self._quantity_received_decimal(record)
+        )
         self._validate_ordered_vs_received(qty_ordered, qty_received)
 
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
@@ -901,6 +1039,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                             metadata={'invoice_id': po.invoice_id},
                         )
 
+        if po and user_id is not None:
+            self.sync_po_stage(session, po, workspace_id, user_id)
         return result
 
     def remove_item(
@@ -937,6 +1077,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 'line_number': line_number,
             },
         )
+        if po and user_id is not None:
+            self.sync_po_stage(session, po, workspace_id, user_id)
         return record
 
     def sync_items(
@@ -971,6 +1113,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Purchase order item {rid} not found",
                 )
+            received = self._quantity_received_decimal(record)
+            if received > 0:
+                item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f'Cannot remove {item_label} — receiving has already been recorded',
+                )
             item_label = getattr(record, 'item_name', None) or f'Item #{record.item_id}'
             line_number = record.line_number
             catalog_item_id = record.item_id
@@ -998,14 +1147,15 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             session.refresh(record)
             qty = Decimal(str(upd.quantity_ordered))
             price = Decimal(str(upd.unit_price))
-            received = Decimal(str(record.quantity_received))
+            received = self._quantity_received_decimal(record)
             self._validate_ordered_vs_received(qty, received)
             update_dict = {
                 'quantity_ordered': upd.quantity_ordered,
                 'unit_price': upd.unit_price,
-                'quantity_received': received,
                 'line_subtotal': qty * price,
             }
+            if record.quantity_received is None:
+                update_dict['quantity_received'] = received
             item_changes = self._collect_item_field_changes(record, update_dict)
             self.item_dao.update(session, db_obj=record, obj_in=update_dict)
             if item_changes and user_id is not None:
@@ -1057,6 +1207,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         self._recalc_totals(session, po)
         session.refresh(po)
+        if user_id is not None:
+            self.sync_po_stage(session, po, workspace_id, user_id)
         return po
 
     def get_items(self, session: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:

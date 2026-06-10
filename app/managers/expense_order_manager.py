@@ -69,7 +69,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Expense order with ID {eo_id} not found")
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
         return self.eo_dao.update(session, db_obj=record, obj_in=update_dict)
 
@@ -142,7 +142,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense order item not found")
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'quantity' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity', record.quantity)))

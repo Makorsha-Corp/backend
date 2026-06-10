@@ -162,7 +162,7 @@ class FactorySectionManager(BaseManager[FactorySection]):
                 )
 
         # Update factory section with audit fields
-        update_dict = section_data.model_dump(exclude_unset=True)
+        update_dict = section_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated_section = self.factory_section_dao.update(session, db_obj=section, obj_in=update_dict)

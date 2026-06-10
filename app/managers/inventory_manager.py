@@ -96,7 +96,7 @@ class InventoryManager(BaseManager[Inventory]):
         old_qty = record.qty
         old_avg = record.avg_price
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated = self.inv_dao.update(session, db_obj=record, obj_in=update_dict)

@@ -110,7 +110,7 @@ class ItemManager(BaseManager[Item]):
             tag_ids = item_data.tag_ids
 
         # Inject updated_by for audit
-        item_dict = item_data.model_dump(exclude_unset=True, exclude={'tag_ids'})
+        item_dict = item_data.model_dump(exclude_unset=True, exclude_none=True, exclude={'tag_ids'})
         item_dict['updated_by'] = user_id
 
         # Update the item

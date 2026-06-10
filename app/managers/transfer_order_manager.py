@@ -54,7 +54,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Transfer order with ID {to_id} not found")
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
         return self.to_dao.update(session, db_obj=record, obj_in=update_dict)
 
@@ -108,7 +108,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfer order item not found")
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'approved' in update_dict and update_dict['approved'] and not record.approved:
             from sqlalchemy.sql import func

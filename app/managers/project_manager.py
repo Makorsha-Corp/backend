@@ -180,7 +180,7 @@ class ProjectManager(BaseManager[Project]):
             )
 
         # Update project with audit fields
-        update_dict = project_data.model_dump(exclude_unset=True)
+        update_dict = project_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
         update_dict['updated_at'] = datetime.utcnow()
 

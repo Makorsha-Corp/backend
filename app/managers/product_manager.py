@@ -95,7 +95,7 @@ class ProductManager(BaseManager[Product]):
         old_qty = record.qty
         old_avg = record.avg_cost
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated = self.product_dao.update(session, db_obj=record, obj_in=update_dict)

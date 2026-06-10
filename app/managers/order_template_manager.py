@@ -57,7 +57,7 @@ class OrderTemplateManager(BaseManager[OrderTemplate]):
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Order template with ID {tpl_id} not found")
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
         return self.tpl_dao.update(session, db_obj=record, obj_in=update_dict)
 
@@ -119,7 +119,7 @@ class OrderTemplateManager(BaseManager[OrderTemplate]):
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template item not found")
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if 'quantity' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity', record.quantity)))

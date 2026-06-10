@@ -68,7 +68,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 detail="Cannot update a deleted work order"
             )
 
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         # Stamp order approval
@@ -169,7 +169,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order item not found")
-        update_dict = data.model_dump(exclude_unset=True)
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         return self.item_dao.update(session, db_obj=record, obj_in=update_dict)
 
     def remove_item(self, session: Session, item_id: int, workspace_id: int) -> WorkOrderItem:

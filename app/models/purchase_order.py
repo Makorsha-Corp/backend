@@ -78,3 +78,7 @@ class PurchaseOrder(Base):
         back_populates="purchase_order",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def current_status_name(self) -> str | None:
+        return self.current_status.name if self.current_status else None

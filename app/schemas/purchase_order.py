@@ -115,6 +115,7 @@ class PurchaseOrderResponse(BaseModel):
     subtotal: Decimal
     total_amount: Decimal
     current_status_id: int
+    current_status_name: str | None = None
     order_workflow_id: int | None = None
     invoice_id: int | None = None
     required_approvals: int | None = None

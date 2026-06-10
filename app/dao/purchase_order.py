@@ -20,7 +20,11 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         skip: int = 0,
         limit: int = 100
     ) -> List[PurchaseOrder]:
-        query = db.query(PurchaseOrder).filter(PurchaseOrder.workspace_id == workspace_id)
+        query = (
+            db.query(PurchaseOrder)
+            .options(joinedload(PurchaseOrder.current_status))
+            .filter(PurchaseOrder.workspace_id == workspace_id)
+        )
         if account_id:
             query = query.filter(PurchaseOrder.account_id == account_id)
         if invoice_id is not None:
@@ -48,7 +52,12 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         )
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:
-        return db.query(PurchaseOrder).filter(PurchaseOrder.id == id, PurchaseOrder.workspace_id == workspace_id).first()
+        return (
+            db.query(PurchaseOrder)
+            .options(joinedload(PurchaseOrder.current_status))
+            .filter(PurchaseOrder.id == id, PurchaseOrder.workspace_id == workspace_id)
+            .first()
+        )
 
     def get_by_invoice_id(
         self, db: Session, *, invoice_id: int, workspace_id: int

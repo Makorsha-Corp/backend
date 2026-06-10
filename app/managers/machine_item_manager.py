@@ -148,7 +148,7 @@ class MachineItemManager:
             raise HTTPException(status_code=404, detail="Machine item not found")
 
         old_qty = item.qty
-        update_data = item_data.model_dump(exclude_unset=True)
+        update_data = item_data.model_dump(exclude_unset=True, exclude_none=True)
         updated = self.machine_item_dao.update(session, db_obj=item, obj_in=update_data)
 
         new_qty = update_data.get("qty")

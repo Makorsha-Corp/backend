@@ -73,7 +73,7 @@ class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
                 detail="Cannot update a deleted maintenance log"
             )
 
-        update_dict = log_data.model_dump(exclude_unset=True)
+        update_dict = log_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         return self.log_dao.update(session, db_obj=log, obj_in=update_dict)

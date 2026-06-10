@@ -141,7 +141,7 @@ class FactoryManager(BaseManager[Factory]):
                 )
 
         # Update factory with audit fields
-        update_dict = factory_data.model_dump(exclude_unset=True)
+        update_dict = factory_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
         updated_factory = self.factory_dao.update(session, db_obj=factory, obj_in=update_dict)
