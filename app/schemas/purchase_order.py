@@ -100,6 +100,7 @@ class PurchaseOrderUpdate(BaseModel):
     notes_confirmed: bool | None = None
     items_confirmed: bool | None = None
     invoice_confirmed: bool | None = None
+    order_completed: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -126,6 +127,7 @@ class PurchaseOrderResponse(BaseModel):
     notes_confirmed: bool = False
     items_confirmed: bool = False
     invoice_confirmed: bool = False
+    order_completed: bool = False
     created_by: int
     created_at: datetime
     updated_by: int | None = None

@@ -33,7 +33,7 @@ class PurchaseOrder(Base):
     # === DATES ===
     order_date = Column(Date, nullable=True)
     expected_delivery_date = Column(Date, nullable=True)
-    actual_delivery_date = Column(Date, nullable=True)  # auto-set when all items received
+    actual_delivery_date = Column(Date, nullable=True)  # set when order is marked complete
 
     # === TOTALS (calculated from line items) ===
     subtotal = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of all line_subtotals
@@ -59,6 +59,7 @@ class PurchaseOrder(Base):
     notes_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
+    order_completed = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

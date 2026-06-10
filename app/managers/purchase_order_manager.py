@@ -211,17 +211,21 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self._raise_po_workflow_setup_error(session, workspace_id)
         return workflow.id
 
+    def _all_items_fully_received(self, items: List[PurchaseOrderItem]) -> bool:
+        if not items:
+            return False
+        return all(
+            self._quantity_received_decimal(i) >= Decimal(str(i.quantity_ordered))
+            for i in items
+        )
+
     def _derive_po_stage_name(
         self, po: PurchaseOrder, items: List[PurchaseOrderItem]
     ) -> str:
-        if items:
-            if all(
-                self._quantity_received_decimal(i) >= Decimal(str(i.quantity_ordered))
-                for i in items
-            ):
-                return 'Complete'
-            if any(self._quantity_received_decimal(i) > 0 for i in items):
-                return 'Receiving'
+        if po.order_completed:
+            return 'Complete'
+        if items and any(self._quantity_received_decimal(i) > 0 for i in items):
+            return 'Receiving'
         if po.supplier_confirmed or po.details_confirmed or po.items_confirmed:
             return 'Planning'
         return 'Draft'
@@ -237,13 +241,17 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         items = self.item_dao.get_by_order(
             session, purchase_order_id=po.id, workspace_id=workspace_id
         )
+        changed = False
+        if po.order_completed and not self._all_items_fully_received(items):
+            po.order_completed = False
+            changed = True
+
         target_stage = self._derive_po_stage_name(po, items)
         target_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, target_stage
         )
         workflow_id = self._resolve_po_workflow_id(session, workspace_id)
 
-        changed = False
         if po.order_workflow_id != workflow_id:
             po.order_workflow_id = workflow_id
             changed = True
@@ -271,13 +279,48 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 changes,
             )
 
-        if target_stage == 'Complete' and po.actual_delivery_date is None:
-            po.actual_delivery_date = date.today()
-            changed = True
-
         if changed:
             session.flush()
         return changed
+
+    def mark_order_complete(
+        self,
+        session: Session,
+        po_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> PurchaseOrder:
+        """Manually close a PO after all line items are fully received."""
+        po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
+        if not po:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Purchase order with ID {po_id} not found",
+            )
+        if po.order_completed:
+            return po
+
+        items = self.item_dao.get_by_order(
+            session, purchase_order_id=po.id, workspace_id=workspace_id
+        )
+        if not self._all_items_fully_received(items):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='All line items must be fully received before marking the order complete',
+            )
+
+        po.order_completed = True
+        po.updated_by = user_id
+        if po.actual_delivery_date is None:
+            po.actual_delivery_date = date.today()
+        session.flush()
+
+        self.sync_po_stage(session, po, workspace_id, user_id)
+        self.log_event(
+            session, po.id, workspace_id, 'order_completed',
+            'Order marked complete', user_id,
+        )
+        return po
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -348,6 +391,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict.pop('current_status_id', None)
+        update_dict.pop('order_completed', None)
         update_dict['updated_by'] = user_id
 
         if self.is_po_financially_locked(session, record):

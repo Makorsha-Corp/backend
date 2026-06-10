@@ -204,6 +204,27 @@ def create_invoice_from_purchase_order(
     )
 
 
+@router.post(
+    "/{po_id}/complete/",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Mark purchase order complete",
+    description="Allowed only when every line item has been fully received.",
+)
+def mark_purchase_order_complete(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.mark_order_complete(
+        db,
+        po_id=po_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+    )
+
+
 # ─── Purchase Order Approvers ──────────────────────────────────
 
 @router.get(

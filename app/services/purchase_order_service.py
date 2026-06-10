@@ -306,6 +306,23 @@ class PurchaseOrderService(BaseService):
     def get_purchase_order(self, db: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
         return self.manager.get_purchase_order(db, po_id, workspace_id)
 
+    def mark_order_complete(
+        self, db: Session, po_id: int, workspace_id: int, user_id: int
+    ) -> PurchaseOrder:
+        try:
+            record = self.manager.mark_order_complete(
+                db, po_id=po_id, workspace_id=workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def list_purchase_orders(
         self, db: Session, workspace_id: int,
         account_id: Optional[int] = None,
