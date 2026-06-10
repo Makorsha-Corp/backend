@@ -168,7 +168,13 @@ class PurchaseOrderService(BaseService):
                 )
             except HTTPException as exc:
                 if exc.status_code == status.HTTP_404_NOT_FOUND:
-                    return
+                    db.refresh(po)
+                    if po.invoice_id is not None:
+                        return
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail='The selected supplier account was not found. Re-select the supplier.',
+                    ) from exc
                 raise
             po.invoice_id = invoice.id
             self.manager.log_event(
@@ -620,6 +626,11 @@ class PurchaseOrderService(BaseService):
         try:
             po = self.manager.get_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
             self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
+            db.refresh(po)
+            if po.invoice_id is None:
+                po = self.manager.get_purchase_order(
+                    db, po_id=po_id, workspace_id=workspace_id
+                )
             if po.account_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -635,6 +646,11 @@ class PurchaseOrderService(BaseService):
             return po
         except IntegrityError as exc:
             self._rollback_transaction(db)
+            po = self.manager.get_purchase_order(
+                db, po_id=po_id, workspace_id=workspace_id
+            )
+            if po.invoice_id is not None:
+                return po
             self._handle_item_integrity_error(exc, phase='invoice')
         except HTTPException:
             self._rollback_transaction(db)
