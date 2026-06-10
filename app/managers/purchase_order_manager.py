@@ -219,11 +219,19 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             for i in items
         )
 
+    def _current_stage_name(
+        self, session: Session, workspace_id: int, status_id: int
+    ) -> str | None:
+        record = (
+            session.query(Status)
+            .filter(Status.workspace_id == workspace_id, Status.id == status_id)
+            .first()
+        )
+        return record.name if record else None
+
     def _derive_po_stage_name(
         self, po: PurchaseOrder, items: List[PurchaseOrderItem]
     ) -> str:
-        if po.order_completed:
-            return 'Complete'
         if items and any(self._quantity_received_decimal(i) > 0 for i in items):
             return 'Receiving'
         if po.supplier_confirmed or po.details_confirmed or po.items_confirmed:
@@ -241,12 +249,16 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         items = self.item_dao.get_by_order(
             session, purchase_order_id=po.id, workspace_id=workspace_id
         )
-        changed = False
-        if po.order_completed and not self._all_items_fully_received(items):
-            po.order_completed = False
-            changed = True
+        derived_stage = self._derive_po_stage_name(po, items)
+        current_name = self._current_stage_name(
+            session, workspace_id, po.current_status_id
+        )
+        if current_name == 'Complete' and self._all_items_fully_received(items):
+            target_stage = 'Complete'
+        else:
+            target_stage = derived_stage
 
-        target_stage = self._derive_po_stage_name(po, items)
+        changed = False
         target_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, target_stage
         )
@@ -297,7 +309,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Purchase order with ID {po_id} not found",
             )
-        if po.order_completed:
+        if self._current_stage_name(session, workspace_id, po.current_status_id) == 'Complete':
             return po
 
         items = self.item_dao.get_by_order(
@@ -309,7 +321,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail='All line items must be fully received before marking the order complete',
             )
 
-        po.order_completed = True
+        po.current_status_id = self._resolve_po_stage_status_id(
+            session, workspace_id, 'Complete'
+        )
         po.updated_by = user_id
         if po.actual_delivery_date is None:
             po.actual_delivery_date = date.today()
@@ -391,7 +405,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict.pop('current_status_id', None)
-        update_dict.pop('order_completed', None)
         update_dict['updated_by'] = user_id
 
         if self.is_po_financially_locked(session, record):

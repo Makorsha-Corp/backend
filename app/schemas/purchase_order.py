@@ -100,7 +100,6 @@ class PurchaseOrderUpdate(BaseModel):
     notes_confirmed: bool | None = None
     items_confirmed: bool | None = None
     invoice_confirmed: bool | None = None
-    order_completed: bool | None = None
 
 
 class PurchaseOrderResponse(BaseModel):

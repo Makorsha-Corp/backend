@@ -59,7 +59,6 @@ class PurchaseOrder(Base):
     notes_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
-    order_completed = Column(Boolean, nullable=False, default=False)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
@@ -83,3 +82,8 @@ class PurchaseOrder(Base):
     @property
     def current_status_name(self) -> str | None:
         return self.current_status.name if self.current_status else None
+
+    @property
+    def order_completed(self) -> bool:
+        """True when workflow stage is Complete (set manually after full receiving)."""
+        return self.current_status_name == 'Complete'
