@@ -86,26 +86,14 @@ def post_purchase_order_to_storage(
         qty = _quantity_to_int(received, line_number=line.line_number)
         unit_cost = Decimal(str(line.unit_price))
 
-        inv = inventory_dao.get_by_factory_item_type(
+        inv = inventory_dao.ensure_for_factory_item_type(
             session,
             factory_id=factory_id,
             item_id=line.item_id,
             inventory_type=InventoryTypeEnum.STORAGE,
             workspace_id=workspace_id,
+            created_by=user_id,
         )
-        if not inv:
-            inv = inventory_dao.create(
-                session,
-                obj_in={
-                    'workspace_id': workspace_id,
-                    'inventory_type': InventoryTypeEnum.STORAGE,
-                    'factory_id': factory_id,
-                    'item_id': line.item_id,
-                    'qty': 0,
-                    'avg_price': None,
-                    'created_by': user_id,
-                },
-            )
 
         old_qty = inv.qty
         old_avg = inv.avg_price

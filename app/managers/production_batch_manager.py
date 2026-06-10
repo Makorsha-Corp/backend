@@ -425,20 +425,14 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
 
             elif bi.item_role == 'waste':
                 inv_type = InventoryTypeEnum.DAMAGED
-                damaged = inventory_dao.get_by_factory_item_type(
-                    session, factory_id=dest_factory_id, item_id=bi.item_id,
-                    inventory_type=inv_type, workspace_id=workspace_id
+                damaged = inventory_dao.ensure_for_factory_item_type(
+                    session,
+                    factory_id=dest_factory_id,
+                    item_id=bi.item_id,
+                    inventory_type=inv_type,
+                    workspace_id=workspace_id,
+                    created_by=user_id,
                 )
-                if not damaged:
-                    damaged = inventory_dao.create(session, obj_in={
-                        'workspace_id': workspace_id,
-                        'inventory_type': inv_type,
-                        'factory_id': dest_factory_id,
-                        'item_id': bi.item_id,
-                        'qty': 0,
-                        'avg_price': None,
-                        'created_by': user_id,
-                    })
 
                 old_qty = damaged.qty
                 new_qty = old_qty + qty

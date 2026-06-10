@@ -96,7 +96,8 @@ def update_inventory(
     "/{inv_id}/",
     response_model=InventoryResponse,
     status_code=status.HTTP_200_OK,
-    summary="Delete inventory record"
+    summary="Clear inventory stock",
+    description="Set quantity to zero and record an inventory_adjustment in the ledger. The row remains active.",
 )
 def delete_inventory(
     inv_id: int,

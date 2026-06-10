@@ -147,13 +147,41 @@ class InventoryManager(BaseManager[Inventory]):
         )
 
     def delete_inventory(self, session: Session, inv_id: int, workspace_id: int, user_id: int) -> Inventory:
-        """Soft delete inventory record."""
+        """Clear inventory stock to zero; ledger records the adjustment. Row stays active."""
         record = self.inv_dao.get_by_id_and_workspace(session, id=inv_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Inventory record with ID {inv_id} not found")
         if record.is_deleted:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inventory record is already deleted")
-        return self.inv_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot clear stock on a deactivated inventory record",
+            )
+        if record.qty <= 0:
+            return record
+
+        old_qty = record.qty
+        old_avg = record.avg_price
+        self.ledger_dao.create(session, obj_in={
+            'workspace_id': workspace_id,
+            'inventory_type': record.inventory_type,
+            'factory_id': record.factory_id,
+            'item_id': record.item_id,
+            'transaction_type': 'inventory_adjustment',
+            'quantity': old_qty,
+            'unit_cost': old_avg,
+            'total_cost': (old_avg * old_qty) if old_avg else None,
+            'qty_before': old_qty,
+            'qty_after': 0,
+            'avg_price_before': old_avg,
+            'avg_price_after': old_avg,
+            'source_type': 'adjustment',
+            'notes': 'Stock cleared',
+            'performed_by': user_id,
+        })
+        record.qty = 0
+        record.updated_by = user_id
+        session.flush()
+        return record
 
 
 inventory_manager = InventoryManager()
