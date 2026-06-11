@@ -118,7 +118,13 @@ class ItemManager(BaseManager[Item]):
 
         # Update tags if provided
         if tag_ids is not None:
-            # Remove all existing tags
+            old_tags = item_tag_assignment_dao.get_tags_for_item(
+                session, item_id=item_id, workspace_id=workspace_id
+            )
+            for tag in old_tags:
+                item_tag_dao.decrement_usage_count(
+                    session, tag_id=tag.id, workspace_id=workspace_id
+                )
             item_tag_assignment_dao.remove_all_tags_from_item(
                 session, item_id=item_id, workspace_id=workspace_id
             )
@@ -219,10 +225,18 @@ class ItemManager(BaseManager[Item]):
         if not item.is_active:
             raise ValueError(f"Item {item_id} is already deleted")
 
-        return self.item_dao.update(session, db_obj=item, obj_in={
+        tags = item_tag_assignment_dao.get_tags_for_item(
+            session, item_id=item_id, workspace_id=workspace_id
+        )
+        deleted_item = self.item_dao.update(session, db_obj=item, obj_in={
             'is_active': False,
             'updated_by': user_id,
         })
+        for tag in tags:
+            item_tag_dao.decrement_usage_count(
+                session, tag_id=tag.id, workspace_id=workspace_id
+            )
+        return deleted_item
 
     def _assign_tags_to_item(
         self,

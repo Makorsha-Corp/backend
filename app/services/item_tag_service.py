@@ -2,6 +2,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.dao.item_tag import item_tag_dao
+from app.dao.item_tag_assignment import item_tag_assignment_dao
 from app.schemas.item_tag import ItemTagCreate, ItemTagUpdate
 
 
@@ -9,8 +10,14 @@ class ItemTagService:
     """Service for item tag workflows - handles transactions and business logic"""
 
     def get_tags(self, db: Session, workspace_id: int):
-        """Get all active tags in workspace"""
-        return item_tag_dao.get_active_tags_in_workspace(db, workspace_id=workspace_id)
+        """Get all active tags in workspace with live usage counts (active items only)."""
+        tags = item_tag_dao.get_active_tags_in_workspace(db, workspace_id=workspace_id)
+        usage_by_tag = item_tag_assignment_dao.count_active_items_per_tag(
+            db, workspace_id=workspace_id
+        )
+        for tag in tags:
+            tag.usage_count = usage_by_tag.get(tag.id, 0)
+        return tags
 
     def get_system_tags(self, db: Session, workspace_id: int):
         """Get system tags in workspace"""

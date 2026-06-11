@@ -1,8 +1,9 @@
 """Item tag assignment DAO operations"""
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from typing import List, Optional
+from sqlalchemy import and_, func
+from typing import Dict, List, Optional
 from app.dao.base import BaseDAO
+from app.models.item import Item
 from app.models.item_tag_assignment import ItemTagAssignment
 from app.models.item_tag import ItemTag
 from app.schemas.item_tag_assignment import ItemTagAssignmentCreate, ItemTagAssignmentResponse
@@ -153,6 +154,27 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             db.flush()
 
         return assignment
+
+    def count_active_items_per_tag(
+        self, db: Session, *, workspace_id: int
+    ) -> Dict[int, int]:
+        """
+        Count tag assignments for active (non-deleted) items only.
+
+        Returns:
+            Mapping of tag_id -> number of active items with that tag.
+        """
+        rows = (
+            db.query(ItemTagAssignment.tag_id, func.count(ItemTagAssignment.id))
+            .join(Item, Item.id == ItemTagAssignment.item_id)
+            .filter(
+                ItemTagAssignment.workspace_id == workspace_id,
+                Item.is_active == True,
+            )
+            .group_by(ItemTagAssignment.tag_id)
+            .all()
+        )
+        return {tag_id: count for tag_id, count in rows}
 
     def remove_all_tags_from_item(
         self, db: Session, *, item_id: int, workspace_id: int
