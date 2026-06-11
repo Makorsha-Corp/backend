@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, T
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
-from app.models.enums import ProjectStatusEnum, ProjectPriorityEnum
+from app.models.enums import ProjectStatusEnum, ProjectPriorityEnum, ProjectVisibilityEnum
 
 
 class Project(Base):
@@ -23,6 +23,12 @@ class Project(Base):
     end_date = Column(DateTime, nullable=True)
     priority = Column(Enum(ProjectPriorityEnum), nullable=False, default=ProjectPriorityEnum.LOW)
     status = Column(Enum(ProjectStatusEnum), nullable=False, default=ProjectStatusEnum.PLANNING)
+    visibility = Column(
+        String(20),
+        nullable=False,
+        default=ProjectVisibilityEnum.WORKSPACE.value,
+        server_default=ProjectVisibilityEnum.WORKSPACE.value,
+    )
 
     # Audit fields
     created_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
@@ -35,3 +41,4 @@ class Project(Base):
 
     # Relationships
     factory = relationship("Factory", backref="projects")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")

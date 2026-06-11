@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace
+from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.project_component_item import ProjectComponentItemCreate, ProjectComponentItemUpdate, ProjectComponentItemResponse
 from app.services.project_component_item_service import project_component_item_service
@@ -18,20 +19,29 @@ def get_project_component_items(
     limit: int = Query(100, le=100),
     project_component_id: int = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get all project component items, optionally filtered by component"""
-    return project_component_item_service.get_items(db, workspace_id=workspace.id, project_component_id=project_component_id, skip=skip, limit=limit)
+    return project_component_item_service.get_items(
+        db,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        project_component_id=project_component_id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/{item_id}/", response_model=ProjectComponentItemResponse)
 def get_project_component_item(
     item_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get project component item by ID"""
-    item = project_component_item_service.get_by_id(db, item_id=item_id, workspace_id=workspace.id)
+    item = project_component_item_service.get_by_id(
+        db, item_id=item_id, workspace_id=workspace.id, user_id=current_user.id
+    )
     if not item:
         raise HTTPException(status_code=404, detail="Project component item not found")
     return item
@@ -41,10 +51,12 @@ def get_project_component_item(
 def create_project_component_item(
     item_in: ProjectComponentItemCreate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Create new project component item"""
-    return project_component_item_service.create_component_item(db, item_in, workspace.id)
+    return project_component_item_service.create_component_item(
+        db, item_in, workspace.id, current_user.id
+    )
 
 
 @router.put("/{item_id}/", response_model=ProjectComponentItemResponse)
@@ -52,10 +64,12 @@ def update_project_component_item(
     item_id: int,
     item_in: ProjectComponentItemUpdate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Update project component item"""
-    item = project_component_item_service.update_component_item(db, item_id, item_in, workspace.id)
+    item = project_component_item_service.update_component_item(
+        db, item_id, item_in, workspace.id, current_user.id
+    )
     if not item:
         raise HTTPException(status_code=404, detail="Project component item not found")
     return item
@@ -65,9 +79,11 @@ def update_project_component_item(
 def delete_project_component_item(
     item_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete project component item"""
-    deleted = project_component_item_service.delete_component_item(db, item_id, workspace.id)
+    deleted = project_component_item_service.delete_component_item(
+        db, item_id, workspace.id, current_user.id
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="Project component item not found")

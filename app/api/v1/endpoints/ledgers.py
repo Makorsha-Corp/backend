@@ -143,6 +143,7 @@ def get_project_component_ledger(
         db=db,
         project_component_id=project_component_id,
         workspace_id=workspace.id,
+        user_id=current_user.id,
         item_id=item_id,
         skip=skip,
         limit=limit
@@ -171,7 +172,8 @@ def get_project_component_total_cost(
     cost_data = ledger_service.get_project_component_total_cost(
         db=db,
         project_component_id=project_component_id,
-        workspace_id=workspace.id
+        workspace_id=workspace.id,
+        user_id=current_user.id,
     )
     return cost_data
 

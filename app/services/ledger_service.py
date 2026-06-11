@@ -130,11 +130,16 @@ class LedgerService(BaseService):
         db: Session,
         project_component_id: int,
         workspace_id: int,
+        user_id: int,
         item_id: Optional[int] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[ProjectComponentItemLedger]:
         """Get project component consumption ledger."""
+        from app.managers.project_manager import project_manager
+        project_manager.require_component_access(
+            db, project_component_id, workspace_id, user_id
+        )
         return self.ledger_manager.get_project_component_ledger(
             session=db,
             project_component_id=project_component_id,
@@ -148,9 +153,14 @@ class LedgerService(BaseService):
         self,
         db: Session,
         project_component_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int,
     ) -> Dict[str, Any]:
         """Calculate total cost of all items consumed by a project component."""
+        from app.managers.project_manager import project_manager
+        project_manager.require_component_access(
+            db, project_component_id, workspace_id, user_id
+        )
         total_cost = self.ledger_manager.calculate_project_component_total_cost(
             session=db,
             project_component_id=project_component_id,

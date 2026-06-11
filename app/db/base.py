@@ -29,6 +29,8 @@ from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_part_log import OrderPartLog
 from app.models.project import Project
+from app.models.project_member import ProjectMember
+from app.models.project_event import ProjectEvent
 from app.models.project_component import ProjectComponent
 from app.models.project_component_item import ProjectComponentItem
 from app.models.project_component_item_ledger import ProjectComponentItemLedger

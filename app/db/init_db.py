@@ -10,6 +10,7 @@ when a workspace is created - see:
 - seed_default_account_tags() in app/db/seed_default_account_tags.py
 """
 from sqlalchemy.orm import Session
+from app.db.ensure_project_schema import ensure_project_schema
 from app.db.seed_default_subscription_plans import seed_default_subscription_plans
 
 
@@ -23,5 +24,6 @@ def init_db(db: Session) -> None:
     Args:
         db: Database session
     """
+    ensure_project_schema(db)
     seed_default_subscription_plans(db)
     db.commit()

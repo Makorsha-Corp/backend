@@ -36,6 +36,12 @@ class ProjectPriorityEnum(str, enum.Enum):
     URGENT = "URGENT"
 
 
+class ProjectVisibilityEnum(str, enum.Enum):
+    """Who can see a project within the workspace"""
+    WORKSPACE = "workspace"
+    INVITED_ONLY = "invited_only"
+
+
 class TaskPriorityEnum(str, enum.Enum):
     """Task priority levels"""
     LOW = "LOW"

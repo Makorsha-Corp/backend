@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace
+from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.project_component_note import ProjectComponentNoteCreate, ProjectComponentNoteUpdate, ProjectComponentNoteResponse
 from app.services.project_component_note_service import project_component_note_service
@@ -18,11 +19,16 @@ def get_project_component_notes(
     limit: int = Query(100, le=100),
     project_component_id: int = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get all project component notes, optionally filtered by component"""
     return project_component_note_service.get_notes(
-        db, project_component_id=project_component_id, workspace_id=workspace.id, skip=skip, limit=limit
+        db,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        project_component_id=project_component_id,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -30,11 +36,11 @@ def get_project_component_notes(
 def get_project_component_note(
     note_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get project component note by ID"""
     note = project_component_note_service.get_by_id_and_workspace(
-        db, id=note_id, workspace_id=workspace.id
+        db, note_id, workspace.id, current_user.id
     )
     if not note:
         raise HTTPException(status_code=404, detail="Project component note not found")
@@ -45,11 +51,12 @@ def get_project_component_note(
 def create_project_component_note(
     note_in: ProjectComponentNoteCreate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Create new project component note"""
-    note = project_component_note_service.create_note(db, note_in, workspace.id)
-    return note
+    return project_component_note_service.create_note(
+        db, note_in, workspace.id, current_user.id
+    )
 
 
 @router.put("/{note_id}/", response_model=ProjectComponentNoteResponse)
@@ -57,10 +64,12 @@ def update_project_component_note(
     note_id: int,
     note_in: ProjectComponentNoteUpdate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Update project component note"""
-    note = project_component_note_service.update_note(db, note_id, note_in, workspace.id)
+    note = project_component_note_service.update_note(
+        db, note_id, note_in, workspace.id, current_user.id
+    )
     if not note:
         raise HTTPException(status_code=404, detail="Project component note not found")
     return note
@@ -70,9 +79,11 @@ def update_project_component_note(
 def delete_project_component_note(
     note_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete project component note"""
-    deleted = project_component_note_service.delete_note(db, note_id, workspace.id)
+    deleted = project_component_note_service.delete_note(
+        db, note_id, workspace.id, current_user.id
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="Project component note not found")

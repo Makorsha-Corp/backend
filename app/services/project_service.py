@@ -3,21 +3,21 @@ Project Service
 
 Orchestrates project operations with transaction management.
 """
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.services.base_service import BaseService
 from app.managers.project_manager import project_manager
 from app.models.project import Project
+from app.models.project_event import ProjectEvent
+from app.models.project_member import ProjectMember
+from app.models.enums import ProjectVisibilityEnum
+from app.models.profile import Profile
 from app.schemas.project import ProjectCreate, ProjectUpdate
 
 
 class ProjectService(BaseService):
-    """
-    Service for project workflows.
-
-    Handles transaction management for project operations.
-    """
+    """Service for project workflows."""
 
     def __init__(self):
         super().__init__()
@@ -28,34 +28,19 @@ class ProjectService(BaseService):
         db: Session,
         project_in: ProjectCreate,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> Project:
-        """
-        Create new project with transaction management.
-
-        Args:
-            db: Database session
-            project_in: Project creation data
-            workspace_id: Workspace ID
-            user_id: User creating the project
-
-        Returns:
-            Created project
-
-        Raises:
-            HTTPException: If validation fails
-        """
         try:
             project = self.project_manager.create_project(
                 session=db,
                 project_data=project_in,
                 workspace_id=workspace_id,
-                user_id=user_id
+                user_id=user_id,
             )
             self._commit_transaction(db)
             db.refresh(project)
             return project
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -63,55 +48,34 @@ class ProjectService(BaseService):
         self,
         db: Session,
         project_id: int,
-        workspace_id: int
+        workspace_id: int,
+        user_id: int,
     ) -> Project:
-        """
-        Get project by ID.
-
-        Args:
-            db: Database session
-            project_id: Project ID
-            workspace_id: Workspace ID
-
-        Returns:
-            Project
-        """
         return self.project_manager.get_project(
             session=db,
             project_id=project_id,
-            workspace_id=workspace_id
+            workspace_id=workspace_id,
+            user_id=user_id,
         )
 
     def list_projects(
         self,
         db: Session,
         workspace_id: int,
+        user_id: int,
         factory_id: Optional[int] = None,
         status: Optional[str] = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Project]:
-        """
-        List projects with optional filters.
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID
-            factory_id: Optional factory filter
-            status: Optional status filter
-            skip: Number of records to skip
-            limit: Maximum number of records
-
-        Returns:
-            List of projects
-        """
         return self.project_manager.list_projects(
             session=db,
             workspace_id=workspace_id,
+            user_id=user_id,
             factory_id=factory_id,
             status=status,
             skip=skip,
-            limit=limit
+            limit=limit,
         )
 
     def update_project(
@@ -120,33 +84,20 @@ class ProjectService(BaseService):
         project_id: int,
         project_in: ProjectUpdate,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> Project:
-        """
-        Update project with transaction management.
-
-        Args:
-            db: Database session
-            project_id: Project ID
-            project_in: Update data
-            workspace_id: Workspace ID
-            user_id: User updating the project
-
-        Returns:
-            Updated project
-        """
         try:
             project = self.project_manager.update_project(
                 session=db,
                 project_id=project_id,
                 project_data=project_in,
                 workspace_id=workspace_id,
-                user_id=user_id
+                user_id=user_id,
             )
             self._commit_transaction(db)
             db.refresh(project)
             return project
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -155,31 +106,114 @@ class ProjectService(BaseService):
         db: Session,
         project_id: int,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> Project:
-        """
-        Soft delete project with transaction management.
-
-        Args:
-            db: Database session
-            project_id: Project ID
-            workspace_id: Workspace ID
-            user_id: User deleting the project
-
-        Returns:
-            Deleted project
-        """
         try:
             project = self.project_manager.delete_project(
                 session=db,
                 project_id=project_id,
                 workspace_id=workspace_id,
-                user_id=user_id
+                user_id=user_id,
             )
             self._commit_transaction(db)
             db.refresh(project)
             return project
-        except Exception as e:
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def list_events(
+        self,
+        db: Session,
+        project_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> List[Tuple[ProjectEvent, Optional[Profile]]]:
+        return self.project_manager.list_events(
+            session=db,
+            project_id=project_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
+
+    def list_members(
+        self,
+        db: Session,
+        project_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> List[ProjectMember]:
+        return self.project_manager.list_members(
+            session=db,
+            project_id=project_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
+
+    def add_member(
+        self,
+        db: Session,
+        project_id: int,
+        member_user_id: int,
+        workspace_id: int,
+        assigned_by: int,
+    ) -> ProjectMember:
+        try:
+            member = self.project_manager.add_member(
+                session=db,
+                project_id=project_id,
+                member_user_id=member_user_id,
+                workspace_id=workspace_id,
+                assigned_by=assigned_by,
+            )
+            self._commit_transaction(db)
+            db.refresh(member)
+            return member
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_member(
+        self,
+        db: Session,
+        project_id: int,
+        member_user_id: int,
+        workspace_id: int,
+        performed_by: int,
+    ) -> None:
+        try:
+            self.project_manager.remove_member(
+                session=db,
+                project_id=project_id,
+                member_user_id=member_user_id,
+                workspace_id=workspace_id,
+                performed_by=performed_by,
+            )
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def set_visibility(
+        self,
+        db: Session,
+        project_id: int,
+        visibility: ProjectVisibilityEnum,
+        workspace_id: int,
+        user_id: int,
+    ) -> Project:
+        try:
+            project = self.project_manager.set_visibility(
+                session=db,
+                project_id=project_id,
+                visibility=visibility,
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
+            self._commit_transaction(db)
+            db.refresh(project)
+            return project
+        except Exception:
             self._rollback_transaction(db)
             raise
 

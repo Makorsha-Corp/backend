@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace
+from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.project_component import ProjectComponentCreate, ProjectComponentUpdate, ProjectComponentResponse
 from app.services.project_component_service import project_component_service
@@ -18,20 +19,29 @@ def get_project_components(
     limit: int = Query(100, le=100),
     project_id: int = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get all project components, optionally filtered by project"""
-    return project_component_service.get_components(db, workspace_id=workspace.id, project_id=project_id, skip=skip, limit=limit)
+    return project_component_service.get_components(
+        db,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        project_id=project_id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/{component_id}/", response_model=ProjectComponentResponse)
 def get_project_component(
     component_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Get project component by ID"""
-    component = project_component_service.get_by_id(db, component_id=component_id, workspace_id=workspace.id)
+    component = project_component_service.get_by_id(
+        db, component_id=component_id, workspace_id=workspace.id, user_id=current_user.id
+    )
     if not component:
         raise HTTPException(status_code=404, detail="Project component not found")
     return component
@@ -41,10 +51,12 @@ def get_project_component(
 def create_project_component(
     component_in: ProjectComponentCreate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Create new project component"""
-    return project_component_service.create_component(db, component_in, workspace.id)
+    return project_component_service.create_component(
+        db, component_in, workspace.id, current_user.id
+    )
 
 
 @router.put("/{component_id}/", response_model=ProjectComponentResponse)
@@ -52,10 +64,12 @@ def update_project_component(
     component_id: int,
     component_in: ProjectComponentUpdate,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Update project component"""
-    component = project_component_service.update_component(db, component_id, component_in, workspace.id)
+    component = project_component_service.update_component(
+        db, component_id, component_in, workspace.id, current_user.id
+    )
     if not component:
         raise HTTPException(status_code=404, detail="Project component not found")
     return component
@@ -65,9 +79,11 @@ def update_project_component(
 def delete_project_component(
     component_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete project component"""
-    deleted = project_component_service.delete_component(db, component_id, workspace.id)
+    deleted = project_component_service.delete_component(
+        db, component_id, workspace.id, current_user.id
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="Project component not found")
