@@ -19,7 +19,6 @@ from app.schemas.workspace import WorkspaceCreate
 from app.schemas.workspace_member import WorkspaceMemberCreate, VALID_MEMBER_ROLES
 from app.schemas.workspace_invitation import WorkspaceInvitationCreate, VALID_INVITE_ROLES
 from app.db.seed_default_statuses import seed_default_statuses
-from app.db.seed_po_workflow import seed_po_workflow
 from app.db.seed_default_departments import seed_default_departments
 from app.db.seed_default_tags import seed_default_tags
 from app.db.seed_default_account_tags import seed_default_account_tags
@@ -127,7 +126,6 @@ class WorkspaceManager(BaseManager[Workspace]):
 
         # Seed default data for workspace
         seed_default_statuses(session, workspace_id=workspace.id)
-        seed_po_workflow(session, workspace_id=workspace.id)
         seed_default_departments(session, workspace_id=workspace.id)
         seed_default_tags(session, workspace_id=workspace.id, created_by_user_id=owner_user_id)
         seed_default_account_tags(session, workspace_id=workspace.id, created_by_user_id=owner_user_id)

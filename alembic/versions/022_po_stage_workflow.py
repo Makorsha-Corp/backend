@@ -23,17 +23,6 @@ def upgrade() -> None:
         ['workspace_id', 'type'],
     )
 
-    from sqlalchemy.orm import Session
-
-    from app.db.seed_po_workflow import seed_po_workflow_for_all_workspaces
-
-    session = Session(bind=op.get_bind())
-    try:
-        seed_po_workflow_for_all_workspaces(session)
-        session.flush()
-    finally:
-        session.close()
-
 
 def downgrade() -> None:
     op.drop_constraint('uq_order_workflows_workspace_type', 'order_workflows', type_='unique')

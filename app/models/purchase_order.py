@@ -39,9 +39,8 @@ class PurchaseOrder(Base):
     subtotal = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of all line_subtotals
     total_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Same as subtotal
 
-    # === WORKFLOW ===
-    current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
-    order_workflow_id = Column(Integer, ForeignKey("order_workflows.id", ondelete="RESTRICT"), nullable=True, index=True)
+    # === WORKFLOW (code-defined stages in app/workflows/po_workflow.py) ===
+    stage = Column(String(20), nullable=False, default='Draft', index=True)
 
     # === APPROVALS ===
     required_approvals = Column(Integer, nullable=True)  # threshold; null = all assigned approvers
@@ -68,8 +67,6 @@ class PurchaseOrder(Base):
 
     # === RELATIONSHIPS ===
     account = relationship("Account", backref="purchase_orders")
-    current_status = relationship("Status", backref="purchase_orders")
-    workflow = relationship("OrderWorkflow", backref="purchase_orders")
     invoice = relationship("AccountInvoice", backref="purchase_orders")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_purchase_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_purchase_orders")
@@ -81,9 +78,9 @@ class PurchaseOrder(Base):
 
     @property
     def current_status_name(self) -> str | None:
-        return self.current_status.name if self.current_status else None
+        return self.stage
 
     @property
     def order_completed(self) -> bool:
         """True when workflow stage is Complete (set manually after full receiving)."""
-        return self.current_status_name == 'Complete'
+        return self.stage == 'Complete'

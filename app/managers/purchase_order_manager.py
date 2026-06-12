@@ -7,7 +7,6 @@ from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
 from app.models.purchase_order import PurchaseOrder
-from app.models.status import Status
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.models.purchase_order_event import PurchaseOrderEvent
@@ -29,13 +28,7 @@ from app.dao.project_component import project_component_dao
 from app.dao.status import status_dao
 from app.dao.item import item_dao
 from app.dao.account_invoice import account_invoice_dao
-from app.dao.order_workflow import order_workflow_dao
-from app.models.order_workflow import OrderWorkflow
-from app.db.seed_po_workflow import (
-    PO_WORKFLOW_TYPE,
-    ensure_po_stage_statuses,
-    ensure_po_workflow_record,
-)
+from app.workflows.po_workflow import derive_po_stage, is_po_complete
 from app.managers.po_storage_inventory import post_purchase_order_to_storage
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
@@ -56,8 +49,8 @@ SUPPLIER_LOG_FIELDS = {
 NOTE_LOG_FIELDS = {
     'order_note': 'Order note',
 }
-STATUS_LOG_FIELDS = {
-    'current_status_id': 'Status',
+STAGE_LOG_FIELDS = {
+    'stage': 'Status',
 }
 THRESHOLD_LOG_FIELDS = {
     'required_approvals': 'Approval threshold',
@@ -80,7 +73,6 @@ SECTION_CONFIRM_FIELDS = {
     'items_confirmed': ('items', 'Order items'),
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
-PO_STAGE_NAMES = ('Draft', 'Planning', 'Receiving', 'Complete')
 
 
 class PurchaseOrderManager(BaseManager[PurchaseOrder]):
@@ -157,61 +149,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 user_id,
             )
 
-    def _ensure_po_stage_statuses(self, session: Session, workspace_id: int) -> None:
-        """Lazy backfill Draft/Planning/Receiving/Complete status rows for this workspace."""
-        has_draft = (
-            session.query(Status.id)
-            .filter(Status.workspace_id == workspace_id, Status.name == 'Draft')
-            .first()
-        )
-        if not has_draft:
-            ensure_po_stage_statuses(session, workspace_id)
-
-    def _raise_po_workflow_setup_error(self, session: Session, workspace_id: int) -> None:
-        foreign = (
-            session.query(OrderWorkflow.id)
-            .filter(
-                OrderWorkflow.type == PO_WORKFLOW_TYPE,
-                OrderWorkflow.workspace_id != workspace_id,
-            )
-            .first()
-        )
-        if foreign:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    'Purchase order workflow requires database migration '
-                    '022_po_stage_workflow. Run: alembic upgrade head'
-                ),
-            )
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail='Purchase order workflow is not configured for this workspace',
-        )
-
-    def _resolve_po_stage_status_id(
-        self, session: Session, workspace_id: int, stage_name: str
-    ) -> int:
-        self._ensure_po_stage_statuses(session, workspace_id)
-        record = (
-            session.query(Status)
-            .filter(Status.workspace_id == workspace_id, Status.name == stage_name)
-            .first()
-        )
-        if not record:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Purchase order stage status '{stage_name}' not found for this workspace",
-            )
-        return record.id
-
-    def _resolve_po_workflow_id(self, session: Session, workspace_id: int) -> int:
-        self._ensure_po_stage_statuses(session, workspace_id)
-        workflow = ensure_po_workflow_record(session, workspace_id)
-        if not workflow:
-            self._raise_po_workflow_setup_error(session, workspace_id)
-        return workflow.id
-
     def _all_items_fully_received(self, items: List[PurchaseOrderItem]) -> bool:
         if not items:
             return False
@@ -219,25 +156,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self._quantity_received_decimal(i) >= Decimal(str(i.quantity_ordered))
             for i in items
         )
-
-    def _current_stage_name(
-        self, session: Session, workspace_id: int, status_id: int
-    ) -> str | None:
-        record = (
-            session.query(Status)
-            .filter(Status.workspace_id == workspace_id, Status.id == status_id)
-            .first()
-        )
-        return record.name if record else None
-
-    def _derive_po_stage_name(
-        self, po: PurchaseOrder, items: List[PurchaseOrderItem]
-    ) -> str:
-        if items and any(self._quantity_received_decimal(i) > 0 for i in items):
-            return 'Receiving'
-        if po.supplier_confirmed or po.details_confirmed or po.items_confirmed:
-            return 'Planning'
-        return 'Draft'
 
     def sync_po_stage(
         self,
@@ -250,51 +168,35 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         items = self.item_dao.get_by_order(
             session, purchase_order_id=po.id, workspace_id=workspace_id
         )
-        derived_stage = self._derive_po_stage_name(po, items)
-        current_name = self._current_stage_name(
-            session, workspace_id, po.current_status_id
-        )
-        if current_name == 'Complete' and self._all_items_fully_received(items):
+        derived_stage = derive_po_stage(po, items)
+        current_stage = po.stage or 'Draft'
+        if is_po_complete(current_stage) and self._all_items_fully_received(items):
             target_stage = 'Complete'
         else:
             target_stage = derived_stage
 
-        changed = False
-        target_status_id = self._resolve_po_stage_status_id(
-            session, workspace_id, target_stage
+        if po.stage == target_stage:
+            return False
+
+        old_stage = po.stage
+        po.stage = target_stage
+        changes = [{
+            'field': 'stage',
+            'label': 'Status',
+            'from_value': old_stage or '—',
+            'to_value': target_stage,
+        }]
+        self._log_field_change_event(
+            session,
+            po.id,
+            workspace_id,
+            user_id,
+            'status_updated',
+            f'Stage updated to {target_stage}',
+            changes,
         )
-        workflow_id = self._resolve_po_workflow_id(session, workspace_id)
-
-        if po.order_workflow_id != workflow_id:
-            po.order_workflow_id = workflow_id
-            changed = True
-
-        if po.current_status_id != target_status_id:
-            old_status_id = po.current_status_id
-            po.current_status_id = target_status_id
-            changed = True
-            changes = [{
-                'field': 'current_status_id',
-                'label': 'Status',
-                'from_value': self._format_field_value(
-                    session, workspace_id, 'current_status_id', old_status_id,
-                    destination_type=po.destination_type,
-                ),
-                'to_value': target_stage,
-            }]
-            self._log_field_change_event(
-                session,
-                po.id,
-                workspace_id,
-                user_id,
-                'status_updated',
-                f'Stage updated to {target_stage}',
-                changes,
-            )
-
-        if changed:
-            session.flush()
-        return changed
+        session.flush()
+        return True
 
     def mark_order_complete(
         self,
@@ -310,7 +212,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Purchase order with ID {po_id} not found",
             )
-        if self._current_stage_name(session, workspace_id, po.current_status_id) == 'Complete':
+        if is_po_complete(po.stage):
             return po
 
         items = self.item_dao.get_by_order(
@@ -328,9 +230,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 session, po, items, workspace_id, user_id
             )
 
-        po.current_status_id = self._resolve_po_stage_status_id(
-            session, workspace_id, 'Complete'
-        )
+        po.stage = 'Complete'
         po.updated_by = user_id
         if po.actual_delivery_date is None:
             po.actual_delivery_date = date.today()
@@ -364,10 +264,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po_dict = data.model_dump(exclude={'items'})
         po_dict['workspace_id'] = workspace_id
         po_dict['po_number'] = po_number
-        po_dict['current_status_id'] = self._resolve_po_stage_status_id(
-            session, workspace_id, 'Draft'
-        )
-        po_dict['order_workflow_id'] = self._resolve_po_workflow_id(session, workspace_id)
+        po_dict['stage'] = 'Draft'
+        po_dict.pop('current_status_id', None)
+        po_dict.pop('order_workflow_id', None)
         po_dict['created_by'] = user_id
         if not po_dict.get('order_date'):
             po_dict['order_date'] = date.today()
@@ -422,6 +321,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict.pop('current_status_id', None)
+        update_dict.pop('stage', None)
+        update_dict.pop('order_workflow_id', None)
         update_dict['updated_by'] = user_id
 
         if self.is_po_financially_locked(session, record):
@@ -563,6 +464,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             return DESTINATION_TYPE_LABELS.get(str(value).lower(), str(value))
         if field == 'destination_id':
             return self._format_destination_id(session, workspace_id, destination_type, value)
+        if field == 'stage':
+            return str(value) if value else '—'
         if field == 'current_status_id':
             if value is None:
                 return '—'
@@ -686,7 +589,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         update_dict: dict,
     ) -> None:
         status_changes = self._collect_field_changes(
-            session, workspace_id, record, update_dict, STATUS_LOG_FIELDS
+            session, workspace_id, record, update_dict, STAGE_LOG_FIELDS
         )
         if status_changes:
             self._log_field_change_event(

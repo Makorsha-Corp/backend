@@ -1,7 +1,7 @@
 """Purchase order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from typing import List, Optional
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.dao.base import BaseDAO
 from app.models.purchase_order import PurchaseOrder
@@ -22,7 +22,6 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
     ) -> List[PurchaseOrder]:
         query = (
             db.query(PurchaseOrder)
-            .options(joinedload(PurchaseOrder.current_status))
             .filter(PurchaseOrder.workspace_id == workspace_id)
         )
         if account_id:
@@ -41,7 +40,6 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
     ) -> List[PurchaseOrder]:
         return (
             db.query(PurchaseOrder)
-            .options(joinedload(PurchaseOrder.current_status))
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
                 PurchaseOrder.destination_type == destination_type,
@@ -54,7 +52,6 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:
         return (
             db.query(PurchaseOrder)
-            .options(joinedload(PurchaseOrder.current_status))
             .filter(PurchaseOrder.id == id, PurchaseOrder.workspace_id == workspace_id)
             .first()
         )
