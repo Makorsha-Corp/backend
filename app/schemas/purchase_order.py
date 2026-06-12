@@ -4,7 +4,6 @@ from decimal import Decimal
 from typing import List, Literal
 
 PurchaseOrderSection = Literal['supplier', 'details', 'notes', 'items', 'invoice']
-PoStage = Literal['Draft', 'Planning', 'Receiving', 'Complete']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -15,7 +14,7 @@ class ActiveOrderRow(BaseModel):
     id: int
     number: str
     summary: str | None = None
-    current_status_id: int | None = None
+    current_status_id: int
     status_name: str | None = None
     created_at: datetime
     total_amount: Decimal | None = None
@@ -74,7 +73,8 @@ class PurchaseOrderCreate(BaseModel):
     expected_delivery_date: date | None = None
     description: str | None = None
     order_note: str | None = None
-    stage: PoStage = 'Draft'
+    current_status_id: int | None = None
+    order_workflow_id: int | None = None
     required_approvals: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
 
@@ -90,6 +90,7 @@ class PurchaseOrderUpdate(BaseModel):
     destination_id: int | None = None
     order_date: date | None = None
     expected_delivery_date: date | None = None
+    current_status_id: int | None = None
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
@@ -113,8 +114,9 @@ class PurchaseOrderResponse(BaseModel):
     actual_delivery_date: date | None = None
     subtotal: Decimal
     total_amount: Decimal
-    stage: PoStage
+    current_status_id: int
     current_status_name: str | None = None
+    order_workflow_id: int | None = None
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None

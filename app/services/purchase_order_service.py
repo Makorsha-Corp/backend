@@ -13,7 +13,7 @@ from app.managers.purchase_order_manager import purchase_order_manager
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
-from app.workflows.po_workflow import is_po_complete
+from app.models.order_workflow import OrderWorkflow
 from app.dao.purchase_order import purchase_order_dao
 from app.dao.transfer_order import transfer_order_dao
 from app.dao.machine import machine_dao
@@ -391,19 +391,40 @@ class PurchaseOrderService(BaseService):
             location_id=loc_id,
         )
 
+        wf_ids = {po.order_workflow_id for po in pos if po.order_workflow_id}
+        terminal_by_wf: dict[int, int] = {}
+        if wf_ids:
+            wfs = (
+                db.query(OrderWorkflow)
+                .filter(
+                    OrderWorkflow.workspace_id == workspace_id,
+                    OrderWorkflow.id.in_(wf_ids),
+                )
+                .all()
+            )
+            for wf in wfs:
+                seq = wf.status_sequence or []
+                if isinstance(seq, list) and len(seq) > 0:
+                    last = seq[-1]
+                    if isinstance(last, int):
+                        terminal_by_wf[wf.id] = last
+
         rows: List[ActiveOrderRow] = []
 
         for po in pos:
-            if is_po_complete(po.stage):
-                continue
+            if po.order_workflow_id:
+                last_id = terminal_by_wf.get(po.order_workflow_id)
+                if last_id is not None and po.current_status_id == last_id:
+                    continue
+            st = po.current_status
             rows.append(
                 ActiveOrderRow(
                     order_kind="purchase",
                     id=po.id,
                     number=po.po_number,
                     summary=po.description or po.order_note,
-                    current_status_id=None,
-                    status_name=po.stage,
+                    current_status_id=po.current_status_id,
+                    status_name=st.name if st else None,
                     created_at=po.created_at,
                     total_amount=po.total_amount,
                 )
