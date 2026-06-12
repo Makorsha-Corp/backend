@@ -1,4 +1,4 @@
-"""Add purchase_orders.stage (code-defined workflow); backfill from statuses.
+"""Add purchase_orders.stage (code-defined workflow).
 
 Revision ID: 024_po_stage_column
 Revises: 023_project_events_members
@@ -17,17 +17,6 @@ def upgrade() -> None:
     op.add_column(
         'purchase_orders',
         sa.Column('stage', sa.String(length=20), nullable=False, server_default='Draft'),
-    )
-    op.execute(
-        sa.text(
-            """
-            UPDATE purchase_orders po
-            SET stage = s.name
-            FROM statuses s
-            WHERE po.current_status_id = s.id
-              AND s.name IN ('Draft', 'Planning', 'Receiving', 'Complete')
-            """
-        )
     )
     op.alter_column('purchase_orders', 'stage', server_default=None)
     op.alter_column('purchase_orders', 'current_status_id', nullable=True)

@@ -11,6 +11,7 @@ when a workspace is created - see:
 """
 from sqlalchemy.orm import Session
 from app.db.ensure_project_schema import ensure_project_schema
+from app.db.ensure_po_stage_schema import ensure_po_stage_schema
 from app.db.seed_default_subscription_plans import seed_default_subscription_plans
 
 
@@ -25,5 +26,6 @@ def init_db(db: Session) -> None:
         db: Database session
     """
     ensure_project_schema(db)
+    ensure_po_stage_schema(db)
     seed_default_subscription_plans(db)
     db.commit()
