@@ -32,6 +32,7 @@ from app.api.v1.endpoints import (
     transfer_orders,
     expense_orders,
     order_templates,
+    orders_overview,
     # Sales
     sales_orders,
     sales_deliveries,
@@ -92,6 +93,7 @@ api_router.include_router(financial_audit_logs.router, prefix="/financial-audit-
 
 # Orders & Workflow
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
+api_router.include_router(orders_overview.router, prefix="/orders/overview", tags=["orders"])
 api_router.include_router(order_workflows.router, prefix="/order-workflows", tags=["orders"])
 api_router.include_router(order_items.router, prefix="/order-items", tags=["orders"])
 api_router.include_router(order_part_logs.router, prefix="/order-part-logs", tags=["orders"])
