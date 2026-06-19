@@ -27,6 +27,10 @@ class ExpenseOrderItem(Base):
     unit_price = Column(Numeric(15, 2), nullable=True)
     line_subtotal = Column(Numeric(15, 2), nullable=True)  # quantity * unit_price
 
+    # === ALLOCATION ===
+    cost_center_type = Column(String(50), nullable=True)  # factory, machine, project, department
+    cost_center_id = Column(Integer, nullable=True)
+
     # === APPROVAL ===
     approved = Column(Boolean, nullable=False, default=False)
 

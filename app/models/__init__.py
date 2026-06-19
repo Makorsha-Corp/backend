@@ -56,6 +56,8 @@ from app.models.transfer_order_approver import TransferOrderApprover
 from app.models.transfer_order_event import TransferOrderEvent
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_item import ExpenseOrderItem
+from app.models.expense_order_approver import ExpenseOrderApprover
+from app.models.expense_order_event import ExpenseOrderEvent
 
 # Sales Module
 from app.models.sales_order import SalesOrder

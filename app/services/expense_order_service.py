@@ -1,20 +1,23 @@
 """Expense Order Service - transaction orchestration"""
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
 from app.managers.expense_order_manager import expense_order_manager
-from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.expense_order import ExpenseOrder
+from app.models.expense_order_approver import ExpenseOrderApprover
+from app.models.expense_order_event import ExpenseOrderEvent
 from app.models.expense_order_item import ExpenseOrderItem
+from app.models.profile import Profile
 from app.schemas.expense_order import (
     ExpenseOrderCreate, ExpenseOrderUpdate,
     ExpenseOrderItemCreate, ExpenseOrderItemUpdate,
 )
 from app.schemas.account_invoice import AccountInvoiceCreate
+from app.managers.account_invoice_manager import account_invoice_manager
 
 
 class ExpenseOrderService(BaseService):
@@ -75,13 +78,29 @@ class ExpenseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def mark_order_complete(
+        self, db: Session, eo_id: int, workspace_id: int, user_id: int
+    ) -> ExpenseOrder:
+        try:
+            record = self.manager.mark_order_complete(
+                db, eo_id=eo_id, workspace_id=workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     # ─── Items ─────────────────────────────────────────────────
     def add_item(
         self, db: Session, eo_id: int, item_in: ExpenseOrderItemCreate,
-        workspace_id: int
+        workspace_id: int, user_id: int,
     ) -> ExpenseOrderItem:
         try:
-            record = self.manager.add_item(db, eo_id=eo_id, data=item_in, workspace_id=workspace_id)
+            record = self.manager.add_item(
+                db, eo_id=eo_id, data=item_in, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -91,10 +110,12 @@ class ExpenseOrderService(BaseService):
 
     def update_item(
         self, db: Session, item_id: int, item_in: ExpenseOrderItemUpdate,
-        workspace_id: int
+        workspace_id: int, user_id: int
     ) -> ExpenseOrderItem:
         try:
-            record = self.manager.update_item(db, item_id=item_id, data=item_in, workspace_id=workspace_id)
+            record = self.manager.update_item(
+                db, item_id=item_id, data=item_in, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -102,9 +123,13 @@ class ExpenseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def remove_item(self, db: Session, item_id: int, workspace_id: int) -> ExpenseOrderItem:
+    def remove_item(
+        self, db: Session, item_id: int, workspace_id: int, user_id: int
+    ) -> ExpenseOrderItem:
         try:
-            record = self.manager.remove_item(db, item_id=item_id, workspace_id=workspace_id)
+            record = self.manager.remove_item(
+                db, item_id=item_id, workspace_id=workspace_id, user_id=user_id
+            )
             self._commit_transaction(db)
             return record
         except Exception:
@@ -117,13 +142,6 @@ class ExpenseOrderService(BaseService):
     def create_invoice_for_expense_order(
         self, db: Session, eo_id: int, workspace_id: int, user_id: int
     ) -> ExpenseOrder:
-        """
-        Create exactly one payable account invoice from an expense order.
-
-        Rules:
-        - One order -> one invoice
-        - Account is required
-        """
         try:
             eo = self.manager.get_expense_order(db, eo_id=eo_id, workspace_id=workspace_id)
 
@@ -133,15 +151,11 @@ class ExpenseOrderService(BaseService):
                     detail="Invoice already exists for this expense order"
                 )
 
-            if eo.account_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Cannot create invoice: expense order has no account selected"
-                )
+            account_id = self.manager.resolve_invoice_account_id(eo)
 
             invoice_in = AccountInvoiceCreate(
-                account_id=eo.account_id,
-                order_id=None,  # Legacy orders FK; keep null for split order tables
+                account_id=account_id,
+                order_id=None,
                 invoice_type="payable",
                 invoice_amount=Decimal(str(eo.total_amount or 0)),
                 invoice_number=None,
@@ -162,21 +176,99 @@ class ExpenseOrderService(BaseService):
                     user_id=user_id
                 )
             except HTTPException as exc:
-                # Surface a clearer message in this order workflow context.
                 if exc.status_code == status.HTTP_404_NOT_FOUND:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail="Cannot create invoice: selected account was not found in this workspace"
                     ) from exc
                 raise
+
             eo.invoice_id = invoice.id
             db.flush()
+            self.manager.log_event(
+                db, eo_id, workspace_id, 'invoice_created',
+                f'Invoice #{invoice.id} created from expense order',
+                user_id,
+                metadata={'invoice_id': invoice.id},
+            )
             self._commit_transaction(db)
             db.refresh(eo)
             return eo
         except Exception:
             self._rollback_transaction(db)
             raise
+
+    # ─── Approvers ─────────────────────────────────────────────
+    def list_approvers(
+        self, db: Session, eo_id: int, workspace_id: int
+    ) -> List[Tuple[ExpenseOrderApprover, Optional[Profile], Optional[str]]]:
+        return self.manager.list_approvers(db, eo_id, workspace_id)
+
+    def approval_summary_for(
+        self, db: Session, eo_id: int, workspace_id: int
+    ) -> Tuple[int, int, bool]:
+        eo = self.manager.get_expense_order(db, eo_id, workspace_id)
+        return self.manager.approval_summary(db, eo)
+
+    def add_approver(
+        self, db: Session, eo_id: int, user_id: int, workspace_id: int, assigned_by: int
+    ) -> ExpenseOrderApprover:
+        try:
+            record = self.manager.add_approver(
+                db, eo_id=eo_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_approver(
+        self, db: Session, eo_id: int, user_id: int, workspace_id: int, performed_by: int
+    ) -> None:
+        try:
+            self.manager.remove_approver(
+                db, eo_id=eo_id, user_id=user_id, workspace_id=workspace_id, performed_by=performed_by
+            )
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def approve_as_me(
+        self, db: Session, eo_id: int, user_id: int, workspace_id: int
+    ) -> ExpenseOrderApprover:
+        try:
+            record = self.manager.set_approval(
+                db, eo_id=eo_id, user_id=user_id, workspace_id=workspace_id, approved=True
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def unapprove_as_me(
+        self, db: Session, eo_id: int, user_id: int, workspace_id: int
+    ) -> ExpenseOrderApprover:
+        try:
+            record = self.manager.set_approval(
+                db, eo_id=eo_id, user_id=user_id, workspace_id=workspace_id, approved=False
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    # ─── Events ────────────────────────────────────────────────
+    def list_events(
+        self, db: Session, eo_id: int, workspace_id: int
+    ) -> List[Tuple[ExpenseOrderEvent, Optional[Profile]]]:
+        return self.manager.list_events(db, eo_id, workspace_id)
 
 
 expense_order_service = ExpenseOrderService()

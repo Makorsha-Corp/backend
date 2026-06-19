@@ -72,6 +72,8 @@ from app.models.transfer_order_event import TransferOrderEvent
 # Expense Orders
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_item import ExpenseOrderItem
+from app.models.expense_order_approver import ExpenseOrderApprover
+from app.models.expense_order_event import ExpenseOrderEvent
 # Order Templates
 from app.models.order_template import OrderTemplate
 from app.models.order_template_item import OrderTemplateItem
