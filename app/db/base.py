@@ -67,6 +67,7 @@ from app.models.purchase_order_event import PurchaseOrderEvent
 # Transfer Orders
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
+from app.models.transfer_order_approver import TransferOrderApprover
 from app.models.transfer_order_event import TransferOrderEvent
 # Expense Orders
 from app.models.expense_order import ExpenseOrder

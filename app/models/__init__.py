@@ -52,6 +52,7 @@ from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.models.purchase_order_event import PurchaseOrderEvent
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
+from app.models.transfer_order_approver import TransferOrderApprover
 from app.models.transfer_order_event import TransferOrderEvent
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_item import ExpenseOrderItem
@@ -147,6 +148,7 @@ __all__ = [
     "PurchaseOrderEvent",
     "TransferOrder",
     "TransferOrderItem",
+    "TransferOrderApprover",
     "TransferOrderEvent",
     "ExpenseOrder",
     "ExpenseOrderItem",

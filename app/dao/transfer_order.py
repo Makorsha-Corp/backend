@@ -10,7 +10,11 @@ from app.schemas.transfer_order import TransferOrderCreate, TransferOrderUpdate,
 
 class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrderUpdate]):
     def get_by_workspace(self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100) -> List[TransferOrder]:
-        query = db.query(TransferOrder).filter(TransferOrder.workspace_id == workspace_id)
+        query = (
+            db.query(TransferOrder)
+            .options(joinedload(TransferOrder.current_status))
+            .filter(TransferOrder.workspace_id == workspace_id)
+        )
         return query.order_by(desc(TransferOrder.created_at)).offset(skip).limit(limit).all()
 
     def list_touching_location_incomplete(
@@ -44,7 +48,12 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
         )
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[TransferOrder]:
-        return db.query(TransferOrder).filter(TransferOrder.id == id, TransferOrder.workspace_id == workspace_id).first()
+        return (
+            db.query(TransferOrder)
+            .options(joinedload(TransferOrder.current_status))
+            .filter(TransferOrder.id == id, TransferOrder.workspace_id == workspace_id)
+            .first()
+        )
 
     def get_next_number(self, db: Session, *, workspace_id: int) -> str:
         from datetime import datetime

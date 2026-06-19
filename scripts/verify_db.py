@@ -12,7 +12,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.core.config import settings  # noqa: E402
 
-HEAD_REVISION = "024_transfer_order_events"
+HEAD_REVISION = "026_transfer_order_approvers"
 
 REQUIRED_TABLES = (
     "alembic_version",

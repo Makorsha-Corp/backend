@@ -1,5 +1,5 @@
 """Transfer order model - for internal item movements"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
 from app.db.base_class import Base
@@ -30,9 +30,17 @@ class TransferOrder(Base):
 
     # === DATES ===
     order_date = Column(Date, nullable=False, default=date.today)
+    expected_completion_date = Column(Date, nullable=True)
 
     # === WORKFLOW ===
     current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
+
+    # === APPROVALS ===
+    required_approvals = Column(Integer, nullable=True)
+
+    # === SECTION CONFIRMS ===
+    route_confirmed = Column(Boolean, nullable=False, default=False)
+    items_confirmed = Column(Boolean, nullable=False, default=False)
 
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
@@ -51,3 +59,16 @@ class TransferOrder(Base):
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_transfer_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_transfer_orders")
     completer = relationship("Profile", foreign_keys=[completed_by], backref="completed_transfer_orders")
+    approvers = relationship(
+        "TransferOrderApprover",
+        back_populates="transfer_order",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def current_status_name(self) -> str | None:
+        return self.current_status.name if self.current_status else None
+
+    @property
+    def order_completed(self) -> bool:
+        return self.completed_at is not None
