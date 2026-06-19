@@ -3,8 +3,10 @@
 Revision ID: 018_po_invoice_confirmed
 Revises: 017_po_number_per_workspace
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
+from app.db.migration_helpers import add_column_if_not_exists, column_exists
 
 revision = '018_po_invoice_confirmed'
 down_revision = '017_po_number_per_workspace'
@@ -13,12 +15,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
+    add_column_if_not_exists(
         'purchase_orders',
         sa.Column('invoice_confirmed', sa.Boolean(), nullable=False, server_default=sa.false()),
     )
-    op.alter_column('purchase_orders', 'invoice_confirmed', server_default=None)
+    if column_exists('purchase_orders', 'invoice_confirmed'):
+        op.alter_column('purchase_orders', 'invoice_confirmed', server_default=None)
 
 
 def downgrade() -> None:
-    op.drop_column('purchase_orders', 'invoice_confirmed')
+    from app.db.migration_helpers import drop_column_if_exists
+
+    drop_column_if_exists('purchase_orders', 'invoice_confirmed')

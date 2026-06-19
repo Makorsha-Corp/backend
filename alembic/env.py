@@ -1,6 +1,6 @@
 """Alembic environment configuration"""
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, inspect, text
 from sqlalchemy import pool
 from alembic import context
 import sys
@@ -16,7 +16,7 @@ from app.core.config import settings
 # access to the values within the .ini file in use.
 config = context.config
 
-# Override the sqlalchemy.url from settings
+# Override the sqlalchemy.url from settings (alembic.ini placeholder is not used at runtime)
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Interpret the config file for Python logging.
@@ -58,6 +58,15 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _ensure_version_num_width(connection) -> None:
+    """Alembic defaults version_num to VARCHAR(32); some revision ids are longer."""
+    if 'alembic_version' not in inspect(connection).get_table_names():
+        return
+    connection.execute(
+        text('ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)')
+    )
+
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
@@ -72,6 +81,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _ensure_version_num_width(connection)
+        connection.commit()
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

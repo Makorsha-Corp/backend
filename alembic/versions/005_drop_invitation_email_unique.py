@@ -9,6 +9,8 @@ Create Date: 2026-06-03
 
 from alembic import op
 
+from app.db.migration_helpers import drop_unique_constraint_if_exists, unique_constraint_exists
+
 revision = '005_drop_invitation_email_unique'
 down_revision = '004_profile_fixes'
 branch_labels = None
@@ -16,12 +18,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_constraint('uq_workspace_invitation_email', 'workspace_invitations', type_='unique')
+    drop_unique_constraint_if_exists('workspace_invitations', 'uq_workspace_invitation_email')
 
 
 def downgrade() -> None:
-    op.create_unique_constraint(
-        'uq_workspace_invitation_email',
-        'workspace_invitations',
-        ['workspace_id', 'email'],
-    )
+    if not unique_constraint_exists('workspace_invitations', 'uq_workspace_invitation_email'):
+        op.create_unique_constraint(
+            'uq_workspace_invitation_email',
+            'workspace_invitations',
+            ['workspace_id', 'email'],
+        )

@@ -9,7 +9,10 @@ Revises: 005_drop_invitation_email_unique
 Create Date: 2026-06-04
 """
 
+import sqlalchemy as sa
 from alembic import op
+
+from app.db.migration_helpers import column_exists, drop_column_if_exists
 
 revision = '006_drop_profile_permission'
 down_revision = '005_drop_invitation_email_unique'
@@ -18,18 +21,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_column('profiles', 'permission')
+    drop_column_if_exists('profiles', 'permission')
 
 
 def downgrade() -> None:
-    import sqlalchemy as sa
-    from sqlalchemy.dialects import postgresql
-    op.add_column(
-        'profiles',
-        sa.Column(
-            'permission',
-            postgresql.ENUM('owner', 'finance', 'ground-team', 'ground-team-manager', name='roleenum'),
-            nullable=False,
-            server_default='owner',
-        ),
-    )
+    if not column_exists('profiles', 'permission'):
+        op.add_column(
+            'profiles',
+            sa.Column(
+                'permission',
+                sa.Enum(
+                    'owner',
+                    'finance',
+                    'ground-team',
+                    'ground-team-manager',
+                    name='roleenum',
+                ),
+                nullable=False,
+                server_default='owner',
+            ),
+        )

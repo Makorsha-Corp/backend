@@ -51,6 +51,10 @@ class TransferOrderCreate(BaseModel):
 
 
 class TransferOrderUpdate(BaseModel):
+    source_location_type: str | None = None
+    source_location_id: int | None = None
+    destination_location_type: str | None = None
+    destination_location_id: int | None = None
     current_status_id: int | None = None
     description: str | None = None
     note: str | None = None

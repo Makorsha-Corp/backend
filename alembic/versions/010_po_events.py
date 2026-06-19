@@ -11,6 +11,8 @@ Create Date: 2026-06-05
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.migration_helpers import table_exists
+
 revision = '010_po_events'
 down_revision = '009_po_approvers'
 branch_labels = None
@@ -18,6 +20,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if table_exists('purchase_order_events'):
+        return
+
     op.create_table(
         'purchase_order_events',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -37,6 +42,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not table_exists('purchase_order_events'):
+        return
     op.drop_index('ix_purchase_order_events_purchase_order_id', table_name='purchase_order_events')
     op.drop_index('ix_purchase_order_events_workspace_id', table_name='purchase_order_events')
     op.drop_table('purchase_order_events')

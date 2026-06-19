@@ -1,6 +1,8 @@
 # ERP Backend API
 
-FastAPI backend for the ERP system. By default it runs against a local SQLite database and exposes a versioned REST API under `/api/v1`.
+FastAPI backend for the ERP system. It runs against a local **PostgreSQL** database (Docker) for development and exposes a versioned REST API under `/api/v1`. Production deploys to **Railway**, which runs migrations before starting the server.
+
+See [`docs/database.md`](docs/database.md) for migration workflow and schema conventions.
 
 **Pagination:** each list endpoint sets its own `limit` maximum (`le=` in FastAPI). Those caps are easy to outgrow; see the full-stack note at `frontend/docs/api-pagination-limits.md` (in the Marker-Corp workspace) and grep `le=` under `app/api/v1/endpoints/` when changing limits.
 
@@ -54,6 +56,12 @@ alembic upgrade head
 ```
 
 This creates all tables. Re-run this command any time a new migration is added.
+
+Verify the schema:
+
+```bash
+python scripts/verify_db.py
+```
 
 ### 6. Start the API
 
@@ -154,7 +162,10 @@ Typical flow after login:
 
 - **Local DB**: PostgreSQL 16 running in Docker (`docker-compose up -d`).
 - **Schema**: managed by Alembic migrations — always run `alembic upgrade head` after pulling new changes.
+- **Railway**: `scripts/railway_start.sh` runs `alembic upgrade head` then uvicorn; deploy fails if migrations fail.
 - When a workspace is created, default workspace‑scoped data (statuses, departments, tags, account tags) is seeded automatically.
+
+Full migration checklist: [`docs/database.md`](docs/database.md).
 
 ### Alembic Migrations
 
@@ -182,6 +193,7 @@ alembic downgrade -1
 docker-compose -f docker/docker-compose.yml down -v
 docker-compose -f docker/docker-compose.yml up -d
 alembic upgrade head
+python scripts/verify_db.py
 ```
 
 ---
@@ -205,7 +217,7 @@ backend/
 │   │   ├── base.py               # Model import glue for Alembic
 │   │   ├── base_class.py         # SQLAlchemy base class
 │   │   ├── session.py            # Engine & SessionLocal
-│   │   ├── init_db.py            # Legacy/global init hook
+│   │   ├── init_db.py            # Startup global seed (subscription plans)
 │   │   ├── seed_default_tags.py
 │   │   ├── seed_default_account_tags.py
 │   │   ├── seed_default_statuses.py

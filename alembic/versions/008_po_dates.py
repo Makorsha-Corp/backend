@@ -12,6 +12,8 @@ Create Date: 2026-06-05
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.migration_helpers import add_column_if_not_exists, column_exists
+
 revision = '008_po_dates'
 down_revision = '007_position_to_workspace_member'
 branch_labels = None
@@ -19,13 +21,22 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column('purchase_orders', sa.Column('order_date', sa.Date(), nullable=True))
-    op.add_column('purchase_orders', sa.Column('expected_delivery_date', sa.Date(), nullable=True))
-    op.add_column('purchase_orders', sa.Column('actual_delivery_date', sa.Date(), nullable=True))
-    op.execute('UPDATE purchase_orders SET order_date = created_at::date WHERE order_date IS NULL')
+    add_column_if_not_exists('purchase_orders', sa.Column('order_date', sa.Date(), nullable=True))
+    add_column_if_not_exists(
+        'purchase_orders', sa.Column('expected_delivery_date', sa.Date(), nullable=True)
+    )
+    add_column_if_not_exists(
+        'purchase_orders', sa.Column('actual_delivery_date', sa.Date(), nullable=True)
+    )
+    if column_exists('purchase_orders', 'order_date'):
+        op.execute(
+            'UPDATE purchase_orders SET order_date = created_at::date WHERE order_date IS NULL'
+        )
 
 
 def downgrade() -> None:
-    op.drop_column('purchase_orders', 'actual_delivery_date')
-    op.drop_column('purchase_orders', 'expected_delivery_date')
-    op.drop_column('purchase_orders', 'order_date')
+    from app.db.migration_helpers import drop_column_if_exists
+
+    drop_column_if_exists('purchase_orders', 'actual_delivery_date')
+    drop_column_if_exists('purchase_orders', 'expected_delivery_date')
+    drop_column_if_exists('purchase_orders', 'order_date')

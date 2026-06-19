@@ -17,6 +17,11 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
+    if "alembic_version" in sa.inspect(bind).get_table_names():
+        op.execute(
+            "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)"
+        )
+
     if "refresh_tokens" in sa.inspect(bind).get_table_names():
         return
 

@@ -11,6 +11,8 @@ Create Date: 2026-06-05
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.migration_helpers import add_column_if_not_exists, table_exists
+
 revision = '009_po_approvers'
 down_revision = '008_po_dates'
 branch_labels = None
@@ -18,7 +20,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column('purchase_orders', sa.Column('required_approvals', sa.Integer(), nullable=True))
+    add_column_if_not_exists(
+        'purchase_orders', sa.Column('required_approvals', sa.Integer(), nullable=True)
+    )
+
+    if table_exists('purchase_order_approvers'):
+        return
 
     op.create_table(
         'purchase_order_approvers',
@@ -43,8 +50,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index('ix_purchase_order_approvers_user_id', table_name='purchase_order_approvers')
-    op.drop_index('ix_purchase_order_approvers_purchase_order_id', table_name='purchase_order_approvers')
-    op.drop_index('ix_purchase_order_approvers_workspace_id', table_name='purchase_order_approvers')
-    op.drop_table('purchase_order_approvers')
-    op.drop_column('purchase_orders', 'required_approvals')
+    from app.db.migration_helpers import drop_column_if_exists
+
+    if table_exists('purchase_order_approvers'):
+        op.drop_index('ix_purchase_order_approvers_user_id', table_name='purchase_order_approvers')
+        op.drop_index('ix_purchase_order_approvers_purchase_order_id', table_name='purchase_order_approvers')
+        op.drop_index('ix_purchase_order_approvers_workspace_id', table_name='purchase_order_approvers')
+        op.drop_table('purchase_order_approvers')
+    drop_column_if_exists('purchase_orders', 'required_approvals')

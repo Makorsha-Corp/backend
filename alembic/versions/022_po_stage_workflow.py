@@ -4,8 +4,10 @@ Revision ID: 022_po_stage_workflow
 Revises: 021_po_item_quantity_received_backfill
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
+from app.db.migration_helpers import create_unique_constraint_if_not_exists, drop_unique_constraint_if_exists
 
 revision = '022_po_stage_workflow'
 down_revision = '021_po_item_quantity_received_backfill'
@@ -14,13 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
-        sa.text('ALTER TABLE order_workflows DROP CONSTRAINT IF EXISTS order_workflows_type_key')
-    )
-    op.create_unique_constraint(
-        'uq_order_workflows_workspace_type',
-        'order_workflows',
-        ['workspace_id', 'type'],
+    drop_unique_constraint_if_exists('order_workflows', 'order_workflows_type_key')
+    create_unique_constraint_if_not_exists(
+        'order_workflows', 'uq_order_workflows_workspace_type', ['workspace_id', 'type']
     )
 
     from sqlalchemy.orm import Session
@@ -36,5 +34,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint('uq_order_workflows_workspace_type', 'order_workflows', type_='unique')
-    op.create_unique_constraint('order_workflows_type_key', 'order_workflows', ['type'])
+    drop_unique_constraint_if_exists('order_workflows', 'uq_order_workflows_workspace_type')
+    from app.db.migration_helpers import unique_constraint_exists
+
+    if not unique_constraint_exists('order_workflows', 'order_workflows_type_key'):
+        op.create_unique_constraint('order_workflows_type_key', 'order_workflows', ['type'])
