@@ -110,3 +110,35 @@ class InventoryTypeEnum(str, enum.Enum):
     DAMAGED = "DAMAGED"
     WASTE = "WASTE"
     SCRAP = "SCRAP"
+
+
+class OrderType(str, enum.Enum):
+    """Which order table an order_id references (used in ledger/invoice polymorphic FKs)."""
+    purchase_order = "purchase_order"
+    transfer_order = "transfer_order"
+    expense_order  = "expense_order"
+    work_order     = "work_order"
+    sales_order    = "sales_order"
+
+
+class DiscussionEntityType(str, enum.Enum):
+    """All entity types that can have discussions."""
+    purchase_order    = "purchase_order"
+    transfer_order    = "transfer_order"
+    expense_order     = "expense_order"
+    work_order        = "work_order"
+    sales_order       = "sales_order"
+    project           = "project"
+    project_component = "project_component"
+    machine           = "machine"
+    inventory         = "inventory"
+    item              = "item"
+
+
+# Union of OrderType + DiscussionEntityType — never edit manually.
+# Add new values to OrderType or DiscussionEntityType; this updates automatically.
+NotificationEntityType = enum.Enum(
+    "NotificationEntityType",
+    {m.name: m.value for cls in (OrderType, DiscussionEntityType) for m in cls},
+    type=str,
+)

@@ -11,6 +11,7 @@ from app.db.migration_helpers import (
     create_unique_constraint_if_not_exists,
     drop_foreign_key_if_exists,
     drop_unique_constraint_if_exists,
+    table_exists,
 )
 
 revision = '022_po_stage_workflow'
@@ -23,7 +24,9 @@ def upgrade() -> None:
     # The old model had orders.order_type as a FK to order_workflows.type.
     # That FK was removed from the model but never dropped from the DB, so we
     # must drop it before we can replace the unique constraint it depends on.
-    drop_foreign_key_if_exists('orders', 'orders_order_type_fkey')
+    # Guard: orders table may already be gone on fresh installs.
+    if table_exists('orders'):
+        drop_foreign_key_if_exists('orders', 'orders_order_type_fkey')
     drop_unique_constraint_if_exists('order_workflows', 'order_workflows_type_key')
     create_unique_constraint_if_not_exists(
         'order_workflows', 'uq_order_workflows_workspace_type', ['workspace_id', 'type']

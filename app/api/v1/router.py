@@ -23,10 +23,7 @@ from app.api.v1.endpoints import (
     invoice_payments,
     financial_audit_logs,
     # Orders
-    orders,
     order_workflows,
-    order_items,
-    order_part_logs,
     work_orders,
     purchase_orders,
     transfer_orders,
@@ -52,6 +49,9 @@ from app.api.v1.endpoints import (
     access_control,
     # Ledgers
     ledgers,
+    # Discussions & Notifications
+    discussions,
+    notifications,
 )
 
 
@@ -92,11 +92,8 @@ api_router.include_router(invoice_payments.router, prefix="/invoice-payments", t
 api_router.include_router(financial_audit_logs.router, prefix="/financial-audit-logs", tags=["audit"])
 
 # Orders & Workflow
-api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(orders_overview.router, prefix="/orders/overview", tags=["orders"])
 api_router.include_router(order_workflows.router, prefix="/order-workflows", tags=["orders"])
-api_router.include_router(order_items.router, prefix="/order-items", tags=["orders"])
-api_router.include_router(order_part_logs.router, prefix="/order-part-logs", tags=["orders"])
 
 # Work Orders
 api_router.include_router(work_orders.router, prefix="/work-orders", tags=["orders"])
@@ -136,3 +133,7 @@ api_router.include_router(access_control.router, prefix="/access-control", tags=
 
 # Ledgers & Reconciliation
 api_router.include_router(ledgers.router, prefix="/ledgers", tags=["ledgers"])
+
+# Discussions & Notifications
+api_router.include_router(discussions.router, prefix="/discussions", tags=["discussions"])
+api_router.include_router(notifications.router, prefix="/me/notifications", tags=["notifications"])

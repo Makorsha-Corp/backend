@@ -328,7 +328,7 @@ def list_expense_order_events(
                 else None
             ),
             performed_by=e.performed_by,
-            performer_name=profile.name if profile else None,
+            user_name=profile.name if profile else None,
             created_at=e.created_at,
         )
         for e, profile in rows

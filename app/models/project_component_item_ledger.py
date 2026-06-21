@@ -49,8 +49,8 @@ class ProjectComponentItemLedger(Base):
     # Valid values: 'order', 'manual', 'adjustment', 'transfer', 'project_allocation'
     source_id = Column(Integer, nullable=True)  # Generic pointer to source entity
 
-    # Denormalized FKs for easy querying
-    order_id = Column(Integer, ForeignKey("orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_type = Column(String(30), nullable=True, index=True)   # see OrderType enum
+    order_id = Column(Integer, nullable=True, index=True)         # no FK — polymorphic
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # === TRANSFER CONTEXT ===
@@ -69,6 +69,5 @@ class ProjectComponentItemLedger(Base):
     # === RELATIONSHIPS ===
     project_component = relationship("ProjectComponent", backref="component_ledger_entries")
     item = relationship("Item", backref="project_component_ledger_entries")
-    order = relationship("Order", backref="project_component_ledger_entries")
     invoice = relationship("AccountInvoice", backref="project_component_ledger_entries")
     performer = relationship("Profile", foreign_keys=[performed_by], backref="project_component_ledger_entries")

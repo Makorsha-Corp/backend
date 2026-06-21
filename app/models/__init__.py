@@ -38,11 +38,6 @@ from app.models.production_formula_item import ProductionFormulaItem
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
 
-# Orders (Legacy - being migrated)
-from app.models.order import Order
-from app.models.order_item import OrderItem
-from app.models.order_part_log import OrderPartLog
-
 # Order System (New Split Architecture)
 from app.models.order_template import OrderTemplate
 from app.models.order_template_item import OrderTemplateItem
@@ -88,7 +83,6 @@ from app.models.miscellaneous_project_cost import MiscellaneousProjectCost
 
 # Attachments
 from app.models.attachment import Attachment
-from app.models.order_attachment import OrderAttachment
 from app.models.project_attachment import ProjectAttachment
 from app.models.project_component_attachment import ProjectComponentAttachment
 
@@ -106,6 +100,8 @@ from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 
 from app.models.app_settings import AppSettings
+from app.models.discussion import Discussion
+from app.models.notification import Notification
 
 __all__ = [
     # Workspace models
@@ -137,10 +133,6 @@ __all__ = [
     "ProductionFormulaItem",
     "ProductionBatch",
     "ProductionBatchItem",
-    # Orders (Legacy - being migrated)
-    "Order",
-    "OrderItem",
-    "OrderPartLog",
     # Order System (New Split Architecture)
     "OrderTemplate",
     "OrderTemplateItem",
@@ -154,6 +146,8 @@ __all__ = [
     "TransferOrderEvent",
     "ExpenseOrder",
     "ExpenseOrderItem",
+    "ExpenseOrderApprover",
+    "ExpenseOrderEvent",
     # Sales Module
     "SalesOrder",
     "SalesOrderItem",
@@ -179,7 +173,6 @@ __all__ = [
     "MiscellaneousProjectCost",
     # Attachments
     "Attachment",
-    "OrderAttachment",
     "ProjectAttachment",
     "ProjectComponentAttachment",
     # Accounts & Financial
@@ -194,4 +187,6 @@ __all__ = [
     "WorkOrder",
     "WorkOrderItem",
     "AppSettings",
+    "Discussion",
+    "Notification",
 ]

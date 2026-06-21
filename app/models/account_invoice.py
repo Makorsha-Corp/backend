@@ -19,8 +19,8 @@ class AccountInvoice(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id", ondelete="SET NULL"), nullable=True, index=True)
-
+    order_type = Column(String(30), nullable=True, index=True)   # see OrderType enum
+    order_id = Column(Integer, nullable=True, index=True)         # no FK — polymorphic
     # Invoice Type
     invoice_type = Column(String(20), nullable=False, index=True)  # 'payable' or 'receivable'
 
@@ -62,6 +62,5 @@ class AccountInvoice(Base):
 
     # Relationships
     account = relationship("Account", backref="invoices")
-    order = relationship("Order", backref="invoices")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_invoices")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_invoices")

@@ -645,45 +645,6 @@ class LedgerManager(BaseManager[MachineItemLedger]):
 
         return result
 
-    def get_transactions_by_order(
-        self,
-        session: Session,
-        order_id: int,
-        workspace_id: int
-    ) -> Dict[str, List]:
-        """
-        Get all ledger entries related to an order across all ledgers.
-
-        Business logic:
-        - Track complete order flow
-        - See all inventory impacts of an order
-
-        Args:
-            session: Database session
-            order_id: Order ID
-            workspace_id: Workspace ID
-
-        Returns:
-            Dictionary with ledger entries from all ledgers
-        """
-        result = {}
-
-        # Machine transactions
-        result['machine'] = self.machine_ledger_dao.get_by_order(
-            session,
-            order_id=order_id,
-            workspace_id=workspace_id
-        )
-
-        # Inventory transactions (unified)
-        result['inventory'] = self.inventory_ledger_dao.get_by_order(
-            session,
-            order_id=order_id,
-            workspace_id=workspace_id
-        )
-
-        return result
-
 
 # Singleton instance
 ledger_manager = LedgerManager()

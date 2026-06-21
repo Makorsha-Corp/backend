@@ -12,13 +12,10 @@ RESPONSIBILITIES:
 Services orchestrate managers - they don't implement business logic.
 """
 from app.services.base_service import BaseService
-from app.services.order_service import order_service, OrderService
 from app.services.item_service import item_service, ItemService
 
 __all__ = [
     "BaseService",
-    "OrderService",
-    "order_service",
     "ItemService",
     "item_service",
 ]

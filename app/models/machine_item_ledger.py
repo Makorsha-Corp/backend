@@ -49,8 +49,8 @@ class MachineItemLedger(Base):
     # Valid values: 'order', 'manual', 'adjustment', 'invoice_correction', 'transfer', 'consumption_event'
     source_id = Column(Integer, nullable=True)  # Generic pointer to source entity
 
-    # Denormalized FKs for easy querying
-    order_id = Column(Integer, ForeignKey("orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_type = Column(String(30), nullable=True, index=True)   # see OrderType enum
+    order_id = Column(Integer, nullable=True, index=True)         # no FK — polymorphic
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # === TRANSFER CONTEXT ===
@@ -68,6 +68,5 @@ class MachineItemLedger(Base):
     # === RELATIONSHIPS ===
     machine = relationship("Machine", backref="machine_ledger_entries")
     item = relationship("Item", backref="machine_ledger_entries")
-    order = relationship("Order", backref="machine_ledger_entries")
     invoice = relationship("AccountInvoice", backref="machine_ledger_entries")
     performer = relationship("Profile", foreign_keys=[performed_by], backref="machine_ledger_entries")

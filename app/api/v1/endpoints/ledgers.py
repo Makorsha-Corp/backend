@@ -367,29 +367,3 @@ def get_transactions_by_user(
         limit=limit
     )
     return transactions
-
-
-@router.get(
-    "/reports/order-transactions/{order_id}/",
-    response_model=Dict[str, List],
-    status_code=status.HTTP_200_OK,
-    summary="Get order transactions",
-    description="Get all ledger entries related to an order across all ledgers"
-)
-def get_transactions_by_order(
-    order_id: int = Path(..., description="Order ID"),
-    db: Session = Depends(get_db),
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user)
-):
-    """
-    Get all ledger entries related to an order.
-
-    Shows complete inventory impact of an order across all ledgers.
-    """
-    transactions = ledger_service.get_transactions_by_order(
-        db=db,
-        order_id=order_id,
-        workspace_id=workspace.id
-    )
-    return transactions

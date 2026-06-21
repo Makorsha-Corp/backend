@@ -25,9 +25,6 @@ from app.models.machine_item import MachineItem
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.status import Status
 from app.models.order_workflow import OrderWorkflow
-from app.models.order import Order
-from app.models.order_item import OrderItem
-from app.models.order_part_log import OrderPartLog
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.project_event import ProjectEvent
@@ -38,8 +35,9 @@ from app.models.project_component_task import ProjectComponentTask
 from app.models.miscellaneous_project_cost import MiscellaneousProjectCost
 from app.models.app_settings import AppSettings
 from app.models.access_control import AccessControl
+from app.models.discussion import Discussion
+from app.models.notification import Notification
 from app.models.attachment import Attachment
-from app.models.order_attachment import OrderAttachment
 from app.models.project_attachment import ProjectAttachment
 from app.models.project_component_attachment import ProjectComponentAttachment
 from app.models.machine_event import MachineEvent

@@ -1,5 +1,6 @@
 """Project schemas"""
 from datetime import datetime
+from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, ConfigDict, field_validator
 from app.models.enums import ProjectStatusEnum, ProjectPriorityEnum, ProjectVisibilityEnum
@@ -10,7 +11,7 @@ class ProjectBase(BaseModel):
     factory_id: int
     name: str
     description: str
-    budget: float | None = None
+    budget: Decimal | None = None
     deadline: datetime | None = None
     priority: ProjectPriorityEnum = ProjectPriorityEnum.LOW
     status: ProjectStatusEnum = ProjectStatusEnum.PLANNING
@@ -25,7 +26,7 @@ class ProjectUpdate(BaseModel):
     """Project update schema"""
     name: str | None = None
     description: str | None = None
-    budget: float | None = None
+    budget: Decimal | None = None
     deadline: datetime | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
