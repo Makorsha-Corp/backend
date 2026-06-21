@@ -39,6 +39,10 @@ def add_column_if_not_exists(table: str, column: sa.Column) -> None:
         op.add_column(table, column)
 
 
+def drop_foreign_key_if_exists(table: str, name: str) -> None:
+    op.execute(sa.text(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {name}"))
+
+
 def drop_unique_constraint_if_exists(table: str, name: str) -> None:
     op.execute(sa.text(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {name}"))
 
