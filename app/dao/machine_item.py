@@ -59,5 +59,20 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
             .first()
         )
 
+    def get_by_item(
+        self, db: Session, *, item_id: int, workspace_id: int, skip: int = 0, limit: int = 500
+    ) -> List[MachineItem]:
+        """Get all machine placements for a catalog item."""
+        return (
+            db.query(MachineItem)
+            .filter(
+                MachineItem.workspace_id == workspace_id,
+                MachineItem.item_id == item_id,
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
 
 machine_item_dao = DAOMachineItem(MachineItem)

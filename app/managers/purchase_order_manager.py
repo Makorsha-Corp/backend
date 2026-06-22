@@ -37,6 +37,7 @@ from app.db.seed_po_workflow import (
     ensure_po_workflow_record,
 )
 from app.managers.po_storage_inventory import post_purchase_order_to_storage
+from app.managers.po_machine_inventory import post_purchase_order_to_machine
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -327,6 +328,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             lines_posted = post_purchase_order_to_storage(
                 session, po, items, workspace_id, user_id
             )
+        elif po.destination_type == 'machine':
+            lines_posted = post_purchase_order_to_machine(
+                session, po, items, workspace_id, user_id
+            )
 
         po.current_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, 'Complete'
@@ -338,15 +343,26 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         self.sync_po_stage(session, po, workspace_id, user_id)
         if lines_posted > 0:
-            self.log_event(
-                session,
-                po.id,
-                workspace_id,
-                'inventory_posted',
-                f'{lines_posted} line(s) added to factory storage',
-                user_id,
-                metadata={'factory_id': po.destination_id, 'lines_posted': lines_posted},
-            )
+            if po.destination_type == 'storage':
+                self.log_event(
+                    session,
+                    po.id,
+                    workspace_id,
+                    'inventory_posted',
+                    f'{lines_posted} line(s) added to factory storage',
+                    user_id,
+                    metadata={'factory_id': po.destination_id, 'lines_posted': lines_posted},
+                )
+            elif po.destination_type == 'machine':
+                self.log_event(
+                    session,
+                    po.id,
+                    workspace_id,
+                    'inventory_posted',
+                    f'{lines_posted} line(s) added to machine inventory',
+                    user_id,
+                    metadata={'machine_id': po.destination_id, 'lines_posted': lines_posted},
+                )
         self.log_event(
             session, po.id, workspace_id, 'order_completed',
             'Order marked complete', user_id,
@@ -385,6 +401,15 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         session.flush()
 
         self.log_event(session, po.id, workspace_id, 'created', 'Order created', user_id)
+
+        from app.utils.order_catalog_items import assert_unique_catalog_item_ids
+
+        assert_unique_catalog_item_ids(
+            session,
+            workspace_id,
+            items_data,
+            get_item_id=lambda row: row.item_id,
+        )
 
         subtotal = Decimal('0')
 

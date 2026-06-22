@@ -12,6 +12,15 @@ from app.models.enums import MaintenanceTypeEnum
 from app.schemas.machine_maintenance_log import MachineMaintenanceLogCreate, MachineMaintenanceLogUpdate
 from app.dao.machine_maintenance_log import machine_maintenance_log_dao
 from app.dao.machine import machine_dao
+from app.managers.machine_activity_manager import machine_activity_manager
+
+MAINTENANCE_LOG_FIELDS = {
+    "maintenance_type": "Maintenance type",
+    "maintenance_date": "Maintenance date",
+    "summary": "Summary",
+    "cost": "Cost",
+    "performed_by": "Performed by",
+}
 
 
 class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
@@ -48,7 +57,20 @@ class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
         log_dict['workspace_id'] = workspace_id
         log_dict['created_by'] = user_id
 
-        return self.log_dao.create(session, obj_in=log_dict)
+        log = self.log_dao.create(session, obj_in=log_dict)
+        machine_activity_manager.log_event(
+            session,
+            log.machine_id,
+            workspace_id,
+            "maintenance_logged",
+            f"Maintenance logged: {log.summary}",
+            performed_by=user_id,
+            metadata={
+                "maintenance_log_id": log.id,
+                "status": log.maintenance_type.value if hasattr(log.maintenance_type, "value") else str(log.maintenance_type),
+            },
+        )
+        return log
 
     def update_log(
         self,
@@ -76,7 +98,21 @@ class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
         update_dict = log_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
-        return self.log_dao.update(session, db_obj=log, obj_in=update_dict)
+        changes = machine_activity_manager.collect_field_changes(
+            log, update_dict, MAINTENANCE_LOG_FIELDS
+        )
+        updated = self.log_dao.update(session, db_obj=log, obj_in=update_dict)
+        if changes:
+            machine_activity_manager.log_event(
+                session,
+                log.machine_id,
+                workspace_id,
+                "maintenance_updated",
+                f"Maintenance log updated: {updated.summary}",
+                performed_by=user_id,
+                metadata={"maintenance_log_id": updated.id, "changes": changes},
+            )
+        return updated
 
     def get_log(
         self, session: Session, log_id: int, workspace_id: int
@@ -143,7 +179,17 @@ class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
                 detail="Maintenance log is already deleted"
             )
 
-        return self.log_dao.soft_delete(session, db_obj=log, deleted_by=user_id)
+        deleted = self.log_dao.soft_delete(session, db_obj=log, deleted_by=user_id)
+        machine_activity_manager.log_event(
+            session,
+            log.machine_id,
+            workspace_id,
+            "maintenance_removed",
+            f"Maintenance log removed: {log.summary}",
+            performed_by=user_id,
+            metadata={"maintenance_log_id": log.id},
+        )
+        return deleted
 
 
 # Singleton instance

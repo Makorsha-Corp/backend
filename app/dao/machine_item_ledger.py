@@ -11,6 +11,22 @@ from app.schemas.machine_item_ledger import MachineItemLedgerCreate, MachineItem
 class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, MachineItemLedgerUpdate]):
     """DAO operations for MachineItemLedger model"""
 
+    def get_by_item(
+        self, db: Session, *, item_id: int, workspace_id: int, skip: int = 0, limit: int = 100
+    ) -> List[MachineItemLedger]:
+        """Get ledger entries for a catalog item across all machines."""
+        return (
+            db.query(MachineItemLedger)
+            .filter(
+                MachineItemLedger.workspace_id == workspace_id,
+                MachineItemLedger.item_id == item_id,
+            )
+            .order_by(MachineItemLedger.performed_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def get_by_machine_and_item(
         self, db: Session, *, machine_id: int, item_id: int, workspace_id: int,
         skip: int = 0, limit: int = 100

@@ -9,6 +9,11 @@ from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate
 from app.dao.machine_item import machine_item_dao
 from app.dao.machine_item_ledger import machine_item_ledger_dao
 from app.dao.machine import machine_dao
+from app.dao.item import item_dao
+from app.managers.machine_activity_manager import (
+    machine_activity_manager,
+    MACHINE_ITEM_LOG_FIELDS,
+)
 
 
 class MachineItemManager:
@@ -18,6 +23,13 @@ class MachineItemManager:
         self.machine_item_dao = machine_item_dao
         self.machine_item_ledger_dao = machine_item_ledger_dao
         self.machine_dao = machine_dao
+        self.item_dao = item_dao
+
+    def _item_name(self, session: Session, item_id: int, workspace_id: int) -> str:
+        item = self.item_dao.get_by_id_and_workspace(
+            session, id=item_id, workspace_id=workspace_id
+        )
+        return item.name if item else f"Item #{item_id}"
 
     def get_machine_item(
         self, session: Session, machine_item_id: int, workspace_id: int
@@ -87,6 +99,30 @@ class MachineItemManager:
         }
         self.machine_item_ledger_dao.create(session, obj_in=ledger_payload)
 
+        if transaction_type == "inventory_adjustment":
+            item_name = self._item_name(session, item_id, workspace_id)
+            machine_activity_manager.log_event(
+                session,
+                machine_id,
+                workspace_id,
+                "inventory_adjusted",
+                f"Inventory adjusted on {item_name}: {qty_before} → {qty_after}",
+                performed_by=user_id,
+                metadata={
+                    "item_id": item_id,
+                    "item_name": item_name,
+                    "quantity": quantity,
+                    "changes": [
+                        {
+                            "field": "qty",
+                            "label": "Quantity",
+                            "from_value": str(qty_before),
+                            "to_value": str(qty_after),
+                        }
+                    ],
+                },
+            )
+
     def create_machine_item(
         self, session: Session,
         item_data: MachineItemCreate,
@@ -116,6 +152,8 @@ class MachineItemManager:
         item_dict['workspace_id'] = workspace_id
         record = self.machine_item_dao.create(session, obj_in=item_dict)
 
+        item_name = self._item_name(session, record.item_id, workspace_id)
+
         # Log initial stock as a manual_add ledger entry when qty > 0
         if record.qty > 0:
             self._write_ledger_entry(
@@ -130,6 +168,21 @@ class MachineItemManager:
                 user_id=user_id,
                 notes="Initial machine inventory record created",
             )
+
+        machine_activity_manager.log_event(
+            session,
+            record.machine_id,
+            workspace_id,
+            "item_added",
+            f"Item added: {item_name}",
+            performed_by=user_id,
+            metadata={
+                "item_id": record.item_id,
+                "item_name": item_name,
+                "machine_item_id": record.id,
+                "quantity": record.qty,
+            },
+        )
 
         return record
 
@@ -149,6 +202,9 @@ class MachineItemManager:
 
         old_qty = item.qty
         update_data = item_data.model_dump(exclude_unset=True, exclude_none=True)
+        changes = machine_activity_manager.collect_field_changes(
+            item, update_data, MACHINE_ITEM_LOG_FIELDS
+        )
         updated = self.machine_item_dao.update(session, db_obj=item, obj_in=update_data)
 
         new_qty = update_data.get("qty")
@@ -165,6 +221,23 @@ class MachineItemManager:
                 user_id=user_id,
                 notes=f"Manual machine inventory adjustment: {old_qty} -> {new_qty}",
                 source_type="adjustment",
+            )
+
+        if changes:
+            item_name = self._item_name(session, updated.item_id, workspace_id)
+            machine_activity_manager.log_event(
+                session,
+                updated.machine_id,
+                workspace_id,
+                "item_updated",
+                f"Item updated: {item_name}",
+                performed_by=user_id,
+                metadata={
+                    "item_id": updated.item_id,
+                    "item_name": item_name,
+                    "machine_item_id": updated.id,
+                    "changes": changes,
+                },
             )
 
         return updated
@@ -196,6 +269,21 @@ class MachineItemManager:
                 notes="Machine inventory record deleted",
                 source_type="adjustment",
             )
+
+        item_name = self._item_name(session, item.item_id, workspace_id)
+        machine_activity_manager.log_event(
+            session,
+            item.machine_id,
+            workspace_id,
+            "item_removed",
+            f"Item removed: {item_name}",
+            performed_by=user_id,
+            metadata={
+                "item_id": item.item_id,
+                "item_name": item_name,
+                "machine_item_id": item.id,
+            },
+        )
 
         self.machine_item_dao.remove(session, id=machine_item_id)
 

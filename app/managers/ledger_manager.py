@@ -13,6 +13,8 @@ from app.dao.project_component_item_ledger import project_component_item_ledger_
 from app.dao.inventory_ledger import inventory_ledger_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.inventory import inventory_dao
+from app.dao.item import item_dao
+from app.managers.machine_activity_manager import machine_activity_manager
 from app.schemas.inventory_ledger import InventoryLedgerCreate
 
 
@@ -231,6 +233,31 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         # Update snapshot
         snapshot.qty = ledger_qty
         session.flush()
+
+        catalog_item = item_dao.get_by_id_and_workspace(
+            session, id=item_id, workspace_id=workspace_id
+        )
+        item_name = catalog_item.name if catalog_item else f"Item #{item_id}"
+        machine_activity_manager.log_event(
+            session,
+            machine_id,
+            workspace_id,
+            "ledger_reconciled",
+            f"Ledger reconciled for {item_name}: snapshot {snapshot_qty} → {ledger_qty}",
+            performed_by=user_id,
+            metadata={
+                "item_id": item_id,
+                "item_name": item_name,
+                "changes": [
+                    {
+                        "field": "qty",
+                        "label": "Quantity",
+                        "from_value": str(snapshot_qty),
+                        "to_value": str(ledger_qty),
+                    }
+                ],
+            },
+        )
 
         return {
             'status': 'adjusted',

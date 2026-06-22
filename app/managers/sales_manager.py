@@ -63,6 +63,15 @@ class SalesManager(BaseManager[SalesOrder]):
         if not items_data:
             raise ValueError("Sales order must have at least one item")
 
+        from app.utils.order_catalog_items import assert_unique_catalog_item_ids
+
+        assert_unique_catalog_item_ids(
+            session,
+            workspace_id,
+            items_data,
+            get_item_id=lambda row: row['item_id'] if isinstance(row, dict) else row.item_id,
+        )
+
         # Create the sales order
         from app.schemas.sales_order import SalesOrderCreate
         order_in = SalesOrderCreate(**order_data)

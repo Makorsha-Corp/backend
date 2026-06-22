@@ -16,6 +16,7 @@ from app.dao.work_order import work_order_dao
 from app.dao.work_order_item import work_order_item_dao
 from app.dao.factory import factory_dao
 from app.managers.machine_maintenance_log_manager import machine_maintenance_log_manager
+from app.managers.machine_activity_manager import machine_activity_manager
 
 
 class WorkOrderManager(BaseManager[WorkOrder]):
@@ -84,6 +85,17 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         # When status changes to COMPLETED and machine_id is set, create a Machine Maintenance Log
         new_status = update_dict.get('status')
         machine_id = update_dict.get('machine_id') if 'machine_id' in update_dict else record.machine_id
+        if new_status == WorkOrderStatusEnum.COMPLETED and record.status != WorkOrderStatusEnum.COMPLETED:
+            if machine_id is not None:
+                machine_activity_manager.log_event(
+                    session,
+                    machine_id,
+                    record.workspace_id,
+                    "work_order_completed",
+                    f"Work order completed: {record.work_order_number} — {record.title}",
+                    performed_by=user_id,
+                    metadata={"work_order_id": record.id},
+                )
         if new_status == WorkOrderStatusEnum.COMPLETED and machine_id is not None:
             work_type_to_maintenance = {
                 WorkTypeEnum.MAINTENANCE: MaintenanceTypeEnum.PREVENTIVE,
@@ -145,6 +157,28 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         return self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
 
     # ─── Work Order Items ───────────────────────────────────────
+    def _ensure_catalog_item_not_on_wo(
+        self,
+        session: Session,
+        work_order_id: int,
+        item_id: int,
+        workspace_id: int,
+        *,
+        exclude_item_id: Optional[int] = None,
+    ) -> None:
+        from app.utils.order_catalog_items import catalog_item_already_on_order_detail
+
+        for line in self.item_dao.get_by_work_order(
+            session, work_order_id=work_order_id, workspace_id=workspace_id
+        ):
+            if line.item_id == item_id and line.id != exclude_item_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=catalog_item_already_on_order_detail(
+                        session, item_id=item_id, workspace_id=workspace_id
+                    ),
+                )
+
     def add_item(
         self, session: Session, data: WorkOrderItemCreate,
         workspace_id: int, user_id: int
@@ -155,6 +189,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         )
         if not wo:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order not found")
+
+        self._ensure_catalog_item_not_on_wo(
+            session, data.work_order_id, data.item_id, workspace_id
+        )
 
         item_dict = data.model_dump()
         item_dict['workspace_id'] = workspace_id

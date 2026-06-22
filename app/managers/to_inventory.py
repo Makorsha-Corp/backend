@@ -11,12 +11,19 @@ from app.dao.inventory_ledger import inventory_ledger_dao
 from app.dao.machine import machine_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.machine_item_ledger import machine_item_ledger_dao
+from app.dao.item import item_dao
+from app.managers.machine_activity_manager import machine_activity_manager
 from app.models.enums import InventoryTypeEnum
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
 
 TO_INVENTORY_SOURCE_TYPE = 'transfer_order'
+
+
+def _item_name(session: Session, item_id: int, workspace_id: int) -> str:
+    item = item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
+    return item.name if item else f"Item #{item_id}"
 
 
 def _quantity_to_int(quantity: Decimal, *, line_number: int) -> int:
@@ -298,6 +305,22 @@ def _post_machine_out(
     )
     mi.qty = qty_after
     session.flush()
+
+    item_name = _item_name(session, item_id, workspace_id)
+    machine_activity_manager.log_event(
+        session,
+        machine_id,
+        workspace_id,
+        "transfer_out",
+        f"Transfer out: {qty} units of {item_name} ({to.transfer_number})",
+        performed_by=user_id,
+        metadata={
+            "item_id": item_id,
+            "item_name": item_name,
+            "transfer_order_id": to.id,
+            "quantity": qty,
+        },
+    )
     return unit_cost
 
 
@@ -353,6 +376,22 @@ def _post_machine_in(
     )
     mi.qty = qty_after
     session.flush()
+
+    item_name = _item_name(session, item_id, workspace_id)
+    machine_activity_manager.log_event(
+        session,
+        machine_id,
+        workspace_id,
+        "transfer_in",
+        f"Transfer in: {qty} units of {item_name} ({to.transfer_number})",
+        performed_by=user_id,
+        metadata={
+            "item_id": item_id,
+            "item_name": item_name,
+            "transfer_order_id": to.id,
+            "quantity": qty,
+        },
+    )
 
 
 def _post_location_out(

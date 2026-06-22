@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from app.dao.base import BaseDAO
 from app.models.machine import Machine
-from app.models.machine_event import MachineEvent
+from app.models.machine_activity_event import MachineActivityEvent
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
 
@@ -152,35 +152,41 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
             query = query.filter(Machine.next_maintenance_schedule.is_(None))
 
         if latest_event_type is not None:
-            latest_started_subq = (
+            latest_created_subq = (
                 db.query(
-                    MachineEvent.machine_id.label("machine_id"),
-                    func.max(MachineEvent.started_at).label("latest_started_at"),
+                    MachineActivityEvent.machine_id.label("machine_id"),
+                    func.max(MachineActivityEvent.created_at).label("latest_created_at"),
                 )
-                .filter(MachineEvent.workspace_id == workspace_id)
-                .group_by(MachineEvent.machine_id)
+                .filter(
+                    MachineActivityEvent.workspace_id == workspace_id,
+                    MachineActivityEvent.event_type == "status_updated",
+                )
+                .group_by(MachineActivityEvent.machine_id)
                 .subquery()
             )
 
-            latest_event_subq = (
+            latest_status_subq = (
                 db.query(
-                    MachineEvent.machine_id.label("machine_id"),
-                    MachineEvent.event_type.label("event_type"),
+                    MachineActivityEvent.machine_id.label("machine_id"),
+                    MachineActivityEvent.metadata_json["status"].astext.label("status"),
                 )
                 .join(
-                    latest_started_subq,
+                    latest_created_subq,
                     and_(
-                        MachineEvent.machine_id == latest_started_subq.c.machine_id,
-                        MachineEvent.started_at == latest_started_subq.c.latest_started_at,
+                        MachineActivityEvent.machine_id == latest_created_subq.c.machine_id,
+                        MachineActivityEvent.created_at == latest_created_subq.c.latest_created_at,
                     ),
                 )
-                .filter(MachineEvent.workspace_id == workspace_id)
+                .filter(
+                    MachineActivityEvent.workspace_id == workspace_id,
+                    MachineActivityEvent.event_type == "status_updated",
+                )
                 .subquery()
             )
 
             query = (
-                query.join(latest_event_subq, Machine.id == latest_event_subq.c.machine_id)
-                .filter(latest_event_subq.c.event_type == latest_event_type)
+                query.join(latest_status_subq, Machine.id == latest_status_subq.c.machine_id)
+                .filter(latest_status_subq.c.status == latest_event_type.value)
             )
 
         sort_field_map = {

@@ -40,7 +40,7 @@ from app.models.notification import Notification
 from app.models.attachment import Attachment
 from app.models.project_attachment import ProjectAttachment
 from app.models.project_component_attachment import ProjectComponentAttachment
-from app.models.machine_event import MachineEvent
+from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_maintenance_log import MachineMaintenanceLog
 from app.models.account import Account
 from app.models.account_tag import AccountTag

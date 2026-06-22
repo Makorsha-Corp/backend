@@ -314,6 +314,15 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         ))
         session.flush()
 
+        from app.utils.order_catalog_items import assert_unique_catalog_item_ids
+
+        assert_unique_catalog_item_ids(
+            session,
+            workspace_id,
+            items_data,
+            get_item_id=lambda row: row.item_id,
+        )
+
         for idx, item_data in enumerate(items_data, start=1):
             item_dict = item_data.model_dump()
             item_dict['workspace_id'] = workspace_id
@@ -464,12 +473,36 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         return record
 
     # ─── Transfer Order Items ──────────────────────────────────
+    def _ensure_catalog_item_not_on_to(
+        self,
+        session: Session,
+        to_id: int,
+        item_id: int,
+        workspace_id: int,
+        *,
+        exclude_item_id: Optional[int] = None,
+    ) -> None:
+        from app.utils.order_catalog_items import catalog_item_already_on_order_detail
+
+        for line in self.item_dao.get_by_order(
+            session, transfer_order_id=to_id, workspace_id=workspace_id
+        ):
+            if line.item_id == item_id and line.id != exclude_item_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=catalog_item_already_on_order_detail(
+                        session, item_id=item_id, workspace_id=workspace_id
+                    ),
+                )
+
     def add_item(
         self, session: Session, to_id: int, data: TransferOrderItemCreate,
         workspace_id: int, user_id: int,
     ) -> TransferOrderItem:
         to = self.get_transfer_order(session, to_id, workspace_id)
         self._guard_item_mutations(session, to, workspace_id)
+
+        self._ensure_catalog_item_not_on_to(session, to_id, data.item_id, workspace_id)
 
         existing = self.item_dao.get_by_order(session, transfer_order_id=to_id, workspace_id=workspace_id)
         next_line = max((i.line_number for i in existing), default=0) + 1

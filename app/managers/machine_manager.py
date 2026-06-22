@@ -1,7 +1,7 @@
 """
 Machine Manager
 
-Business logic for machine operations including status tracking via events.
+Business logic for machine operations including status tracking via activity events.
 """
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -9,13 +9,15 @@ from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
 from app.models.machine import Machine
-from app.models.machine_event import MachineEvent
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
-from app.schemas.machine_event import MachineEventCreate
+from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
 from app.dao.machine import machine_dao
-from app.dao.machine_event import machine_event_dao
 from app.dao.factory_section import factory_section_dao
+from app.managers.machine_activity_manager import (
+    machine_activity_manager,
+    MACHINE_LOG_FIELDS,
+)
 
 
 class MachineManager(BaseManager[Machine]):
@@ -24,14 +26,13 @@ class MachineManager(BaseManager[Machine]):
 
     Handles:
     - Machine CRUD with workspace isolation and factory section validation
-    - Machine event creation with automatic is_running synchronization
+    - Machine status changes via activity events with is_running synchronization
     - Soft delete with validation
     """
 
     def __init__(self):
         super().__init__(Machine)
         self.machine_dao = machine_dao
-        self.machine_event_dao = machine_event_dao
         self.factory_section_dao = factory_section_dao
 
     # ==================== MACHINE CRUD ====================
@@ -83,6 +84,14 @@ class MachineManager(BaseManager[Machine]):
         machine_dict['is_running'] = False
 
         machine = self.machine_dao.create(session, obj_in=machine_dict)
+        machine_activity_manager.log_event(
+            session,
+            machine.id,
+            workspace_id,
+            "created",
+            f"Machine created: {machine.name}",
+            performed_by=user_id,
+        )
         return machine
 
     def update_machine(
@@ -141,7 +150,20 @@ class MachineManager(BaseManager[Machine]):
         update_dict = machine_data.model_dump(exclude_unset=True, exclude_none=True)
         update_dict['updated_by'] = user_id
 
+        changes = machine_activity_manager.collect_field_changes(
+            machine, update_dict, MACHINE_LOG_FIELDS
+        )
         updated_machine = self.machine_dao.update(session, db_obj=machine, obj_in=update_dict)
+        if changes:
+            machine_activity_manager.log_event(
+                session,
+                machine_id,
+                workspace_id,
+                "updated",
+                "Machine details updated",
+                performed_by=user_id,
+                metadata={"changes": changes},
+            )
         return updated_machine
 
     def get_machine(
@@ -237,9 +259,17 @@ class MachineManager(BaseManager[Machine]):
             )
 
         deleted_machine = self.machine_dao.soft_delete(session, db_obj=machine, deleted_by=user_id)
+        machine_activity_manager.log_event(
+            session,
+            machine_id,
+            workspace_id,
+            "deactivated",
+            f"Machine deactivated: {machine.name}",
+            performed_by=user_id,
+        )
         return deleted_machine
 
-    # ==================== MACHINE EVENTS ====================
+    # ==================== MACHINE STATUS ====================
 
     def create_machine_event(
         self,
@@ -247,13 +277,12 @@ class MachineManager(BaseManager[Machine]):
         event_data: MachineEventCreate,
         workspace_id: int,
         user_id: int
-    ) -> MachineEvent:
+    ) -> MachineEventResponse:
         """
-        Create a machine event and synchronize machine.is_running.
+        Record a machine status change in the activity log and sync is_running.
 
         Business rule: RUNNING -> is_running=True, all others -> is_running=False.
         """
-        # Validate machine exists and belongs to workspace
         machine = self.machine_dao.get_by_id_and_workspace(
             session, id=event_data.machine_id, workspace_id=workspace_id
         )
@@ -268,25 +297,37 @@ class MachineManager(BaseManager[Machine]):
                 detail="Cannot create event for a deleted machine"
             )
 
-        # Check for redundant event (same status as current latest)
-        latest_event = self.machine_event_dao.get_latest_by_machine(
-            session, event_data.machine_id, workspace_id=workspace_id
+        latest_activity = machine_activity_manager.get_latest_status(
+            session, event_data.machine_id, workspace_id
         )
-        if latest_event and latest_event.event_type == event_data.event_type:
+        prev_status = machine_activity_manager.status_from_activity(latest_activity)
+        new_status = event_data.event_type.value
+        if prev_status and prev_status == new_status:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Machine is already in '{event_data.event_type.value}' state"
+                detail=f"Machine is already in '{new_status}' state"
             )
 
-        # Create event record
-        event_dict = event_data.model_dump()
-        event_dict['workspace_id'] = workspace_id
-        event_dict['initiated_by'] = user_id
-        event_dict['created_by'] = user_id
+        activity = machine_activity_manager.log_event(
+            session,
+            event_data.machine_id,
+            workspace_id,
+            "status_updated",
+            f"Status set to {new_status.lower()}",
+            performed_by=user_id,
+            metadata={
+                "status": new_status,
+                "changes": [
+                    {
+                        "field": "status",
+                        "label": "Status",
+                        "from_value": prev_status,
+                        "to_value": new_status,
+                    }
+                ],
+            },
+        )
 
-        event = self.machine_event_dao.create(session, obj_in=event_dict)
-
-        # Synchronize machine.is_running based on event type
         new_is_running = (event_data.event_type == MachineEventTypeEnum.RUNNING)
         if machine.is_running != new_is_running:
             self.machine_dao.update(
@@ -294,56 +335,16 @@ class MachineManager(BaseManager[Machine]):
                 obj_in={'is_running': new_is_running, 'updated_by': user_id}
             )
 
-        return event
-
-    def get_machine_events(
-        self,
-        session: Session,
-        machine_id: int,
-        workspace_id: int,
-        event_type: Optional[MachineEventTypeEnum] = None,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[MachineEvent]:
-        """Get events for a machine with optional type filter."""
-        # Validate machine exists
-        machine = self.machine_dao.get_by_id_and_workspace(
-            session, id=machine_id, workspace_id=workspace_id
-        )
-        if not machine:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Machine with ID {machine_id} not found"
-            )
-
-        if event_type:
-            return self.machine_event_dao.get_by_machine_and_type(
-                session, machine_id, event_type,
-                workspace_id=workspace_id, skip=skip, limit=limit
-            )
-        return self.machine_event_dao.get_by_machine(
-            session, machine_id, workspace_id=workspace_id,
-            skip=skip, limit=limit
-        )
-
-    def get_latest_machine_event(
-        self,
-        session: Session,
-        machine_id: int,
-        workspace_id: int
-    ) -> Optional[MachineEvent]:
-        """Get the latest event for a machine."""
-        machine = self.machine_dao.get_by_id_and_workspace(
-            session, id=machine_id, workspace_id=workspace_id
-        )
-        if not machine:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Machine with ID {machine_id} not found"
-            )
-
-        return self.machine_event_dao.get_latest_by_machine(
-            session, machine_id, workspace_id=workspace_id
+        return MachineEventResponse(
+            id=activity.id,
+            workspace_id=workspace_id,
+            machine_id=event_data.machine_id,
+            event_type=event_data.event_type,
+            started_at=activity.created_at,
+            initiated_by=user_id,
+            note=event_data.note,
+            created_at=activity.created_at,
+            created_by=user_id,
         )
 
     # ==================== HELPER METHODS ====================

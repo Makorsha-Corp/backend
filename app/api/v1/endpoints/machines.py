@@ -4,7 +4,7 @@ Machine API endpoints
 Provides operations for managing machines and machine events (status changes).
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_workspace, get_current_active_user
@@ -13,6 +13,7 @@ from app.models.profile import Profile
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
+from app.schemas.machine_activity_event import MachineActivityEventResponse
 from app.services.machine_service import machine_service
 
 
@@ -160,46 +161,24 @@ def create_machine_event(
 
 
 @router.get(
-    "/{machine_id}/events/",
-    response_model=List[MachineEventResponse],
+    "/{machine_id}/activity/",
+    response_model=List[MachineActivityEventResponse],
     status_code=status.HTTP_200_OK,
-    summary="Get machine events",
-    description="Get status change history for a machine"
+    summary="Get machine activity log",
+    description="Unified audit trail for all machine operations",
 )
-def get_machine_events(
+def get_machine_activity(
     machine_id: int,
-    event_type: Optional[MachineEventTypeEnum] = Query(None, description="Filter by event type"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """Get events for a specific machine"""
-    return machine_service.get_machine_events(
-        db, machine_id=machine_id,
-        workspace_id=workspace.id, event_type=event_type,
-        skip=skip, limit=limit
+    """Get activity events for a machine."""
+    return machine_service.get_machine_activity(
+        db,
+        machine_id=machine_id,
+        workspace_id=workspace.id,
+        skip=skip,
+        limit=limit,
     )
-
-
-@router.get(
-    "/{machine_id}/events/latest/",
-    response_model=MachineEventResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Get latest machine event"
-)
-def get_latest_machine_event(
-    machine_id: int,
-    workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
-):
-    """Get the most recent event for a machine"""
-    event = machine_service.get_latest_machine_event(
-        db, machine_id=machine_id, workspace_id=workspace.id
-    )
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No events found for machine with ID {machine_id}"
-        )
-    return event

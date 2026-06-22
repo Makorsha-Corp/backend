@@ -4,6 +4,7 @@ Item endpoints
 Provides CRUD operations for items (universal item catalog).
 Items can be tagged as raw materials, machine parts, consumables, tools, or finished goods.
 """
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -12,8 +13,12 @@ from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemWithTagsResponse
+from app.schemas.item_orders import ItemOrdersListResponse, ItemOrderType
+from app.schemas.item_summary import ItemSummaryResponse
 from app.schemas.item_tag import ItemTagResponse
 from app.services.item_service import item_service
+from app.services.item_orders_service import item_orders_service
+from app.services.item_summary_service import item_summary_service
 
 
 router = APIRouter()
@@ -40,6 +45,57 @@ def get_items(
     """Get all items with their tags included"""
     items = item_service.get_items_with_tags(db, workspace_id=workspace.id, search=search, skip=skip, limit=limit)
     return items
+
+
+@router.get(
+    "/{item_id}/summary/",
+    response_model=ItemSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get item summary hub",
+    description="Aggregated catalog profile, stock, orders, pricing, and recent activity for one item.",
+)
+def get_item_summary(
+    item_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return item_summary_service.get_summary(
+        db, item_id=item_id, workspace_id=workspace.id
+    )
+
+
+@router.get(
+    "/{item_id}/orders/",
+    response_model=ItemOrdersListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List orders containing an item",
+    description=(
+        "Returns purchase, transfer, sales, and work orders that include the item, "
+        "one row per order. Optional date range and order type filters."
+    ),
+)
+def get_item_orders(
+    item_id: int,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of records to return"),
+    order_type: Optional[ItemOrderType] = Query(
+        None, description="Filter by order type"
+    ),
+    from_date: Optional[date] = Query(None, description="Inclusive start date (requires to_date)"),
+    to_date: Optional[date] = Query(None, description="Inclusive end date (requires from_date)"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return item_orders_service.get_orders_for_item(
+        db,
+        workspace_id=workspace.id,
+        item_id=item_id,
+        skip=skip,
+        limit=limit,
+        order_type=order_type,
+        from_date=from_date,
+        to_date=to_date,
+    )
 
 
 @router.get(

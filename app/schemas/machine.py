@@ -1,6 +1,7 @@
 """Machine schemas"""
 from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict
+from app.models.enums import MachineEventTypeEnum
 
 
 class MachineBase(BaseModel):
@@ -59,5 +60,8 @@ class MachineResponse(BaseModel):
     is_deleted: bool
     deleted_at: datetime | None = None
     deleted_by: int | None = None
+
+    latest_status_type: MachineEventTypeEnum | None = None
+    latest_status_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
