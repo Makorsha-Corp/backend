@@ -1,9 +1,13 @@
 """Notification DAO. SECURITY: All queries MUST filter by workspace_id."""
 from __future__ import annotations
+import json
 from datetime import datetime
 from typing import List, Tuple
 
-from sqlalchemy.orm import Session
+from sqlalchemy import text
+from sqlalchemy.orm import Session, joinedload
+
+from app.core.notification_channels import NOTIFICATION_CHANNEL
 from app.models.notification import Notification
 
 
@@ -31,7 +35,13 @@ class NotificationDAO:
             Notification.is_read.is_(False),
         ).count()
 
-        items = base.order_by(Notification.created_at.desc()).offset(skip).limit(limit).all()
+        items = (
+            base.options(joinedload(Notification.actor))
+            .order_by(Notification.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
         return items, total, unread_count
 
     def create(
@@ -60,6 +70,17 @@ class NotificationDAO:
         )
         db.add(obj)
         db.flush()
+        payload = json.dumps(
+            {
+                "recipient_user_id": recipient_user_id,
+                "workspace_id": workspace_id,
+                "notification_id": obj.id,
+            }
+        )
+        db.execute(
+            text("SELECT pg_notify(:channel, :payload)"),
+            {"channel": NOTIFICATION_CHANNEL, "payload": payload},
+        )
         return obj
 
     def mark_read(
