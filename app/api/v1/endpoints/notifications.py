@@ -1,5 +1,6 @@
 """Notification endpoints — /me/notifications/"""
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
@@ -7,6 +8,7 @@ from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.notification import NotificationListResponse, MarkReadRequest
 from app.services.notification_service import notification_service
+from app.services.notification_stream import notification_event_generator
 
 router = APIRouter()
 
@@ -24,6 +26,22 @@ def list_notifications(
         db, workspace.id, current_user.id, unread_only, skip, limit
     )
     return NotificationListResponse(items=items, total=total, unread_count=unread_count)
+
+
+@router.get("/stream", status_code=status.HTTP_200_OK)
+def stream_notifications(
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+):
+    return StreamingResponse(
+        notification_event_generator(current_user.id, workspace.id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/read/", status_code=status.HTTP_200_OK)
