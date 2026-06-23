@@ -11,7 +11,7 @@ class SalesOrderBase(BaseModel):
     order_date: date
     quotation_sent_date: date | None = None
     expected_delivery_date: date | None = None
-    notes: str | None = None
+    description: str | None = None
 
 
 class SalesOrderCreate(SalesOrderBase):
@@ -29,7 +29,7 @@ class SalesOrderUpdate(BaseModel):
     is_fully_delivered: bool | None = None
     invoice_id: int | None = None
     is_invoiced: bool | None = None
-    notes: str | None = None
+    description: str | None = None
 
 
 class SalesOrderResponse(SalesOrderBase):

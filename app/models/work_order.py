@@ -49,7 +49,6 @@ class WorkOrder(Base):
     cost_approved_at = Column(DateTime, nullable=True)
 
     # Notes
-    notes = Column(Text, nullable=True)
     completion_notes = Column(Text, nullable=True)
 
     # Audit fields

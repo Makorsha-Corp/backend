@@ -182,10 +182,7 @@ class ItemOrdersService:
         from_date: Optional[date],
         to_date: Optional[date],
     ) -> List[ItemOrderRowResponse]:
-        order_date_col = func.coalesce(
-            TransferOrder.order_date,
-            cast(TransferOrder.created_at, Date),
-        )
+        order_date_col = cast(TransferOrder.created_at, Date)
         filters = [
             TransferOrder.workspace_id == workspace_id,
             TransferOrderItem.item_id == item_id,

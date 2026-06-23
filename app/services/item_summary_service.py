@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import func
+from sqlalchemy import cast, Date, func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
@@ -374,7 +374,7 @@ class ItemSummaryService:
             TransferOrderItem.item_id == item_id,
         ]
         if from_date is not None and to_date is not None:
-            to_filters.append(svc._in_date_range(TransferOrder.order_date, from_date, to_date))
+            to_filters.append(svc._in_date_range(cast(TransferOrder.created_at, Date), from_date, to_date))
         to_rows = (
             db.query(TransferOrderItem.quantity)
             .join(TransferOrder, TransferOrderItem.transfer_order_id == TransferOrder.id)

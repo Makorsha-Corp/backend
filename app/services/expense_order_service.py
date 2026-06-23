@@ -163,7 +163,7 @@ class ExpenseOrderService(BaseService):
                 invoice_date=date.today(),
                 due_date=eo.due_date,
                 description=f"Auto-created from expense order {eo.expense_number}",
-                notes=eo.expense_note or eo.description,
+                notes=eo.description,
                 allow_payments=True,
                 payment_locked_reason=None
             )

@@ -62,8 +62,6 @@ class ExpenseOrder(Base):
 
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
-    expense_note = Column(Text, nullable=True)
-    internal_note = Column(Text, nullable=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

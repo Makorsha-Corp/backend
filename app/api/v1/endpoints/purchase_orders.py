@@ -142,7 +142,6 @@ def update_purchase_order(
 _SECTION_CONFIRM_FIELDS = {
     'supplier': 'supplier_confirmed',
     'details': 'details_confirmed',
-    'notes': 'notes_confirmed',
     'items': 'items_confirmed',
     'invoice': 'invoice_confirmed',
 }

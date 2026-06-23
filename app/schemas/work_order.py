@@ -18,7 +18,6 @@ class WorkOrderCreate(BaseModel):
     end_date: date | None = None
     cost: Decimal | None = None
     assigned_to: str | None = None
-    notes: str | None = None
 
 
 class WorkOrderUpdate(BaseModel):
@@ -36,7 +35,6 @@ class WorkOrderUpdate(BaseModel):
     assigned_to: str | None = None
     order_approved: bool | None = None
     cost_approved: bool | None = None
-    notes: str | None = None
     completion_notes: str | None = None
 
 
@@ -65,7 +63,6 @@ class WorkOrderResponse(BaseModel):
     cost_approved_by: int | None = None
     cost_approved_at: datetime | None = None
 
-    notes: str | None = None
     completion_notes: str | None = None
 
     created_at: datetime

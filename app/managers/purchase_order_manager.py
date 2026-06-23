@@ -43,7 +43,6 @@ INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
 })
 SUPPLIER_CONFIRMED_FIELDS = frozenset({'account_id'})
-NOTES_FIELDS = frozenset({'order_note'})
 DETAIL_LOG_FIELDS = {
     'destination_type': 'Destination type',
     'destination_id': 'Destination',
@@ -53,9 +52,6 @@ DETAIL_LOG_FIELDS = {
 }
 SUPPLIER_LOG_FIELDS = {
     'account_id': 'Supplier',
-}
-NOTE_LOG_FIELDS = {
-    'order_note': 'Order note',
 }
 STATUS_LOG_FIELDS = {
     'current_status_id': 'Status',
@@ -77,7 +73,6 @@ INVOICE_CONFIRM_MSG = 'Confirmed after invoice creation'
 SECTION_CONFIRM_FIELDS = {
     'supplier_confirmed': ('supplier', 'Supplier'),
     'details_confirmed': ('details', 'Order details'),
-    'notes_confirmed': ('notes', 'Order notes'),
     'items_confirmed': ('items', 'Order items'),
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
@@ -489,12 +484,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-        if record.notes_confirmed and NOTES_FIELDS.intersection(update_dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order notes are confirmed',
-            )
-
         self._validate_section_confirm(record, update_dict, session, workspace_id)
 
         section_unconfirmed = False
@@ -533,7 +522,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def _format_scalar_value(self, field: str, value: Any) -> str:
         if value is None:
-            if field in ('description', 'order_note', 'notes'):
+            if field in ('description', 'notes'):
                 return '—'
             if field == 'required_approvals':
                 return 'All assigned'
@@ -690,15 +679,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self._log_field_change_event(
                 session, po_id, workspace_id, user_id,
                 'details_updated', 'Changed order details', detail_changes,
-            )
-
-        note_changes = self._collect_field_changes(
-            session, workspace_id, record, update_dict, NOTE_LOG_FIELDS
-        )
-        if note_changes:
-            self._log_field_change_event(
-                session, po_id, workspace_id, user_id,
-                'notes_updated', 'Changed order notes', note_changes,
             )
 
     def _log_admin_field_updates(

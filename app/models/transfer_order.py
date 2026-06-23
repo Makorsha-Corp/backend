@@ -1,7 +1,7 @@
 """Transfer order model - for internal item movements"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime, date
+from datetime import datetime
 from app.db.base_class import Base
 
 
@@ -28,23 +28,14 @@ class TransferOrder(Base):
     destination_location_type = Column(String(50), nullable=False)  # 'storage', 'machine', 'project', 'damaged'
     destination_location_id = Column(Integer, nullable=False)  # factory_id, machine_id, project_component_id, etc.
 
-    # === DATES ===
-    order_date = Column(Date, nullable=False, default=date.today)
-    expected_completion_date = Column(Date, nullable=True)
-
     # === WORKFLOW ===
     current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
 
     # === APPROVALS ===
     required_approvals = Column(Integer, nullable=True)
 
-    # === SECTION CONFIRMS ===
-    route_confirmed = Column(Boolean, nullable=False, default=False)
-    items_confirmed = Column(Boolean, nullable=False, default=False)
-
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
-    note = Column(Text, nullable=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

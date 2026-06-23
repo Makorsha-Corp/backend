@@ -51,12 +51,10 @@ class PurchaseOrder(Base):
 
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
-    order_note = Column(Text, nullable=True)
 
     # === SECTION CONFIRMS ===
     supplier_confirmed = Column(Boolean, nullable=False, default=False)
     details_confirmed = Column(Boolean, nullable=False, default=False)
-    notes_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
 

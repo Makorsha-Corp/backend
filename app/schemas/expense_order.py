@@ -50,8 +50,6 @@ class ExpenseOrderCreate(BaseModel):
     expense_date: date | None = None
     due_date: date | None = None
     description: str | None = None
-    expense_note: str | None = None
-    internal_note: str | None = None
     current_status_id: int = 1
     order_workflow_id: int | None = None
     items: List[ExpenseOrderItemCreate] | None = None
@@ -74,8 +72,6 @@ class ExpenseOrderUpdate(BaseModel):
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
-    expense_note: str | None = None
-    internal_note: str | None = None
     details_confirmed: bool | None = None
     items_confirmed: bool | None = None
     invoice_confirmed: bool | None = None
@@ -101,8 +97,6 @@ class ExpenseOrderResponse(BaseModel):
     items_confirmed: bool = False
     invoice_confirmed: bool = False
     description: str | None = None
-    expense_note: str | None = None
-    internal_note: str | None = None
     created_by: int
     created_at: datetime
     updated_by: int | None = None

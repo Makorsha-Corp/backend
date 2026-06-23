@@ -259,7 +259,7 @@ class OrdersOverviewService:
             .outerjoin(to_src_section, to_src_machine.factory_section_id == to_src_section.id)
             .filter(
                 TransferOrder.workspace_id == workspace_id,
-                self._in_date_range(TransferOrder.order_date, from_date, to_date),
+                self._in_date_range(cast(TransferOrder.created_at, Date), from_date, to_date),
             )
             .all()
         )
@@ -380,7 +380,7 @@ class OrdersOverviewService:
             .join(Item, TransferOrderItem.item_id == Item.id)
             .filter(
                 TransferOrder.workspace_id == workspace_id,
-                self._in_date_range(TransferOrder.order_date, from_date, to_date),
+                self._in_date_range(cast(TransferOrder.created_at, Date), from_date, to_date),
             )
         )
         if factory_id is not None:

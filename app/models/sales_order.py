@@ -47,8 +47,8 @@ class SalesOrder(Base):
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     is_invoiced = Column(Boolean, nullable=False, default=False)
 
-    # === NOTES ===
-    notes = Column(Text, nullable=True)
+    # === DESCRIPTION ===
+    description = Column(Text, nullable=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

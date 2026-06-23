@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal
 
-PurchaseOrderSection = Literal['supplier', 'details', 'notes', 'items', 'invoice']
+PurchaseOrderSection = Literal['supplier', 'details', 'items', 'invoice']
 from pydantic import BaseModel, ConfigDict
 
 
@@ -72,7 +72,6 @@ class PurchaseOrderCreate(BaseModel):
     order_date: date | None = None
     expected_delivery_date: date | None = None
     description: str | None = None
-    order_note: str | None = None
     current_status_id: int | None = None
     order_workflow_id: int | None = None
     required_approvals: int | None = None
@@ -94,10 +93,8 @@ class PurchaseOrderUpdate(BaseModel):
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
-    order_note: str | None = None
     supplier_confirmed: bool | None = None
     details_confirmed: bool | None = None
-    notes_confirmed: bool | None = None
     items_confirmed: bool | None = None
     invoice_confirmed: bool | None = None
 
@@ -120,10 +117,8 @@ class PurchaseOrderResponse(BaseModel):
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
-    order_note: str | None = None
     supplier_confirmed: bool = False
     details_confirmed: bool = False
-    notes_confirmed: bool = False
     items_confirmed: bool = False
     invoice_confirmed: bool = False
     order_completed: bool = False

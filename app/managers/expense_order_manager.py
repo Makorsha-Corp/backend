@@ -27,7 +27,7 @@ from app.schemas.expense_order import (
 
 DETAILS_UPDATE_FIELDS = frozenset({
     'account_id', 'expense_category', 'expense_date', 'due_date',
-    'description', 'expense_note', 'internal_note',
+    'description',
 })
 ORDER_UPDATE_LOG_FIELDS = {
     'account_id': 'Account',
@@ -35,8 +35,6 @@ ORDER_UPDATE_LOG_FIELDS = {
     'expense_date': 'Expense date',
     'due_date': 'Due date',
     'description': 'Description',
-    'expense_note': 'Expense note',
-    'internal_note': 'Internal note',
     'required_approvals': 'Required approvals',
 }
 SECTION_CONFIRM_FIELDS = {
@@ -199,8 +197,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
 
     def _guard_confirmed_updates(self, record: ExpenseOrder, update_dict: dict) -> None:
         if self._is_completed(record):
-            blocked = set(update_dict.keys()) - {'internal_note'}
-            if blocked:
+            if update_dict:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Expense order is complete and cannot be edited',

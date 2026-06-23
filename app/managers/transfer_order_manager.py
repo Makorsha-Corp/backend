@@ -31,22 +31,15 @@ from app.schemas.transfer_order import (
 ROUTE_UPDATE_FIELDS = frozenset({
     'source_location_type', 'source_location_id',
     'destination_location_type', 'destination_location_id',
-    'order_date', 'description', 'note', 'expected_completion_date',
+    'description',
 })
 ORDER_UPDATE_LOG_FIELDS = {
     'source_location_type': 'Source type',
     'source_location_id': 'Source location',
     'destination_location_type': 'Destination type',
     'destination_location_id': 'Destination location',
-    'order_date': 'Order date',
-    'expected_completion_date': 'Expected completion',
     'description': 'Description',
-    'note': 'Note',
     'required_approvals': 'Required approvals',
-}
-SECTION_CONFIRM_FIELDS = {
-    'route_confirmed': ('route', 'Order details'),
-    'items_confirmed': ('items', 'Transfer items'),
 }
 LOCATION_TYPE_LABELS = {
     'storage': 'Storage',
@@ -70,9 +63,6 @@ class TransferOrderManager(BaseManager[TransferOrder]):
     def _is_completed(self, record: TransferOrder) -> bool:
         return record.completed_at is not None
 
-    def _base_sections_confirmed(self, record: TransferOrder) -> bool:
-        return bool(record.route_confirmed and record.items_confirmed)
-
     def _route_defined(self, record: TransferOrder) -> bool:
         return bool(
             record.source_location_type
@@ -81,35 +71,60 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             and record.destination_location_id
         )
 
+    def _route_valid(self, record: TransferOrder) -> bool:
+        if not self._route_defined(record):
+            return False
+        return not (
+            record.source_location_type == record.destination_location_type
+            and record.source_location_id == record.destination_location_id
+        )
+
+    def _order_items(
+        self, session: Session, to: TransferOrder, workspace_id: int
+    ) -> List[TransferOrderItem]:
+        return self.item_dao.get_by_order(
+            session, transfer_order_id=to.id, workspace_id=workspace_id
+        )
+
+    def _ready_for_approval(
+        self, session: Session, record: TransferOrder, workspace_id: int
+    ) -> bool:
+        if not self._route_valid(record):
+            return False
+        return len(self._order_items(session, record, workspace_id)) > 0
+
+    def _validate_ready_for_approval(
+        self, session: Session, record: TransferOrder, workspace_id: int
+    ) -> None:
+        if not self._route_defined(record):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Set source and destination before approving',
+            )
+        if (
+            record.source_location_type == record.destination_location_type
+            and record.source_location_id == record.destination_location_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Source and destination cannot be the same',
+            )
+        if not self._order_items(session, record, workspace_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Add at least one item before approving',
+            )
+
+    def _has_any_approval(self, session: Session, to: TransferOrder) -> bool:
+        approvers = self.approver_dao.get_by_order(
+            session, transfer_order_id=to.id, workspace_id=to.workspace_id
+        )
+        return any(a.approved for a in approvers)
+
     def _all_items_transferred(self, items: List[TransferOrderItem]) -> bool:
         if not items:
             return False
         return all(i.transferred_at is not None for i in items)
-
-    def reset_approvals(
-        self,
-        session: Session,
-        to_id: int,
-        workspace_id: int,
-        user_id: int,
-        reason: str = 'Section unconfirmed',
-    ) -> None:
-        approvers = self.approver_dao.get_by_order(
-            session, transfer_order_id=to_id, workspace_id=workspace_id
-        )
-        reset_count = 0
-        for approver in approvers:
-            if approver.approved:
-                approver.approved = False
-                approver.approved_at = None
-                reset_count += 1
-        if reset_count:
-            session.flush()
-            self.log_event(
-                session, to_id, workspace_id, 'approvals_reset',
-                f'{reason} ({reset_count} approval(s) cleared)',
-                user_id,
-            )
 
     def _format_scalar_value(self, field: str, value: Any) -> str:
         if value is None:
@@ -216,42 +231,11 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             metadata={'changes': changes},
         )
 
-    def _validate_section_confirm(
-        self,
-        record: TransferOrder,
-        update_dict: dict,
-        session: Session,
-        workspace_id: int,
+    def _guard_confirmed_updates(
+        self, session: Session, record: TransferOrder, update_dict: dict
     ) -> None:
-        if update_dict.get('route_confirmed') is True and not record.route_confirmed:
-            src_type = update_dict.get('source_location_type', record.source_location_type)
-            src_id = update_dict.get('source_location_id', record.source_location_id)
-            dest_type = update_dict.get('destination_location_type', record.destination_location_type)
-            dest_id = update_dict.get('destination_location_id', record.destination_location_id)
-            if not (src_type and dest_type and src_id and dest_id):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Set source and destination before confirming order details',
-                )
-            if src_type == dest_type and src_id == dest_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Source and destination cannot be the same',
-                )
-        if update_dict.get('items_confirmed') is True and not record.items_confirmed:
-            items = self.item_dao.get_by_order(
-                session, transfer_order_id=record.id, workspace_id=workspace_id
-            )
-            if not items:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Add at least one line item before confirming',
-                )
-
-    def _guard_confirmed_updates(self, record: TransferOrder, update_dict: dict) -> None:
         if self._is_completed(record):
-            blocked = set(update_dict.keys()) - {'note'}
-            if blocked:
+            if update_dict:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Transfer order is complete and cannot be edited',
@@ -261,10 +245,10 @@ class TransferOrderManager(BaseManager[TransferOrder]):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Status is derived from workflow state — use Mark complete instead',
             )
-        if record.route_confirmed and ROUTE_UPDATE_FIELDS.intersection(update_dict):
+        if self._has_any_approval(session, record) and ROUTE_UPDATE_FIELDS.intersection(update_dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order details are confirmed',
+                detail='Withdraw all approvals before editing order details',
             )
 
     def _guard_item_mutations(self, session: Session, to: TransferOrder, workspace_id: int) -> None:
@@ -273,10 +257,10 @@ class TransferOrderManager(BaseManager[TransferOrder]):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Transfer order is complete',
             )
-        if to.items_confirmed:
+        if self._has_any_approval(session, to):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Transfer items are confirmed',
+                detail='Withdraw all approvals before editing transfer items',
             )
 
     # ─── CRUD ────────────────────────────────────────────────────
@@ -300,8 +284,6 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         to_dict['workspace_id'] = workspace_id
         to_dict['transfer_number'] = tr_number
         to_dict['created_by'] = user_id
-        if not to_dict.get('order_date'):
-            to_dict['order_date'] = date.today()
 
         to = self.to_dao.create(session, obj_in=to_dict)
 
@@ -346,28 +328,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             )
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
-        self._guard_confirmed_updates(record, update_dict)
-        self._validate_section_confirm(record, update_dict, session, workspace_id)
-
-        section_unconfirmed = False
-        for confirm_field, (section_key, label) in SECTION_CONFIRM_FIELDS.items():
-            if confirm_field not in update_dict:
-                continue
-            new_confirmed = bool(update_dict[confirm_field])
-            old_confirmed = bool(getattr(record, confirm_field, False))
-            if new_confirmed != old_confirmed:
-                if not new_confirmed:
-                    section_unconfirmed = True
-                event_suffix = 'confirmed' if new_confirmed else 'unconfirmed'
-                self.log_event(
-                    session, to_id, workspace_id,
-                    f'{section_key}_{event_suffix}',
-                    f'{label} {event_suffix}',
-                    user_id,
-                )
-
-        if section_unconfirmed:
-            self.reset_approvals(session, to_id, workspace_id, user_id)
+        self._guard_confirmed_updates(session, record, update_dict)
 
         changes = self._collect_field_changes(session, workspace_id, record, update_dict)
         if changes:
@@ -430,25 +391,29 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         if self._is_completed(record):
             return record
 
-        if not self._base_sections_confirmed(record):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Confirm order details and transfer items before completing',
-            )
         if not self.approvals_met(session, record):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Required approvals are not met',
             )
 
-        items = self.item_dao.get_by_order(
-            session, transfer_order_id=record.id, workspace_id=workspace_id
-        )
-        if not self._all_items_transferred(items):
+        items = self._order_items(session, record, workspace_id)
+        if not items:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='All line items must be transferred before marking complete',
+                detail='Add at least one item before completing',
             )
+
+        now = datetime.utcnow()
+        for line in items:
+            if line.transferred_at is None:
+                line.transferred_at = now
+                self.log_event(
+                    session, to_id, workspace_id, 'transfer_recorded',
+                    f'Item #{line.line_number} transfer recorded', user_id,
+                    metadata={'line_number': line.line_number, 'item_id': line.item_id},
+                )
+        session.flush()
 
         lines_posted = post_transfer_order_inventory(
             session, record, items, workspace_id, user_id
@@ -462,7 +427,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         if lines_posted > 0:
             self.log_event(
                 session, to_id, workspace_id, 'inventory_posted',
-                f'{lines_posted} line(s) posted to inventory',
+                f'{lines_posted} item(s) posted to inventory',
                 user_id,
                 metadata={'lines_posted': lines_posted},
             )
@@ -514,7 +479,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         item = self.item_dao.create(session, obj_in=item_dict)
         self.log_event(
             session, to_id, workspace_id, 'item_added',
-            f'Line {next_line} added', user_id,
+            f'Item #{next_line} added', user_id,
             metadata={'item_id': item.item_id, 'line_number': next_line},
         )
         return item
@@ -536,18 +501,10 @@ class TransferOrderManager(BaseManager[TransferOrder]):
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
 
-        if 'quantity' in update_dict and to.items_confirmed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Transfer items are confirmed',
-            )
+        if {'quantity', 'notes'}.intersection(update_dict):
+            self._guard_item_mutations(session, to, workspace_id)
 
         if 'transferred_at' in update_dict and update_dict['transferred_at'] is not None:
-            if not self._base_sections_confirmed(to):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Confirm order details and items before recording transfers',
-                )
             if not self.approvals_met(session, to):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -566,13 +523,13 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             if update_dict['transferred_at'] and not was_transferred:
                 self.log_event(
                     session, to.id, workspace_id, 'transfer_recorded',
-                    f'Line {updated.line_number} transfer recorded', user_id,
+                    f'Item #{updated.line_number} transfer recorded', user_id,
                     metadata={'line_number': updated.line_number, 'item_id': updated.item_id},
                 )
             elif update_dict['transferred_at'] is None and was_transferred:
                 self.log_event(
                     session, to.id, workspace_id, 'transfer_cleared',
-                    f'Line {updated.line_number} transfer cleared', user_id,
+                    f'Item #{updated.line_number} transfer cleared', user_id,
                 )
 
         return updated
@@ -590,7 +547,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         session.flush()
         self.log_event(
             session, to.id, workspace_id, 'item_removed',
-            f'Line {line_number} removed', user_id,
+            f'Item #{line_number} removed', user_id,
         )
         return record
 
@@ -702,11 +659,8 @@ class TransferOrderManager(BaseManager[TransferOrder]):
                 detail='You are not an assigned approver for this order',
             )
         to = self.get_transfer_order(session, to_id, workspace_id)
-        if approved and not self._base_sections_confirmed(to):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Confirm order details and transfer items before approving',
-            )
+        if approved:
+            self._validate_ready_for_approval(session, to, workspace_id)
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None
         session.flush()

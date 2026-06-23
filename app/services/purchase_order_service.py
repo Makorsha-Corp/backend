@@ -142,7 +142,7 @@ class PurchaseOrderService(BaseService):
 
         total = Decimal(str(po.total_amount or 0))
         description = f"Purchase order {po.po_number}"
-        notes = po.order_note or po.description
+        notes = po.description
 
         if po.invoice_id is None:
             invoice_in = AccountInvoiceCreate(
@@ -422,7 +422,7 @@ class PurchaseOrderService(BaseService):
                     order_kind="purchase",
                     id=po.id,
                     number=po.po_number,
-                    summary=po.description or po.order_note,
+                    summary=po.description,
                     current_status_id=po.current_status_id,
                     status_name=st.name if st else None,
                     created_at=po.created_at,
@@ -437,7 +437,7 @@ class PurchaseOrderService(BaseService):
                     order_kind="transfer",
                     id=to.id,
                     number=to.transfer_number,
-                    summary=to.description or to.note,
+                    summary=to.description,
                     current_status_id=to.current_status_id,
                     status_name=st.name if st else None,
                     created_at=to.created_at,

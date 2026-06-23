@@ -11,7 +11,6 @@ from app.models.profile import Profile
 from app.schemas.transfer_order import (
     TransferOrderCreate, TransferOrderUpdate, TransferOrderResponse,
     TransferOrderItemCreate, TransferOrderItemUpdate, TransferOrderItemResponse,
-    TransferOrderSectionConfirmRequest,
     TransferOrderApproverCreate, TransferOrderApproverResponse,
     ApprovalSummaryResponse, TransferOrderApproversList,
     TransferOrderEventMetadata, TransferOrderEventResponse,
@@ -33,12 +32,6 @@ def _approver_response(record, profile=None, position=None) -> TransferOrderAppr
         approved=record.approved,
         approved_at=record.approved_at,
     )
-
-
-_SECTION_CONFIRM_FIELDS = {
-    'route': 'route_confirmed',
-    'items': 'items_confirmed',
-}
 
 
 router = APIRouter()
@@ -112,29 +105,6 @@ def update_transfer_order(
     return transfer_order_service.update_transfer_order(
         db, to_id=to_id, to_in=to_in,
         workspace_id=workspace.id, user_id=current_user.id
-    )
-
-
-@router.patch(
-    "/{to_id}/section-confirm/",
-    response_model=TransferOrderResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Confirm or unconfirm a transfer order section",
-)
-def set_transfer_order_section_confirm(
-    to_id: int,
-    body: TransferOrderSectionConfirmRequest,
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    confirm_field = _SECTION_CONFIRM_FIELDS[body.section]
-    return transfer_order_service.update_transfer_order(
-        db,
-        to_id=to_id,
-        to_in=TransferOrderUpdate(**{confirm_field: body.confirmed}),
-        workspace_id=workspace.id,
-        user_id=current_user.id,
     )
 
 
