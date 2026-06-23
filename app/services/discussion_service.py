@@ -75,7 +75,10 @@ class DiscussionService:
         # Fan out mention notifications (deferred import avoids circular deps)
         mentioned_ids = _extract_mentions(data.message)
         if mentioned_ids:
-            from app.services.notification_service import notification_service
+            from app.services.notification_service import (
+                humanize_mention_preview,
+                notification_service,
+            )
             notification_service.fan_out_mentions(
                 db=db,
                 workspace_id=workspace_id,
@@ -84,7 +87,7 @@ class DiscussionService:
                 entity_type=data.entity_type.value,
                 entity_id=data.entity_id,
                 source_id=discussion.id,
-                preview=data.message[:200],
+                preview=humanize_mention_preview(db, data.message),
             )
 
         db.commit()
