@@ -57,12 +57,20 @@ class PurchaseOrder(Base):
     details_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
+    invoice_ever_linked = Column(Boolean, nullable=False, default=False, server_default='false')
+
+    # === VOID ===
+    voided = Column(Boolean, nullable=False, default=False)
+    void_note = Column(Text, nullable=True)
+    voided_at = Column(DateTime, nullable=True)
+    voided_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    items_updated_at = Column(DateTime, nullable=True)
 
     # === RELATIONSHIPS ===
     account = relationship("Account", backref="purchase_orders")

@@ -9,6 +9,7 @@ class AccountInvoiceBase(BaseModel):
     """Base account invoice schema"""
     account_id: int
     order_id: Optional[int] = None
+    order_type: Optional[str] = Field(None, max_length=30)
 
     invoice_type: str = Field(..., pattern=r'^(payable|receivable)$')
     invoice_amount: Decimal = Field(..., ge=0)
@@ -67,9 +68,12 @@ class AccountInvoiceInDB(AccountInvoiceBase):
     id: int
     workspace_id: int
 
-    invoice_status: str  # 'draft', 'confirmed', 'locked', 'voided'
+    invoice_status: str  # 'draft', 'confirmed', 'voided'
     paid_amount: Decimal
     payment_status: str
+
+    receiving_started: bool = False
+    last_synced_at: Optional[datetime] = None
 
     void_note: Optional[str] = None
 

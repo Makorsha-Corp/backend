@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate, AccountInvoiceResponse, VoidInvoiceRequest, InvoiceStatusEntryResponse
+from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate, AccountInvoiceResponse, VoidInvoiceRequest
+from app.schemas.invoice_item import InvoiceItemResponse
+from app.schemas.invoice_event import InvoiceEventResponse
 from app.services.account_invoice_service import account_invoice_service
 
 
@@ -132,19 +134,68 @@ def update_invoice(
 
 
 @router.get(
-    "/{invoice_id}/status-history/",
-    response_model=List[InvoiceStatusEntryResponse],
+    "/{invoice_id}/events/",
+    response_model=List[InvoiceEventResponse],
     status_code=status.HTTP_200_OK,
-    summary="Get invoice status history",
-    description="Returns all status transitions for an invoice, oldest first"
+    summary="Get invoice event log",
+    description="Returns the full event history for an invoice, oldest first",
 )
-def get_invoice_status_history(
+def get_invoice_events(
     invoice_id: int,
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    return account_invoice_service.get_status_history(
-        db, invoice_id=invoice_id, workspace_id=workspace.id
+    return account_invoice_service.get_events(db, invoice_id=invoice_id, workspace_id=workspace.id)
+
+
+@router.get(
+    "/{invoice_id}/items/",
+    response_model=List[InvoiceItemResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get invoice items",
+    description="Returns all line items for an invoice",
+)
+def get_invoice_items(
+    invoice_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return account_invoice_service.get_items(db, invoice_id=invoice_id, workspace_id=workspace.id)
+
+
+@router.post(
+    "/{invoice_id}/revert/",
+    response_model=AccountInvoiceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Revert invoice to draft",
+    description="Revert a confirmed invoice to draft. Blocked if receiving_started=true or payments exist.",
+)
+def revert_invoice_to_draft(
+    invoice_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return account_invoice_service.revert_to_draft(
+        db, invoice_id=invoice_id, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{invoice_id}/resync/",
+    response_model=AccountInvoiceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Resync invoice items from linked order",
+    description="Re-pull items from the linked PO/EO/SO into this draft invoice. Draft only.",
+)
+def resync_invoice_items(
+    invoice_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return account_invoice_service.resync_items(
+        db, invoice_id=invoice_id, workspace_id=workspace.id, user_id=current_user.id
     )
 
 

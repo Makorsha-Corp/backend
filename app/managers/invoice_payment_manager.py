@@ -15,6 +15,7 @@ from app.models.account_invoice import AccountInvoice
 from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, VoidPaymentRequest
 from app.dao.invoice_payment import invoice_payment_dao
 from app.dao.account_invoice import account_invoice_dao
+from app.dao.invoice_event import invoice_event_dao
 from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
 
 
@@ -69,12 +70,11 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 detail=f"Invoice with ID {payment_data.invoice_id} not found"
             )
 
-        # Only confirmed or locked invoices accept payments
-        if invoice.invoice_status not in ('confirmed', 'locked'):
+        # Only confirmed invoices accept payments
+        if invoice.invoice_status not in ('confirmed',):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Payments can only be recorded against confirmed invoices. "
-                       f"This invoice is currently '{invoice.invoice_status}'."
+                detail=f"Payments can only be recorded against confirmed invoices (current status: '{invoice.invoice_status}')."
             )
 
         # Enforce admin payment lock
@@ -113,6 +113,19 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
 
         # Capture invoice status after payment
         new_status = updated_invoice.payment_status
+
+        # Flip receiving_started on first payment
+        if not updated_invoice.receiving_started:
+            updated_invoice.receiving_started = True
+            session.flush()
+            invoice_event_dao.create_event(
+                session,
+                workspace_id=workspace_id,
+                invoice_id=invoice.id,
+                event_type="receiving_started_set",
+                description="Receiving started — first payment recorded against this invoice",
+                performed_by=user_id,
+            )
 
         # Audit log with invoice status change
         changes = {

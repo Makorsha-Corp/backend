@@ -62,6 +62,7 @@ from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.models.purchase_order_event import PurchaseOrderEvent
+from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
 # Transfer Orders
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem

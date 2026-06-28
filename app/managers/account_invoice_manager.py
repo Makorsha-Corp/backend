@@ -2,23 +2,23 @@
 Account Invoice Manager
 
 Business logic for account invoice operations.
-Lifecycle: draft → confirmed → locked → voided (terminal; void only from confirmed)
+Lifecycle: draft → confirmed → voided (terminal)
+receiving_started is a boolean flag on confirmed invoices, set on first payment or PO receipt.
 """
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from decimal import Decimal
 
 from app.managers.base_manager import BaseManager
 from app.models.account_invoice import AccountInvoice
 from app.models.invoice_payment import InvoicePayment
-from app.models.invoice_status_tracker import InvoiceStatusTracker
-from app.models.profile import Profile
-from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate, VoidInvoiceRequest
+from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 from app.dao.account_invoice import account_invoice_dao
 from app.dao.account import account_dao
-from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
+from app.dao.invoice_item import invoice_item_dao
+from app.dao.invoice_event import invoice_event_dao
 
 
 class AccountInvoiceManager(BaseManager[AccountInvoice]):
@@ -39,36 +39,43 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         if not invoice:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Invoice with ID {invoice_id} not found"
+                detail=f"Invoice with ID {invoice_id} not found",
             )
         return invoice
 
-    def _log_status_change(
+    def _log_event(
         self,
         session: Session,
         invoice: AccountInvoice,
-        from_status: str,
-        to_status: str,
-        changed_by: int
+        event_type: str,
+        description: str,
+        performed_by: Optional[int] = None,
+        metadata: Optional[dict] = None,
     ) -> None:
-        """Write one row to invoice_status_tracker."""
-        entry = InvoiceStatusTracker(
+        invoice_event_dao.create_event(
+            session,
             workspace_id=invoice.workspace_id,
             invoice_id=invoice.id,
-            from_status=from_status,
-            to_status=to_status,
-            changed_by=changed_by,
-            changed_at=datetime.utcnow(),
+            event_type=event_type,
+            description=description,
+            performed_by=performed_by,
+            metadata=metadata,
         )
-        session.add(entry)
 
     def _recalculate_payment_status(self, invoice: AccountInvoice) -> None:
         if invoice.paid_amount >= invoice.invoice_amount:
-            invoice.payment_status = 'paid'
+            invoice.payment_status = "paid"
         elif invoice.paid_amount > 0:
-            invoice.payment_status = 'partial'
+            invoice.payment_status = "partial"
         else:
-            invoice.payment_status = 'unpaid'
+            invoice.payment_status = "unpaid"
+
+    def _recalculate_invoice_amount(self, session: Session, invoice: AccountInvoice) -> None:
+        """Recompute invoice_amount from the sum of its items."""
+        items = invoice_item_dao.get_by_invoice(session, invoice_id=invoice.id, workspace_id=invoice.workspace_id)
+        total = sum(Decimal(str(i.line_subtotal)) for i in items) if items else Decimal("0.00")
+        invoice.invoice_amount = total
+        self._recalculate_payment_status(invoice)
 
     # ------------------------------------------------------------------
     # CRUD
@@ -79,7 +86,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         invoice_data: AccountInvoiceCreate,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> AccountInvoice:
         account = self.account_dao.get_by_id_and_workspace(
             session, id=invoice_data.account_id, workspace_id=workspace_id
@@ -98,27 +105,20 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
                                 detail="Invoices are not allowed for this account")
 
         invoice_dict = invoice_data.model_dump(exclude_none=True)
-        invoice_dict['workspace_id'] = workspace_id
-        invoice_dict['created_by'] = user_id
-        invoice_dict['paid_amount'] = Decimal('0.00')
-        invoice_dict['payment_status'] = 'unpaid'
-        invoice_dict['invoice_status'] = 'draft'
+        invoice_dict["workspace_id"] = workspace_id
+        invoice_dict["created_by"] = user_id
+        invoice_dict["paid_amount"] = Decimal("0.00")
+        invoice_dict["payment_status"] = "unpaid"
+        invoice_dict["invoice_status"] = "draft"
+        invoice_dict["receiving_started"] = False
 
         invoice = self.account_invoice_dao.create(session, obj_in=invoice_dict)
 
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='created',
+        self._log_event(
+            session, invoice, "created",
+            f"{invoice.invoice_type.capitalize()} invoice created (draft) for account ID {invoice.account_id}",
             performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes=create_change_dict(after=extract_relevant_fields(
-                invoice, ['invoice_type', 'invoice_amount', 'invoice_number', 'invoice_date', 'due_date', 'invoice_status']
-            )),
-            description=f"{invoice.invoice_type.capitalize()} invoice created (draft) for account ID {invoice.account_id}"
+            metadata={"invoice_type": invoice.invoice_type, "account_id": invoice.account_id},
         )
         return invoice
 
@@ -142,9 +142,8 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         amount_min=None,
         amount_max=None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[AccountInvoice]:
-        """List invoices with all filters. Excludes invoices from soft-deleted accounts."""
         return self.account_invoice_dao.list_invoices(
             session,
             workspace_id=workspace_id,
@@ -170,33 +169,35 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         invoice_id: int,
         invoice_data: AccountInvoiceUpdate,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> AccountInvoice:
         invoice = self._get_or_404(session, invoice_id, workspace_id)
 
-        if invoice.invoice_status == 'voided':
+        if invoice.invoice_status == "voided":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Voided invoices cannot be edited")
 
-        # Capture original status BEFORE any mutation so dropped_to_draft is correct
-        original_status = invoice.invoice_status
-
-        if invoice.invoice_status == 'locked':
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Locked invoices cannot be edited",
+        if invoice.invoice_status == "confirmed":
+            # Confirmed invoices: only admin-control fields are mutable
+            allowed = {"allow_payments", "payment_locked_reason"}
+            update_dict = {
+                k: v for k, v in invoice_data.model_dump(exclude_unset=True, exclude_none=True).items()
+                if k in allowed
+            }
+            if not update_dict:
+                return invoice
+            update_dict["updated_by"] = user_id
+            updated = self.account_invoice_dao.update(session, db_obj=invoice, obj_in=update_dict)
+            changed = list(update_dict.keys() - {"updated_by"})
+            self._log_event(
+                session, updated, "allow_payments_changed" if "allow_payments" in changed else "payment_lock_changed",
+                f"Invoice admin field(s) updated: {', '.join(changed)}",
+                performed_by=user_id,
+                metadata=update_dict,
             )
+            return updated
 
-        if invoice.invoice_status == 'confirmed':
-            if invoice.paid_amount > 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot edit a confirmed invoice that has active payments. "
-                           "Void all payments first, then you can edit."
-                )
-            # No active payments — allow edit, drop back to draft
-            invoice.invoice_status = 'draft'
-
+        # Draft invoice: full edit allowed (except system-managed fields)
         if invoice_data.account_id and invoice_data.account_id != invoice.account_id:
             account = self.account_dao.get_by_id_and_workspace(
                 session, id=invoice_data.account_id, workspace_id=workspace_id
@@ -208,54 +209,18 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail="Cannot assign invoice to deleted account")
 
-        before_state = extract_relevant_fields(
-            invoice, ['invoice_type', 'invoice_amount', 'invoice_number', 'invoice_date', 'due_date', 'payment_status', 'invoice_status']
-        )
-
-        dropped_to_draft = original_status == 'confirmed' and invoice.invoice_status == 'draft'
-
         update_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
-        # Guard: these fields are system-managed and must never be set via the update endpoint
-        for protected in ('invoice_status', 'paid_amount', 'void_note'):
+        for protected in ("invoice_status", "paid_amount", "void_note", "invoice_amount", "receiving_started"):
             update_dict.pop(protected, None)
 
-        if 'invoice_amount' in update_dict and update_dict['invoice_amount'] is not None:
-            new_amount = Decimal(str(update_dict['invoice_amount']))
-            paid = Decimal(str(invoice.paid_amount or 0))
-            if new_amount < paid:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        f'Invoice amount cannot be less than amount already paid ({paid})'
-                    ),
-                )
-
-        update_dict['updated_by'] = user_id
-
+        update_dict["updated_by"] = user_id
         updated_invoice = self.account_invoice_dao.update(session, db_obj=invoice, obj_in=update_dict)
 
-        if 'invoice_amount' in update_dict:
-            self._recalculate_payment_status(updated_invoice)
-
-        if dropped_to_draft:
-            self._log_status_change(session, updated_invoice, 'confirmed', 'draft', user_id)
-
-        after_state = extract_relevant_fields(
-            updated_invoice, ['invoice_type', 'invoice_amount', 'invoice_number', 'invoice_date', 'due_date', 'payment_status', 'invoice_status']
-        )
-
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='updated',
+        self._log_event(
+            session, updated_invoice, "item_manually_updated",
+            f"Invoice fields updated manually: {', '.join(k for k in update_dict if k != 'updated_by')}",
             performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes=create_change_dict(before=before_state, after=after_state),
-            description=f"Invoice {invoice.invoice_number or invoice.id} updated"
-                        + (" — moved back to draft" if dropped_to_draft else "")
+            metadata={k: str(v) for k, v in update_dict.items() if k != "updated_by"},
         )
         return updated_invoice
 
@@ -264,31 +229,16 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         invoice_id: int,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> AccountInvoice:
         invoice = self._get_or_404(session, invoice_id, workspace_id)
 
-        if invoice.invoice_status != 'draft':
+        if invoice.invoice_status != "draft":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Only draft invoices can be deleted. "
-                       f"This invoice is '{invoice.invoice_status}'. Use void instead."
+                       f"This invoice is '{invoice.invoice_status}'. Use void instead.",
             )
-
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='deleted',
-            performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes=create_change_dict(before=extract_relevant_fields(
-                invoice, ['invoice_type', 'invoice_amount', 'invoice_number', 'invoice_date']
-            )),
-            description=f"Draft invoice {invoice.invoice_number or invoice.id} deleted"
-        )
 
         self.account_invoice_dao.remove(session, id=invoice_id)
         return invoice
@@ -302,40 +252,33 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         invoice_id: int,
         workspace_id: int,
-        user_id: int
+        user_id: int,
     ) -> AccountInvoice:
         invoice = self._get_or_404(session, invoice_id, workspace_id)
 
-        if invoice.invoice_status == 'voided':
+        if invoice.invoice_status == "voided":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Voided invoices cannot be confirmed")
-        if invoice.invoice_status == 'confirmed':
+        if invoice.invoice_status == "confirmed":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Invoice is already confirmed")
-        if invoice.invoice_status == 'locked':
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Invoice is locked")
 
-        invoice.invoice_status = 'confirmed'
+        # Recalculate amount from items and freeze
+        self._recalculate_invoice_amount(session, invoice)
+        now = datetime.utcnow()
+        invoice.last_synced_at = now
+        invoice.invoice_status = "confirmed"
         session.flush()
 
-        self._log_status_change(session, invoice, 'draft', 'confirmed', user_id)
-
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='confirmed',
+        self._log_event(
+            session, invoice, "confirmed",
+            f"Invoice {invoice.invoice_number or invoice.id} confirmed — items frozen",
             performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes={'invoice_status': {'before': 'draft', 'after': 'confirmed'}},
-            description=f"Invoice {invoice.invoice_number or invoice.id} confirmed"
+            metadata={"invoice_amount": str(invoice.invoice_amount)},
         )
         return invoice
 
-    def lock_invoice(
+    def revert_to_draft(
         self,
         session: Session,
         invoice_id: int,
@@ -344,30 +287,30 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
     ) -> AccountInvoice:
         invoice = self._get_or_404(session, invoice_id, workspace_id)
 
-        if invoice.invoice_status == 'locked':
-            return invoice
-        if invoice.invoice_status != 'confirmed':
+        if invoice.invoice_status != "confirmed":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Only confirmed invoices can be locked. This invoice is '{invoice.invoice_status}'.",
+                detail=f"Only confirmed invoices can be reverted to draft. Current status: '{invoice.invoice_status}'.",
+            )
+        if invoice.receiving_started:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot revert to draft — payments or receiving have been recorded. "
+                       "Void all payments and ensure no items have been received first.",
+            )
+        if Decimal(str(invoice.paid_amount or 0)) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot revert to draft — invoice has active payments. Void all payments first.",
             )
 
-        invoice.invoice_status = 'locked'
+        invoice.invoice_status = "draft"
         session.flush()
 
-        self._log_status_change(session, invoice, 'confirmed', 'locked', user_id)
-
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='locked',
+        self._log_event(
+            session, invoice, "reverted_to_draft",
+            f"Invoice {invoice.invoice_number or invoice.id} reverted to draft",
             performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes={'invoice_status': {'before': 'confirmed', 'after': 'locked'}},
-            description=f"Invoice {invoice.invoice_number or invoice.id} locked after receiving started",
         )
         return invoice
 
@@ -377,101 +320,131 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         invoice_id: int,
         workspace_id: int,
         user_id: int,
-        void_note: str
+        void_note: str,
     ) -> AccountInvoice:
         invoice = self._get_or_404(session, invoice_id, workspace_id)
 
-        if invoice.invoice_status == 'voided':
+        if invoice.invoice_status == "voided":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Invoice is already voided")
-        if invoice.invoice_status == 'draft':
+        if invoice.invoice_status == "draft":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Draft invoices cannot be voided — delete them instead")
-        if invoice.invoice_status == 'locked':
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Locked invoices cannot be voided — receiving has started",
-            )
 
         now = datetime.utcnow()
-        system_payment_void_note = (
-            f"Automatically voided — invoice #{invoice.id} was voided. Reason: {void_note}"
-        )
+        system_void_note = f"Automatically voided — invoice #{invoice.id} was voided. Reason: {void_note}"
 
-        # Explicit query — do not rely on lazy-loaded backref inside an active transaction
         active_payments = (
             session.query(InvoicePayment)
-            .filter(
-                InvoicePayment.invoice_id == invoice.id,
-                InvoicePayment.is_voided == False,
-            )
+            .filter(InvoicePayment.invoice_id == invoice.id, InvoicePayment.is_voided == False)
             .all()
         )
         for payment in active_payments:
             payment.is_voided = True
             payment.voided_at = now
             payment.voided_by = user_id
-            payment.void_note = system_payment_void_note
+            payment.void_note = system_void_note
 
-        # Void the invoice
         prior_status = invoice.invoice_status
-        invoice.invoice_status = 'voided'
+        invoice.invoice_status = "voided"
         invoice.void_note = void_note
-        invoice.paid_amount = Decimal('0.00')
-        invoice.payment_status = 'unpaid'
+        invoice.paid_amount = Decimal("0.00")
+        invoice.payment_status = "unpaid"
         session.flush()
 
-        self._log_status_change(session, invoice, prior_status, 'voided', user_id)
-
-        log_financial_audit(
-            session=session,
-            workspace_id=workspace_id,
-            entity_type='invoice',
-            entity_id=invoice.id,
-            action_type='voided',
+        self._log_event(
+            session, invoice, "voided",
+            f"Invoice {invoice.invoice_number or invoice.id} voided. "
+            f"{len(active_payments)} payment(s) auto-voided. Reason: {void_note}",
             performed_by=user_id,
-            related_entity_type='account',
-            related_entity_id=invoice.account_id,
-            changes={'invoice_status': {'before': 'confirmed', 'after': 'voided'},
-                     'payments_voided': len(active_payments)},
-            description=f"Invoice {invoice.invoice_number or invoice.id} voided. "
-                        f"{len(active_payments)} payment(s) auto-voided. Reason: {void_note}"
+            metadata={
+                "prior_status": prior_status,
+                "payments_voided": len(active_payments),
+                "void_note": void_note,
+            },
         )
         return invoice
 
-
-    def get_status_history(
+    def set_receiving_started(
         self,
         session: Session,
         invoice_id: int,
-        workspace_id: int
-    ) -> list:
-        """Return all status transitions for an invoice, oldest first, with changer name."""
-        self._get_or_404(session, invoice_id, workspace_id)
+        workspace_id: int,
+        performed_by: Optional[int],
+        reason: str = "",
+    ) -> AccountInvoice:
+        """Flip receiving_started = True and log the event. No-op if already set."""
+        invoice = self.account_invoice_dao.get_by_id_and_workspace(
+            session, id=invoice_id, workspace_id=workspace_id
+        )
+        if not invoice or invoice.receiving_started:
+            return invoice
+        invoice.receiving_started = True
+        session.flush()
+        self._log_event(
+            session, invoice, "receiving_started_set",
+            reason or "Receiving or payment started on this invoice",
+            performed_by=performed_by,
+        )
+        return invoice
 
-        rows = (
-            session.query(InvoiceStatusTracker, Profile.name.label('changed_by_name'))
-            .outerjoin(Profile, InvoiceStatusTracker.changed_by == Profile.id)
-            .filter(
-                InvoiceStatusTracker.invoice_id == invoice_id,
-                InvoiceStatusTracker.workspace_id == workspace_id,
-            )
-            .order_by(InvoiceStatusTracker.changed_at.asc())
-            .all()
+    # ------------------------------------------------------------------
+    # Item sync helpers (called from services)
+    # ------------------------------------------------------------------
+
+    def sync_items_from_list(
+        self,
+        session: Session,
+        invoice: AccountInvoice,
+        items: list[dict],
+        user_id: Optional[int],
+        is_manual: bool = False,
+    ) -> None:
+        """
+        Replace invoice items with the provided list and recalculate invoice_amount.
+        items is a list of dicts with keys matching InvoiceItem columns.
+        Only allowed on draft invoices.
+        """
+        if invoice.invoice_status != "draft":
+            return
+
+        invoice_item_dao.delete_all_for_invoice(session, invoice.id)
+
+        now = datetime.utcnow()
+        for item_dict in items:
+            item_dict.setdefault("workspace_id", invoice.workspace_id)
+            item_dict.setdefault("invoice_id", invoice.id)
+            item_dict.setdefault("created_by", user_id)
+            item_dict["last_synced_at"] = now
+            invoice_item_dao.create(session, obj_in=item_dict)
+
+        invoice.last_synced_at = now
+        self._recalculate_invoice_amount(session, invoice)
+        session.flush()
+
+        event_type = "item_manually_updated" if is_manual else "items_synced"
+        description = (
+            "Invoice items updated manually"
+            if is_manual
+            else f"Invoice items synced from linked order ({len(items)} line(s))"
+        )
+        self._log_event(
+            session, invoice, event_type, description,
+            performed_by=user_id,
+            metadata={"item_count": len(items)},
         )
 
-        return [
-            {
-                'id': tracker.id,
-                'invoice_id': tracker.invoice_id,
-                'from_status': tracker.from_status,
-                'to_status': tracker.to_status,
-                'changed_by': tracker.changed_by,
-                'changed_at': tracker.changed_at,
-                'changed_by_name': changed_by_name,
-            }
-            for tracker, changed_by_name in rows
-        ]
+    # ------------------------------------------------------------------
+    # Events log (replaces get_status_history)
+    # ------------------------------------------------------------------
+
+    def get_events(self, session: Session, invoice_id: int, workspace_id: int) -> list:
+        self._get_or_404(session, invoice_id, workspace_id)
+        return invoice_event_dao.get_by_invoice(session, invoice_id=invoice_id, workspace_id=workspace_id)
+
+    def get_items(self, session: Session, invoice_id: int, workspace_id: int) -> list:
+        self._get_or_404(session, invoice_id, workspace_id)
+        return invoice_item_dao.get_by_invoice(session, invoice_id=invoice_id, workspace_id=workspace_id)
 
 
 # Singleton instance

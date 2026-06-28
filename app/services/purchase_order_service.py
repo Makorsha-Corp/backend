@@ -1,11 +1,10 @@
 """Purchase Order Service - transaction orchestration"""
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
@@ -27,6 +26,8 @@ from app.schemas.purchase_order import (
 )
 from app.dao.account_invoice import account_invoice_dao
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
+from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
+from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse, PoReceiveEventItemResponse
 
 logger = logging.getLogger(__name__)
 
@@ -127,29 +128,49 @@ class PurchaseOrderService(BaseService):
             detail='Could not save order items. Refresh the page and try again.',
         ) from exc
 
+    def _build_invoice_items_from_po(self, po: PurchaseOrder) -> list[dict]:
+        """Build invoice item dicts from PO line items."""
+        items = []
+        for po_item in sorted(getattr(po, 'line_items', []) or [], key=lambda x: x.line_number):
+            items.append({
+                "line_number": po_item.line_number,
+                "description": po_item.item_name or f"Item {po_item.item_id}",
+                "item_id": po_item.item_id,
+                "source_order_item_id": po_item.id,
+                "source_order_item_type": "po_item",
+                "quantity": po_item.quantity_ordered,
+                "unit": po_item.item_unit,
+                "unit_price": po_item.unit_price,
+                "line_subtotal": po_item.line_subtotal,
+            })
+        return items
+
     def _sync_draft_invoice_for_po(
         self,
         db: Session,
         po: PurchaseOrder,
         workspace_id: int,
         user_id: int,
+        force_create: bool = False,
     ) -> None:
-        """Ensure a draft payable invoice exists and mirrors PO supplier + totals."""
+        """Ensure a draft payable invoice exists and mirrors PO supplier, totals, and items."""
         if self.manager.is_po_financially_locked(db, po):
             return
         if po.account_id is None:
             return
 
-        total = Decimal(str(po.total_amount or 0))
         description = f"Purchase order {po.po_number}"
         notes = po.description
 
         if po.invoice_id is None:
+            if po.invoice_ever_linked and not force_create:
+                return  # Previously had an invoice (was voided) — don't auto-recreate
             invoice_in = AccountInvoiceCreate(
                 account_id=po.account_id,
-                order_id=None,
+                order_id=po.id,
+                order_type="purchase_order",
                 invoice_type="payable",
-                invoice_amount=total,
+                invoice_amount=Decimal("0.00"),  # recalculated after items sync
                 invoice_number=None,
                 vendor_invoice_number=None,
                 invoice_date=date.today(),
@@ -177,14 +198,17 @@ class PurchaseOrderService(BaseService):
                     ) from exc
                 raise
             po.invoice_id = invoice.id
+            po.invoice_ever_linked = True
+            db.flush()
+            # Sync items for freshly created invoice
+            db.refresh(po)
+            self.account_invoice_manager.sync_items_from_list(
+                db, invoice, self._build_invoice_items_from_po(po), user_id
+            )
             self.manager.log_event(
-                db,
-                po.id,
-                workspace_id,
-                'invoice_draft_created',
+                db, po.id, workspace_id, 'invoice_draft_created',
                 f'Draft invoice #{invoice.id} linked to {po.po_number}',
-                user_id,
-                metadata={'invoice_id': invoice.id},
+                user_id, metadata={'invoice_id': invoice.id},
             )
             db.flush()
             return
@@ -195,58 +219,41 @@ class PurchaseOrderService(BaseService):
         if not invoice or invoice.invoice_status != 'draft':
             return
 
-        paid = Decimal(str(invoice.paid_amount or 0))
-        if total < paid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f'Order total ({total}) cannot be less than amount already paid '
-                    f'on the linked invoice ({paid})'
-                ),
-            )
-
         new_account_id = po.account_id
-        amount_changed = Decimal(str(invoice.invoice_amount)) != total
         account_changed = invoice.account_id != new_account_id
         notes_changed = (invoice.notes or None) != (notes or None)
         desc_changed = (invoice.description or None) != description
 
-        if (amount_changed or account_changed) and po.invoice_confirmed:
+        if account_changed and po.invoice_confirmed:
             po.invoice_confirmed = False
             self.manager.reset_approvals(
-                db,
-                po.id,
-                workspace_id,
-                user_id,
+                db, po.id, workspace_id, user_id,
                 reason='Draft invoice changed after order update',
             )
             self.manager.log_event(
-                db,
-                po.id,
-                workspace_id,
-                'invoice_unconfirmed',
-                'Draft invoice unconfirmed after order sync',
-                user_id,
+                db, po.id, workspace_id, 'invoice_unconfirmed',
+                'Draft invoice unconfirmed after order sync', user_id,
             )
 
         invoice_updates: dict = {}
         if account_changed:
             invoice_updates['account_id'] = new_account_id
-        if amount_changed:
-            invoice_updates['invoice_amount'] = total
         if desc_changed:
             invoice_updates['description'] = description
         if notes_changed:
             invoice_updates['notes'] = notes
         if invoice_updates:
             self.account_invoice_manager.update_invoice(
-                db,
-                po.invoice_id,
-                AccountInvoiceUpdate(**invoice_updates),
-                workspace_id,
-                user_id,
+                db, po.invoice_id, AccountInvoiceUpdate(**invoice_updates),
+                workspace_id, user_id,
             )
-            db.flush()
+
+        # Always re-sync items from current PO state
+        db.refresh(po)
+        self.account_invoice_manager.sync_items_from_list(
+            db, invoice, self._build_invoice_items_from_po(po), user_id
+        )
+        db.flush()
 
     def create_purchase_order(
         self, db: Session, po_in: PurchaseOrderCreate,
@@ -310,7 +317,9 @@ class PurchaseOrderService(BaseService):
             raise
 
     def get_purchase_order(self, db: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
-        return self.manager.get_purchase_order(db, po_id, workspace_id)
+        po = self.manager.get_purchase_order(db, po_id, workspace_id)
+        self._attach_invoice_payment_status(db, [po])
+        return po
 
     def mark_order_complete(
         self, db: Session, po_id: int, workspace_id: int, user_id: int
@@ -335,11 +344,165 @@ class PurchaseOrderService(BaseService):
         invoice_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[PurchaseOrder]:
-        return self.manager.list_purchase_orders(
+        orders = self.manager.list_purchase_orders(
             db, workspace_id=workspace_id,
             account_id=account_id,
             invoice_id=invoice_id,
             skip=skip, limit=limit
+        )
+        self._attach_invoice_payment_status(db, orders)
+        return orders
+
+    @staticmethod
+    def _attach_invoice_payment_status(db: Session, orders: List[PurchaseOrder]) -> None:
+        """Batch-fetch invoice payment_status and attach as a transient attribute."""
+        from app.models.account_invoice import AccountInvoice
+        invoice_ids = [o.invoice_id for o in orders if o.invoice_id is not None]
+        if not invoice_ids:
+            for o in orders:
+                o.invoice_payment_status = None
+            return
+        rows = db.query(AccountInvoice.id, AccountInvoice.payment_status).filter(
+            AccountInvoice.id.in_(invoice_ids)
+        ).all()
+        status_map = {inv_id: ps for inv_id, ps in rows}
+        for o in orders:
+            o.invoice_payment_status = status_map.get(o.invoice_id)
+
+    def create_receive_event(
+        self, db: Session, po_id: int, workspace_id: int, user_id: int,
+        data: PoReceiveEventCreate
+    ) -> PoReceiveEventResponse:
+        """Record a receive batch or quantity correction against a PO."""
+        po = self.manager.get_purchase_order(db, po_id, workspace_id)
+        if po.voided:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot receive against a voided purchase order')
+        if po.order_completed:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot receive against a completed purchase order')
+        if po.invoice_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Finalize the invoice before recording receiving')
+        linked_invoice = account_invoice_dao.get_by_id_and_workspace(db, id=po.invoice_id, workspace_id=workspace_id)
+        if not linked_invoice or linked_invoice.invoice_status not in ('confirmed', 'locked'):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Finalize the invoice before recording receiving')
+
+        item_map = {it.id: it for it in self.manager.item_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)}
+
+        for line in data.items:
+            if line.po_item_id not in item_map:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Item {line.po_item_id} does not belong to this PO')
+            it = item_map[line.po_item_id]
+            new_qty = Decimal(str(it.quantity_received or 0)) + line.quantity_delta
+            if new_qty < 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Resulting received quantity for item {line.po_item_id} cannot be negative')
+            if new_qty > Decimal(str(it.quantity_ordered)):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Resulting received quantity for item {line.po_item_id} exceeds ordered quantity')
+
+        try:
+            event = PoReceiveEvent(
+                workspace_id=workspace_id,
+                purchase_order_id=po_id,
+                event_type=data.event_type,
+                rcc=data.rcc.strip() if data.rcc else None,
+                received_by=data.received_by.strip() if data.received_by else None,
+                correction_note=data.correction_note.strip() if data.correction_note else None,
+                performed_by=user_id,
+            )
+            db.add(event)
+            db.flush()
+
+            for line in data.items:
+                db.add(PoReceiveEventItem(
+                    receive_event_id=event.id,
+                    po_item_id=line.po_item_id,
+                    quantity_delta=line.quantity_delta,
+                ))
+                it = item_map[line.po_item_id]
+                it.quantity_received = Decimal(str(it.quantity_received or 0)) + line.quantity_delta
+
+            db.flush()
+
+            rcc_part = f' RCC: {data.rcc}.' if data.rcc else ''
+            by_part = f' Received by: {data.received_by}.' if data.received_by else ''
+            total_delta = sum(line.quantity_delta for line in data.items)
+
+            if data.event_type == 'receive':
+                desc = f'Received {total_delta} unit(s) across {len(data.items)} item(s).{rcc_part}{by_part}'
+                po_event_type = 'received'
+            else:
+                note_part = f' Note: {data.correction_note}' if data.correction_note else ''
+                desc = f'Quantity correction: {total_delta:+g} unit(s) across {len(data.items)} item(s).{note_part}'
+                po_event_type = 'quantity_correction'
+
+            meta: dict = {'receive_event_id': event.id}
+            if data.rcc:
+                meta['rcc'] = data.rcc
+            if data.received_by:
+                meta['received_by'] = data.received_by
+            if data.correction_note:
+                meta['correction_note'] = data.correction_note
+
+            self.manager.log_event(db, po_id, workspace_id, po_event_type, desc, user_id, metadata=meta)
+
+            # Check if all items are now fully received → log milestone
+            updated_items = self.manager.item_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)
+            all_fully_received = bool(updated_items) and all(
+                Decimal(str(i.quantity_received or 0)) >= Decimal(str(i.quantity_ordered))
+                for i in updated_items
+            )
+            if all_fully_received:
+                existing_events = self.manager.event_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)
+                already_logged = any(e.event_type == 'all_received' for e in existing_events)
+                if not already_logged:
+                    self.manager.log_event(db, po_id, workspace_id, 'all_received', 'All items received', user_id)
+
+            self._commit_transaction(db)
+            db.refresh(event)
+
+            return self._build_receive_event_response(event)
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def list_receive_events(
+        self, db: Session, po_id: int, workspace_id: int
+    ) -> List[PoReceiveEventResponse]:
+        self.manager.get_purchase_order(db, po_id, workspace_id)
+        events = (
+            db.query(PoReceiveEvent)
+            .filter(PoReceiveEvent.purchase_order_id == po_id, PoReceiveEvent.workspace_id == workspace_id)
+            .order_by(PoReceiveEvent.created_at.desc())
+            .all()
+        )
+        return [self._build_receive_event_response(e) for e in events]
+
+    @staticmethod
+    def _build_receive_event_response(event: PoReceiveEvent) -> PoReceiveEventResponse:
+        items = []
+        for ei in event.items:
+            po_item = ei.po_item
+            items.append(PoReceiveEventItemResponse(
+                id=ei.id,
+                receive_event_id=ei.receive_event_id,
+                po_item_id=ei.po_item_id,
+                po_item_name=po_item.item_name if po_item else None,
+                po_item_unit=po_item.item_unit if po_item else None,
+                quantity_delta=ei.quantity_delta,
+            ))
+        return PoReceiveEventResponse(
+            id=event.id,
+            workspace_id=event.workspace_id,
+            purchase_order_id=event.purchase_order_id,
+            event_type=event.event_type,
+            rcc=event.rcc,
+            received_by=event.received_by,
+            correction_note=event.correction_note,
+            performed_by=event.performed_by,
+            performer_name=event.performer.name if event.performer else None,
+            created_at=event.created_at,
+            items=items,
         )
 
     def list_active_orders_for_context(
@@ -466,6 +629,7 @@ class PurchaseOrderService(BaseService):
                 db, po_id=po_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
             po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            po.items_updated_at = datetime.utcnow()
             if user_id is not None:
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
@@ -491,6 +655,7 @@ class PurchaseOrderService(BaseService):
             )
             if user_id is not None:
                 po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
+                po.items_updated_at = datetime.utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
@@ -514,6 +679,7 @@ class PurchaseOrderService(BaseService):
             )
             if user_id is not None:
                 po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
+                po.items_updated_at = datetime.utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             return record
@@ -553,6 +719,7 @@ class PurchaseOrderService(BaseService):
 
         if user_id is not None and po.account_id is not None:
             try:
+                po.items_updated_at = datetime.utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
                 self._commit_transaction(db)
                 db.refresh(po)
@@ -619,13 +786,84 @@ class PurchaseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def void_purchase_order(
+        self, db: Session, po_id: int, workspace_id: int, user_id: int, void_note: str
+    ) -> PurchaseOrder:
+        """Permanently void a PO and its linked invoice (bypasses receiving guard)."""
+        try:
+            po = self.manager.get_purchase_order(db, po_id, workspace_id)
+
+            if po.voided:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Purchase order is already voided',
+                )
+
+            if po.order_completed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot void a completed purchase order',
+                )
+
+            if po.invoice_id is not None:
+                invoice = account_invoice_dao.get_by_id_and_workspace(
+                    db, id=po.invoice_id, workspace_id=workspace_id
+                )
+                if invoice:
+                    if invoice.invoice_status == 'confirmed':
+                        self.account_invoice_manager.void_invoice(
+                            db, po.invoice_id, workspace_id, user_id,
+                            f'Purchase order voided: {void_note}',
+                        )
+                    elif invoice.invoice_status == 'draft':
+                        self.account_invoice_manager.delete_invoice(
+                            db, po.invoice_id, workspace_id, user_id
+                        )
+                self.manager.reset_approvals(
+                    db, po.id, workspace_id, user_id,
+                    reason='Cleared approvals — PO voided',
+                )
+                self.manager.unlink_invoice_from_po(
+                    db, po, user_id,
+                    f'Invoice unlinked — PO #{po.po_number} voided',
+                    event_type='invoice_voided',
+                    extra_metadata={
+                        'changes': [{
+                            'field': 'void_note',
+                            'label': 'Void reason',
+                            'from_value': None,
+                            'to_value': void_note,
+                        }]
+                    },
+                )
+
+            po.voided = True
+            po.void_note = void_note
+            po.voided_at = datetime.utcnow()
+            po.voided_by = user_id
+            db.flush()
+
+            self.manager.log_event(
+                db, po.id, workspace_id, 'po_voided',
+                f'Purchase order #{po.po_number} voided. Reason: {void_note}',
+                user_id,
+                metadata={'void_note': void_note},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(po)
+            return po
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def create_invoice_for_purchase_order(
         self, db: Session, po_id: int, workspace_id: int, user_id: int
     ) -> PurchaseOrder:
-        """Ensure the PO has a synced draft invoice (idempotent backfill)."""
+        """Manually create or re-create a draft invoice for this PO (bypasses auto-draft guard)."""
         try:
             po = self.manager.get_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
-            self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
+            self._sync_draft_invoice_for_po(db, po, workspace_id, user_id, force_create=True)
             db.refresh(po)
             if po.invoice_id is None:
                 po = self.manager.get_purchase_order(

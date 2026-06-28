@@ -101,6 +101,7 @@ class ExpenseOrderResponse(BaseModel):
     created_at: datetime
     updated_by: int | None = None
     updated_at: datetime | None = None
+    items_updated_at: datetime | None = None
     approved_by: int | None = None
     approved_at: datetime | None = None
     completed_by: int | None = None

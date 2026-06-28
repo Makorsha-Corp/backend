@@ -1,5 +1,5 @@
 """Expense Order Service - transaction orchestration"""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
@@ -101,6 +101,8 @@ class ExpenseOrderService(BaseService):
             record = self.manager.add_item(
                 db, eo_id=eo_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
+            eo = self.manager.get_expense_order(db, eo_id, workspace_id)
+            eo.items_updated_at = datetime.utcnow()
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -116,6 +118,8 @@ class ExpenseOrderService(BaseService):
             record = self.manager.update_item(
                 db, item_id=item_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
+            eo = self.manager.get_expense_order(db, record.expense_order_id, workspace_id)
+            eo.items_updated_at = datetime.utcnow()
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -130,6 +134,8 @@ class ExpenseOrderService(BaseService):
             record = self.manager.remove_item(
                 db, item_id=item_id, workspace_id=workspace_id, user_id=user_id
             )
+            eo = self.manager.get_expense_order(db, record.expense_order_id, workspace_id)
+            eo.items_updated_at = datetime.utcnow()
             self._commit_transaction(db)
             return record
         except Exception:
@@ -155,9 +161,10 @@ class ExpenseOrderService(BaseService):
 
             invoice_in = AccountInvoiceCreate(
                 account_id=account_id,
-                order_id=None,
+                order_id=eo.id,
+                order_type="expense_order",
                 invoice_type="payable",
-                invoice_amount=Decimal(str(eo.total_amount or 0)),
+                invoice_amount=Decimal("0.00"),  # recalculated after items sync
                 invoice_number=None,
                 vendor_invoice_number=None,
                 invoice_date=date.today(),
@@ -165,7 +172,7 @@ class ExpenseOrderService(BaseService):
                 description=f"Auto-created from expense order {eo.expense_number}",
                 notes=eo.description,
                 allow_payments=True,
-                payment_locked_reason=None
+                payment_locked_reason=None,
             )
 
             try:
@@ -173,23 +180,43 @@ class ExpenseOrderService(BaseService):
                     session=db,
                     invoice_data=invoice_in,
                     workspace_id=workspace_id,
-                    user_id=user_id
+                    user_id=user_id,
                 )
             except HTTPException as exc:
                 if exc.status_code == status.HTTP_404_NOT_FOUND:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Cannot create invoice: selected account was not found in this workspace"
+                        detail="Cannot create invoice: selected account was not found in this workspace",
                     ) from exc
                 raise
 
             eo.invoice_id = invoice.id
             db.flush()
+
+            # Sync items from EO
+            eo_items = self.manager.get_items(db, eo_id, workspace_id)
+            invoice_item_dicts = [
+                {
+                    "line_number": i + 1,
+                    "description": item.description or f"Expense item {item.id}",
+                    "item_id": None,
+                    "source_order_item_id": item.id,
+                    "source_order_item_type": "eo_item",
+                    "quantity": item.quantity or Decimal("1"),
+                    "unit": item.unit,
+                    "unit_price": item.unit_price or Decimal("0"),
+                    "line_subtotal": item.line_subtotal or Decimal("0"),
+                }
+                for i, item in enumerate(eo_items)
+            ]
+            self.account_invoice_manager.sync_items_from_list(
+                db, invoice, invoice_item_dicts, user_id
+            )
+
             self.manager.log_event(
                 db, eo_id, workspace_id, 'invoice_created',
                 f'Invoice #{invoice.id} created from expense order',
-                user_id,
-                metadata={'invoice_id': invoice.id},
+                user_id, metadata={'invoice_id': invoice.id},
             )
             self._commit_transaction(db)
             db.refresh(eo)

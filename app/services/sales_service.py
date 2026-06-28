@@ -1,5 +1,5 @@
 """Sales Service for orchestrating sales workflows"""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Tuple
 
@@ -81,15 +81,16 @@ class SalesService(BaseService):
 
         invoice_in = AccountInvoiceCreate(
             account_id=order.account_id,
-            order_id=None,
+            order_id=order.id,
+            order_type="sales_order",
             invoice_type="receivable",
-            invoice_amount=Decimal(str(order.total_amount or 0)),
+            invoice_amount=Decimal("0.00"),  # recalculated after items sync
             invoice_number=None,
             vendor_invoice_number=None,
             invoice_date=date.today(),
             due_date=None,
             description=f"Auto-created from sales order {order.sales_order_number}",
-            notes=order.notes,
+            notes=order.description,
             allow_payments=True,
             payment_locked_reason=None,
         )
@@ -112,6 +113,27 @@ class SalesService(BaseService):
         order.invoice_id = invoice.id
         order.is_invoiced = True
         db.flush()
+
+        # Sync items from SO (draft — user must confirm)
+        so_items = getattr(order, 'items', []) or []
+        invoice_item_dicts = [
+            {
+                "line_number": i + 1,
+                "description": item.item_name or f"Item {item.item_id}",
+                "item_id": item.item_id,
+                "source_order_item_id": item.id,
+                "source_order_item_type": "so_item",
+                "quantity": item.quantity_ordered,
+                "unit": item.item_unit,
+                "unit_price": item.unit_price,
+                "line_subtotal": item.line_total,
+            }
+            for i, item in enumerate(so_items)
+        ]
+        self.account_invoice_manager.sync_items_from_list(
+            db, invoice, invoice_item_dicts, user_id
+        )
+        order.items_updated_at = datetime.utcnow()
 
     def create_invoice_for_sales_order(
         self,

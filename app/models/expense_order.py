@@ -68,6 +68,7 @@ class ExpenseOrder(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    items_updated_at = Column(DateTime, nullable=True)
     approved_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     completed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)

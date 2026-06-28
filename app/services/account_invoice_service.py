@@ -9,6 +9,7 @@ from app.managers.account_invoice_manager import account_invoice_manager
 from app.managers.purchase_order_manager import purchase_order_manager
 from app.models.account_invoice import AccountInvoice
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
+from app.schemas.invoice_item import InvoiceItemResponse
 
 
 class AccountInvoiceService(BaseService):
@@ -218,10 +219,95 @@ class AccountInvoiceService(BaseService):
             raise
 
 
-    def get_status_history(self, db: Session, invoice_id: int, workspace_id: int) -> list:
-        return self.account_invoice_manager.get_status_history(
+    def get_events(self, db: Session, invoice_id: int, workspace_id: int) -> list:
+        return self.account_invoice_manager.get_events(
             session=db, invoice_id=invoice_id, workspace_id=workspace_id
         )
+
+    def get_items(self, db: Session, invoice_id: int, workspace_id: int) -> list:
+        return self.account_invoice_manager.get_items(
+            session=db, invoice_id=invoice_id, workspace_id=workspace_id
+        )
+
+    def revert_to_draft(self, db: Session, invoice_id: int, workspace_id: int, user_id: int):
+        try:
+            invoice = self.account_invoice_manager.revert_to_draft(
+                session=db, invoice_id=invoice_id, workspace_id=workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(invoice)
+            return invoice
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def resync_items(self, db: Session, invoice_id: int, workspace_id: int, user_id: int):
+        """Re-pull items from the linked order into the draft invoice."""
+        try:
+            invoice = self.account_invoice_manager.get_invoice(db, invoice_id, workspace_id)
+            if invoice.invoice_status != 'draft':
+                from fastapi import HTTPException, status as http_status
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail="Can only resync items on draft invoices.",
+                )
+            if not invoice.order_id or not invoice.order_type:
+                from fastapi import HTTPException, status as http_status
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail="This invoice is not linked to an order — resync is not applicable.",
+                )
+
+            if invoice.order_type == 'purchase_order':
+                from app.services.purchase_order_service import purchase_order_service
+                po = purchase_order_manager.get_purchase_order(db, invoice.order_id, workspace_id)
+                items = purchase_order_service._build_invoice_items_from_po(po)
+            elif invoice.order_type == 'expense_order':
+                from app.managers.expense_order_manager import expense_order_manager
+                eo_items = expense_order_manager.get_items(db, invoice.order_id, workspace_id)
+                from decimal import Decimal as D
+                items = [
+                    {
+                        "line_number": i + 1,
+                        "description": item.description or f"Expense item {item.id}",
+                        "item_id": None,
+                        "source_order_item_id": item.id,
+                        "source_order_item_type": "eo_item",
+                        "quantity": item.quantity or D("1"),
+                        "unit": item.unit,
+                        "unit_price": item.unit_price or D("0"),
+                        "line_subtotal": item.line_subtotal or D("0"),
+                    }
+                    for i, item in enumerate(eo_items)
+                ]
+            elif invoice.order_type == 'sales_order':
+                from app.managers.sales_manager import sales_manager
+                order = sales_manager.get_sales_order(db, invoice.order_id, workspace_id)
+                so_items = getattr(order, 'items', []) or []
+                items = [
+                    {
+                        "line_number": i + 1,
+                        "description": item.item_name or f"Item {item.item_id}",
+                        "item_id": item.item_id,
+                        "source_order_item_id": item.id,
+                        "source_order_item_type": "so_item",
+                        "quantity": item.quantity_ordered,
+                        "unit": item.item_unit,
+                        "unit_price": item.unit_price,
+                        "line_subtotal": item.line_total,
+                    }
+                    for i, item in enumerate(so_items)
+                ]
+            else:
+                items = []
+
+            self.account_invoice_manager.sync_items_from_list(db, invoice, items, user_id)
+            self._commit_transaction(db)
+            db.refresh(invoice)
+            return invoice
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
     def confirm_invoice(self, db: Session, invoice_id: int, workspace_id: int, user_id: int) -> AccountInvoice:
         try:
@@ -303,11 +389,6 @@ class AccountInvoiceService(BaseService):
                         }],
                     },
                 )
-                if po.account_id:
-                    from app.services.purchase_order_service import purchase_order_service
-                    purchase_order_service._sync_draft_invoice_for_po(
-                        db, po, workspace_id, user_id
-                    )
 
             self._commit_transaction(db)
             db.refresh(invoice)

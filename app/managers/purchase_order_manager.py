@@ -1108,12 +1108,16 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     )
                     if total_received > 0:
                         from app.managers.account_invoice_manager import account_invoice_manager
-                        account_invoice_manager.lock_invoice(
-                            session, po.invoice_id, workspace_id, user_id or 0
+                        account_invoice_manager.set_receiving_started(
+                            session,
+                            invoice_id=po.invoice_id,
+                            workspace_id=workspace_id,
+                            performed_by=user_id,
+                            reason=f"Receiving started on PO #{po.po_number}",
                         )
                         self.log_event(
-                            session, po.id, workspace_id, 'invoice_locked',
-                            f'Invoice #{po.invoice_id} locked after first receipt',
+                            session, po.id, workspace_id, 'invoice_receiving_started',
+                            f'Invoice #{po.invoice_id} receiving_started set after first receipt',
                             user_id,
                             metadata={'invoice_id': po.invoice_id},
                         )

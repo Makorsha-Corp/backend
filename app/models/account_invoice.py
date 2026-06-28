@@ -19,7 +19,7 @@ class AccountInvoice(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False, index=True)
-    order_type = Column(String(30), nullable=True, index=True)   # see OrderType enum
+    order_type = Column(String(30), nullable=True, index=True)   # 'purchase_order' | 'expense_order' | 'sales_order'
     order_id = Column(Integer, nullable=True, index=True)         # no FK — polymorphic
     # Invoice Type
     invoice_type = Column(String(20), nullable=False, index=True)  # 'payable' or 'receivable'
@@ -50,6 +50,10 @@ class AccountInvoice(Base):
     # Description
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # Receiving / sync tracking
+    receiving_started = Column(Boolean, nullable=False, default=False)  # True after first payment or PO receipt
+    last_synced_at = Column(DateTime, nullable=True)                     # when items were last pulled from linked order
 
     # Void note (permanent record of why invoice was voided)
     void_note = Column(Text, nullable=True)

@@ -91,6 +91,8 @@ from app.models.account import Account
 from app.models.account_tag import AccountTag
 from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_invoice import AccountInvoice
+from app.models.invoice_item import InvoiceItem
+from app.models.invoice_event import InvoiceEvent
 from app.models.invoice_payment import InvoicePayment
 from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
@@ -180,6 +182,8 @@ __all__ = [
     "AccountTag",
     "AccountTagAssignment",
     "AccountInvoice",
+    "InvoiceItem",
+    "InvoiceEvent",
     "InvoicePayment",
     "InvoiceStatusTracker",
     "FinancialAuditLog",

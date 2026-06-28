@@ -99,6 +99,10 @@ class PurchaseOrderUpdate(BaseModel):
     invoice_confirmed: bool | None = None
 
 
+class PurchaseOrderVoidRequest(BaseModel):
+    void_note: str
+
+
 class PurchaseOrderResponse(BaseModel):
     id: int
     workspace_id: int
@@ -122,10 +126,17 @@ class PurchaseOrderResponse(BaseModel):
     items_confirmed: bool = False
     invoice_confirmed: bool = False
     order_completed: bool = False
+    voided: bool = False
+    invoice_ever_linked: bool = False
+    void_note: str | None = None
+    voided_at: datetime | None = None
+    voided_by: int | None = None
     created_by: int
     created_at: datetime
     updated_by: int | None = None
     updated_at: datetime | None = None
+    items_updated_at: datetime | None = None
+    invoice_payment_status: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -12,6 +12,7 @@ from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
     PurchaseOrderItemSyncRequest,
+    PurchaseOrderVoidRequest,
     ActiveOrderRow,
     PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
     ApprovalSummaryResponse, PurchaseOrderApproversList,
@@ -20,6 +21,7 @@ from app.schemas.purchase_order import (
     PurchaseOrderSectionConfirmRequest,
 )
 from app.services.purchase_order_service import purchase_order_service
+from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse
 
 
 def _approver_response(record, profile=None, position=None) -> PurchaseOrderApproverResponse:
@@ -221,6 +223,65 @@ def mark_purchase_order_complete(
         po_id=po_id,
         workspace_id=workspace.id,
         user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/{po_id}/void/",
+    response_model=PurchaseOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Void purchase order",
+    description="Permanently voids the PO and its linked invoice. Irreversible.",
+)
+def void_purchase_order(
+    po_id: int,
+    body: PurchaseOrderVoidRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.void_purchase_order(
+        db,
+        po_id=po_id,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        void_note=body.void_note,
+    )
+
+
+# ─── Receiving ─────────────────────────────────────────────────
+
+@router.post(
+    "/{po_id}/receive/",
+    response_model=PoReceiveEventResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record a receive event or quantity correction",
+)
+def create_receive_event(
+    po_id: int,
+    body: PoReceiveEventCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.create_receive_event(
+        db, po_id=po_id, workspace_id=workspace.id, user_id=current_user.id, data=body
+    )
+
+
+@router.get(
+    "/{po_id}/receive-events/",
+    response_model=List[PoReceiveEventResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List receive events for a purchase order",
+)
+def list_receive_events(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.list_receive_events(
+        db, po_id=po_id, workspace_id=workspace.id
     )
 
 
