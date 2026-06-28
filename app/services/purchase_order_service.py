@@ -28,6 +28,13 @@ from app.dao.account_invoice import account_invoice_dao
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
 from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse, PoReceiveEventItemResponse
+from app.services.approval_notification_service import (
+    detect_section_unconfirmed,
+    handle_add_approver,
+    handle_order_update_notifications,
+    notify_invoice_action,
+    notify_section_confirm_needed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,19 +159,22 @@ class PurchaseOrderService(BaseService):
         workspace_id: int,
         user_id: int,
         force_create: bool = False,
-    ) -> None:
-        """Ensure a draft payable invoice exists and mirrors PO supplier, totals, and items."""
+    ) -> int | None:
+        """Ensure a draft payable invoice exists and mirrors PO supplier, totals, and items.
+
+        Returns new invoice id when a draft was created, else None.
+        """
         if self.manager.is_po_financially_locked(db, po):
-            return
+            return None
         if po.account_id is None:
-            return
+            return None
 
         description = f"Purchase order {po.po_number}"
         notes = po.description
 
         if po.invoice_id is None:
             if po.invoice_ever_linked and not force_create:
-                return  # Previously had an invoice (was voided) — don't auto-recreate
+                return None  # Previously had an invoice (was voided) — don't auto-recreate
             invoice_in = AccountInvoiceCreate(
                 account_id=po.account_id,
                 order_id=po.id,
@@ -191,7 +201,7 @@ class PurchaseOrderService(BaseService):
                 if exc.status_code == status.HTTP_404_NOT_FOUND:
                     db.refresh(po)
                     if po.invoice_id is not None:
-                        return
+                        return None
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail='The selected supplier account was not found. Re-select the supplier.',
@@ -211,13 +221,13 @@ class PurchaseOrderService(BaseService):
                 user_id, metadata={'invoice_id': invoice.id},
             )
             db.flush()
-            return
+            return invoice.id
 
         invoice = account_invoice_dao.get_by_id_and_workspace(
             db, id=po.invoice_id, workspace_id=workspace_id
         )
         if not invoice or invoice.invoice_status != 'draft':
-            return
+            return None
 
         new_account_id = po.account_id
         account_changed = invoice.account_id != new_account_id
@@ -229,6 +239,15 @@ class PurchaseOrderService(BaseService):
             self.manager.reset_approvals(
                 db, po.id, workspace_id, user_id,
                 reason='Draft invoice changed after order update',
+            )
+            notify_section_confirm_needed(
+                db,
+                workspace_id=workspace_id,
+                entity_type='purchase_order',
+                entity_id=po.id,
+                actor_user_id=user_id,
+                order=po,
+                reason='Draft invoice changed — approvals reset; re-confirm sections',
             )
             self.manager.log_event(
                 db, po.id, workspace_id, 'invoice_unconfirmed',
@@ -255,6 +274,29 @@ class PurchaseOrderService(BaseService):
         )
         db.flush()
 
+        return None
+
+    def _emit_po_invoice_draft_notification(
+        self,
+        db: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int,
+        invoice_id: int | None,
+    ) -> None:
+        if invoice_id is None:
+            return
+        notify_invoice_action(
+            db,
+            workspace_id=workspace_id,
+            entity_type='purchase_order',
+            entity_id=po.id,
+            actor_user_id=user_id,
+            invoice_id=invoice_id,
+            action='draft',
+            order=po,
+        )
+
     def create_purchase_order(
         self, db: Session, po_in: PurchaseOrderCreate,
         workspace_id: int, user_id: int
@@ -266,7 +308,10 @@ class PurchaseOrderService(BaseService):
                     record = self.manager.create_purchase_order(
                         db, data=po_in, workspace_id=workspace_id, user_id=user_id
                     )
-                    self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
+                    new_invoice_id = self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
+                    self._emit_po_invoice_draft_notification(
+                        db, record, workspace_id, user_id, new_invoice_id
+                    )
                     self._commit_transaction(db)
                     db.refresh(record)
                     return record
@@ -299,10 +344,30 @@ class PurchaseOrderService(BaseService):
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         try:
+            po_before = self.manager.get_purchase_order(db, po_id, workspace_id)
+            was_ready = self.manager._base_sections_confirmed(po_before)
+            update_dict = po_in.model_dump(exclude_unset=True, exclude_none=True)
+            section_unconfirmed = detect_section_unconfirmed(
+                'purchase_order', po_before, update_dict
+            )
+
             record = self.manager.update_purchase_order(
                 db, po_id=po_id, data=po_in, workspace_id=workspace_id, user_id=user_id
             )
-            self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
+            handle_order_update_notifications(
+                db,
+                workspace_id=workspace_id,
+                entity_type='purchase_order',
+                entity_id=po_id,
+                actor_user_id=user_id,
+                order=record,
+                was_ready=was_ready,
+                section_was_unconfirmed=section_unconfirmed,
+            )
+            new_invoice_id = self._sync_draft_invoice_for_po(db, record, workspace_id, user_id)
+            self._emit_po_invoice_draft_notification(
+                db, record, workspace_id, user_id, new_invoice_id
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -754,6 +819,17 @@ class PurchaseOrderService(BaseService):
         try:
             record = self.manager.add_approver(
                 db, po_id=po_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by
+            )
+            po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            handle_add_approver(
+                db,
+                workspace_id=workspace_id,
+                entity_type='purchase_order',
+                entity_id=po_id,
+                actor_user_id=assigned_by,
+                approver_user_id=user_id,
+                approver_record_id=record.id,
+                order=po,
             )
             self._commit_transaction(db)
             db.refresh(record)

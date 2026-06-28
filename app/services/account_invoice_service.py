@@ -9,7 +9,8 @@ from app.managers.account_invoice_manager import account_invoice_manager
 from app.managers.purchase_order_manager import purchase_order_manager
 from app.models.account_invoice import AccountInvoice
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
-from app.schemas.invoice_item import InvoiceItemResponse
+from app.dao.expense_order import expense_order_dao
+from app.services.approval_notification_service import notify_invoice_action
 
 
 class AccountInvoiceService(BaseService):
@@ -345,6 +346,32 @@ class AccountInvoiceService(BaseService):
                     user_id,
                     metadata={'invoice_id': invoice.id},
                 )
+                notify_invoice_action(
+                    db,
+                    workspace_id=workspace_id,
+                    entity_type='purchase_order',
+                    entity_id=po.id,
+                    actor_user_id=user_id,
+                    invoice_id=invoice.id,
+                    action='confirmed',
+                    order=po,
+                )
+            else:
+                linked_eos = expense_order_dao.get_by_workspace(
+                    db, workspace_id=workspace_id, invoice_id=invoice_id, limit=1
+                )
+                if linked_eos:
+                    eo = linked_eos[0]
+                    notify_invoice_action(
+                        db,
+                        workspace_id=workspace_id,
+                        entity_type='expense_order',
+                        entity_id=eo.id,
+                        actor_user_id=user_id,
+                        invoice_id=invoice.id,
+                        action='confirmed',
+                        order=eo,
+                    )
 
             self._commit_transaction(db)
             db.refresh(invoice)

@@ -18,6 +18,12 @@ from app.schemas.expense_order import (
 )
 from app.schemas.account_invoice import AccountInvoiceCreate
 from app.managers.account_invoice_manager import account_invoice_manager
+from app.services.approval_notification_service import (
+    detect_section_unconfirmed,
+    handle_add_approver,
+    handle_order_update_notifications,
+    notify_invoice_action,
+)
 
 
 class ExpenseOrderService(BaseService):
@@ -46,7 +52,26 @@ class ExpenseOrderService(BaseService):
         workspace_id: int, user_id: int
     ) -> ExpenseOrder:
         try:
-            record = self.manager.update_expense_order(db, eo_id=eo_id, data=eo_in, workspace_id=workspace_id, user_id=user_id)
+            eo_before = self.manager.get_expense_order(db, eo_id, workspace_id)
+            was_ready = self.manager._base_sections_confirmed(eo_before)
+            update_dict = eo_in.model_dump(exclude_unset=True, exclude_none=True)
+            section_unconfirmed = detect_section_unconfirmed(
+                'expense_order', eo_before, update_dict
+            )
+
+            record = self.manager.update_expense_order(
+                db, eo_id=eo_id, data=eo_in, workspace_id=workspace_id, user_id=user_id
+            )
+            handle_order_update_notifications(
+                db,
+                workspace_id=workspace_id,
+                entity_type='expense_order',
+                entity_id=eo_id,
+                actor_user_id=user_id,
+                order=record,
+                was_ready=was_ready,
+                section_was_unconfirmed=section_unconfirmed,
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -218,6 +243,16 @@ class ExpenseOrderService(BaseService):
                 f'Invoice #{invoice.id} created from expense order',
                 user_id, metadata={'invoice_id': invoice.id},
             )
+            notify_invoice_action(
+                db,
+                workspace_id=workspace_id,
+                entity_type='expense_order',
+                entity_id=eo_id,
+                actor_user_id=user_id,
+                invoice_id=invoice.id,
+                action='draft',
+                order=eo,
+            )
             self._commit_transaction(db)
             db.refresh(eo)
             return eo
@@ -243,6 +278,17 @@ class ExpenseOrderService(BaseService):
         try:
             record = self.manager.add_approver(
                 db, eo_id=eo_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by
+            )
+            eo = self.manager.get_expense_order(db, eo_id, workspace_id)
+            handle_add_approver(
+                db,
+                workspace_id=workspace_id,
+                entity_type='expense_order',
+                entity_id=eo_id,
+                actor_user_id=assigned_by,
+                approver_user_id=user_id,
+                approver_record_id=record.id,
+                order=eo,
             )
             self._commit_transaction(db)
             db.refresh(record)

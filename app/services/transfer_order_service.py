@@ -10,6 +10,10 @@ from app.schemas.transfer_order import (
     TransferOrderCreate, TransferOrderUpdate,
     TransferOrderItemCreate, TransferOrderItemUpdate,
 )
+from app.services.approval_notification_service import (
+    handle_add_approver,
+    handle_order_update_notifications,
+)
 
 
 class TransferOrderService(BaseService):
@@ -37,7 +41,21 @@ class TransferOrderService(BaseService):
         workspace_id: int, user_id: int
     ) -> TransferOrder:
         try:
-            record = self.manager.update_transfer_order(db, to_id=to_id, data=to_in, workspace_id=workspace_id, user_id=user_id)
+            to_before = self.manager.get_transfer_order(db, to_id, workspace_id)
+            was_ready = self.manager._ready_for_approval(db, to_before, workspace_id)
+
+            record = self.manager.update_transfer_order(
+                db, to_id=to_id, data=to_in, workspace_id=workspace_id, user_id=user_id
+            )
+            handle_order_update_notifications(
+                db,
+                workspace_id=workspace_id,
+                entity_type='transfer_order',
+                entity_id=to_id,
+                actor_user_id=user_id,
+                order=record,
+                was_ready=was_ready,
+            )
             self._commit_transaction(db)
             db.refresh(record)
             return record
@@ -85,8 +103,21 @@ class TransferOrderService(BaseService):
         workspace_id: int, user_id: int,
     ) -> TransferOrderItem:
         try:
+            to_before = self.manager.get_transfer_order(db, to_id, workspace_id)
+            was_ready = self.manager._ready_for_approval(db, to_before, workspace_id)
+
             record = self.manager.add_item(
                 db, to_id=to_id, data=item_in, workspace_id=workspace_id, user_id=user_id
+            )
+            to_after = self.manager.get_transfer_order(db, to_id, workspace_id)
+            handle_order_update_notifications(
+                db,
+                workspace_id=workspace_id,
+                entity_type='transfer_order',
+                entity_id=to_id,
+                actor_user_id=user_id,
+                order=to_after,
+                was_ready=was_ready,
             )
             self._commit_transaction(db)
             db.refresh(record)
@@ -136,6 +167,17 @@ class TransferOrderService(BaseService):
         try:
             record = self.manager.add_approver(
                 db, to_id=to_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by
+            )
+            to = self.manager.get_transfer_order(db, to_id, workspace_id)
+            handle_add_approver(
+                db,
+                workspace_id=workspace_id,
+                entity_type='transfer_order',
+                entity_id=to_id,
+                actor_user_id=assigned_by,
+                approver_user_id=user_id,
+                approver_record_id=record.id,
+                order=to,
             )
             self._commit_transaction(db)
             db.refresh(record)
