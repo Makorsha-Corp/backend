@@ -340,6 +340,7 @@ class AccountInvoiceService(BaseService):
                 purchase_order_manager.apply_post_invoice_confirms(
                     db, po, workspace_id=workspace_id, user_id=user_id
                 )
+                purchase_order_manager.sync_po_stage(db, po, workspace_id, user_id)
                 purchase_order_manager.log_event(
                     db, po.id, workspace_id, 'invoice_confirmed',
                     f'Invoice #{invoice.id} confirmed — order locked',
@@ -415,6 +416,9 @@ class AccountInvoiceService(BaseService):
                             'to_value': void_note,
                         }],
                     },
+                )
+                purchase_order_manager.unconfirm_sections_after_invoice_void(
+                    db, po, workspace_id, user_id
                 )
 
             self._commit_transaction(db)

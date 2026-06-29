@@ -59,6 +59,9 @@ class PurchaseOrder(Base):
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_ever_linked = Column(Boolean, nullable=False, default=False, server_default='false')
 
+    # === PAYMENT (denormalized from linked invoice) ===
+    paid = Column(Boolean, nullable=False, default=False, server_default='false')
+
     # === VOID ===
     voided = Column(Boolean, nullable=False, default=False)
     void_note = Column(Text, nullable=True)
@@ -91,5 +94,6 @@ class PurchaseOrder(Base):
 
     @property
     def order_completed(self) -> bool:
-        """True when workflow stage is Complete (set manually after full receiving)."""
-        return self.current_status_name == 'Complete'
+        """True when workflow stage is Complete (manual close after receiving)."""
+        name = self.current_status_name
+        return name == 'Complete'

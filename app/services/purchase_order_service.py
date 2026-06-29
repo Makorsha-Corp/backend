@@ -168,13 +168,18 @@ class PurchaseOrderService(BaseService):
             return None
         if po.account_id is None:
             return None
+        if not force_create and not self.manager._base_sections_confirmed(po):
+            return None
+        if force_create and not self.manager._base_sections_confirmed(po):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail='Confirm supplier, order details, and items before creating a draft invoice',
+            )
 
         description = f"Purchase order {po.po_number}"
         notes = po.description
 
         if po.invoice_id is None:
-            if po.invoice_ever_linked and not force_create:
-                return None  # Previously had an invoice (was voided) — don't auto-recreate
             invoice_in = AccountInvoiceCreate(
                 account_id=po.account_id,
                 order_id=po.id,
@@ -384,6 +389,9 @@ class PurchaseOrderService(BaseService):
     def get_purchase_order(self, db: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
         po = self.manager.get_purchase_order(db, po_id, workspace_id)
         self._attach_invoice_payment_status(db, [po])
+        if self.manager.sync_po_stage(db, po, workspace_id, None):
+            self._commit_transaction(db)
+            db.refresh(po)
         return po
 
     def mark_order_complete(
@@ -416,6 +424,11 @@ class PurchaseOrderService(BaseService):
             skip=skip, limit=limit
         )
         self._attach_invoice_payment_status(db, orders)
+        stage_changed = any(
+            self.manager.sync_po_stage(db, po, workspace_id, None) for po in orders
+        )
+        if stage_changed:
+            self._commit_transaction(db)
         return orders
 
     @staticmethod

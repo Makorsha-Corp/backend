@@ -77,6 +77,24 @@ SECTION_CONFIRM_FIELDS = {
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
 PO_STAGE_NAMES = ('Draft', 'Planning', 'Receiving', 'Complete')
+PO_COMPLETE_STAGE_NAMES = frozenset({'Complete'})
+PO_COMPLETE = 'Complete'
+
+
+def _parse_unit_price(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    return Decimal(str(value))
+
+
+def _line_subtotal(qty: Decimal, price: Decimal | None) -> Decimal | None:
+    return None if price is None else qty * price
+
+
+def _all_items_have_positive_unit_price(items: List[PurchaseOrderItem]) -> bool:
+    return bool(items) and all(
+        i.unit_price is not None and Decimal(str(i.unit_price)) > 0 for i in items
+    )
 
 
 class PurchaseOrderManager(BaseManager[PurchaseOrder]):
@@ -119,6 +137,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         old_invoice_id = po.invoice_id
         po.invoice_id = None
         po.invoice_confirmed = False
+        po.paid = False
         session.flush()
         metadata: dict = {'invoice_id': old_invoice_id}
         if extra_metadata:
@@ -127,6 +146,32 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             session, po.id, po.workspace_id, event_type, reason, user_id,
             metadata=metadata,
         )
+
+    def unconfirm_sections_after_invoice_void(
+        self,
+        session: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Reset supplier and items section confirms after a linked invoice is voided."""
+        fields_to_clear = ('supplier_confirmed', 'items_confirmed')
+        changed = False
+        for confirm_field in fields_to_clear:
+            if not getattr(po, confirm_field, False):
+                continue
+            setattr(po, confirm_field, False)
+            changed = True
+            section_key, label = SECTION_CONFIRM_FIELDS[confirm_field]
+            self.log_event(
+                session, po.id, workspace_id,
+                f'{section_key}_unconfirmed',
+                f'{label} unconfirmed',
+                user_id,
+            )
+        if changed:
+            session.flush()
+            self.sync_po_stage(session, po, workspace_id, user_id)
 
     def reset_approvals(
         self,
@@ -226,10 +271,62 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         )
         return record.name if record else None
 
+    def _invoice_payment_status(self, session: Session, po: PurchaseOrder) -> str | None:
+        if po.invoice_id is None:
+            return None
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            session, id=po.invoice_id, workspace_id=po.workspace_id
+        )
+        return invoice.payment_status if invoice else None
+
+    def sync_po_for_linked_invoice(
+        self,
+        session: Session,
+        invoice_id: int,
+        workspace_id: int,
+        user_id: int | None,
+    ) -> None:
+        po = self.get_po_by_invoice_id(session, invoice_id=invoice_id, workspace_id=workspace_id)
+        if po:
+            self.sync_po_paid(session, po, workspace_id, user_id)
+
+    def sync_po_paid(
+        self,
+        session: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int | None,
+    ) -> bool:
+        """Sync denormalized paid flag from linked invoice payment status."""
+        new_paid = False
+        if po.invoice_id is not None:
+            payment_status = self._invoice_payment_status(session, po)
+            new_paid = payment_status == 'paid'
+        if po.paid == new_paid:
+            return False
+        po.paid = new_paid
+        session.flush()
+        label = 'Paid' if new_paid else 'Unpaid'
+        self.log_event(
+            session, po.id, workspace_id, 'payment_status_synced',
+            f'Order marked {label.lower()} from linked invoice',
+            user_id,
+            metadata={'paid': new_paid},
+        )
+        return True
+
+    def _is_po_complete_stage(self, stage_name: str | None) -> bool:
+        return stage_name in PO_COMPLETE_STAGE_NAMES
+
     def _derive_po_stage_name(
-        self, po: PurchaseOrder, items: List[PurchaseOrderItem]
+        self,
+        session: Session,
+        po: PurchaseOrder,
+        items: List[PurchaseOrderItem],
     ) -> str:
         if items and any(self._quantity_received_decimal(i) > 0 for i in items):
+            return 'Receiving'
+        if self.is_po_financially_locked(session, po):
             return 'Receiving'
         if po.supplier_confirmed or po.details_confirmed or po.items_confirmed:
             return 'Planning'
@@ -246,12 +343,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         items = self.item_dao.get_by_order(
             session, purchase_order_id=po.id, workspace_id=workspace_id
         )
-        derived_stage = self._derive_po_stage_name(po, items)
+        derived_stage = self._derive_po_stage_name(session, po, items)
         current_name = self._current_stage_name(
             session, workspace_id, po.current_status_id
         )
-        if current_name == 'Complete' and self._all_items_fully_received(items):
-            target_stage = 'Complete'
+        if self._is_po_complete_stage(current_name):
+            target_stage = PO_COMPLETE
         else:
             target_stage = derived_stage
 
@@ -306,7 +403,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Purchase order with ID {po_id} not found",
             )
-        if self._current_stage_name(session, workspace_id, po.current_status_id) == 'Complete':
+        if self._is_po_complete_stage(
+            self._current_stage_name(session, workspace_id, po.current_status_id)
+        ):
             return po
 
         items = self.item_dao.get_by_order(
@@ -329,13 +428,14 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             )
 
         po.current_status_id = self._resolve_po_stage_status_id(
-            session, workspace_id, 'Complete'
+            session, workspace_id, PO_COMPLETE
         )
         po.updated_by = user_id
         if po.actual_delivery_date is None:
             po.actual_delivery_date = date.today()
         session.flush()
 
+        self.sync_po_paid(session, po, workspace_id, user_id)
         self.sync_po_stage(session, po, workspace_id, user_id)
         if lines_posted > 0:
             if po.destination_type == 'storage':
@@ -415,12 +515,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             item_dict['line_number'] = idx
 
             qty = Decimal(str(item_dict['quantity_ordered']))
-            price = Decimal(str(item_dict['unit_price']))
-            line_sub = qty * price
+            price = _parse_unit_price(item_dict.get('unit_price'))
+            line_sub = _line_subtotal(qty, price)
+            item_dict['unit_price'] = price
             item_dict['line_subtotal'] = line_sub
             item_dict['quantity_received'] = Decimal('0')
 
-            subtotal += line_sub
+            subtotal += line_sub or Decimal('0')
 
             self.item_dao.create(session, obj_in=item_dict)
 
@@ -785,6 +886,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Add at least one line item before confirming',
                 )
+            if not _all_items_have_positive_unit_price(po_items):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Enter unit prices to confirm',
+                )
         if update_dict.get('invoice_confirmed') is True and not record.invoice_confirmed:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -929,8 +1035,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         item_dict['quantity_received'] = Decimal('0')
 
         qty = Decimal(str(item_dict['quantity_ordered']))
-        price = Decimal(str(item_dict['unit_price']))
-        item_dict['line_subtotal'] = qty * price
+        price = _parse_unit_price(item_dict.get('unit_price'))
+        item_dict['unit_price'] = price
+        item_dict['line_subtotal'] = _line_subtotal(qty, price)
 
         item = self.item_dao.create(session, obj_in=item_dict)
         self._recalc_totals(session, po)
@@ -1014,8 +1121,12 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         if 'quantity_ordered' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity_ordered', record.quantity_ordered)))
-            price = Decimal(str(update_dict.get('unit_price', record.unit_price)))
-            update_dict['line_subtotal'] = qty * price
+            if 'unit_price' in update_dict:
+                price = _parse_unit_price(update_dict['unit_price'])
+                update_dict['unit_price'] = price
+            else:
+                price = _parse_unit_price(record.unit_price)
+            update_dict['line_subtotal'] = _line_subtotal(qty, price)
 
         result = self.item_dao.update(session, db_obj=record, obj_in=update_dict)
         po = self.po_dao.get_by_id_and_workspace(session, id=record.purchase_order_id, workspace_id=workspace_id)
@@ -1229,13 +1340,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
             session.refresh(record)
             qty = Decimal(str(upd.quantity_ordered))
-            price = Decimal(str(upd.unit_price))
+            price = _parse_unit_price(upd.unit_price)
             received = self._quantity_received_decimal(record)
             self._validate_ordered_vs_received(qty, received)
             update_dict = {
                 'quantity_ordered': upd.quantity_ordered,
-                'unit_price': upd.unit_price,
-                'line_subtotal': qty * price,
+                'unit_price': price,
+                'line_subtotal': _line_subtotal(qty, price),
             }
             if record.quantity_received is None:
                 update_dict['quantity_received'] = received
@@ -1267,8 +1378,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             item_dict['line_number'] = next_line
             item_dict['quantity_received'] = Decimal('0')
             qty = Decimal(str(item_dict['quantity_ordered']))
-            price = Decimal(str(item_dict['unit_price']))
-            item_dict['line_subtotal'] = qty * price
+            price = _parse_unit_price(item_dict.get('unit_price'))
+            item_dict['unit_price'] = price
+            item_dict['line_subtotal'] = _line_subtotal(qty, price)
             item = self.item_dao.create(session, obj_in=item_dict)
             catalog_item = item_dao.get_by_id_and_workspace(
                 session, id=item.item_id, workspace_id=workspace_id

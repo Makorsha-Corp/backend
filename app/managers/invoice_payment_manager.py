@@ -15,7 +15,7 @@ from app.models.account_invoice import AccountInvoice
 from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, VoidPaymentRequest
 from app.dao.invoice_payment import invoice_payment_dao
 from app.dao.account_invoice import account_invoice_dao
-from app.dao.invoice_event import invoice_event_dao
+from app.managers.account_invoice_manager import account_invoice_manager
 from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
 
 
@@ -114,19 +114,6 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         # Capture invoice status after payment
         new_status = updated_invoice.payment_status
 
-        # Flip receiving_started on first payment
-        if not updated_invoice.receiving_started:
-            updated_invoice.receiving_started = True
-            session.flush()
-            invoice_event_dao.create_event(
-                session,
-                workspace_id=workspace_id,
-                invoice_id=invoice.id,
-                event_type="receiving_started_set",
-                description="Receiving started — first payment recorded against this invoice",
-                performed_by=user_id,
-            )
-
         # Audit log with invoice status change
         changes = {
             'after': extract_relevant_fields(payment, ['payment_amount', 'payment_date', 'payment_method']),
@@ -147,6 +134,23 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             description=f"Payment of ${payment_data.payment_amount} recorded for invoice ID {invoice.id}"
                         + (f", status changed to {new_status}" if old_status != new_status else "")
         )
+
+        account_invoice_manager._log_event(
+            session,
+            updated_invoice,
+            "payment_recorded",
+            "Payment recorded",
+            performed_by=user_id,
+            metadata={
+                "payment_id": payment.id,
+                "payment_amount": str(payment_data.payment_amount),
+                "payment_method": payment_data.payment_method,
+                "payment_status_before": old_status,
+                "payment_status_after": new_status,
+            },
+        )
+
+        self._sync_linked_po_stage(session, updated_invoice, user_id)
 
         return payment
 
@@ -355,6 +359,8 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 description=f"Invoice payment status changed from {old_invoice_payment_status} to {new_invoice_payment_status} after payment deletion"
             )
 
+        self._sync_linked_po_stage(session, invoice, user_id)
+
         return payment
 
 
@@ -424,7 +430,43 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             },
             description=f"Payment of ${payment.payment_amount} voided for invoice ID {invoice.id}. Reason: {void_note}"
         )
+
+        account_invoice_manager._log_event(
+            session,
+            invoice,
+            "payment_voided",
+            "Payment voided",
+            performed_by=user_id,
+            metadata={
+                "payment_id": payment.id,
+                "payment_amount": str(payment.payment_amount),
+                "payment_method": payment.payment_method,
+                "void_note": void_note,
+                "payment_status_before": old_invoice_status,
+                "payment_status_after": invoice.payment_status,
+            },
+        )
+
+        self._sync_linked_po_stage(session, invoice, user_id)
         return payment
+
+
+    def _sync_linked_po_stage(
+        self,
+        session: Session,
+        invoice: AccountInvoice,
+        user_id: int | None,
+    ) -> None:
+        if invoice.order_type != 'purchase_order' or invoice.order_id is None:
+            return
+        from app.managers.purchase_order_manager import purchase_order_manager
+
+        purchase_order_manager.sync_po_for_linked_invoice(
+            session,
+            invoice_id=invoice.id,
+            workspace_id=invoice.workspace_id,
+            user_id=user_id,
+        )
 
 
 # Singleton instance

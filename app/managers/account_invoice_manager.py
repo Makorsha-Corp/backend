@@ -3,7 +3,7 @@ Account Invoice Manager
 
 Business logic for account invoice operations.
 Lifecycle: draft → confirmed → voided (terminal)
-receiving_started is a boolean flag on confirmed invoices, set on first payment or PO receipt.
+receiving_started is a boolean flag on confirmed invoices, set when PO receiving is recorded.
 """
 from datetime import datetime
 from decimal import Decimal
@@ -116,7 +116,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         self._log_event(
             session, invoice, "created",
-            f"{invoice.invoice_type.capitalize()} invoice created (draft) for account ID {invoice.account_id}",
+            "Draft invoice created",
             performed_by=user_id,
             metadata={"invoice_type": invoice.invoice_type, "account_id": invoice.account_id},
         )
@@ -178,23 +178,47 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
                                 detail="Voided invoices cannot be edited")
 
         if invoice.invoice_status == "confirmed":
-            # Confirmed invoices: only admin-control fields are mutable
-            allowed = {"allow_payments", "payment_locked_reason"}
+            # Confirmed invoices: admin fields + due date are mutable
+            allowed = {"allow_payments", "payment_locked_reason", "due_date"}
             update_dict = {
-                k: v for k, v in invoice_data.model_dump(exclude_unset=True, exclude_none=True).items()
+                k: v for k, v in invoice_data.model_dump(exclude_unset=True).items()
                 if k in allowed
             }
             if not update_dict:
                 return invoice
+            old_due_date = invoice.due_date
             update_dict["updated_by"] = user_id
             updated = self.account_invoice_dao.update(session, db_obj=invoice, obj_in=update_dict)
-            changed = list(update_dict.keys() - {"updated_by"})
-            self._log_event(
-                session, updated, "allow_payments_changed" if "allow_payments" in changed else "payment_lock_changed",
-                f"Invoice admin field(s) updated: {', '.join(changed)}",
-                performed_by=user_id,
-                metadata=update_dict,
-            )
+            changed = [k for k in update_dict if k != "updated_by"]
+
+            if "due_date" in changed:
+                old_str = old_due_date.isoformat() if old_due_date else None
+                new_str = updated.due_date.isoformat() if updated.due_date else None
+                self._log_event(
+                    session, updated, "due_date_changed",
+                    "Due date updated",
+                    performed_by=user_id,
+                    metadata={"old_due_date": old_str, "new_due_date": new_str},
+                )
+                changed = [k for k in changed if k != "due_date"]
+
+            if changed:
+                if "allow_payments" in changed:
+                    enabled = update_dict.get("allow_payments")
+                    self._log_event(
+                        session, updated, "allow_payments_changed",
+                        "Payments enabled" if enabled else "Payments disabled",
+                        performed_by=user_id,
+                        metadata={"allow_payments": enabled},
+                    )
+                if "payment_locked_reason" in changed:
+                    reason = update_dict.get("payment_locked_reason")
+                    self._log_event(
+                        session, updated, "payment_lock_changed",
+                        "Payment lock updated",
+                        performed_by=user_id,
+                        metadata={"payment_locked_reason": reason},
+                    )
             return updated
 
         # Draft invoice: full edit allowed (except system-managed fields)
@@ -209,7 +233,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail="Cannot assign invoice to deleted account")
 
-        update_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = invoice_data.model_dump(exclude_unset=True)
         for protected in ("invoice_status", "paid_amount", "void_note", "invoice_amount", "receiving_started"):
             update_dict.pop(protected, None)
 
@@ -218,7 +242,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         self._log_event(
             session, updated_invoice, "item_manually_updated",
-            f"Invoice fields updated manually: {', '.join(k for k in update_dict if k != 'updated_by')}",
+            "Invoice details updated",
             performed_by=user_id,
             metadata={k: str(v) for k, v in update_dict.items() if k != "updated_by"},
         )
@@ -272,7 +296,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         self._log_event(
             session, invoice, "confirmed",
-            f"Invoice {invoice.invoice_number or invoice.id} confirmed — items frozen",
+            "Invoice finalized",
             performed_by=user_id,
             metadata={"invoice_amount": str(invoice.invoice_amount)},
         )
@@ -295,8 +319,8 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         if invoice.receiving_started:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot revert to draft — payments or receiving have been recorded. "
-                       "Void all payments and ensure no items have been received first.",
+                detail="Cannot revert to draft — receiving has been recorded on the linked order. "
+                       "Zero out received quantities first.",
             )
         if Decimal(str(invoice.paid_amount or 0)) > 0:
             raise HTTPException(
@@ -309,7 +333,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         self._log_event(
             session, invoice, "reverted_to_draft",
-            f"Invoice {invoice.invoice_number or invoice.id} reverted to draft",
+            "Reverted to draft",
             performed_by=user_id,
         )
         return invoice
@@ -354,8 +378,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         self._log_event(
             session, invoice, "voided",
-            f"Invoice {invoice.invoice_number or invoice.id} voided. "
-            f"{len(active_payments)} payment(s) auto-voided. Reason: {void_note}",
+            "Invoice voided",
             performed_by=user_id,
             metadata={
                 "prior_status": prior_status,
@@ -383,7 +406,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session.flush()
         self._log_event(
             session, invoice, "receiving_started_set",
-            reason or "Receiving or payment started on this invoice",
+            reason or "Receiving started on linked order",
             performed_by=performed_by,
         )
         return invoice
@@ -424,14 +447,24 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         event_type = "item_manually_updated" if is_manual else "items_synced"
         description = (
-            "Invoice items updated manually"
+            "Items updated"
             if is_manual
-            else f"Invoice items synced from linked order ({len(items)} line(s))"
+            else f"Items synced from order ({len(items)} lines)"
         )
+        item_summaries = [
+            {
+                "description": item.get("description") or f"Line {item.get('line_number', idx + 1)}",
+                "quantity": str(item["quantity"]) if item.get("quantity") is not None else None,
+                "unit": item.get("unit"),
+                "unit_price": str(item["unit_price"]) if item.get("unit_price") is not None else None,
+                "line_subtotal": str(item["line_subtotal"]) if item.get("line_subtotal") is not None else None,
+            }
+            for idx, item in enumerate(items)
+        ]
         self._log_event(
             session, invoice, event_type, description,
             performed_by=user_id,
-            metadata={"item_count": len(items)},
+            metadata={"item_count": len(items), "items": item_summaries},
         )
 
     # ------------------------------------------------------------------

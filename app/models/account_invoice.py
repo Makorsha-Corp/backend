@@ -52,7 +52,7 @@ class AccountInvoice(Base):
     notes = Column(Text, nullable=True)
 
     # Receiving / sync tracking
-    receiving_started = Column(Boolean, nullable=False, default=False)  # True after first payment or PO receipt
+    receiving_started = Column(Boolean, nullable=False, default=False)  # True after PO receiving is recorded
     last_synced_at = Column(DateTime, nullable=True)                     # when items were last pulled from linked order
 
     # Void note (permanent record of why invoice was voided)

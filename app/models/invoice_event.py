@@ -14,7 +14,8 @@ class InvoiceEvent(Base):
         created, confirmed, reverted_to_draft, voided,
         items_synced, item_manually_updated,
         payment_recorded, payment_voided,
-        receiving_started_set, allow_payments_changed, payment_lock_changed
+        receiving_started_set, allow_payments_changed, payment_lock_changed,
+        due_date_changed
     """
 
     __tablename__ = "invoice_events"

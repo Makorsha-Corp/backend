@@ -25,8 +25,8 @@ class PurchaseOrderItem(Base):
     # === QUANTITY & PRICING ===
     quantity_ordered = Column(Numeric(15, 2), nullable=False)
     quantity_received = Column(Numeric(15, 2), nullable=False, default=0)
-    unit_price = Column(Numeric(15, 2), nullable=False)
-    line_subtotal = Column(Numeric(15, 2), nullable=False)  # quantity_ordered * unit_price
+    unit_price = Column(Numeric(15, 2), nullable=True)
+    line_subtotal = Column(Numeric(15, 2), nullable=True)  # quantity_ordered * unit_price when priced
 
     # === NOTES ===
     notes = Column(Text, nullable=True)

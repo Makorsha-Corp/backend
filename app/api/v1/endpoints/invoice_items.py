@@ -65,9 +65,9 @@ def create_invoice_item(
     account_invoice_manager._recalculate_invoice_amount(db, invoice)
     account_invoice_manager._log_event(
         db, invoice, "item_manually_updated",
-        f"Item '{item.description}' added manually to invoice",
+        "Line item added",
         performed_by=current_user.id,
-        metadata={"item_id": item.id, "line_subtotal": str(item.line_subtotal)},
+        metadata={"item_id": item.id, "line_subtotal": str(item.line_subtotal), "description": item.description},
     )
     db.commit()
     db.refresh(item)
@@ -102,8 +102,9 @@ def update_invoice_item(
     account_invoice_manager._recalculate_invoice_amount(db, invoice)
     account_invoice_manager._log_event(
         db, invoice, "item_manually_updated",
-        f"Item '{updated_item.description}' updated manually on invoice",
+        "Line item updated",
         performed_by=current_user.id,
+        metadata={"item_id": updated_item.id, "description": updated_item.description},
     )
     db.commit()
     db.refresh(updated_item)
@@ -130,7 +131,8 @@ def delete_invoice_item(
     account_invoice_manager._recalculate_invoice_amount(db, invoice)
     account_invoice_manager._log_event(
         db, invoice, "item_manually_updated",
-        f"Item '{desc}' removed manually from invoice",
+        "Line item removed",
         performed_by=current_user.id,
+        metadata={"description": desc},
     )
     db.commit()

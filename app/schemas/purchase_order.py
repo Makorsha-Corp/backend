@@ -25,7 +25,7 @@ class ActiveOrderRow(BaseModel):
 class PurchaseOrderItemCreate(BaseModel):
     item_id: int
     quantity_ordered: Decimal
-    unit_price: Decimal
+    unit_price: Decimal | None = None
     notes: str | None = None
 
 
@@ -39,7 +39,7 @@ class PurchaseOrderItemUpdate(BaseModel):
 class PurchaseOrderItemSyncUpdate(BaseModel):
     id: int
     quantity_ordered: Decimal
-    unit_price: Decimal
+    unit_price: Decimal | None = None
 
 
 class PurchaseOrderItemSyncRequest(BaseModel):
@@ -58,8 +58,8 @@ class PurchaseOrderItemResponse(BaseModel):
     item_unit: str | None = None
     quantity_ordered: Decimal
     quantity_received: Decimal
-    unit_price: Decimal
-    line_subtotal: Decimal
+    unit_price: Decimal | None = None
+    line_subtotal: Decimal | None = None
     notes: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -128,6 +128,7 @@ class PurchaseOrderResponse(BaseModel):
     order_completed: bool = False
     voided: bool = False
     invoice_ever_linked: bool = False
+    paid: bool = False
     void_note: str | None = None
     voided_at: datetime | None = None
     voided_by: int | None = None
