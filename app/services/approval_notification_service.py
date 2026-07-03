@@ -115,7 +115,7 @@ def _is_approval_ready(db: Session, entity_type: str, order: Any, workspace_id: 
     if entity_type == "expense_order":
         from app.managers.expense_order_manager import expense_order_manager
 
-        return expense_order_manager._base_sections_confirmed(order)
+        return expense_order_manager.is_approvable(db, order)
     if entity_type == "transfer_order":
         from app.managers.transfer_order_manager import transfer_order_manager
 
@@ -123,7 +123,7 @@ def _is_approval_ready(db: Session, entity_type: str, order: Any, workspace_id: 
     return False
 
 
-def _section_gap_preview(entity_type: str, order: Any) -> str:
+def _section_gap_preview(db: Session, entity_type: str, order: Any) -> str:
     if entity_type == "purchase_order":
         from app.managers.purchase_order_manager import SECTION_CONFIRM_FIELDS
 
@@ -137,17 +137,9 @@ def _section_gap_preview(entity_type: str, order: Any) -> str:
             return f"Confirm {', '.join(gaps)} before approvals can proceed"
         return "Complete remaining sections before approvals can proceed"
     if entity_type == "expense_order":
-        from app.managers.expense_order_manager import SECTION_CONFIRM_FIELDS
+        from app.managers.expense_order_manager import expense_order_manager
 
-        gaps = []
-        for field, (_key, label) in SECTION_CONFIRM_FIELDS.items():
-            if field == "invoice_confirmed":
-                continue
-            if not getattr(order, field, False):
-                gaps.append(label)
-        if gaps:
-            return f"Confirm {', '.join(gaps)} before approvals can proceed"
-        return "Complete remaining sections before approvals can proceed"
+        return expense_order_manager.approvability_gap_reason(db, order) or "Complete remaining details before approvals can proceed"
     if entity_type == "transfer_order":
         from app.managers.transfer_order_manager import transfer_order_manager
 
@@ -259,7 +251,7 @@ def notify_section_confirm_needed(
     created_by = getattr(order, "created_by", None)
     if created_by is None:
         return
-    preview = reason or _section_gap_preview(entity_type, order)
+    preview = reason or _section_gap_preview(db, entity_type, order)
     _notify_user(
         db,
         workspace_id=workspace_id,
@@ -431,10 +423,6 @@ def handle_order_update_notifications(
 def detect_section_unconfirmed(entity_type: str, order: Any, update_dict: dict) -> bool:
     if entity_type == "purchase_order":
         from app.managers.purchase_order_manager import SECTION_CONFIRM_FIELDS
-
-        fields = SECTION_CONFIRM_FIELDS
-    elif entity_type == "expense_order":
-        from app.managers.expense_order_manager import SECTION_CONFIRM_FIELDS
 
         fields = SECTION_CONFIRM_FIELDS
     else:

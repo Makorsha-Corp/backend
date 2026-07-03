@@ -1,7 +1,7 @@
 """Expense order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import List
 from pydantic import BaseModel, ConfigDict
 
 
@@ -10,8 +10,6 @@ class ExpenseOrderItemCreate(BaseModel):
     quantity: Decimal = 1
     unit: str | None = None
     unit_price: Decimal | None = None
-    cost_center_type: str | None = None
-    cost_center_id: int | None = None
     notes: str | None = None
 
 
@@ -20,8 +18,6 @@ class ExpenseOrderItemUpdate(BaseModel):
     quantity: Decimal | None = None
     unit: str | None = None
     unit_price: Decimal | None = None
-    cost_center_type: str | None = None
-    cost_center_id: int | None = None
     approved: bool | None = None
     notes: str | None = None
 
@@ -36,8 +32,6 @@ class ExpenseOrderItemResponse(BaseModel):
     unit: str | None = None
     unit_price: Decimal | None = None
     line_subtotal: Decimal | None = None
-    cost_center_type: str | None = None
-    cost_center_id: int | None = None
     approved: bool
     notes: str | None = None
 
@@ -47,34 +41,29 @@ class ExpenseOrderItemResponse(BaseModel):
 class ExpenseOrderCreate(BaseModel):
     account_id: int | None = None
     expense_category: str
+    cost_center_id: int | None = None
     expense_date: date | None = None
     due_date: date | None = None
     description: str | None = None
-    current_status_id: int = 1
-    order_workflow_id: int | None = None
+    order_template_id: int | None = None
     items: List[ExpenseOrderItemCreate] | None = None
 
 
-ExpenseOrderSection = Literal['details', 'items', 'invoice']
-
-
-class ExpenseOrderSectionConfirmRequest(BaseModel):
-    section: ExpenseOrderSection
-    confirmed: bool
+class ExpenseOrderFromTemplateCreate(BaseModel):
+    expense_date: date | None = None
+    due_date: date | None = None
+    description: str | None = None
 
 
 class ExpenseOrderUpdate(BaseModel):
     account_id: int | None = None
     expense_category: str | None = None
+    cost_center_id: int | None = None
     expense_date: date | None = None
     due_date: date | None = None
-    current_status_id: int | None = None
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
-    details_confirmed: bool | None = None
-    items_confirmed: bool | None = None
-    invoice_confirmed: bool | None = None
 
 
 class ExpenseOrderResponse(BaseModel):
@@ -84,18 +73,13 @@ class ExpenseOrderResponse(BaseModel):
     order_template_id: int | None = None
     account_id: int | None = None
     expense_category: str
+    cost_center_id: int | None = None
     expense_date: date
     due_date: date | None = None
     subtotal: Decimal
     total_amount: Decimal
-    current_status_id: int
-    current_status_name: str | None = None
-    order_workflow_id: int | None = None
     invoice_id: int | None = None
     required_approvals: int | None = None
-    details_confirmed: bool = False
-    items_confirmed: bool = False
-    invoice_confirmed: bool = False
     description: str | None = None
     created_by: int
     created_at: datetime
@@ -107,8 +91,16 @@ class ExpenseOrderResponse(BaseModel):
     completed_by: int | None = None
     completed_at: datetime | None = None
     order_completed: bool = False
+    voided: bool = False
+    void_note: str | None = None
+    voided_at: datetime | None = None
+    voided_by: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ExpenseOrderVoidRequest(BaseModel):
+    void_note: str
 
 
 class ExpenseOrderApproverCreate(BaseModel):

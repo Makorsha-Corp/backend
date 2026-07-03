@@ -34,7 +34,11 @@ class ExpenseOrder(Base):
 
     # === CATEGORIZATION ===
     expense_category = Column(String(100), nullable=False, index=True)
-    # 'utilities', 'payroll', 'rent', 'services', 'maintenance', 'insurance', 'subscription', 'misc'
+    # 'factory', 'department', or 'other'
+
+    # === ALLOCATION ===
+    cost_center_id = Column(Integer, nullable=True)
+    # References factories.id or departments.id depending on expense_category; null when 'other'
 
     # === DATES ===
     expense_date = Column(Date, nullable=False, default=date.today)  # When expense occurred
@@ -44,21 +48,18 @@ class ExpenseOrder(Base):
     subtotal = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of all line_subtotals
     total_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Same as subtotal (no tax at line level)
 
-    # === WORKFLOW ===
-    current_status_id = Column(Integer, ForeignKey("statuses.id", ondelete="RESTRICT"), nullable=False, index=True)
-    order_workflow_id = Column(Integer, ForeignKey("order_workflows.id", ondelete="RESTRICT"), nullable=True, index=True)
-
     # === APPROVALS ===
     required_approvals = Column(Integer, nullable=True)
-
-    # === SECTION CONFIRMS ===
-    details_confirmed = Column(Boolean, nullable=False, default=False)
-    items_confirmed = Column(Boolean, nullable=False, default=False)
-    invoice_confirmed = Column(Boolean, nullable=False, default=False)
 
     # === INVOICE LINKAGE ===
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     # Nullable - invoice created after approval
+
+    # === VOID ===
+    voided = Column(Boolean, nullable=False, default=False)
+    void_note = Column(Text, nullable=True)
+    voided_at = Column(DateTime, nullable=True)
+    voided_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
 
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)
@@ -77,8 +78,6 @@ class ExpenseOrder(Base):
     # === RELATIONSHIPS ===
     template = relationship("OrderTemplate", backref="generated_expense_orders")
     account = relationship("Account", backref="expense_orders")
-    current_status = relationship("Status", backref="expense_orders")
-    workflow = relationship("OrderWorkflow", backref="expense_orders")
     invoice = relationship("AccountInvoice", backref="expense_orders")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_expense_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_expense_orders")
@@ -89,10 +88,6 @@ class ExpenseOrder(Base):
         back_populates="expense_order",
         cascade="all, delete-orphan",
     )
-
-    @property
-    def current_status_name(self) -> str | None:
-        return self.current_status.name if self.current_status else None
 
     @property
     def order_completed(self) -> bool:

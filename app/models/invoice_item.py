@@ -1,7 +1,7 @@
 """Invoice item model — frozen snapshot of an order line item on an invoice."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from app.db.base_class import Base
 
 
@@ -37,5 +37,5 @@ class InvoiceItem(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
 
-    invoice = relationship("AccountInvoice", backref="items")
+    invoice = relationship("AccountInvoice", backref=backref("items", passive_deletes=True))
     creator = relationship("Profile", foreign_keys=[created_by])

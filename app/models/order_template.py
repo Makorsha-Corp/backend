@@ -24,7 +24,9 @@ class OrderTemplate(Base):
 
     # === EXPENSE CATEGORY ===
     expense_category = Column(String(100), nullable=True)
-    # 'utilities', 'payroll', 'rent', 'services', 'maintenance', etc.
+    # 'factory', 'department', or 'other'
+    cost_center_id = Column(Integer, nullable=True)
+    # References factories.id or departments.id depending on expense_category; null when 'other'
 
     # === RECURRENCE PATTERN ===
     is_recurring = Column(Boolean, nullable=False, default=False)

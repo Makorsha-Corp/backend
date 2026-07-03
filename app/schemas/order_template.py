@@ -41,6 +41,7 @@ class OrderTemplateCreate(BaseModel):
     description: str | None = None
     account_id: int | None = None
     expense_category: str | None = None
+    cost_center_id: int | None = None
     is_recurring: bool = False
     recurrence_type: str | None = None
     recurrence_interval: int | None = None
@@ -60,6 +61,7 @@ class OrderTemplateUpdate(BaseModel):
     description: str | None = None
     account_id: int | None = None
     expense_category: str | None = None
+    cost_center_id: int | None = None
     is_recurring: bool | None = None
     recurrence_type: str | None = None
     recurrence_interval: int | None = None
@@ -81,6 +83,7 @@ class OrderTemplateResponse(BaseModel):
     description: str | None = None
     account_id: int | None = None
     expense_category: str | None = None
+    cost_center_id: int | None = None
     is_recurring: bool
     recurrence_type: str | None = None
     recurrence_interval: int | None = None

@@ -10,8 +10,8 @@ from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.schemas.expense_order import (
     ExpenseOrderCreate, ExpenseOrderUpdate, ExpenseOrderResponse,
+    ExpenseOrderFromTemplateCreate, ExpenseOrderVoidRequest,
     ExpenseOrderItemCreate, ExpenseOrderItemUpdate, ExpenseOrderItemResponse,
-    ExpenseOrderSectionConfirmRequest,
     ExpenseOrderApproverCreate, ExpenseOrderApproverResponse,
     ApprovalSummaryResponse, ExpenseOrderApproversList,
     ExpenseOrderEventMetadata, ExpenseOrderEventResponse,
@@ -33,13 +33,6 @@ def _approver_response(record, profile=None, position=None) -> ExpenseOrderAppro
         approved=record.approved,
         approved_at=record.approved_at,
     )
-
-
-_SECTION_CONFIRM_FIELDS = {
-    'details': 'details_confirmed',
-    'items': 'items_confirmed',
-    'invoice': 'invoice_confirmed',
-}
 
 
 router = APIRouter()
@@ -99,6 +92,25 @@ def create_expense_order(
     )
 
 
+@router.post(
+    "/from-template/{template_id}/",
+    response_model=ExpenseOrderResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an expense order pre-filled from an order template",
+)
+def create_expense_order_from_template(
+    template_id: int,
+    body: ExpenseOrderFromTemplateCreate = ExpenseOrderFromTemplateCreate(),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return expense_order_service.create_expense_order_from_template(
+        db, template_id=template_id, overrides=body,
+        workspace_id=workspace.id, user_id=current_user.id,
+    )
+
+
 @router.put(
     "/{eo_id}/",
     response_model=ExpenseOrderResponse,
@@ -118,46 +130,46 @@ def update_expense_order(
     )
 
 
-@router.patch(
-    "/{eo_id}/section-confirm/",
+@router.post(
+    "/{eo_id}/complete/",
     response_model=ExpenseOrderResponse,
     status_code=status.HTTP_200_OK,
-    summary="Confirm or unconfirm an expense order section",
+    summary="Confirm invoice and mark expense order complete",
 )
-def set_expense_order_section_confirm(
+def complete_expense_order(
     eo_id: int,
-    body: ExpenseOrderSectionConfirmRequest,
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    confirm_field = _SECTION_CONFIRM_FIELDS[body.section]
-    return expense_order_service.update_expense_order(
+    return expense_order_service.complete_expense_order(
         db,
         eo_id=eo_id,
-        eo_in=ExpenseOrderUpdate(**{confirm_field: body.confirmed}),
         workspace_id=workspace.id,
         user_id=current_user.id,
     )
 
 
 @router.post(
-    "/{eo_id}/complete/",
+    "/{eo_id}/void/",
     response_model=ExpenseOrderResponse,
     status_code=status.HTTP_200_OK,
-    summary="Mark expense order complete",
+    summary="Void expense order",
+    description="Voids the expense order and deletes its draft invoice if any. Only allowed before completion.",
 )
-def mark_expense_order_complete(
+def void_expense_order(
     eo_id: int,
+    body: ExpenseOrderVoidRequest,
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return expense_order_service.mark_order_complete(
+    return expense_order_service.void_expense_order(
         db,
         eo_id=eo_id,
         workspace_id=workspace.id,
         user_id=current_user.id,
+        void_note=body.void_note,
     )
 
 

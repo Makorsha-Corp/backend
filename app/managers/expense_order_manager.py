@@ -6,13 +6,13 @@ from typing import Any, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.dao.account_invoice import account_invoice_dao
 from app.dao.expense_order import expense_order_dao, expense_order_item_dao
 from app.dao.expense_order_approver import expense_order_approver_dao
 from app.dao.expense_order_event import expense_order_event_dao
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.managers.base_manager import BaseManager
+from app.managers.order_template_manager import order_template_manager
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_approver import ExpenseOrderApprover
 from app.models.expense_order_event import ExpenseOrderEvent
@@ -20,29 +20,26 @@ from app.models.expense_order_item import ExpenseOrderItem
 from app.models.profile import Profile
 from app.schemas.expense_order import (
     ExpenseOrderCreate,
+    ExpenseOrderFromTemplateCreate,
     ExpenseOrderItemCreate,
     ExpenseOrderItemUpdate,
     ExpenseOrderUpdate,
 )
 
-DETAILS_UPDATE_FIELDS = frozenset({
-    'account_id', 'expense_category', 'expense_date', 'due_date',
+DETAILS_FIELDS = frozenset({
+    'account_id', 'expense_category', 'cost_center_id', 'expense_date', 'due_date',
     'description',
 })
 ORDER_UPDATE_LOG_FIELDS = {
     'account_id': 'Account',
     'expense_category': 'Category',
+    'cost_center_id': 'Cost center',
     'expense_date': 'Expense date',
     'due_date': 'Due date',
     'description': 'Description',
     'required_approvals': 'Required approvals',
 }
-SECTION_CONFIRM_FIELDS = {
-    'details_confirmed': ('details', 'Order details'),
-    'items_confirmed': ('items', 'Expenses'),
-    'invoice_confirmed': ('invoice', 'Draft invoice'),
-}
-VALID_COST_CENTER_TYPES = frozenset({'factory', 'machine', 'project', 'department'})
+VALID_ALLOCATION_TYPES = frozenset({'factory', 'department', 'other'})
 
 
 class ExpenseOrderManager(BaseManager[ExpenseOrder]):
@@ -59,36 +56,64 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
     def _is_completed(self, record: ExpenseOrder) -> bool:
         return record.completed_at is not None
 
-    def _base_sections_confirmed(self, record: ExpenseOrder) -> bool:
-        return bool(record.details_confirmed and record.items_confirmed)
+    def _has_recorded_approvals(self, session: Session, eo_id: int, workspace_id: int) -> bool:
+        approvers = self.approver_dao.get_by_order(
+            session, expense_order_id=eo_id, workspace_id=workspace_id
+        )
+        return any(a.approved for a in approvers)
 
-    def _validate_allocation_fields(self, item_dict: dict) -> None:
-        ctype = item_dict.get('cost_center_type')
-        cid = item_dict.get('cost_center_id')
-        if ctype is not None or cid is not None:
-            if not ctype or cid is None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cost center type and ID must both be set',
-                )
-            if str(ctype).lower() not in VALID_COST_CENTER_TYPES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f'Invalid cost center type: {ctype}',
-                )
+    def is_approvable(self, session: Session, eo: ExpenseOrder) -> bool:
+        """Minimal readiness gate before approving or auto-creating the draft invoice."""
+        if not eo.expense_category or not eo.expense_date:
+            return False
+        if eo.expense_category != 'other' and eo.cost_center_id is None:
+            return False
+        if not (eo.description or '').strip():
+            return False
+        items = self.item_dao.get_by_order(session, expense_order_id=eo.id, workspace_id=eo.workspace_id)
+        if not items:
+            return False
+        return all(
+            (i.description or '').strip() and Decimal(str(i.quantity or 0)) > 0
+            for i in items
+        )
 
-    def _validate_item_row(self, item: ExpenseOrderItem) -> None:
-        if not (item.description or '').strip():
+    def approvability_gap_reason(self, session: Session, eo: ExpenseOrder) -> str | None:
+        if not eo.expense_category or not eo.expense_date:
+            return 'Set category and expense date before approvals can proceed'
+        if eo.expense_category != 'other' and eo.cost_center_id is None:
+            return f'Select a {eo.expense_category} for this expense order before approvals can proceed'
+        if not (eo.description or '').strip():
+            return 'Add a description before approvals can proceed'
+        items = self.item_dao.get_by_order(session, expense_order_id=eo.id, workspace_id=eo.workspace_id)
+        if not items:
+            return 'Add at least one expense line before approvals can proceed'
+        return None
+
+    def _validate_order_allocation(
+        self, session: Session, workspace_id: int,
+        expense_category: str, cost_center_id: int | None,
+    ) -> None:
+        if expense_category not in VALID_ALLOCATION_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Each expense line needs a description',
+                detail=f'Invalid category: {expense_category}. Must be factory, department, or other.',
             )
-        qty = Decimal(str(item.quantity or 0))
-        if qty <= 0:
+        if expense_category == 'other':
+            return
+        if cost_center_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Each expense line needs a positive quantity',
+                detail=f'Select a {expense_category} for this expense order',
             )
+        if expense_category == 'factory':
+            from app.dao.factory import factory_dao
+            if not factory_dao.get_by_id_and_workspace(session, id=cost_center_id, workspace_id=workspace_id):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Selected factory not found')
+        else:
+            from app.dao.department import department_dao
+            if not department_dao.get_by_id_and_workspace(session, id=cost_center_id, workspace_id=workspace_id):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Selected department not found')
 
     def resolve_invoice_account_id(self, record: ExpenseOrder) -> int:
         if record.account_id:
@@ -154,68 +179,11 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             })
         return changes
 
-    def _validate_section_confirm(
-        self,
-        record: ExpenseOrder,
-        update_dict: dict,
-        session: Session,
-        workspace_id: int,
-    ) -> None:
-        if update_dict.get('details_confirmed') is True and not record.details_confirmed:
-            category = update_dict.get('expense_category', record.expense_category)
-            exp_date = update_dict.get('expense_date', record.expense_date)
-            if not category or not exp_date:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Set category and expense date before confirming order details',
-                )
-        if update_dict.get('items_confirmed') is True and not record.items_confirmed:
-            items = self.item_dao.get_by_order(
-                session, expense_order_id=record.id, workspace_id=workspace_id
-            )
-            if not items:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Add at least one expense line before confirming',
-                )
-            for item in items:
-                self._validate_item_row(item)
-        if update_dict.get('invoice_confirmed') is True and not record.invoice_confirmed:
-            if not record.invoice_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Create a draft invoice before confirming',
-                )
-            invoice = account_invoice_dao.get_by_id_and_workspace(
-                session, id=record.invoice_id, workspace_id=workspace_id
-            )
-            if not invoice or invoice.invoice_status != 'confirmed':
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Confirm the linked invoice before confirming this section',
-                )
-
     def _guard_confirmed_updates(self, record: ExpenseOrder, update_dict: dict) -> None:
-        if self._is_completed(record):
-            if update_dict:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Expense order is complete and cannot be edited',
-                )
-        if 'current_status_id' in update_dict:
+        if self._is_completed(record) and update_dict:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Status is derived from workflow state — use Mark complete instead',
-            )
-        if record.details_confirmed and DETAILS_UPDATE_FIELDS.intersection(update_dict):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Order details are confirmed',
-            )
-        if record.invoice_confirmed and record.invoice_id and 'invoice_id' in update_dict:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invoice section is confirmed',
+                detail='Expense order is complete and cannot be edited',
             )
 
     def _guard_item_mutations(self, record: ExpenseOrder) -> None:
@@ -224,14 +192,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Expense order is complete',
             )
-        if record.items_confirmed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Expenses are confirmed',
-            )
 
     def _prepare_item_dict(self, item_dict: dict) -> dict:
-        self._validate_allocation_fields(item_dict)
         qty = Decimal(str(item_dict.get('quantity', 1)))
         price = Decimal(str(item_dict.get('unit_price') or 0))
         item_dict['line_subtotal'] = qty * price
@@ -242,6 +204,10 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         self, session: Session, data: ExpenseOrderCreate,
         workspace_id: int, user_id: int
     ) -> ExpenseOrder:
+        self._validate_order_allocation(session, workspace_id, data.expense_category, data.cost_center_id)
+        if not (data.description or '').strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Description is required')
+
         exp_number = self.eo_dao.get_next_number(session, workspace_id=workspace_id)
         items_data = data.items or []
         eo_dict = data.model_dump(exclude={'items'})
@@ -287,29 +253,19 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
         self._guard_confirmed_updates(record, update_dict)
-        self._validate_section_confirm(record, update_dict, session, workspace_id)
 
-        section_unconfirmed = False
-        for confirm_field, (section_key, label) in SECTION_CONFIRM_FIELDS.items():
-            if confirm_field not in update_dict:
-                continue
-            new_confirmed = bool(update_dict[confirm_field])
-            old_confirmed = bool(getattr(record, confirm_field, False))
-            if new_confirmed != old_confirmed:
-                if not new_confirmed:
-                    section_unconfirmed = True
-                event_suffix = 'confirmed' if new_confirmed else 'unconfirmed'
-                self.log_event(
-                    session, eo_id, workspace_id,
-                    f'{section_key}_{event_suffix}',
-                    f'{label} {event_suffix}',
-                    user_id,
-                )
-
-        if section_unconfirmed:
-            self.reset_approvals(session, eo_id, workspace_id, user_id)
+        if 'expense_category' in update_dict or 'cost_center_id' in update_dict:
+            merged_category = update_dict.get('expense_category', record.expense_category)
+            merged_cost_center_id = update_dict.get('cost_center_id', record.cost_center_id)
+            self._validate_order_allocation(session, workspace_id, merged_category, merged_cost_center_id)
 
         changes = self._collect_field_changes(record, update_dict)
+
+        approvals_reset = False
+        if DETAILS_FIELDS.intersection(update_dict) and self._has_recorded_approvals(session, eo_id, workspace_id):
+            self.reset_approvals(session, eo_id, workspace_id, user_id, reason='Order details edited')
+            approvals_reset = True
+
         if changes:
             self.log_event(
                 session, eo_id, workspace_id, 'updated', 'Order details updated', user_id,
@@ -317,7 +273,9 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             )
 
         update_dict['updated_by'] = user_id
-        return self.eo_dao.update(session, db_obj=record, obj_in=update_dict)
+        updated = self.eo_dao.update(session, db_obj=record, obj_in=update_dict)
+        updated._approvals_reset = approvals_reset
+        return updated
 
     def get_expense_order(self, session: Session, eo_id: int, workspace_id: int) -> ExpenseOrder:
         record = self.eo_dao.get_by_id_and_workspace(session, id=eo_id, workspace_id=workspace_id)
@@ -357,57 +315,6 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         session.delete(record)
         session.flush()
 
-    def mark_order_complete(
-        self,
-        session: Session,
-        eo_id: int,
-        workspace_id: int,
-        user_id: int,
-    ) -> ExpenseOrder:
-        record = self.get_expense_order(session, eo_id, workspace_id)
-        if self._is_completed(record):
-            return record
-
-        if not self._base_sections_confirmed(record):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Confirm order details and expenses before completing',
-            )
-        if not record.invoice_confirmed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Confirm the draft invoice before completing',
-            )
-        if not record.invoice_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Create and confirm an invoice before completing',
-            )
-        if not self.approvals_met(session, record):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Required approvals are not met',
-            )
-
-        invoice = account_invoice_dao.get_by_id_and_workspace(
-            session, id=record.invoice_id, workspace_id=workspace_id
-        )
-        if not invoice or invoice.invoice_status != 'confirmed':
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Linked invoice must be confirmed before completing',
-            )
-
-        record.completed_at = datetime.utcnow()
-        record.completed_by = user_id
-        record.updated_by = user_id
-        session.flush()
-        self.log_event(
-            session, eo_id, workspace_id, 'order_completed',
-            'Expense order marked complete', user_id,
-        )
-        return record
-
     # ─── Items ───────────────────────────────────────────────────
     def add_item(
         self, session: Session, eo_id: int, data: ExpenseOrderItemCreate,
@@ -430,6 +337,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             f'Line {next_line} added', user_id,
             metadata={'line_number': next_line},
         )
+        if self._has_recorded_approvals(session, eo_id, workspace_id):
+            self.reset_approvals(session, eo_id, workspace_id, user_id, reason='Expense items edited')
         return item
 
     def update_item(
@@ -444,12 +353,6 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         self._guard_item_mutations(eo)
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
-        if any(k in update_dict for k in ('cost_center_type', 'cost_center_id')):
-            merged = {
-                'cost_center_type': update_dict.get('cost_center_type', record.cost_center_type),
-                'cost_center_id': update_dict.get('cost_center_id', record.cost_center_id),
-            }
-            self._validate_allocation_fields(merged)
 
         if 'quantity' in update_dict or 'unit_price' in update_dict:
             qty = Decimal(str(update_dict.get('quantity', record.quantity)))
@@ -462,6 +365,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             session, eo.id, workspace_id, 'item_updated',
             f'Line {result.line_number} updated', user_id,
         )
+        if self._has_recorded_approvals(session, eo.id, workspace_id):
+            self.reset_approvals(session, eo.id, workspace_id, user_id, reason='Expense items edited')
         return result
 
     def remove_item(
@@ -482,6 +387,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             session, eo.id, workspace_id, 'item_removed',
             f'Line {line_number} removed', user_id,
         )
+        if self._has_recorded_approvals(session, eo.id, workspace_id):
+            self.reset_approvals(session, eo.id, workspace_id, user_id, reason='Expense items edited')
         return record
 
     def get_items(self, session: Session, eo_id: int, workspace_id: int) -> List[ExpenseOrderItem]:
@@ -599,10 +506,15 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
                 detail='You are not an assigned approver for this order',
             )
         eo = self.get_expense_order(session, eo_id, workspace_id)
-        if approved and not self._base_sections_confirmed(eo):
+        if approved and not self.is_approvable(session, eo):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Confirm order details and expenses before approving',
+                detail=self.approvability_gap_reason(session, eo) or 'Order is not ready for approval',
+            )
+        if not approved and self._is_completed(eo):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Cannot withdraw approval — order is complete',
             )
         rec.approved = approved
         rec.approved_at = datetime.utcnow() if approved else None
@@ -644,6 +556,68 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             (e, profile_dao.get(session, id=e.performed_by) if e.performed_by else None)
             for e in events
         ]
+
+    # ─── Templates ───────────────────────────────────────────────
+    def create_expense_order_from_template(
+        self, session: Session, template_id: int, workspace_id: int, user_id: int,
+        overrides: ExpenseOrderFromTemplateCreate,
+    ) -> ExpenseOrder:
+        template = order_template_manager.get_template(session, template_id, workspace_id)
+        if not template.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Template is inactive')
+        tpl_items = order_template_manager.get_items(session, template_id, workspace_id)
+
+        eo = self.create_expense_order(
+            session,
+            data=ExpenseOrderCreate(
+                account_id=template.account_id,
+                expense_category=template.expense_category or 'other',
+                cost_center_id=template.cost_center_id,
+                expense_date=overrides.expense_date or date.today(),
+                due_date=overrides.due_date,
+                description=overrides.description or template.description,
+                order_template_id=template.id,
+                items=[
+                    ExpenseOrderItemCreate(
+                        description=ti.description,
+                        quantity=ti.quantity,
+                        unit=ti.unit,
+                        unit_price=ti.unit_price,
+                        notes=ti.notes,
+                    )
+                    for ti in sorted(tpl_items, key=lambda x: x.line_number)
+                ],
+            ),
+            workspace_id=workspace_id, user_id=user_id,
+        )
+
+        if not template.requires_approval:
+            eo.required_approvals = 0
+            session.flush()
+        elif template.auto_approve:
+            eo.required_approvals = 0
+            session.flush()
+            self.log_event(
+                session, eo.id, workspace_id, 'auto_approved',
+                'Auto-approved — following template instructions', user_id,
+                metadata={'order_template_id': template.id},
+            )
+        elif template.default_approver_id and template.default_approver_id != user_id:
+            existing = self.approver_dao.get_by_order_and_user(
+                session, expense_order_id=eo.id, user_id=template.default_approver_id, workspace_id=workspace_id
+            )
+            if not existing:
+                self.add_approver(
+                    session, eo_id=eo.id, user_id=template.default_approver_id,
+                    workspace_id=workspace_id, assigned_by=user_id,
+                )
+
+        self.log_event(
+            session, eo.id, workspace_id, 'created_from_template',
+            f'Generated from template "{template.template_name}"', user_id,
+            metadata={'order_template_id': template.id},
+        )
+        return eo
 
 
 expense_order_manager = ExpenseOrderManager()

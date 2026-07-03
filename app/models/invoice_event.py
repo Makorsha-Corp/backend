@@ -1,7 +1,7 @@
 """Invoice event model — append-only activity log for an invoice."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from app.db.base_class import Base
 
 
@@ -31,5 +31,5 @@ class InvoiceEvent(Base):
     performed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    invoice = relationship("AccountInvoice", backref="events")
+    invoice = relationship("AccountInvoice", backref=backref("events", passive_deletes=True))
     performer = relationship("Profile", foreign_keys=[performed_by])

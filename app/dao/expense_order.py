@@ -1,6 +1,6 @@
 """Expense order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from typing import List, Optional
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.dao.base import BaseDAO
 from app.models.expense_order import ExpenseOrder
@@ -20,9 +20,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         skip: int = 0,
         limit: int = 100
     ) -> List[ExpenseOrder]:
-        query = db.query(ExpenseOrder).options(
-            joinedload(ExpenseOrder.current_status)
-        ).filter(ExpenseOrder.workspace_id == workspace_id)
+        query = db.query(ExpenseOrder).filter(ExpenseOrder.workspace_id == workspace_id)
         if expense_category:
             query = query.filter(ExpenseOrder.expense_category == expense_category)
         if account_id:
@@ -32,9 +30,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         return query.order_by(desc(ExpenseOrder.created_at)).offset(skip).limit(limit).all()
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[ExpenseOrder]:
-        return db.query(ExpenseOrder).options(
-            joinedload(ExpenseOrder.current_status)
-        ).filter(ExpenseOrder.id == id, ExpenseOrder.workspace_id == workspace_id).first()
+        return db.query(ExpenseOrder).filter(ExpenseOrder.id == id, ExpenseOrder.workspace_id == workspace_id).first()
 
     def get_next_number(self, db: Session, *, workspace_id: int) -> str:
         from datetime import datetime

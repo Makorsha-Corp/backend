@@ -1529,6 +1529,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 )
         else:
             po = self.get_purchase_order(session, po_id, workspace_id)
+            if po.order_completed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot withdraw approval — order is complete',
+                )
             if po.invoice_id is not None:
                 invoice = account_invoice_dao.get_by_id_and_workspace(
                     session, id=po.invoice_id, workspace_id=workspace_id
