@@ -21,7 +21,9 @@ from app.schemas.purchase_order import (
     PurchaseOrderSectionConfirmRequest,
 )
 from app.services.purchase_order_service import purchase_order_service
+from app.services.purchase_order_item_insights_service import purchase_order_item_insights_service
 from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse
+from app.schemas.purchase_order_item_insights import PoItemPriceInsightsResponse
 
 
 def _approver_response(record, profile=None, position=None) -> PurchaseOrderApproverResponse:
@@ -223,6 +225,28 @@ def mark_purchase_order_complete(
         po_id=po_id,
         workspace_id=workspace.id,
         user_id=current_user.id,
+    )
+
+
+@router.get(
+    "/{po_id}/item-price-insights/",
+    response_model=PoItemPriceInsightsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Price history insights for items on a purchase order",
+    description=(
+        "Returns last ordered and lowest-price references per catalog item on this PO. "
+        "Excludes voided purchase orders and the current PO from history."
+    ),
+)
+def get_purchase_order_item_price_insights(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_item_insights_service.get_item_price_insights(
+        db,
+        po_id=po_id,
+        workspace_id=workspace.id,
     )
 
 
