@@ -1,7 +1,7 @@
 """Account invoice DAO operations"""
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import List, Optional
+from sqlalchemy.orm import Session, Query
+from sqlalchemy import or_, func
+from typing import List, Optional, Tuple
 from datetime import date
 from decimal import Decimal
 from app.dao.base import BaseDAO
@@ -13,7 +13,7 @@ from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpda
 class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInvoiceUpdate]):
     """DAO operations for AccountInvoice model"""
 
-    def list_invoices(
+    def _build_filtered_query(
         self,
         db: Session,
         *,
@@ -30,11 +30,9 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         due_date_to: Optional[date] = None,
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[AccountInvoice]:
+    ) -> Query:
         """
-        Unified invoice listing with all filters. JOINs Account to exclude
+        Base query with all list filters. JOINs Account to exclude
         soft-deleted accounts from results. (SECURITY-CRITICAL)
         """
         query = (
@@ -77,12 +75,105 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         if amount_max is not None:
             query = query.filter(AccountInvoice.invoice_amount <= amount_max)
 
+        return query
+
+    def list_invoices(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from: Optional[date] = None,
+        invoice_date_to: Optional[date] = None,
+        due_date_from: Optional[date] = None,
+        due_date_to: Optional[date] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[AccountInvoice]:
+        """Unified invoice listing with all filters."""
+        query = self._build_filtered_query(
+            db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
+        )
         return (
             query
             .order_by(AccountInvoice.invoice_date.desc())
             .offset(skip)
             .limit(limit)
             .all()
+        )
+
+    def summarize_invoices(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from: Optional[date] = None,
+        invoice_date_to: Optional[date] = None,
+        due_date_from: Optional[date] = None,
+        due_date_to: Optional[date] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+    ) -> Tuple[int, Decimal, Decimal, Decimal]:
+        """
+        Aggregate invoice counts and amounts for matching filters.
+        Financial totals exclude voided invoices (matches frontend rollups).
+        """
+        query = self._build_filtered_query(
+            db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
+        )
+
+        invoice_count = query.count()
+
+        financial = query.filter(AccountInvoice.invoice_status != 'voided').with_entities(
+            func.coalesce(func.sum(AccountInvoice.invoice_amount), 0),
+            func.coalesce(func.sum(AccountInvoice.paid_amount), 0),
+            func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0),
+        ).one()
+
+        return (
+            invoice_count,
+            Decimal(financial[0]),
+            Decimal(financial[1]),
+            Decimal(financial[2]),
         )
 
     def get_by_order(

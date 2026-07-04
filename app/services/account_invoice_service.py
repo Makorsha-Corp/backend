@@ -129,6 +129,41 @@ class AccountInvoiceService(BaseService):
             limit=limit,
         )
 
+    def summarize_invoices(
+        self,
+        db: Session,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from=None,
+        invoice_date_to=None,
+        due_date_from=None,
+        due_date_to=None,
+        amount_min=None,
+        amount_max=None,
+    ):
+        """Aggregate invoice counts and amounts for matching filters."""
+        return self.account_invoice_manager.summarize_invoices(
+            session=db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
+        )
+
     def update_invoice(
         self,
         db: Session,

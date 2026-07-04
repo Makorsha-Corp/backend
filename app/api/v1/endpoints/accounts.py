@@ -5,6 +5,8 @@ Provides CRUD operations for accounts (unified entity for suppliers, clients, ut
 Accounts can be tagged as suppliers, clients, utilities, or payroll entities.
 """
 from typing import List, Optional
+from datetime import date
+from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -12,7 +14,9 @@ from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
+from app.schemas.account_invoice import AccountInvoiceSummaryResponse
 from app.services.account_service import account_service
+from app.services.account_invoice_service import account_invoice_service
 
 
 router = APIRouter()
@@ -83,6 +87,53 @@ def get_account(
     which will be caught by exception handler and returned as RFC 7807 error.
     """
     return account_service.get_account_with_tags(db, account_id, workspace_id=workspace.id)
+
+
+@router.get(
+    "/{account_id}/invoice-summary/",
+    response_model=AccountInvoiceSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Invoice summary for an account",
+    description="Aggregate invoice counts and financial totals for an account with optional filters.",
+)
+def get_account_invoice_summary(
+    account_id: int,
+    invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
+    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
+    invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
+    invoice_number_search: Optional[str] = Query(None, description="Search invoice_number or vendor_invoice_number"),
+    invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
+    invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
+    due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
+    due_date_to: Optional[date] = Query(None, description="Due date range end (YYYY-MM-DD)"),
+    amount_min: Optional[Decimal] = Query(None, description="Minimum invoice amount"),
+    amount_max: Optional[Decimal] = Query(None, description="Maximum invoice amount"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Get aggregate invoice totals for an account. Raises 404 if account not found."""
+    account_service.get_account_with_tags(db, account_id, workspace_id=workspace.id)
+    count, invoiced, paid, outstanding = account_invoice_service.summarize_invoices(
+        db,
+        workspace_id=workspace.id,
+        account_id=account_id,
+        invoice_type=invoice_type,
+        payment_status=payment_status,
+        invoice_status=invoice_status,
+        invoice_number_search=invoice_number_search,
+        invoice_date_from=invoice_date_from,
+        invoice_date_to=invoice_date_to,
+        due_date_from=due_date_from,
+        due_date_to=due_date_to,
+        amount_min=amount_min,
+        amount_max=amount_max,
+    )
+    return AccountInvoiceSummaryResponse(
+        invoice_count=count,
+        invoiced_total=invoiced,
+        paid_total=paid,
+        outstanding_total=outstanding,
+    )
 
 
 @router.post(

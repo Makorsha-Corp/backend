@@ -96,6 +96,14 @@ class AccountInvoiceResponse(AccountInvoiceInDB):
     pass
 
 
+class AccountInvoiceSummaryResponse(BaseModel):
+    """Aggregated invoice totals for an account with optional filters."""
+    invoice_count: int
+    invoiced_total: Decimal
+    paid_total: Decimal
+    outstanding_total: Decimal
+
+
 class InvoiceStatusEntryResponse(BaseModel):
     """One row from invoice_status_tracker"""
     model_config = ConfigDict(from_attributes=True)
