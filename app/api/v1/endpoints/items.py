@@ -13,6 +13,7 @@ from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemWithTagsResponse
+from app.schemas.item_similar import SimilarItemsResponse
 from app.schemas.item_orders import ItemOrdersListResponse, ItemOrderType
 from app.schemas.item_summary import ItemSummaryResponse
 from app.schemas.item_tag import ItemTagResponse
@@ -45,6 +46,30 @@ def get_items(
     """Get all items with their tags included"""
     items = item_service.get_items_with_tags(db, workspace_id=workspace.id, search=search, skip=skip, limit=limit)
     return items
+
+
+@router.get(
+    "/similar/",
+    response_model=SimilarItemsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Find similar item names",
+    description=(
+        "Return active catalog items whose normalized names match or closely resemble "
+        "the proposed name (spacing variants, typos). Used before creating duplicates."
+    ),
+)
+def get_similar_items(
+    name: str = Query(..., min_length=1, description="Proposed item name"),
+    limit: int = Query(5, ge=1, le=10, description="Maximum matches to return"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return item_service.get_similar_items(
+        db,
+        workspace_id=workspace.id,
+        name=name,
+        limit=limit,
+    )
 
 
 @router.get(

@@ -61,4 +61,4 @@ class InvoicePaymentInDB(InvoicePaymentBase):
 
 class InvoicePaymentResponse(InvoicePaymentInDB):
     """Invoice payment response schema"""
-    pass
+    created_by_name: Optional[str] = None

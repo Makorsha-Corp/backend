@@ -3,7 +3,7 @@ Invoice Payment Manager
 
 Business logic for invoice payment operations with auto-status updates.
 """
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from decimal import Decimal
@@ -240,7 +240,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[InvoicePayment]:
+    ) -> List[Tuple[InvoicePayment, Optional[str]]]:
         """
         List all payments for an invoice.
 
@@ -252,7 +252,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             limit: Maximum number of records to return
 
         Returns:
-            List of payments
+            List of (payment, created_by_name) tuples
         """
         # Validate invoice exists
         invoice = self.account_invoice_dao.get_by_id_and_workspace(

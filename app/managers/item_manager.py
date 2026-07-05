@@ -7,6 +7,7 @@ from app.dao.item import item_dao
 from app.dao.item_tag import item_tag_dao
 from app.dao.item_tag_assignment import item_tag_assignment_dao
 from app.schemas.item import ItemCreate, ItemUpdate
+from app.utils.item_name_normalize import normalize_item_name
 
 
 class ItemManager(BaseManager[Item]):
@@ -53,6 +54,7 @@ class ItemManager(BaseManager[Item]):
         item_dict = item_data.model_dump(exclude={'tag_ids'})
         item_dict['workspace_id'] = workspace_id
         item_dict['created_by'] = user_id
+        item_dict['name_normalized'] = normalize_item_name(item_dict['name'])
 
         # Create the item
         item = self.item_dao.create(session, obj_in=item_dict)
@@ -112,6 +114,8 @@ class ItemManager(BaseManager[Item]):
         # Inject updated_by for audit
         item_dict = item_data.model_dump(exclude_unset=True, exclude_none=True, exclude={'tag_ids'})
         item_dict['updated_by'] = user_id
+        if 'name' in item_dict:
+            item_dict['name_normalized'] = normalize_item_name(item_dict['name'])
 
         # Update the item
         updated_item = self.item_dao.update(session, db_obj=item, obj_in=item_dict)
@@ -202,6 +206,44 @@ class ItemManager(BaseManager[Item]):
                 skip=skip,
                 limit=limit
             )
+
+    def find_similar_items(
+        self,
+        session: Session,
+        workspace_id: int,
+        name: str,
+        limit: int = 5,
+        exclude_item_id: Optional[int] = None,
+    ) -> list[dict]:
+        """Return catalog items similar to the proposed name."""
+        normalized_query = normalize_item_name(name)
+        rows = self.item_dao.find_similar_by_name_in_workspace(
+            session,
+            workspace_id=workspace_id,
+            name=name,
+            limit=limit,
+            exclude_item_id=exclude_item_id,
+        )
+
+        matches: list[dict] = []
+        for item, score in rows:
+            score_value = float(score)
+            match_type = (
+                "exact_normalized"
+                if item.name_normalized == normalized_query
+                else "fuzzy"
+            )
+            matches.append(
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "unit": item.unit,
+                    "sku": item.sku,
+                    "similarity_score": round(score_value, 4),
+                    "match_type": match_type,
+                }
+            )
+        return matches
 
     def delete_item(
         self,

@@ -1,11 +1,27 @@
 """Invoice Payment Service for orchestrating payment workflows"""
-from typing import List
+from typing import List, Optional
+
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
+from app.dao.invoice_payment import invoice_payment_dao
 from app.managers.invoice_payment_manager import invoice_payment_manager
 from app.models.invoice_payment import InvoicePayment
-from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate
+from app.schemas.invoice_payment import (
+    InvoicePaymentCreate,
+    InvoicePaymentInDB,
+    InvoicePaymentResponse,
+    InvoicePaymentUpdate,
+)
+from app.services.base_service import BaseService
+
+
+def to_payment_response(
+    payment: InvoicePayment,
+    created_by_name: Optional[str] = None,
+) -> InvoicePaymentResponse:
+    base = InvoicePaymentInDB.model_validate(payment)
+    return InvoicePaymentResponse(**base.model_dump(), created_by_name=created_by_name)
 
 
 class InvoicePaymentService(BaseService):
@@ -22,44 +38,38 @@ class InvoicePaymentService(BaseService):
         super().__init__()
         self.invoice_payment_manager = invoice_payment_manager
 
+    def _payment_response(
+        self,
+        db: Session,
+        payment: InvoicePayment,
+        workspace_id: int,
+    ) -> InvoicePaymentResponse:
+        row = invoice_payment_dao.get_by_id_and_workspace_with_creator(
+            db, id=payment.id, workspace_id=workspace_id
+        )
+        if row is None:
+            return to_payment_response(payment, None)
+        _, created_by_name = row
+        return to_payment_response(payment, created_by_name)
+
     def create_payment(
         self,
         db: Session,
         payment_in: InvoicePaymentCreate,
         workspace_id: int,
-        user_id: int
-    ) -> InvoicePayment:
-        """
-        Create a new payment and update invoice status.
-
-        Args:
-            db: Database session
-            payment_in: Payment creation data
-            workspace_id: Workspace ID
-            user_id: User creating the payment
-
-        Returns:
-            Created payment
-
-        Raises:
-            HTTPException: If invoice not found or validation fails
-        """
+        user_id: int,
+    ) -> InvoicePaymentResponse:
         try:
-            # Create payment using manager (also updates invoice)
             payment = self.invoice_payment_manager.create_payment(
                 session=db,
                 payment_data=payment_in,
                 workspace_id=workspace_id,
-                user_id=user_id
+                user_id=user_id,
             )
-
-            # Commit transaction
             self._commit_transaction(db)
             db.refresh(payment)
-
-            return payment
-
-        except Exception as e:
+            return self._payment_response(db, payment, workspace_id)
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -67,23 +77,18 @@ class InvoicePaymentService(BaseService):
         self,
         db: Session,
         payment_id: int,
-        workspace_id: int
-    ) -> InvoicePayment:
-        """
-        Get payment by ID.
-
-        Args:
-            db: Database session
-            payment_id: Payment ID
-            workspace_id: Workspace ID
-
-        Returns:
-            Payment
-
-        Raises:
-            HTTPException: If payment not found
-        """
-        return self.invoice_payment_manager.get_payment(db, payment_id, workspace_id)
+        workspace_id: int,
+    ) -> InvoicePaymentResponse:
+        row = invoice_payment_dao.get_by_id_and_workspace_with_creator(
+            db, id=payment_id, workspace_id=workspace_id
+        )
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Payment with ID {payment_id} not found",
+            )
+        payment, created_by_name = row
+        return to_payment_response(payment, created_by_name)
 
     def list_payments_by_invoice(
         self,
@@ -91,69 +96,35 @@ class InvoicePaymentService(BaseService):
         invoice_id: int,
         workspace_id: int,
         skip: int = 0,
-        limit: int = 100
-    ) -> List[InvoicePayment]:
-        """
-        List payments for an invoice.
-
-        Args:
-            db: Database session
-            invoice_id: Invoice ID
-            workspace_id: Workspace ID
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of payments
-        """
-        return self.invoice_payment_manager.list_payments_by_invoice(
+        limit: int = 100,
+    ) -> List[InvoicePaymentResponse]:
+        rows = self.invoice_payment_manager.list_payments_by_invoice(
             session=db,
             invoice_id=invoice_id,
             workspace_id=workspace_id,
             skip=skip,
-            limit=limit
+            limit=limit,
         )
+        return [to_payment_response(payment, created_by_name) for payment, created_by_name in rows]
 
     def update_payment(
         self,
         db: Session,
         payment_id: int,
         payment_in: InvoicePaymentUpdate,
-        workspace_id: int
-    ) -> InvoicePayment:
-        """
-        Update payment.
-
-        Note: Cannot change payment amount. Delete and re-create instead.
-
-        Args:
-            db: Database session
-            payment_id: Payment ID
-            payment_in: Update data
-            workspace_id: Workspace ID
-
-        Returns:
-            Updated payment
-
-        Raises:
-            HTTPException: If payment not found or trying to change amount
-        """
+        workspace_id: int,
+    ) -> InvoicePaymentResponse:
         try:
-            # Update payment using manager
             payment = self.invoice_payment_manager.update_payment(
                 session=db,
                 payment_id=payment_id,
                 payment_data=payment_in,
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
             )
-
-            # Commit transaction
             self._commit_transaction(db)
             db.refresh(payment)
-
-            return payment
-
-        except Exception as e:
+            return self._payment_response(db, payment, workspace_id)
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -162,50 +133,49 @@ class InvoicePaymentService(BaseService):
         db: Session,
         payment_id: int,
         workspace_id: int,
-        user_id: int
-    ) -> InvoicePayment:
-        """
-        Delete payment and recalculate invoice totals.
-
-        Args:
-            db: Database session
-            payment_id: Payment ID
-            workspace_id: Workspace ID
-
-        Returns:
-            Deleted payment
-
-        Raises:
-            HTTPException: If payment not found
-        """
+        user_id: int,
+    ) -> InvoicePaymentResponse:
         try:
-            # Delete payment using manager (also recalculates invoice)
-            payment = self.invoice_payment_manager.delete_payment(
+            row = invoice_payment_dao.get_by_id_and_workspace_with_creator(
+                db, id=payment_id, workspace_id=workspace_id
+            )
+            if row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Payment with ID {payment_id} not found",
+                )
+            payment_before, created_by_name = row
+            self.invoice_payment_manager.delete_payment(
                 session=db,
                 payment_id=payment_id,
                 workspace_id=workspace_id,
-                user_id=user_id
+                user_id=user_id,
             )
-
-            # Commit transaction
             self._commit_transaction(db)
-
-            return payment
-
-        except Exception as e:
+            return to_payment_response(payment_before, created_by_name)
+        except Exception:
             self._rollback_transaction(db)
             raise
 
-
-    def void_payment(self, db: Session, payment_id: int, workspace_id: int, user_id: int, void_note: str) -> InvoicePayment:
+    def void_payment(
+        self,
+        db: Session,
+        payment_id: int,
+        workspace_id: int,
+        user_id: int,
+        void_note: str,
+    ) -> InvoicePaymentResponse:
         try:
             payment = self.invoice_payment_manager.void_payment(
-                session=db, payment_id=payment_id, workspace_id=workspace_id,
-                user_id=user_id, void_note=void_note
+                session=db,
+                payment_id=payment_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                void_note=void_note,
             )
             self._commit_transaction(db)
             db.refresh(payment)
-            return payment
+            return self._payment_response(db, payment, workspace_id)
         except Exception:
             self._rollback_transaction(db)
             raise

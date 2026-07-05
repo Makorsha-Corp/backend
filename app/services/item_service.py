@@ -6,7 +6,9 @@ from app.managers.item_manager import item_manager
 from app.models.item import Item
 from app.models.profile import Profile
 from app.schemas.item import ItemCreate, ItemUpdate, ItemWithTagsResponse
+from app.schemas.item_similar import SimilarItemsResponse
 from app.core.exceptions import NotFoundError
+from app.utils.item_name_normalize import normalize_item_name
 
 
 class ItemService(BaseService):
@@ -183,6 +185,28 @@ class ItemService(BaseService):
             items_with_tags.append(item_dict)
 
         return items_with_tags
+
+    def get_similar_items(
+        self,
+        db: Session,
+        workspace_id: int,
+        name: str,
+        limit: int = 5,
+        exclude_item_id: Optional[int] = None,
+    ) -> SimilarItemsResponse:
+        """Find items with names similar to the proposed catalog name."""
+        matches = self.item_manager.find_similar_items(
+            session=db,
+            workspace_id=workspace_id,
+            name=name,
+            limit=limit,
+            exclude_item_id=exclude_item_id,
+        )
+        return SimilarItemsResponse(
+            query=name,
+            normalized_query=normalize_item_name(name),
+            matches=matches,
+        )
 
     def update_item(
         self,

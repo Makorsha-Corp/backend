@@ -1,11 +1,12 @@
 """Invoice payment DAO operations"""
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from datetime import date, timedelta
 from decimal import Decimal
 from app.dao.base import BaseDAO
 from app.models.invoice_payment import InvoicePayment
+from app.models.profile import Profile
 from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate
 
 
@@ -14,31 +15,44 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
 
     def get_by_invoice(
         self, db: Session, *, invoice_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[InvoicePayment]:
+    ) -> List[Tuple[InvoicePayment, Optional[str]]]:
         """
-        Get all payments for an invoice (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            invoice_id: Invoice ID
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
+        Get all payments for an invoice with creator display name (SECURITY-CRITICAL)
 
         Returns:
-            List of payments for the invoice
+            List of (payment, created_by_name) tuples
         """
-        return (
-            db.query(InvoicePayment)
+        rows = (
+            db.query(InvoicePayment, Profile.name.label("created_by_name"))
+            .outerjoin(Profile, InvoicePayment.created_by == Profile.id)
             .filter(
                 InvoicePayment.workspace_id == workspace_id,
-                InvoicePayment.invoice_id == invoice_id
+                InvoicePayment.invoice_id == invoice_id,
             )
             .order_by(InvoicePayment.payment_date.desc())
             .offset(skip)
             .limit(limit)
             .all()
         )
+        return [(payment, name) for payment, name in rows]
+
+    def get_by_id_and_workspace_with_creator(
+        self, db: Session, *, id: int, workspace_id: int
+    ) -> Optional[Tuple[InvoicePayment, Optional[str]]]:
+        """Get payment by ID with creator display name (SECURITY-CRITICAL)"""
+        row = (
+            db.query(InvoicePayment, Profile.name.label("created_by_name"))
+            .outerjoin(Profile, InvoicePayment.created_by == Profile.id)
+            .filter(
+                InvoicePayment.id == id,
+                InvoicePayment.workspace_id == workspace_id,
+            )
+            .first()
+        )
+        if row is None:
+            return None
+        payment, name = row
+        return payment, name
 
     def get_by_date_range(
         self, db: Session, *, workspace_id: int, start_date: date, end_date: date,

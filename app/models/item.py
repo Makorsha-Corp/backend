@@ -14,6 +14,7 @@ class Item(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
     name = Column(String, nullable=False)
+    name_normalized = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     unit = Column(String, nullable=False)  # kg, pcs, ltr, meter, etc.
     sku = Column(String, nullable=True)  # Stock keeping unit / part number
