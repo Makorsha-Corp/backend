@@ -98,8 +98,15 @@ from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
 
 # Work Orders
+from app.models.work_order_type import WorkOrderType
+from app.models.work_order_template import WorkOrderTemplate
+from app.models.work_order_template_item import WorkOrderTemplateItem
+from app.models.work_order_template_approver import WorkOrderTemplateApprover
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
+from app.models.work_order_approver import WorkOrderApprover
+from app.models.work_order_event import WorkOrderEvent
+from app.models.project_component_activity_event import ProjectComponentActivityEvent
 
 from app.models.app_settings import AppSettings
 from app.models.discussion import Discussion
@@ -188,8 +195,15 @@ __all__ = [
     "InvoiceStatusTracker",
     "FinancialAuditLog",
     # Work Orders
+    "WorkOrderType",
+    "WorkOrderTemplate",
+    "WorkOrderTemplateItem",
+    "WorkOrderTemplateApprover",
     "WorkOrder",
     "WorkOrderItem",
+    "WorkOrderApprover",
+    "WorkOrderEvent",
+    "ProjectComponentActivityEvent",
     "AppSettings",
     "Discussion",
     "Notification",

@@ -15,9 +15,11 @@ from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.order_workflow import OrderWorkflow
 from app.dao.purchase_order import purchase_order_dao
 from app.dao.transfer_order import transfer_order_dao
+from app.dao.work_order import work_order_dao
 from app.dao.machine import machine_dao
 from app.dao.factory import factory_dao
 from app.dao.project_component import project_component_dao
+from app.models.enums import WorkOrderStatusEnum
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
@@ -685,6 +687,32 @@ class PurchaseOrderService(BaseService):
                     total_amount=None,
                 )
             )
+
+        # Work orders only ever target a machine or a project component directly (never
+        # generic factory storage), so only surface them for those two scopes.
+        if machine_id is not None or project_component_id is not None:
+            in_flight = (WorkOrderStatusEnum.DRAFT.value, WorkOrderStatusEnum.IN_PROGRESS.value)
+            wos = work_order_dao.get_by_workspace(
+                db, workspace_id=workspace_id,
+                machine_id=machine_id, skip=0, limit=1000,
+            )
+            for wo in wos:
+                if project_component_id is not None and wo.project_component_id != project_component_id:
+                    continue
+                if wo.status not in in_flight:
+                    continue
+                rows.append(
+                    ActiveOrderRow(
+                        order_kind="work",
+                        id=wo.id,
+                        number=wo.work_order_number,
+                        summary=wo.title,
+                        current_status_id=None,
+                        status_name=wo.status.replace('_', ' ').title(),
+                        created_at=wo.created_at,
+                        total_amount=wo.cost,
+                    )
+                )
 
         rows.sort(key=lambda r: r.created_at, reverse=True)
         return rows

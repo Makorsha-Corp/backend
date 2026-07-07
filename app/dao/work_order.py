@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.dao.base import BaseDAO
 from app.models.work_order import WorkOrder
-from app.models.enums import WorkTypeEnum, WorkOrderPriorityEnum, WorkOrderStatusEnum
+from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
 
 
@@ -16,7 +16,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        work_type: Optional[WorkTypeEnum] = None,
+        work_order_type_id: Optional[int] = None,
         status: Optional[WorkOrderStatusEnum] = None,
         priority: Optional[WorkOrderPriorityEnum] = None,
         factory_id: Optional[int] = None,
@@ -28,8 +28,8 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             WorkOrder.workspace_id == workspace_id,
             WorkOrder.is_deleted == False,
         )
-        if work_type:
-            query = query.filter(WorkOrder.work_type == work_type)
+        if work_order_type_id:
+            query = query.filter(WorkOrder.work_order_type_id == work_order_type_id)
         if status:
             query = query.filter(WorkOrder.status == status)
         if priority:
