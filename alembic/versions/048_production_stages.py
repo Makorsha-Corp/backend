@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "048_production_stages"
-down_revision = "047_item_name_normalized"
+down_revision = '053_work_order_templates'
 branch_labels = None
 depends_on = None
 
