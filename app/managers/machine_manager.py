@@ -276,7 +276,8 @@ class MachineManager(BaseManager[Machine]):
         session: Session,
         event_data: MachineEventCreate,
         workspace_id: int,
-        user_id: int
+        user_id: int,
+        work_order_id: Optional[int] = None,
     ) -> MachineEventResponse:
         """
         Record a machine status change in the activity log and sync is_running.
@@ -308,24 +309,33 @@ class MachineManager(BaseManager[Machine]):
                 detail=f"Machine is already in '{new_status}' state"
             )
 
+        description = f"Status set to {new_status.lower()}"
+        if event_data.note:
+            description = f"{description} ({event_data.note})"
+
+        metadata = {
+            "status": new_status,
+            "note": event_data.note,
+            "changes": [
+                {
+                    "field": "status",
+                    "label": "Status",
+                    "from_value": prev_status,
+                    "to_value": new_status,
+                }
+            ],
+        }
+        if work_order_id is not None:
+            metadata["work_order_id"] = work_order_id
+
         activity = machine_activity_manager.log_event(
             session,
             event_data.machine_id,
             workspace_id,
             "status_updated",
-            f"Status set to {new_status.lower()}",
+            description,
             performed_by=user_id,
-            metadata={
-                "status": new_status,
-                "changes": [
-                    {
-                        "field": "status",
-                        "label": "Status",
-                        "from_value": prev_status,
-                        "to_value": new_status,
-                    }
-                ],
-            },
+            metadata=metadata,
         )
 
         new_is_running = (event_data.event_type == MachineEventTypeEnum.RUNNING)
