@@ -74,6 +74,18 @@ class MaintenanceTypeEnum(str, enum.Enum):
     INSPECTION = "INSPECTION"
 
 
+class WorkTypeEnum(str, enum.Enum):
+    """Work order types"""
+    MAINTENANCE = "MAINTENANCE"
+    INSPECTION = "INSPECTION"
+    INSTALLATION = "INSTALLATION"
+    REPAIR = "REPAIR"
+    CALIBRATION = "CALIBRATION"
+    OVERHAUL = "OVERHAUL"
+    FABRICATION = "FABRICATION"
+    OTHER = "OTHER"
+
+
 class WorkOrderPriorityEnum(str, enum.Enum):
     """Work order priority levels"""
     LOW = "LOW"
@@ -83,12 +95,13 @@ class WorkOrderPriorityEnum(str, enum.Enum):
 
 
 class WorkOrderStatusEnum(str, enum.Enum):
-    """Work order status. Approval (if any approvers are assigned) gates the
-    DRAFT -> IN_PROGRESS transition rather than being its own visible status."""
+    """Work order status"""
     DRAFT = "DRAFT"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
-    VOIDED = "VOIDED"
+    CANCELLED = "CANCELLED"
 
 
 class InventoryTypeEnum(str, enum.Enum):

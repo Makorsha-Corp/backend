@@ -8,15 +8,13 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ActiveOrderRow(BaseModel):
-    """Unified row for purchase + transfer + work orders in context (machine / storage / project)."""
+    """Unified row for purchase + transfer orders in context (machine / storage / project)."""
 
-    order_kind: Literal["purchase", "transfer", "work"]
+    order_kind: Literal["purchase", "transfer"]
     id: int
     number: str
     summary: str | None = None
-    # Work orders don't use the generic statuses table — current_status_id is None for them,
-    # with status_name carrying their plain status label instead.
-    current_status_id: int | None = None
+    current_status_id: int
     status_name: str | None = None
     created_at: datetime
     total_amount: Decimal | None = None

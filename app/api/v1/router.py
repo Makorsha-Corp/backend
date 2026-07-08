@@ -26,8 +26,6 @@ from app.api.v1.endpoints import (
     # Orders
     order_workflows,
     work_orders,
-    work_order_types,
-    work_order_templates,
     purchase_orders,
     transfer_orders,
     expense_orders,
@@ -101,8 +99,6 @@ api_router.include_router(order_workflows.router, prefix="/order-workflows", tag
 
 # Work Orders
 api_router.include_router(work_orders.router, prefix="/work-orders", tags=["orders"])
-api_router.include_router(work_order_types.router, prefix="/work-order-types", tags=["orders"])
-api_router.include_router(work_order_templates.router, prefix="/work-order-templates", tags=["orders"])
 
 # Purchase Orders
 api_router.include_router(purchase_orders.router, prefix="/purchase-orders", tags=["orders"])
