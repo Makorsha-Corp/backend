@@ -2,7 +2,7 @@
 with a multi-approver table, add lifecycle stamps, void fields, and optional invoice linkage.
 
 Revision ID: 047_work_order_approvals_workflow
-Revises: 046_expense_order_void_fields
+Revises: 047_item_name_normalized
 """
 
 import sqlalchemy as sa
@@ -18,7 +18,7 @@ from app.db.migration_helpers import (
 )
 
 revision = '047_work_order_approvals_workflow'
-down_revision = '046_expense_order_void_fields'
+down_revision = '047_item_name_normalized'
 branch_labels = None
 depends_on = None
 
