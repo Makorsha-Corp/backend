@@ -229,6 +229,67 @@ class ProductionFormulaService(BaseService):
                 raise NotFoundError(error_msg)
             raise BusinessRuleError(error_msg)
 
+    # ─── Formula Stage Operations ───────────────────────────────────
+
+    def get_formula_stages(
+        self, db: Session, formula_id: int, workspace_id: int
+    ) -> List["ProductionFormulaStage"]:
+        try:
+            return self.formula_manager.get_formula_stages(db, formula_id, workspace_id)
+        except ValueError as e:
+            raise NotFoundError(str(e))
+
+    def add_formula_stage(
+        self, db: Session, stage_in: "ProductionFormulaStageCreate", workspace_id: int
+    ) -> "ProductionFormulaStage":
+        try:
+            stage = self.formula_manager.add_formula_stage(db, stage_in, workspace_id)
+            self._commit_transaction(db)
+            db.refresh(stage)
+            return stage
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def update_formula_stage(
+        self,
+        db: Session,
+        stage_id: int,
+        stage_in: "ProductionFormulaStageUpdate",
+        workspace_id: int,
+    ) -> "ProductionFormulaStage":
+        try:
+            stage = self.formula_manager.update_formula_stage(db, stage_id, stage_in, workspace_id)
+            self._commit_transaction(db)
+            db.refresh(stage)
+            return stage
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_formula_stage(self, db: Session, stage_id: int, workspace_id: int) -> None:
+        try:
+            self.formula_manager.remove_formula_stage(db, stage_id, workspace_id)
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise NotFoundError(str(e))
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
 
 # Singleton instance
 production_formula_service = ProductionFormulaService()

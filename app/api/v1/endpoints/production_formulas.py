@@ -22,6 +22,11 @@ from app.schemas.production_formula_item import (
     ProductionFormulaItemUpdate,
     ProductionFormulaItemResponse,
 )
+from app.schemas.production_formula_stage import (
+    ProductionFormulaStageCreate,
+    ProductionFormulaStageUpdate,
+    ProductionFormulaStageResponse,
+)
 from app.services.production_formula_service import production_formula_service
 
 
@@ -229,3 +234,68 @@ def remove_formula_item(
 ):
     """Remove an item from a formula"""
     production_formula_service.remove_formula_item(db, formula_item_id, workspace.id)
+
+
+# ─── Formula Stage Endpoints ────────────────────────────────────────
+
+
+@router.get(
+    "/{formula_id}/stages/",
+    response_model=List[ProductionFormulaStageResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List formula production stages",
+)
+def get_formula_stages(
+    formula_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.get_formula_stages(db, formula_id, workspace.id)
+
+
+@router.post(
+    "/{formula_id}/stages/",
+    response_model=ProductionFormulaStageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add stage to formula",
+)
+def add_formula_stage(
+    formula_id: int,
+    stage_in: ProductionFormulaStageCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    if stage_in.formula_id != formula_id:
+        from app.core.exceptions import BusinessRuleError
+        raise BusinessRuleError(
+            f"Path formula_id ({formula_id}) does not match body formula_id ({stage_in.formula_id})"
+        )
+    return production_formula_service.add_formula_stage(db, stage_in, workspace.id)
+
+
+@router.put(
+    "/stages/{stage_id}/",
+    response_model=ProductionFormulaStageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update formula stage",
+)
+def update_formula_stage(
+    stage_id: int,
+    stage_in: ProductionFormulaStageUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.update_formula_stage(db, stage_id, stage_in, workspace.id)
+
+
+@router.delete(
+    "/stages/{stage_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove formula stage",
+)
+def remove_formula_stage(
+    stage_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    production_formula_service.remove_formula_stage(db, stage_id, workspace.id)

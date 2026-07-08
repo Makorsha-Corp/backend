@@ -6,9 +6,14 @@ from app.models.production_formula import ProductionFormula
 from app.models.production_formula_item import ProductionFormulaItem
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
+from app.dao.production_formula_stage import production_formula_stage_dao
+from app.dao.production_line import production_line_dao
 from app.dao.item import item_dao
+from app.models.production_formula_stage import ProductionFormulaStage
+from app.models.machine import Machine
 from app.schemas.production_formula import ProductionFormulaCreate, ProductionFormulaUpdate
 from app.schemas.production_formula_item import ProductionFormulaItemCreate, ProductionFormulaItemUpdate
+from app.schemas.production_formula_stage import ProductionFormulaStageCreate, ProductionFormulaStageUpdate
 
 
 class ProductionFormulaManager(BaseManager[ProductionFormula]):
@@ -27,6 +32,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         super().__init__(ProductionFormula)
         self.formula_dao = production_formula_dao
         self.formula_item_dao = production_formula_item_dao
+        self.formula_stage_dao = production_formula_stage_dao
 
     # ─── Formula CRUD ───────────────────────────────────────────────
 
@@ -283,6 +289,127 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
                 f"Add at least one item with role='output' before using the formula."
             )
         return sum(item.quantity for item in output_items)
+
+    # ─── Formula Stage CRUD ─────────────────────────────────────────
+
+    def _validate_stage_refs(
+        self,
+        session: Session,
+        workspace_id: int,
+        production_line_id: Optional[int],
+        machine_id: Optional[int],
+        expected_output_item_id: Optional[int],
+    ) -> None:
+        if production_line_id is not None:
+            line = production_line_dao.get_by_id_and_workspace(
+                session, id=production_line_id, workspace_id=workspace_id
+            )
+            if not line:
+                raise ValueError(f"Production line {production_line_id} not found")
+        if machine_id is not None:
+            machine = (
+                session.query(Machine)
+                .filter(
+                    Machine.id == machine_id,
+                    Machine.workspace_id == workspace_id,
+                    Machine.is_deleted == False,
+                )
+                .first()
+            )
+            if not machine:
+                raise ValueError(f"Machine {machine_id} not found")
+        if expected_output_item_id is not None:
+            item = item_dao.get(session, id=expected_output_item_id)
+            if not item or item.workspace_id != workspace_id:
+                raise ValueError(f"Item {expected_output_item_id} not found")
+
+    def get_formula_stages(
+        self, session: Session, formula_id: int, workspace_id: int
+    ) -> List[ProductionFormulaStage]:
+        formula = self.formula_dao.get_by_id_and_workspace(
+            session, id=formula_id, workspace_id=workspace_id
+        )
+        if not formula:
+            raise ValueError(f"Production formula {formula_id} not found")
+        return self.formula_stage_dao.get_by_formula(
+            session, formula_id=formula_id, workspace_id=workspace_id
+        )
+
+    def add_formula_stage(
+        self,
+        session: Session,
+        stage_data: ProductionFormulaStageCreate,
+        workspace_id: int,
+    ) -> ProductionFormulaStage:
+        formula = self.formula_dao.get_by_id_and_workspace(
+            session, id=stage_data.formula_id, workspace_id=workspace_id
+        )
+        if not formula:
+            raise ValueError(f"Production formula {stage_data.formula_id} not found")
+
+        self._validate_stage_refs(
+            session,
+            workspace_id,
+            stage_data.production_line_id,
+            stage_data.machine_id,
+            stage_data.expected_output_item_id,
+        )
+
+        existing = self.formula_stage_dao.get_by_formula(
+            session, formula_id=stage_data.formula_id, workspace_id=workspace_id
+        )
+        if any(s.stage_order == stage_data.stage_order for s in existing):
+            raise ValueError(f"Stage order {stage_data.stage_order} already exists for this formula")
+
+        stage_dict = stage_data.model_dump()
+        stage_dict["workspace_id"] = workspace_id
+        return self.formula_stage_dao.create(session, obj_in=stage_dict)
+
+    def update_formula_stage(
+        self,
+        session: Session,
+        stage_id: int,
+        stage_data: ProductionFormulaStageUpdate,
+        workspace_id: int,
+    ) -> ProductionFormulaStage:
+        stage = self.formula_stage_dao.get_by_id_and_workspace(
+            session, id=stage_id, workspace_id=workspace_id
+        )
+        if not stage:
+            raise ValueError(f"Formula stage {stage_id} not found")
+
+        update_dict = stage_data.model_dump(exclude_unset=True, exclude_none=True)
+        if not update_dict:
+            return stage
+
+        self._validate_stage_refs(
+            session,
+            workspace_id,
+            update_dict.get("production_line_id", stage.production_line_id),
+            update_dict.get("machine_id", stage.machine_id),
+            update_dict.get("expected_output_item_id", stage.expected_output_item_id),
+        )
+
+        if "stage_order" in update_dict and update_dict["stage_order"] != stage.stage_order:
+            siblings = self.formula_stage_dao.get_by_formula(
+                session, formula_id=stage.formula_id, workspace_id=workspace_id
+            )
+            if any(
+                s.id != stage.id and s.stage_order == update_dict["stage_order"] for s in siblings
+            ):
+                raise ValueError(f"Stage order {update_dict['stage_order']} already exists for this formula")
+
+        return self.formula_stage_dao.update(session, db_obj=stage, obj_in=update_dict)
+
+    def remove_formula_stage(
+        self, session: Session, stage_id: int, workspace_id: int
+    ) -> ProductionFormulaStage:
+        stage = self.formula_stage_dao.get_by_id_and_workspace(
+            session, id=stage_id, workspace_id=workspace_id
+        )
+        if not stage:
+            raise ValueError(f"Formula stage {stage_id} not found")
+        return self.formula_stage_dao.remove(session, id=stage_id)
 
     # ─── Helpers ────────────────────────────────────────────────────
 

@@ -7,11 +7,14 @@ from sqlalchemy.orm import Session
 from app.managers.base_manager import BaseManager
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
+from app.models.production_batch_stage_log import ProductionBatchStageLog
 from app.dao.production_batch import production_batch_dao
 from app.dao.production_batch_item import production_batch_item_dao
 from app.dao.production_line import production_line_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
+from app.dao.production_formula_stage import production_formula_stage_dao
+from app.dao.production_batch_stage_log import production_batch_stage_log_dao
 from app.dao.item import item_dao
 from app.dao.inventory import inventory_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
@@ -20,6 +23,10 @@ from app.managers.product_manager import product_manager
 from app.models.enums import InventoryTypeEnum
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
 from app.schemas.production_batch_item import ProductionBatchItemCreate, ProductionBatchItemUpdate
+from app.schemas.production_batch_stage_log import (
+    ProductionBatchStageLogCreate,
+    ProductionBatchStageLogUpdate,
+)
 
 
 class ProductionBatchManager(BaseManager[ProductionBatch]):
@@ -34,6 +41,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
 
     VALID_STATUSES = {'draft', 'in_progress', 'completed', 'cancelled'}
     VALID_ITEM_ROLES = {'input', 'output', 'waste', 'byproduct'}
+    VALID_STAGE_LOG_STATUSES = {'pending', 'in_progress', 'completed', 'skipped'}
 
     def __init__(self):
         super().__init__(ProductionBatch)
@@ -41,6 +49,8 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         self.batch_item_dao = production_batch_item_dao
         self.formula_dao = production_formula_dao
         self.formula_item_dao = production_formula_item_dao
+        self.formula_stage_dao = production_formula_stage_dao
+        self.stage_log_dao = production_batch_stage_log_dao
 
     # ─── Batch CRUD ─────────────────────────────────────────────────
 
@@ -90,7 +100,17 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         batch_dict['batch_number'] = batch_number
         batch_dict['created_by'] = user_id
 
-        return self.batch_dao.create(session, obj_in=batch_dict)
+        batch = self.batch_dao.create(session, obj_in=batch_dict)
+
+        if batch_data.formula_id is not None:
+            self._seed_stage_logs_from_formula(
+                session,
+                batch=batch,
+                formula_id=batch_data.formula_id,
+                workspace_id=workspace_id,
+            )
+
+        return batch
 
     def update_batch(
         self,
@@ -716,6 +736,114 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
             )
 
         return len(merged_qty)
+
+    # ─── Batch Stage Logs ───────────────────────────────────────────
+
+    def _seed_stage_logs_from_formula(
+        self,
+        session: Session,
+        *,
+        batch: ProductionBatch,
+        formula_id: int,
+        workspace_id: int,
+    ) -> None:
+        stages = self.formula_stage_dao.get_by_formula(
+            session, formula_id=formula_id, workspace_id=workspace_id
+        )
+        for stage in stages:
+            log_dict = {
+                "workspace_id": workspace_id,
+                "batch_id": batch.id,
+                "formula_stage_id": stage.id,
+                "stage_name": stage.name,
+                "stage_order": stage.stage_order,
+                "production_line_id": stage.production_line_id or batch.production_line_id,
+                "status": "pending",
+            }
+            self.stage_log_dao.create(session, obj_in=log_dict)
+
+    def get_batch_stage_logs(
+        self, session: Session, batch_id: int, workspace_id: int
+    ) -> List[ProductionBatchStageLog]:
+        batch = self.batch_dao.get_by_id_and_workspace(
+            session, id=batch_id, workspace_id=workspace_id
+        )
+        if not batch:
+            raise ValueError(f"Production batch {batch_id} not found")
+        return self.stage_log_dao.get_by_batch(
+            session, batch_id=batch_id, workspace_id=workspace_id
+        )
+
+    def add_batch_stage_log(
+        self,
+        session: Session,
+        log_data: ProductionBatchStageLogCreate,
+        workspace_id: int,
+        user_id: int,
+    ) -> ProductionBatchStageLog:
+        batch = self.batch_dao.get_by_id_and_workspace(
+            session, id=log_data.batch_id, workspace_id=workspace_id
+        )
+        if not batch:
+            raise ValueError(f"Production batch {log_data.batch_id} not found")
+
+        if log_data.status not in self.VALID_STAGE_LOG_STATUSES:
+            raise ValueError(f"Invalid stage log status '{log_data.status}'")
+
+        if log_data.production_line_id is not None:
+            line = production_line_dao.get_by_id_and_workspace(
+                session, id=log_data.production_line_id, workspace_id=workspace_id
+            )
+            if not line:
+                raise ValueError(f"Production line {log_data.production_line_id} not found")
+
+        self._validate_stage_log_completion(log_data.status, log_data.output_quantity)
+
+        log_dict = log_data.model_dump()
+        log_dict["workspace_id"] = workspace_id
+        log_dict["logged_by"] = user_id
+        return self.stage_log_dao.create(session, obj_in=log_dict)
+
+    def update_batch_stage_log(
+        self,
+        session: Session,
+        log_id: int,
+        log_data: ProductionBatchStageLogUpdate,
+        workspace_id: int,
+        user_id: int,
+    ) -> ProductionBatchStageLog:
+        log = self.stage_log_dao.get_by_id_and_workspace(
+            session, id=log_id, workspace_id=workspace_id
+        )
+        if not log:
+            raise ValueError(f"Batch stage log {log_id} not found")
+
+        update_dict = log_data.model_dump(exclude_unset=True, exclude_none=True)
+        if not update_dict:
+            return log
+
+        new_status = update_dict.get("status", log.status)
+        if new_status not in self.VALID_STAGE_LOG_STATUSES:
+            raise ValueError(f"Invalid stage log status '{new_status}'")
+
+        if "production_line_id" in update_dict and update_dict["production_line_id"] is not None:
+            line = production_line_dao.get_by_id_and_workspace(
+                session, id=update_dict["production_line_id"], workspace_id=workspace_id
+            )
+            if not line:
+                raise ValueError(f"Production line {update_dict['production_line_id']} not found")
+
+        output_qty = update_dict.get("output_quantity", log.output_quantity)
+        self._validate_stage_log_completion(new_status, output_qty)
+
+        update_dict["logged_by"] = user_id
+        return self.stage_log_dao.update(session, db_obj=log, obj_in=update_dict)
+
+    def _validate_stage_log_completion(self, status: str, output_quantity: Optional[int]) -> None:
+        if status == "completed" and output_quantity is None:
+            raise ValueError("Completed stage logs require output_quantity")
+        if status == "skipped":
+            return
 
 
 # Singleton instance

@@ -88,3 +88,5 @@ from app.models.production_formula import ProductionFormula
 from app.models.production_formula_item import ProductionFormulaItem
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
+from app.models.production_formula_stage import ProductionFormulaStage
+from app.models.production_batch_stage_log import ProductionBatchStageLog

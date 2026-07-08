@@ -24,6 +24,11 @@ from app.schemas.production_batch_item import (
     ProductionBatchItemUpdate,
     ProductionBatchItemResponse,
 )
+from app.schemas.production_batch_stage_log import (
+    ProductionBatchStageLogCreate,
+    ProductionBatchStageLogUpdate,
+    ProductionBatchStageLogResponse,
+)
 from app.services.production_batch_service import production_batch_service
 from app.dao.product_ledger import product_ledger_dao
 from app.models.production_batch import ProductionBatch as ProductionBatchModel
@@ -353,6 +358,64 @@ def remove_batch_item(
 ):
     """Remove an item from a batch"""
     production_batch_service.remove_batch_item(db, batch_item_id, workspace.id)
+
+
+# ─── Batch Stage Log Endpoints ──────────────────────────────────────
+
+
+@router.get(
+    "/{batch_id}/stage-logs/",
+    response_model=List[ProductionBatchStageLogResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List batch stage logs",
+)
+def get_batch_stage_logs(
+    batch_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_batch_service.get_batch_stage_logs(db, batch_id, workspace.id)
+
+
+@router.post(
+    "/{batch_id}/stage-logs/",
+    response_model=ProductionBatchStageLogResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add batch stage log",
+)
+def add_batch_stage_log(
+    batch_id: int,
+    log_in: ProductionBatchStageLogCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    if log_in.batch_id != batch_id:
+        from app.core.exceptions import BusinessRuleError
+        raise BusinessRuleError(
+            f"Path batch_id ({batch_id}) does not match body batch_id ({log_in.batch_id})"
+        )
+    return production_batch_service.add_batch_stage_log(
+        db, log_in, workspace.id, current_user.id
+    )
+
+
+@router.patch(
+    "/stage-logs/{log_id}/",
+    response_model=ProductionBatchStageLogResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update batch stage log",
+)
+def update_batch_stage_log(
+    log_id: int,
+    log_in: ProductionBatchStageLogUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return production_batch_service.update_batch_stage_log(
+        db, log_id, log_in, workspace.id, current_user.id
+    )
 
 
 # ─── Batch by ID (after /{batch_id}/… sub-routes to avoid routing ambiguity) ──

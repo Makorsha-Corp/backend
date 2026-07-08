@@ -379,6 +379,61 @@ class ProductionBatchService(BaseService):
                 raise NotFoundError(error_msg)
             raise BusinessRuleError(error_msg)
 
+    # ─── Batch Stage Log Operations ─────────────────────────────────
+
+    def get_batch_stage_logs(
+        self, db: Session, batch_id: int, workspace_id: int
+    ) -> List["ProductionBatchStageLog"]:
+        try:
+            return self.batch_manager.get_batch_stage_logs(db, batch_id, workspace_id)
+        except ValueError as e:
+            raise NotFoundError(str(e))
+
+    def add_batch_stage_log(
+        self,
+        db: Session,
+        log_in: "ProductionBatchStageLogCreate",
+        workspace_id: int,
+        user_id: int,
+    ) -> "ProductionBatchStageLog":
+        try:
+            log = self.batch_manager.add_batch_stage_log(db, log_in, workspace_id, user_id)
+            self._commit_transaction(db)
+            db.refresh(log)
+            return log
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def update_batch_stage_log(
+        self,
+        db: Session,
+        log_id: int,
+        log_in: "ProductionBatchStageLogUpdate",
+        workspace_id: int,
+        user_id: int,
+    ) -> "ProductionBatchStageLog":
+        try:
+            log = self.batch_manager.update_batch_stage_log(db, log_id, log_in, workspace_id, user_id)
+            self._commit_transaction(db)
+            db.refresh(log)
+            return log
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
 
 # Singleton instance
 production_batch_service = ProductionBatchService()
