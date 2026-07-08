@@ -23,6 +23,7 @@ ORDER_PREFIX = {
     "purchase_order": "PO",
     "transfer_order": "TO",
     "expense_order": "EXP",
+    "work_order": "WO",
 }
 
 
@@ -95,6 +96,11 @@ def _approval_summary(
 
         eo = expense_order_manager.get_expense_order(db, entity_id, workspace_id)
         return expense_order_manager.approval_summary(db, eo)
+    if entity_type == "work_order":
+        from app.managers.work_order_manager import work_order_manager
+
+        wo = work_order_manager.get_work_order(db, entity_id, workspace_id)
+        return work_order_manager.approval_summary(db, wo)
     return 0, 0, True
 
 
@@ -116,6 +122,10 @@ def _is_approval_ready(db: Session, entity_type: str, order: Any, workspace_id: 
         from app.managers.expense_order_manager import expense_order_manager
 
         return expense_order_manager.is_approvable(db, order)
+    if entity_type == "work_order":
+        from app.managers.work_order_manager import work_order_manager
+
+        return work_order_manager.is_approvable(db, order)
     if entity_type == "transfer_order":
         from app.managers.transfer_order_manager import transfer_order_manager
 
@@ -140,6 +150,10 @@ def _section_gap_preview(db: Session, entity_type: str, order: Any) -> str:
         from app.managers.expense_order_manager import expense_order_manager
 
         return expense_order_manager.approvability_gap_reason(db, order) or "Complete remaining details before approvals can proceed"
+    if entity_type == "work_order":
+        from app.managers.work_order_manager import work_order_manager
+
+        return work_order_manager.approvability_gap_reason(db, order) or "Complete remaining details before approvals can proceed"
     if entity_type == "transfer_order":
         from app.managers.transfer_order_manager import transfer_order_manager
 
@@ -166,6 +180,12 @@ def _pending_approver_ids(db: Session, entity_type: str, entity_id: int, workspa
 
         approvers = expense_order_approver_dao.get_by_order(
             db, expense_order_id=entity_id, workspace_id=workspace_id
+        )
+    elif entity_type == "work_order":
+        from app.dao.work_order_approver import work_order_approver_dao
+
+        approvers = work_order_approver_dao.get_by_order(
+            db, work_order_id=entity_id, workspace_id=workspace_id
         )
     else:
         return []
@@ -307,6 +327,13 @@ def notify_invoice_action(
 
             for a in expense_order_approver_dao.get_by_order(
                 db, expense_order_id=entity_id, workspace_id=workspace_id
+            ):
+                recipient_ids.add(a.user_id)
+        elif entity_type == "work_order":
+            from app.dao.work_order_approver import work_order_approver_dao
+
+            for a in work_order_approver_dao.get_by_order(
+                db, work_order_id=entity_id, workspace_id=workspace_id
             ):
                 recipient_ids.add(a.user_id)
 
