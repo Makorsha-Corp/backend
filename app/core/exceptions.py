@@ -2,10 +2,12 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 from typing import Optional, List, Any
 import uuid
 import logging
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -310,6 +312,42 @@ async def database_error_handler(request: Request, exc: OperationalError) -> JSO
             "instance": str(request.url.path),
             "request_id": request_id
         }
+    )
+
+
+async def schema_error_handler(request: Request, exc: ProgrammingError) -> JSONResponse:
+    """
+    Handle database schema mismatches (missing tables/columns — migrations not applied).
+    """
+    request_id = getattr(request.state, "request_id", f"req_{uuid.uuid4().hex}")
+
+    logger.error(
+        "Database schema error",
+        extra={
+            "request_id": request_id,
+            "error": str(exc),
+            "path": request.url.path,
+        },
+        exc_info=True,
+    )
+
+    detail = (
+        "Database schema is out of date — run `alembic upgrade head` and restart the API."
+        if settings.DEBUG
+        else "Database service is temporarily unavailable. Please try again later."
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"X-Request-ID": request_id},
+        content={
+            "type": "https://api.yourdomain.com/errors/service_unavailable",
+            "title": "Service Unavailable",
+            "status": 503,
+            "detail": detail,
+            "instance": str(request.url.path),
+            "request_id": request_id,
+        },
     )
 
 
