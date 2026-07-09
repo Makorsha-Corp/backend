@@ -1,4 +1,5 @@
 """Work Order Template Manager - business logic for reusable work order presets"""
+from datetime import date
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -162,6 +163,97 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
 
     def get_approvers(self, session: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
         return self.approver_dao.get_by_template(session, work_order_template_id=tpl_id, workspace_id=workspace_id)
+
+    def generate_drafts(
+        self,
+        session: Session,
+        workspace_id: int,
+        user_id: int,
+        target_date: date,
+        factory_section_id: int | None = None,
+        factory_id: int | None = None,
+    ) -> List:
+        """Create draft work orders from recurring/section templates for a target day."""
+        from datetime import timedelta
+        from app.dao.machine import machine_dao
+        from app.managers.work_order_manager import work_order_manager
+        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
+        from app.models.work_order import WorkOrder
+
+        recurring = self.tpl_dao.list_recurring_due(
+            session, workspace_id=workspace_id, target_date=target_date,
+            factory_section_id=factory_section_id, factory_id=factory_id,
+        )
+        section_templates: List[WorkOrderTemplate] = []
+        if factory_section_id is not None:
+            all_active = self.tpl_dao.get_by_workspace(
+                session, workspace_id=workspace_id, is_active=True, skip=0, limit=1000,
+            )
+            section_templates = [
+                t for t in all_active
+                if t.default_factory_section_id == factory_section_id and t.id not in {r.id for r in recurring}
+            ]
+
+        seen_tpl_ids: set[int] = set()
+        templates: List[WorkOrderTemplate] = []
+        for tpl in recurring + section_templates:
+            if tpl.id in seen_tpl_ids:
+                continue
+            seen_tpl_ids.add(tpl.id)
+            templates.append(tpl)
+
+        created: List[WorkOrder] = []
+        for tpl in templates:
+            machine_ids: List[int] = []
+            if tpl.default_machine_id:
+                machine_ids = [tpl.default_machine_id]
+            elif tpl.default_factory_section_id:
+                machines = machine_dao.get_by_section(
+                    session, factory_section_id=tpl.default_factory_section_id, workspace_id=workspace_id,
+                    limit=1000,
+                )
+                machine_ids = [m.id for m in machines]
+            elif factory_section_id:
+                machines = machine_dao.get_by_section(
+                    session, factory_section_id=factory_section_id, workspace_id=workspace_id,
+                    limit=1000,
+                )
+                machine_ids = [m.id for m in machines]
+
+            for mid in machine_ids:
+                existing = work_order_manager.wo_dao.get_by_machine_date_type(
+                    session,
+                    workspace_id=workspace_id,
+                    machine_id=mid,
+                    start_date=target_date,
+                    work_order_type_id=tpl.work_order_type_id,
+                )
+                if existing:
+                    continue
+                wo = work_order_manager.create_work_order_from_template(
+                    session,
+                    template_id=tpl.id,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    overrides=WorkOrderFromTemplateCreate(
+                        machine_id=mid,
+                        start_date=target_date,
+                    ),
+                )
+                created.append(wo)
+
+            if tpl.is_recurring and tpl.next_generation_date is not None and tpl.next_generation_date <= target_date:
+                if tpl.recurrence_type == 'daily':
+                    tpl.next_generation_date = target_date + timedelta(days=1)
+                elif tpl.recurrence_type == 'weekly':
+                    tpl.next_generation_date = target_date + timedelta(days=7)
+                elif tpl.recurrence_type == 'monthly':
+                    tpl.next_generation_date = target_date + timedelta(days=28)
+                else:
+                    tpl.next_generation_date = target_date + timedelta(days=1)
+                session.flush()
+
+        return created
 
 
 work_order_template_manager = WorkOrderTemplateManager()

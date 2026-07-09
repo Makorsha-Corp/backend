@@ -20,7 +20,7 @@ from app.models.work_order_event import WorkOrderEvent
 from app.models.work_order_item import WorkOrderItem
 from app.models.profile import Profile
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, MachineEventTypeEnum
-from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
+from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderSheetEntryCreate
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.machine_event import MachineEventCreate
@@ -204,6 +204,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 priority=template.priority,
                 factory_id=factory_id,
                 machine_id=machine.id,
+                start_date=overrides.start_date,
                 uses_inventory=template.uses_inventory,
                 account_id=template.account_id,
                 cost=template.cost,
@@ -231,10 +232,11 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             tpl_approvers = work_order_template_manager.get_approvers(session, template_id, workspace_id)
             for a in tpl_approvers:
                 try:
-                    self.add_approver(session, wo_id=wo.id, user_id=a.user_id, workspace_id=workspace_id, assigned_by=user_id)
+                    self.add_approver(
+                        session, wo_id=wo.id, user_id=a.user_id, workspace_id=workspace_id,
+                        assigned_by=user_id, approver_slot=getattr(a, 'approver_slot', None),
+                    )
                 except HTTPException:
-                    # Approver may no longer be an active workspace member — skip rather
-                    # than fail the whole order for a stale template reference.
                     continue
 
         self.log_event(
@@ -431,7 +433,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             )
 
     def add_approver(
-        self, session: Session, wo_id: int, user_id: int, workspace_id: int, assigned_by: int
+        self, session: Session, wo_id: int, user_id: int, workspace_id: int, assigned_by: int,
+        approver_slot: str | None = None,
     ) -> WorkOrderApprover:
         wo = self.get_work_order(session, wo_id, workspace_id)
         if self._is_locked(wo):
@@ -445,7 +448,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         obj = WorkOrderApprover(
             workspace_id=workspace_id, work_order_id=wo_id, user_id=user_id,
-            assigned_by=assigned_by, approved=False,
+            assigned_by=assigned_by, approved=False, approver_slot=approver_slot,
         )
         session.add(obj)
         session.flush()
@@ -921,6 +924,131 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     def get_items(self, session: Session, wo_id: int, workspace_id: int) -> List[WorkOrderItem]:
         self.get_work_order(session, wo_id, workspace_id)
         return self.item_dao.get_by_work_order(session, work_order_id=wo_id, workspace_id=workspace_id)
+
+    # ─── Sheet workflow ──────────────────────────────────────────
+    def sheet_entry(
+        self, session: Session, data: WorkOrderSheetEntryCreate,
+        workspace_id: int, user_id: int,
+    ) -> WorkOrder:
+        """Find-or-create WO for machine+date+type; optionally append item lines."""
+        has_items = bool(data.items)
+
+        machine = machine_dao.get_by_id_and_workspace(session, id=data.machine_id, workspace_id=workspace_id)
+        if not machine:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Machine with ID {data.machine_id} not found")
+        factory_id = machine.factory_section.factory_id if machine.factory_section else None
+        if not factory_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not resolve this machine's factory")
+
+        wo_type = work_order_type_dao.get_by_id_and_workspace(
+            session, id=data.work_order_type_id, workspace_id=workspace_id
+        )
+        if not wo_type:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Work order type not found')
+
+        wo = self.wo_dao.get_by_machine_date_type(
+            session,
+            workspace_id=workspace_id,
+            machine_id=data.machine_id,
+            start_date=data.start_date,
+            work_order_type_id=data.work_order_type_id,
+        )
+        if wo is None:
+            wo = self.create_work_order(
+                session,
+                data=WorkOrderCreate(
+                    work_order_type_id=data.work_order_type_id,
+                    title=f'{wo_type.name} — {machine.name}',
+                    description=data.description,
+                    priority=data.priority,
+                    factory_id=factory_id,
+                    machine_id=machine.id,
+                    start_date=data.start_date,
+                    uses_inventory=has_items,
+                    assigned_to=data.assigned_to,
+                    account_id=data.account_id,
+                    cost=data.cost,
+                ),
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
+            if data.template_id:
+                wo.work_order_template_id = data.template_id
+                session.flush()
+        else:
+            if data.assigned_to:
+                wo.assigned_to = data.assigned_to
+            if data.description:
+                wo.description = data.description
+            if data.priority:
+                wo.priority = data.priority
+            if data.account_id is not None and wo.account_id is None:
+                wo.account_id = data.account_id
+            if data.cost is not None and wo.cost is None:
+                wo.cost = data.cost
+            if data.template_id is not None and wo.work_order_template_id is None:
+                wo.work_order_template_id = data.template_id
+            if has_items and not wo.uses_inventory:
+                wo.uses_inventory = True
+            session.flush()
+
+        if has_items:
+            for line in data.items:
+                source_type = line.source_location_type or 'storage'
+                source_id = line.source_location_id
+                if source_id is None:
+                    source_id = data.machine_id if source_type == 'machine' else factory_id
+                self.add_item(
+                    session,
+                    data=WorkOrderItemCreate(
+                        work_order_id=wo.id,
+                        item_id=line.item_id,
+                        quantity=line.quantity,
+                        uses_inventory=True,
+                        source_location_type=source_type,
+                        source_location_id=source_id,
+                        action_type=line.action_type,
+                        replaced_item_id=line.replaced_item_id,
+                    ),
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                )
+
+        for approver_line in data.approvers:
+            try:
+                self.add_approver(
+                    session,
+                    wo_id=wo.id,
+                    user_id=approver_line.user_id,
+                    workspace_id=workspace_id,
+                    assigned_by=user_id,
+                    approver_slot=approver_line.approver_slot,
+                )
+            except HTTPException as exc:
+                if exc.status_code != status.HTTP_409_CONFLICT:
+                    raise
+
+        return wo
+
+    def list_sheet_orders(
+        self, session: Session, workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        skip: int = 0,
+        limit: int = 1000,
+    ) -> List[WorkOrder]:
+        return self.wo_dao.list_for_sheet(
+            session,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            skip=skip,
+            limit=limit,
+        )
 
     # ─── Events ──────────────────────────────────────────────────
     def log_event(

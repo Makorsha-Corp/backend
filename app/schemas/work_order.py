@@ -1,9 +1,12 @@
 """Work order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import List, Literal, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
+
+if TYPE_CHECKING:
+    from app.schemas.work_order_item import WorkOrderItemResponse
 
 
 class WorkOrderCreate(BaseModel):
@@ -78,6 +81,8 @@ class WorkOrderResponse(BaseModel):
 
     completion_notes: str | None = None
 
+    work_order_template_id: int | None = None
+
     created_at: datetime
     created_by: int | None = None
     updated_at: datetime | None = None
@@ -104,6 +109,7 @@ class WorkOrderCompleteRequest(BaseModel):
 
 class WorkOrderApproverCreate(BaseModel):
     user_id: int
+    approver_slot: str | None = None  # manager | agm
 
 
 class WorkOrderApproverResponse(BaseModel):
@@ -116,6 +122,7 @@ class WorkOrderApproverResponse(BaseModel):
     user_position: str | None = None
     assigned_by: int | None = None
     assigned_at: datetime
+    approver_slot: str | None = None
     approved: bool
     approved_at: datetime | None = None
 
@@ -155,3 +162,47 @@ class WorkOrderEventResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class WorkOrderSheetItemLine(BaseModel):
+    item_id: int
+    quantity: Decimal
+    action_type: Literal['CONSUME', 'INSTALL', 'REPLACE', 'BORROW'] = 'CONSUME'
+    source_location_type: str | None = 'storage'
+    source_location_id: int | None = None
+    replaced_item_id: int | None = None
+
+
+class WorkOrderSheetApproverLine(BaseModel):
+    user_id: int
+    approver_slot: str | None = None  # manager | agm
+
+
+class WorkOrderSheetEntryCreate(BaseModel):
+    """Single-transaction sheet row create — merges into existing WO when same machine+date+type."""
+    machine_id: int
+    work_order_type_id: int
+    start_date: date
+    assigned_to: str | None = None
+    description: str | None = None
+    priority: WorkOrderPriorityEnum = WorkOrderPriorityEnum.MEDIUM
+    account_id: int | None = None
+    cost: Decimal | None = None
+    template_id: int | None = None
+    items: List[WorkOrderSheetItemLine] = []
+    approvers: List[WorkOrderSheetApproverLine] = []
+
+
+class WorkOrderSheetBundle(BaseModel):
+    """Work order with embedded items + approvers for sheet view."""
+    order: WorkOrderResponse
+    items: List['WorkOrderItemResponse']
+    approvers: WorkOrderApproversList
+
+
+def _rebuild_work_order_sheet_bundle() -> None:
+    from app.schemas.work_order_item import WorkOrderItemResponse
+    WorkOrderSheetBundle.model_rebuild(_types_namespace={'WorkOrderItemResponse': WorkOrderItemResponse})
+
+
+_rebuild_work_order_sheet_bundle()

@@ -10,8 +10,9 @@ from app.dao.profile import profile_dao
 from app.schemas.work_order_template import (
     WorkOrderTemplateCreate, WorkOrderTemplateUpdate, WorkOrderTemplateResponse,
     WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate, WorkOrderTemplateItemResponse,
-    WorkOrderTemplateApproverResponse,
+    WorkOrderTemplateApproverResponse, GenerateWorkOrderDraftsRequest,
 )
+from app.schemas.work_order import WorkOrderResponse
 from app.services.work_order_template_service import work_order_template_service
 
 
@@ -38,6 +39,23 @@ def list_work_order_templates(
         db, workspace_id=workspace.id,
         is_active=is_active, work_order_type_id=work_order_type_id,
         skip=skip, limit=limit
+    )
+
+
+@router.post(
+    "/generate-drafts/",
+    response_model=List[WorkOrderResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate draft work orders from recurring/section templates",
+)
+def generate_work_order_drafts(
+    body: GenerateWorkOrderDraftsRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return work_order_template_service.generate_drafts(
+        db, body=body, workspace_id=workspace.id, user_id=current_user.id,
     )
 
 

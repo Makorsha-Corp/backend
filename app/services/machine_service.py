@@ -1,5 +1,6 @@
 """Machine Service for orchestrating machine workflows"""
 
+from datetime import date
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -349,6 +350,12 @@ class MachineService(BaseService):
 
         limit: int = 100,
 
+        from_date: date | None = None,
+
+        to_date: date | None = None,
+
+        event_type: str | None = None,
+
     ) -> list[MachineActivityEventResponse]:
 
         """Get unified activity log for a machine."""
@@ -364,6 +371,12 @@ class MachineService(BaseService):
             skip=skip,
 
             limit=limit,
+
+            from_date=from_date,
+
+            to_date=to_date,
+
+            event_type=event_type,
 
         )
 

@@ -1,5 +1,5 @@
 """Work order template model - reusable "things that happen all the time" presets"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean, Enum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean, Enum, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -38,6 +38,17 @@ class WorkOrderTemplate(Base):
 
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
+
+    # === RECURRENCE (mirrors order_templates) ===
+    is_recurring = Column(Boolean, nullable=False, default=False)
+    recurrence_type = Column(String(50), nullable=True)  # daily, weekly, monthly
+    recurrence_day = Column(Integer, nullable=True)
+    next_generation_date = Column(Date, nullable=True)
+    auto_generate = Column(Boolean, nullable=False, default=False)
+
+    # === SHEET DEFAULTS ===
+    default_factory_section_id = Column(Integer, ForeignKey("factory_sections.id", ondelete="SET NULL"), nullable=True, index=True)
+    default_machine_id = Column(Integer, ForeignKey("machines.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)

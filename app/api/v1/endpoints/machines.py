@@ -4,6 +4,7 @@ Machine API endpoints
 Provides operations for managing machines and machine events (status changes).
 """
 from typing import List, Optional
+from datetime import date
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
@@ -171,6 +172,9 @@ def get_machine_activity(
     machine_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    event_type: Optional[str] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -181,4 +185,7 @@ def get_machine_activity(
         workspace_id=workspace.id,
         skip=skip,
         limit=limit,
+        from_date=from_date,
+        to_date=to_date,
+        event_type=event_type,
     )

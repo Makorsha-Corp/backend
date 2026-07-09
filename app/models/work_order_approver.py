@@ -1,5 +1,5 @@
 """Work order approver model - assigned workspace members who approve a work order."""
-from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -20,6 +20,9 @@ class WorkOrderApprover(Base):
 
     assigned_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Optional slot for sheet workflow: manager | agm
+    approver_slot = Column(String(32), nullable=True)
 
     approved = Column(Boolean, nullable=False, default=False)
     approved_at = Column(DateTime, nullable=True)

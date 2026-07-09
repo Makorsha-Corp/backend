@@ -101,6 +101,9 @@ class MachineActivityManager:
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
+        from_date: Optional[date] = None,
+        to_date: Optional[date] = None,
+        event_type: Optional[str] = None,
     ) -> List[Tuple[MachineActivityEvent, Optional[Any]]]:
         machine = self.machine_dao.get_by_id_and_workspace(
             session, id=machine_id, workspace_id=workspace_id
@@ -116,6 +119,9 @@ class MachineActivityManager:
             workspace_id=workspace_id,
             skip=skip,
             limit=limit,
+            from_date=from_date,
+            to_date=to_date,
+            event_type=event_type,
         )
         return [
             (e, profile_dao.get(session, id=e.performed_by) if e.performed_by else None)

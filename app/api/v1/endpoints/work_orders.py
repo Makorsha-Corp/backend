@@ -4,6 +4,7 @@ Work order API endpoints
 Provides operations for managing work orders, their approvals, lifecycle, and items.
 """
 from typing import List, Optional
+from datetime import date
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,7 @@ from app.schemas.work_order import (
     WorkOrderApproverCreate, WorkOrderApproverResponse,
     ApprovalSummaryResponse, WorkOrderApproversList,
     WorkOrderEventMetadata, WorkOrderEventResponse,
+    WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
@@ -36,6 +38,7 @@ def _approver_response(record, profile=None, position=None) -> WorkOrderApprover
         user_position=position,
         assigned_by=record.assigned_by,
         assigned_at=record.assigned_at,
+        approver_slot=getattr(record, 'approver_slot', None),
         approved=record.approved,
         approved_at=record.approved_at,
     )
@@ -68,6 +71,51 @@ def list_work_orders(
         work_order_type_id=work_order_type_id, wo_status=wo_status, priority=priority,
         factory_id=factory_id, machine_id=machine_id,
         skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/sheet/",
+    response_model=List[WorkOrderSheetBundle],
+    status_code=status.HTTP_200_OK,
+    summary="List work orders with embedded items for sheet view",
+)
+def list_work_orders_sheet(
+    factory_id: Optional[int] = Query(None),
+    machine_id: Optional[int] = Query(None),
+    start_date_from: Optional[date] = Query(None),
+    start_date_to: Optional[date] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(1000, ge=1, le=1000),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return work_order_service.list_sheet_bundles(
+        db,
+        workspace_id=workspace.id,
+        factory_id=factory_id,
+        machine_id=machine_id,
+        start_date_from=start_date_from,
+        start_date_to=start_date_to,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/sheet-entry/",
+    response_model=WorkOrderResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Sheet row entry — find-or-create WO and append consumable lines",
+)
+def create_work_order_sheet_entry(
+    body: WorkOrderSheetEntryCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return work_order_service.sheet_entry(
+        db, data=body, workspace_id=workspace.id, user_id=current_user.id
     )
 
 
@@ -264,7 +312,8 @@ def add_work_order_approver(
     db: Session = Depends(get_db)
 ):
     record = work_order_service.add_approver(
-        db, wo_id=wo_id, user_id=body.user_id, workspace_id=workspace.id, assigned_by=current_user.id
+        db, wo_id=wo_id, user_id=body.user_id, workspace_id=workspace.id,
+        assigned_by=current_user.id, approver_slot=body.approver_slot,
     )
     profile = profile_dao.get(db, id=record.user_id)
     member = workspace_member_dao.get_by_workspace_and_user(db, workspace_id=workspace.id, user_id=record.user_id)
