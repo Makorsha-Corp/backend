@@ -35,6 +35,21 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
             query = query.filter(Machine.is_deleted == False)
         return query.offset(skip).limit(limit).all()
 
+    def get_by_section(
+        self, db: Session, *, factory_section_id: int, workspace_id: int,
+        include_deleted: bool = False, skip: int = 0, limit: int = 100
+    ) -> List[Machine]:
+        """Get machines assigned to a factory section (SECURITY-CRITICAL: workspace-filtered)"""
+        query = db.query(Machine).options(_SECTION_EAGER_LOAD).join(
+            MachineSectionAssignment, MachineSectionAssignment.machine_id == Machine.id
+        ).filter(
+            Machine.workspace_id == workspace_id,
+            MachineSectionAssignment.factory_section_id == factory_section_id,
+        )
+        if not include_deleted:
+            query = query.filter(Machine.is_deleted == False)
+        return query.offset(skip).limit(limit).all()
+
     def get_running_machines(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
     ) -> List[Machine]:
