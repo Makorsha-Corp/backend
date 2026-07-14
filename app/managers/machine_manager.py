@@ -13,11 +13,12 @@ from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
 from app.dao.machine import machine_dao
-from app.dao.factory_section import factory_section_dao
+from app.dao.factory import factory_dao
 from app.managers.machine_activity_manager import (
     machine_activity_manager,
     MACHINE_LOG_FIELDS,
 )
+from app.managers.machine_section_assignment_manager import machine_section_assignment_manager
 
 
 class MachineManager(BaseManager[Machine]):
@@ -25,7 +26,8 @@ class MachineManager(BaseManager[Machine]):
     Manager for machine business logic.
 
     Handles:
-    - Machine CRUD with workspace isolation and factory section validation
+    - Machine CRUD with workspace isolation and factory validation
+    - Optional factory-section assignment (organizational only)
     - Machine status changes via activity events with is_running synchronization
     - Soft delete with validation
     """
@@ -33,7 +35,8 @@ class MachineManager(BaseManager[Machine]):
     def __init__(self):
         super().__init__(Machine)
         self.machine_dao = machine_dao
-        self.factory_section_dao = factory_section_dao
+        self.factory_dao = factory_dao
+        self.section_assignment_manager = machine_section_assignment_manager
 
     # ==================== MACHINE CRUD ====================
 
@@ -47,43 +50,47 @@ class MachineManager(BaseManager[Machine]):
         """
         Create new machine.
 
-        Validates factory section exists and belongs to workspace.
-        New machines default to is_running=False.
+        Validates the factory exists and belongs to workspace. The factory section
+        is optional — if given, it's validated separately and recorded as an
+        assignment (not a column on the machine). New machines default to is_running=False.
         """
-        # Validate factory section exists and belongs to workspace
-        section = self.factory_section_dao.get_by_id_and_workspace(
-            session, id=machine_data.factory_section_id, workspace_id=workspace_id
+        factory = self.factory_dao.get_by_id_and_workspace(
+            session, id=machine_data.factory_id, workspace_id=workspace_id
         )
-        if not section:
+        if not factory:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Factory section with ID {machine_data.factory_section_id} not found"
-            )
-        if section.is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot create machine in a deleted factory section"
+                detail=f"Factory with ID {machine_data.factory_id} not found"
             )
 
-        # Check for duplicate name in the same section
-        existing = self._check_name_exists_in_section(
+        # Check for duplicate name within the same factory
+        existing = self._check_name_exists_in_factory(
             session, workspace_id=workspace_id,
-            factory_section_id=machine_data.factory_section_id,
+            factory_id=machine_data.factory_id,
             name=machine_data.name
         )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Machine with name '{machine_data.name}' already exists in this section"
+                detail=f"Machine with name '{machine_data.name}' already exists in this factory"
             )
 
         # Create machine with audit fields
-        machine_dict = machine_data.model_dump()
+        machine_dict = machine_data.model_dump(exclude={'factory_section_id'})
         machine_dict['workspace_id'] = workspace_id
         machine_dict['created_by'] = user_id
         machine_dict['is_running'] = False
 
         machine = self.machine_dao.create(session, obj_in=machine_dict)
+
+        if machine_data.factory_section_id is not None:
+            self.section_assignment_manager.set_assignment(
+                session, machine_id=machine.id, factory_id=machine_data.factory_id,
+                factory_section_id=machine_data.factory_section_id,
+                workspace_id=workspace_id, user_id=user_id,
+            )
+            session.expire(machine, ['section_assignment'])
+
         machine_activity_manager.log_event(
             session,
             machine.id,
@@ -117,43 +124,58 @@ class MachineManager(BaseManager[Machine]):
                 detail="Cannot update a deleted machine"
             )
 
-        # If factory_section_id is being changed, validate new section
-        if machine_data.factory_section_id and machine_data.factory_section_id != machine.factory_section_id:
-            section = self.factory_section_dao.get_by_id_and_workspace(
-                session, id=machine_data.factory_section_id, workspace_id=workspace_id
+        explicit_fields = machine_data.model_fields_set
+        target_factory_id = machine_data.factory_id if machine_data.factory_id else machine.factory_id
+
+        # If factory_id is being changed, validate the new factory
+        if machine_data.factory_id and machine_data.factory_id != machine.factory_id:
+            factory = self.factory_dao.get_by_id_and_workspace(
+                session, id=machine_data.factory_id, workspace_id=workspace_id
             )
-            if not section:
+            if not factory:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Factory section with ID {machine_data.factory_section_id} not found"
-                )
-            if section.is_deleted:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot move machine to a deleted factory section"
+                    detail=f"Factory with ID {machine_data.factory_id} not found"
                 )
 
-        # Check name uniqueness in target section
-        target_section_id = machine_data.factory_section_id if machine_data.factory_section_id else machine.factory_section_id
+        # Check name uniqueness within the target factory
         if machine_data.name and machine_data.name != machine.name:
-            if self._check_name_exists_in_section(
+            if self._check_name_exists_in_factory(
                 session, workspace_id=workspace_id,
-                factory_section_id=target_section_id,
+                factory_id=target_factory_id,
                 name=machine_data.name,
                 exclude_id=machine_id
             ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Machine with name '{machine_data.name}' already exists in this section"
+                    detail=f"Machine with name '{machine_data.name}' already exists in this factory"
                 )
 
+        # `factory_section_id` isn't a real column — pull it out before touching the
+        # changelog/DAO, and route it through the assignment manager separately below.
         update_dict = machine_data.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict.pop('factory_section_id', None)
         update_dict['updated_by'] = user_id
 
+        changelog_dict = dict(update_dict)
+        if 'factory_section_id' in explicit_fields:
+            changelog_dict['factory_section_id'] = machine_data.factory_section_id
         changes = machine_activity_manager.collect_field_changes(
-            machine, update_dict, MACHINE_LOG_FIELDS
+            machine, changelog_dict, MACHINE_LOG_FIELDS
         )
         updated_machine = self.machine_dao.update(session, db_obj=machine, obj_in=update_dict)
+
+        if 'factory_section_id' in explicit_fields:
+            self.section_assignment_manager.set_assignment(
+                session, machine_id=machine_id, factory_id=target_factory_id,
+                factory_section_id=machine_data.factory_section_id,
+                workspace_id=workspace_id, user_id=user_id,
+            )
+            # The assignment row was deleted/replaced out from under the ORM's cached
+            # relationship — expire it so `updated_machine.factory_section_id` (the
+            # property reading `self.section_assignment`) reflects the new state.
+            session.expire(updated_machine, ['section_assignment'])
+
         if changes:
             machine_activity_manager.log_event(
                 session,
@@ -187,6 +209,7 @@ class MachineManager(BaseManager[Machine]):
         self,
         session: Session,
         workspace_id: int,
+        factory_id: Optional[int] = None,
         factory_section_id: Optional[int] = None,
         is_running: Optional[bool] = None,
         search: Optional[str] = None,
@@ -206,6 +229,8 @@ class MachineManager(BaseManager[Machine]):
             machines = self.machine_dao.get_by_workspace(
                 session, workspace_id=workspace_id, skip=skip, limit=limit
             )
+            if factory_id is not None:
+                machines = [m for m in machines if m.factory_id == factory_id]
             if factory_section_id is not None:
                 machines = [m for m in machines if m.factory_section_id == factory_section_id]
             if is_running is not None:
@@ -223,6 +248,7 @@ class MachineManager(BaseManager[Machine]):
         return self.machine_dao.search_advanced(
             session,
             workspace_id=workspace_id,
+            factory_id=factory_id,
             factory_section_id=factory_section_id,
             is_running=is_running,
             search=search,
@@ -359,17 +385,17 @@ class MachineManager(BaseManager[Machine]):
 
     # ==================== HELPER METHODS ====================
 
-    def _check_name_exists_in_section(
+    def _check_name_exists_in_factory(
         self,
         session: Session,
         workspace_id: int,
-        factory_section_id: int,
+        factory_id: int,
         name: str,
         exclude_id: Optional[int] = None
     ) -> bool:
-        """Check if machine name already exists in a factory section (excluding deleted)."""
-        machines = self.machine_dao.get_by_section(
-            session, factory_section_id=factory_section_id,
+        """Check if machine name already exists in a factory (excluding deleted)."""
+        machines = self.machine_dao.get_by_factory(
+            session, factory_id=factory_id,
             workspace_id=workspace_id
         )
         for machine in machines:

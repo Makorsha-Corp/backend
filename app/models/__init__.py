@@ -71,6 +71,7 @@ from app.models.factory import Factory
 from app.models.factory_section import FactorySection
 from app.models.department import Department
 from app.models.machine import Machine
+from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_maintenance_log import MachineMaintenanceLog
 
@@ -172,6 +173,7 @@ __all__ = [
     "FactorySection",
     "Department",
     "Machine",
+    "MachineSectionAssignment",
     "MachineActivityEvent",
     "MachineMaintenanceLog",
     # Projects

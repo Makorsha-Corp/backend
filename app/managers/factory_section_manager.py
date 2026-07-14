@@ -12,6 +12,7 @@ from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
 from app.dao.factory_section import factory_section_dao
 from app.dao.factory import factory_dao
+from app.managers.machine_section_assignment_manager import machine_section_assignment_manager
 
 
 class FactorySectionManager(BaseManager[FactorySection]):
@@ -289,8 +290,12 @@ class FactorySectionManager(BaseManager[FactorySection]):
                 detail="Factory section is already deleted"
             )
 
-        # Soft delete
+        # Soft delete — and unassign any machines still pointing at this section so
+        # they don't reference an invisible section (they simply become unassigned).
         deleted_section = self.factory_section_dao.soft_delete(session, db_obj=section, deleted_by=user_id)
+        machine_section_assignment_manager.clear_for_section(
+            session, factory_section_id=section_id, workspace_id=workspace_id
+        )
         return deleted_section
 
     # ==================== HELPER METHODS ====================

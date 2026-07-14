@@ -6,7 +6,6 @@ from app.models.production_line import ProductionLine
 from app.dao.production_line import production_line_dao
 from app.dao.factory import factory_dao
 from app.dao.machine import machine_dao
-from app.models.factory_section import FactorySection
 from app.schemas.production_line import ProductionLineCreate, ProductionLineUpdate
 
 
@@ -64,11 +63,8 @@ class ProductionLineManager(BaseManager[ProductionLine]):
                 raise ValueError(f"Machine {line_data.machine_id} not found")
             if machine.workspace_id != workspace_id:
                 raise ValueError(f"Machine {line_data.machine_id} does not belong to workspace {workspace_id}")
-            # Ensure machine belongs to the specified factory (via factory_section)
-            factory_section = session.query(FactorySection).filter(
-                FactorySection.id == machine.factory_section_id
-            ).first()
-            if not factory_section or factory_section.factory_id != line_data.factory_id:
+            # Ensure machine belongs to the specified factory
+            if machine.factory_id != line_data.factory_id:
                 raise ValueError(
                     f"Machine {line_data.machine_id} does not belong to factory {line_data.factory_id}"
                 )
@@ -126,11 +122,8 @@ class ProductionLineManager(BaseManager[ProductionLine]):
                 raise ValueError(f"Machine {line_data.machine_id} not found")
             if machine.workspace_id != workspace_id:
                 raise ValueError(f"Machine {line_data.machine_id} does not belong to workspace {workspace_id}")
-            # Ensure machine belongs to the production line's factory (via factory_section)
-            factory_section = session.query(FactorySection).filter(
-                FactorySection.id == machine.factory_section_id
-            ).first()
-            if not factory_section or factory_section.factory_id != production_line.factory_id:
+            # Ensure machine belongs to the production line's factory
+            if machine.factory_id != production_line.factory_id:
                 raise ValueError(
                     f"Machine {line_data.machine_id} does not belong to factory {production_line.factory_id}"
                 )

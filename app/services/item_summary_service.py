@@ -21,6 +21,7 @@ from app.models.enums import InventoryTypeEnum
 from app.models.factory import Factory
 from app.models.factory_section import FactorySection
 from app.models.machine import Machine
+from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
 from app.models.production_formula import ProductionFormula
@@ -203,8 +204,9 @@ class ItemSummaryService:
                 Factory.id,
                 Factory.name,
             )
-            .join(FactorySection, Machine.factory_section_id == FactorySection.id)
-            .join(Factory, FactorySection.factory_id == Factory.id)
+            .join(Factory, Machine.factory_id == Factory.id)
+            .outerjoin(MachineSectionAssignment, MachineSectionAssignment.machine_id == Machine.id)
+            .outerjoin(FactorySection, MachineSectionAssignment.factory_section_id == FactorySection.id)
             .filter(
                 Machine.workspace_id == workspace_id,
                 Machine.is_deleted.is_(False),
@@ -317,8 +319,8 @@ class ItemSummaryService:
                     machine_name=location.get('machine_name', f'Machine #{mi.machine_id}'),
                     factory_id=factory_id if factory_id is not None else 0,
                     factory_name=location.get('factory_name', '—'),
-                    factory_section_id=factory_section_id if factory_section_id is not None else 0,
-                    factory_section_name=location.get('factory_section_name', '—'),
+                    factory_section_id=factory_section_id,
+                    factory_section_name=location.get('factory_section_name'),
                     qty=mi.qty,
                     req_qty=mi.req_qty,
                     defective_qty=mi.defective_qty,
@@ -330,7 +332,7 @@ class ItemSummaryService:
             key=lambda r: (
                 not r.is_low_stock,
                 r.factory_name,
-                r.factory_section_name,
+                r.factory_section_name or '',
                 r.machine_name,
             )
         )

@@ -190,9 +190,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         machine = machine_dao.get_by_id_and_workspace(session, id=overrides.machine_id, workspace_id=workspace_id)
         if not machine:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Machine with ID {overrides.machine_id} not found")
-        factory_id = machine.factory_section.factory_id if machine.factory_section else None
-        if not factory_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not resolve this machine's factory")
+        factory_id = machine.factory_id
 
         type_name = template.work_order_type_name or 'Maintenance'
         wo = self.create_work_order(

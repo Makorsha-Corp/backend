@@ -1,13 +1,18 @@
 """DAO operations for Machine model (workspace-scoped)"""
 from typing import List, Optional
 from datetime import datetime, date, timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
 from app.dao.base import BaseDAO
 from app.models.machine import Machine
 from app.models.machine_activity_event import MachineActivityEvent
+from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
+
+# Eager-load the optional section assignment so Machine.factory_section_id/_name
+# (properties reading `self.section_assignment`) don't N+1 across a list of machines.
+_SECTION_EAGER_LOAD = joinedload(Machine.section_assignment).joinedload(MachineSectionAssignment.factory_section)
 
 
 class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
@@ -17,14 +22,14 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
     SECURITY: All methods MUST filter by workspace_id to prevent cross-workspace data access.
     """
 
-    def get_by_section(
-        self, db: Session, *, factory_section_id: int, workspace_id: int,
+    def get_by_factory(
+        self, db: Session, *, factory_id: int, workspace_id: int,
         include_deleted: bool = False, skip: int = 0, limit: int = 100
     ) -> List[Machine]:
-        """Get machines by factory section ID (SECURITY-CRITICAL: workspace-filtered)"""
-        query = db.query(Machine).filter(
+        """Get machines by factory ID (SECURITY-CRITICAL: workspace-filtered)"""
+        query = db.query(Machine).options(_SECTION_EAGER_LOAD).filter(
             Machine.workspace_id == workspace_id,
-            Machine.factory_section_id == factory_section_id
+            Machine.factory_id == factory_id
         )
         if not include_deleted:
             query = query.filter(Machine.is_deleted == False)
@@ -36,6 +41,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         """Get all running machines (SECURITY-CRITICAL: workspace-filtered)"""
         return (
             db.query(Machine)
+            .options(_SECTION_EAGER_LOAD)
             .filter(
                 Machine.workspace_id == workspace_id,
                 Machine.is_running == True,
@@ -50,6 +56,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         """Get all active (non-deleted) machines in workspace"""
         return (
             db.query(Machine)
+            .options(_SECTION_EAGER_LOAD)
             .filter(
                 Machine.workspace_id == workspace_id,
                 Machine.is_deleted == False
@@ -86,6 +93,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         db: Session,
         *,
         workspace_id: int,
+        factory_id: Optional[int] = None,
         factory_section_id: Optional[int] = None,
         is_running: Optional[bool] = None,
         search: Optional[str] = None,
@@ -99,13 +107,18 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         limit: int = 100,
     ) -> List[Machine]:
         """Advanced machine search with filters and sorting (workspace-scoped)."""
-        query = db.query(Machine).filter(
+        query = db.query(Machine).options(_SECTION_EAGER_LOAD).filter(
             Machine.workspace_id == workspace_id,
             Machine.is_deleted == False
         )
 
+        if factory_id is not None:
+            query = query.filter(Machine.factory_id == factory_id)
+
         if factory_section_id is not None:
-            query = query.filter(Machine.factory_section_id == factory_section_id)
+            query = query.join(
+                MachineSectionAssignment, MachineSectionAssignment.machine_id == Machine.id
+            ).filter(MachineSectionAssignment.factory_section_id == factory_section_id)
 
         if is_running is not None:
             query = query.filter(Machine.is_running == is_running)
