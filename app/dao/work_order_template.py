@@ -1,4 +1,5 @@
 """Work order template DAO. SECURITY: All queries MUST filter by workspace_id."""
+from datetime import date
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -26,6 +27,33 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
         if work_order_type_id:
             query = query.filter(WorkOrderTemplate.work_order_type_id == work_order_type_id)
         return query.order_by(desc(WorkOrderTemplate.created_at)).offset(skip).limit(limit).all()
+
+    def list_recurring_due(
+        self, db: Session, *, workspace_id: int, target_date: date,
+        factory_section_id: int | None = None,
+        factory_id: int | None = None,
+    ) -> List[WorkOrderTemplate]:
+        query = db.query(WorkOrderTemplate).filter(
+            WorkOrderTemplate.workspace_id == workspace_id,
+            WorkOrderTemplate.is_active == True,
+            WorkOrderTemplate.is_recurring == True,
+        )
+        if factory_section_id is not None:
+            query = query.filter(WorkOrderTemplate.default_factory_section_id == factory_section_id)
+        if factory_id is not None:
+            from app.models.machine import Machine
+            from app.models.factory_section import FactorySection
+            query = query.join(
+                FactorySection, WorkOrderTemplate.default_factory_section_id == FactorySection.id, isouter=True
+            ).filter(
+                (WorkOrderTemplate.default_factory_section_id.is_(None))
+                | (FactorySection.factory_id == factory_id)
+            )
+        rows = query.all()
+        return [
+            t for t in rows
+            if t.next_generation_date is None or t.next_generation_date <= target_date
+        ]
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[WorkOrderTemplate]:
         return db.query(WorkOrderTemplate).filter(

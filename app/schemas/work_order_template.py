@@ -1,5 +1,5 @@
 """Work order template schemas"""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, ConfigDict
@@ -50,6 +50,13 @@ class WorkOrderTemplateCreate(BaseModel):
     notes: str | None = None
     items: List[WorkOrderTemplateItemCreate] | None = None
     approver_user_ids: List[int] | None = None
+    is_recurring: bool = False
+    recurrence_type: str | None = None
+    recurrence_day: int | None = None
+    next_generation_date: date | None = None
+    auto_generate: bool = False
+    default_factory_section_id: int | None = None
+    default_machine_id: int | None = None
 
 
 class WorkOrderTemplateUpdate(BaseModel):
@@ -65,6 +72,13 @@ class WorkOrderTemplateUpdate(BaseModel):
     notes: str | None = None
     is_active: bool | None = None
     approver_user_ids: List[int] | None = None
+    is_recurring: bool | None = None
+    recurrence_type: str | None = None
+    recurrence_day: int | None = None
+    next_generation_date: date | None = None
+    auto_generate: bool | None = None
+    default_factory_section_id: int | None = None
+    default_machine_id: int | None = None
 
 
 class WorkOrderTemplateResponse(BaseModel):
@@ -82,6 +96,13 @@ class WorkOrderTemplateResponse(BaseModel):
     requires_approval: bool
     notes: str | None = None
     is_active: bool
+    is_recurring: bool = False
+    recurrence_type: str | None = None
+    recurrence_day: int | None = None
+    next_generation_date: date | None = None
+    auto_generate: bool = False
+    default_factory_section_id: int | None = None
+    default_machine_id: int | None = None
     created_by: int | None = None
     created_at: datetime
     updated_by: int | None = None
@@ -100,6 +121,7 @@ class WorkOrderTemplateApproverResponse(BaseModel):
     work_order_template_id: int
     user_id: int
     user_name: str | None = None
+    approver_slot: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -111,3 +133,11 @@ class WorkOrderFromTemplateCreate(BaseModel):
     title: str | None = None
     description: str | None = None
     assigned_to: str | None = None
+    start_date: date | None = None
+
+
+class GenerateWorkOrderDraftsRequest(BaseModel):
+    """Generate draft work orders from recurring templates for a given day."""
+    target_date: date
+    factory_section_id: int | None = None
+    factory_id: int | None = None

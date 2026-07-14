@@ -7,9 +7,11 @@ from app.managers.work_order_template_manager import work_order_template_manager
 from app.models.work_order_template import WorkOrderTemplate
 from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.models.work_order_template_approver import WorkOrderTemplateApprover
+from app.models.work_order import WorkOrder
 from app.schemas.work_order_template import (
     WorkOrderTemplateCreate, WorkOrderTemplateUpdate,
     WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate,
+    GenerateWorkOrderDraftsRequest,
 )
 
 
@@ -118,6 +120,25 @@ class WorkOrderTemplateService(BaseService):
 
     def get_approvers(self, db: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
         return self.manager.get_approvers(db, tpl_id, workspace_id)
+
+    def generate_drafts(
+        self, db: Session, body: GenerateWorkOrderDraftsRequest,
+        workspace_id: int, user_id: int,
+    ) -> List[WorkOrder]:
+        try:
+            records = self.manager.generate_drafts(
+                db, workspace_id=workspace_id, user_id=user_id,
+                target_date=body.target_date,
+                factory_section_id=body.factory_section_id,
+                factory_id=body.factory_id,
+            )
+            self._commit_transaction(db)
+            for r in records:
+                db.refresh(r)
+            return records
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
 
 work_order_template_service = WorkOrderTemplateService()

@@ -15,8 +15,12 @@ from app.models.work_order_event import WorkOrderEvent
 from app.models.work_order_item import WorkOrderItem
 from app.models.profile import Profile
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, MachineEventTypeEnum
-from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
-from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
+from app.schemas.work_order import (
+    WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse,
+    WorkOrderApproversList, ApprovalSummaryResponse, WorkOrderApproverResponse,
+    WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
+)
+from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.account_invoice import AccountInvoiceCreate
 from app.services.approval_notification_service import (
@@ -99,6 +103,65 @@ class WorkOrderService(BaseService):
             factory_id=factory_id, machine_id=machine_id,
             skip=skip, limit=limit
         )
+
+    def sheet_entry(
+        self, db: Session, data: WorkOrderSheetEntryCreate,
+        workspace_id: int, user_id: int,
+    ) -> WorkOrder:
+        try:
+            record = self.manager.sheet_entry(db, data=data, workspace_id=workspace_id, user_id=user_id)
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def list_sheet_bundles(
+        self, db: Session, workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        skip: int = 0,
+        limit: int = 1000,
+    ) -> List[WorkOrderSheetBundle]:
+        orders = self.manager.list_sheet_orders(
+            db, workspace_id=workspace_id,
+            factory_id=factory_id, machine_id=machine_id,
+            start_date_from=start_date_from, start_date_to=start_date_to,
+            skip=skip, limit=limit,
+        )
+        bundles: List[WorkOrderSheetBundle] = []
+        for wo in orders:
+            items = self.manager.get_items(db, wo.id, workspace_id)
+            approver_rows = self.manager.list_approvers(db, wo.id, workspace_id)
+            approved_count, required, met = self.manager.approval_summary(db, wo)
+            bundles.append(WorkOrderSheetBundle(
+                order=WorkOrderResponse.model_validate(wo),
+                items=[WorkOrderItemResponse.model_validate(i) for i in items],
+                approvers=WorkOrderApproversList(
+                    approvers=[
+                        WorkOrderApproverResponse(
+                            id=a.id,
+                            workspace_id=a.workspace_id,
+                            work_order_id=a.work_order_id,
+                            user_id=a.user_id,
+                            user_name=profile.name if profile else None,
+                            user_email=profile.email if profile else None,
+                            user_position=position,
+                            assigned_by=a.assigned_by,
+                            assigned_at=a.assigned_at,
+                            approver_slot=getattr(a, 'approver_slot', None),
+                            approved=a.approved,
+                            approved_at=a.approved_at,
+                        )
+                        for a, profile, position in approver_rows
+                    ],
+                    summary=ApprovalSummaryResponse(approved_count=approved_count, required=required, met=met),
+                ),
+            ))
+        return bundles
 
     def delete_work_order(self, db: Session, wo_id: int, workspace_id: int, user_id: int) -> WorkOrder:
         try:
@@ -270,10 +333,14 @@ class WorkOrderService(BaseService):
         return self.manager.approval_summary(db, wo)
 
     def add_approver(
-        self, db: Session, wo_id: int, user_id: int, workspace_id: int, assigned_by: int
+        self, db: Session, wo_id: int, user_id: int, workspace_id: int, assigned_by: int,
+        approver_slot: str | None = None,
     ) -> WorkOrderApprover:
         try:
-            record = self.manager.add_approver(db, wo_id=wo_id, user_id=user_id, workspace_id=workspace_id, assigned_by=assigned_by)
+            record = self.manager.add_approver(
+                db, wo_id=wo_id, user_id=user_id, workspace_id=workspace_id,
+                assigned_by=assigned_by, approver_slot=approver_slot,
+            )
             wo = self.manager.get_work_order(db, wo_id, workspace_id)
             handle_add_approver(
                 db, workspace_id=workspace_id, entity_type='work_order', entity_id=wo_id,

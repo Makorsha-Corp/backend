@@ -2,6 +2,7 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
+from datetime import date
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -39,6 +40,62 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         if machine_id:
             query = query.filter(WorkOrder.machine_id == machine_id)
         return query.order_by(desc(WorkOrder.created_at)).offset(skip).limit(limit).all()
+
+    def get_by_machine_date_type(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        machine_id: int,
+        start_date: date,
+        work_order_type_id: int,
+    ) -> Optional[WorkOrder]:
+        """Find an open work order for the same machine + day + work type (sheet merge)."""
+        return (
+            db.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.is_deleted == False,
+                WorkOrder.machine_id == machine_id,
+                WorkOrder.start_date == start_date,
+                WorkOrder.work_order_type_id == work_order_type_id,
+                WorkOrder.status != WorkOrderStatusEnum.VOIDED.value,
+            )
+            .order_by(desc(WorkOrder.created_at))
+            .first()
+        )
+
+    def list_for_sheet(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        skip: int = 0,
+        limit: int = 1000,
+    ) -> List[WorkOrder]:
+        query = db.query(WorkOrder).filter(
+            WorkOrder.workspace_id == workspace_id,
+            WorkOrder.is_deleted == False,
+            WorkOrder.machine_id.isnot(None),
+        )
+        if factory_id:
+            query = query.filter(WorkOrder.factory_id == factory_id)
+        if machine_id:
+            query = query.filter(WorkOrder.machine_id == machine_id)
+        if start_date_from:
+            query = query.filter(WorkOrder.start_date >= start_date_from)
+        if start_date_to:
+            query = query.filter(WorkOrder.start_date <= start_date_to)
+        return (
+            query.order_by(desc(WorkOrder.start_date), desc(WorkOrder.created_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int

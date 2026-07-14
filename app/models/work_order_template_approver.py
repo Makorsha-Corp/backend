@@ -1,6 +1,6 @@
 """Work order template approver model - default approvers copied onto orders generated
 from a template that requires approval"""
-from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint, String
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
@@ -15,6 +15,7 @@ class WorkOrderTemplateApprover(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     work_order_template_id = Column(Integer, ForeignKey("work_order_templates.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    approver_slot = Column(String(32), nullable=True)  # manager | agm
 
     template = relationship("WorkOrderTemplate", backref="template_approvers")
     user = relationship("Profile")
