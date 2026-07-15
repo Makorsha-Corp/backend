@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     invoice_items,
     invoice_payments,
     financial_audit_logs,
+    payments,
     # Orders
     order_workflows,
     work_orders,
@@ -94,6 +95,7 @@ api_router.include_router(account_invoices.router, prefix="/account-invoices", t
 api_router.include_router(invoice_items.router, prefix="/invoice-items", tags=["accounts"])
 api_router.include_router(invoice_payments.router, prefix="/invoice-payments", tags=["accounts"])
 api_router.include_router(financial_audit_logs.router, prefix="/financial-audit-logs", tags=["audit"])
+api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 
 # Orders & Workflow
 api_router.include_router(orders_overview.router, prefix="/orders/overview", tags=["orders"])

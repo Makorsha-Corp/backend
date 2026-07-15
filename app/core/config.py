@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
+    # SSLCommerz payment gateway
+    # MOCK_MODE must be False before STORE_ID/STORE_PASSWORD are real credentials.
+    SSLCOMMERZ_MOCK_MODE: bool = True
+    SSLCOMMERZ_STORE_ID: str = ""
+    SSLCOMMERZ_STORE_PASSWORD: str = ""
+    SSLCOMMERZ_SANDBOX: bool = True
+    # Base URL the frontend is served from (used to build the redirect target
+    # after the mock/real gateway hands control back to us)
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+    # Base URL this backend is reachable at (used to build success/fail/cancel/ipn
+    # callback URLs and, in mock mode, the fake GatewayPageURL)
+    BACKEND_BASE_URL: str = "http://localhost:8000"
+
     model_config = {
         "env_file": ".env",
         "case_sensitive": True,

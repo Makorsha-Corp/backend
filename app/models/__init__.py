@@ -99,6 +99,8 @@ from app.models.invoice_event import InvoiceEvent
 from app.models.invoice_payment import InvoicePayment
 from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
+from app.models.payment_transaction import PaymentTransaction
+from app.models.payment_transaction_event import PaymentTransactionEvent
 
 # Work Orders
 from app.models.work_order_type import WorkOrderType
@@ -198,6 +200,8 @@ __all__ = [
     "InvoicePayment",
     "InvoiceStatusTracker",
     "FinancialAuditLog",
+    "PaymentTransaction",
+    "PaymentTransactionEvent",
     # Work Orders
     "WorkOrderType",
     "WorkOrderTemplate",
