@@ -91,6 +91,13 @@ class WorkOrderStatusEnum(str, enum.Enum):
     VOIDED = "VOIDED"
 
 
+class WorkOrderScheduleStatusEnum(str, enum.Enum):
+    """Staged maintenance schedule lifecycle before/after live work order exists."""
+    STAGED = "STAGED"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+
+
 class InventoryTypeEnum(str, enum.Enum):
     """Inventory types for the unified inventory table"""
     STORAGE = "STORAGE"

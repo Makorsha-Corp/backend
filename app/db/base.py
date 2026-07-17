@@ -57,6 +57,7 @@ from app.models.product_ledger import ProductLedger
 # Work Orders
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
+from app.models.work_order_schedule import WorkOrderSchedule
 # Purchase Orders
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
