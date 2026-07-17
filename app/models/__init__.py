@@ -71,6 +71,7 @@ from app.models.factory import Factory
 from app.models.factory_section import FactorySection
 from app.models.department import Department
 from app.models.machine import Machine
+from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_maintenance_log import MachineMaintenanceLog
 
@@ -98,6 +99,8 @@ from app.models.invoice_event import InvoiceEvent
 from app.models.invoice_payment import InvoicePayment
 from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
+from app.models.payment_transaction import PaymentTransaction
+from app.models.payment_transaction_event import PaymentTransactionEvent
 
 # Work Orders
 from app.models.work_order_type import WorkOrderType
@@ -172,6 +175,7 @@ __all__ = [
     "FactorySection",
     "Department",
     "Machine",
+    "MachineSectionAssignment",
     "MachineActivityEvent",
     "MachineMaintenanceLog",
     # Projects
@@ -196,6 +200,8 @@ __all__ = [
     "InvoicePayment",
     "InvoiceStatusTracker",
     "FinancialAuditLog",
+    "PaymentTransaction",
+    "PaymentTransactionEvent",
     # Work Orders
     "WorkOrderType",
     "WorkOrderTemplate",

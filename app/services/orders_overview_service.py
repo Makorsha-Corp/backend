@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, Query, aliased
 from app.models.account import Account
 from app.models.expense_order import ExpenseOrder
 from app.models.factory import Factory
-from app.models.factory_section import FactorySection
 from app.models.item import Item
 from app.models.machine import Machine
 from app.models.project import Project
@@ -47,7 +46,6 @@ class OrdersOverviewService:
 
     def _filter_po_by_factory(self, query: Query, factory_id: int) -> Query:
         dest_machine = aliased(Machine)
-        dest_section = aliased(FactorySection)
         dest_project = aliased(Project)
         return (
             query.outerjoin(
@@ -57,7 +55,6 @@ class OrdersOverviewService:
                     PurchaseOrder.destination_id == dest_machine.id,
                 ),
             )
-            .outerjoin(dest_section, dest_machine.factory_section_id == dest_section.id)
             .outerjoin(
                 dest_project,
                 and_(
@@ -71,7 +68,7 @@ class OrdersOverviewService:
                         PurchaseOrder.destination_type.in_(('storage', 'damaged')),
                         PurchaseOrder.destination_id == factory_id,
                     ),
-                    dest_section.factory_id == factory_id,
+                    dest_machine.factory_id == factory_id,
                     dest_project.factory_id == factory_id,
                 )
             )
@@ -79,10 +76,8 @@ class OrdersOverviewService:
 
     def _filter_transfer_by_factory(self, query: Query, factory_id: int) -> Query:
         dest_machine = aliased(Machine)
-        dest_section = aliased(FactorySection)
         dest_project = aliased(Project)
         src_machine = aliased(Machine)
-        src_section = aliased(FactorySection)
         return (
             query.outerjoin(
                 dest_machine,
@@ -91,7 +86,6 @@ class OrdersOverviewService:
                     TransferOrder.destination_location_id == dest_machine.id,
                 ),
             )
-            .outerjoin(dest_section, dest_machine.factory_section_id == dest_section.id)
             .outerjoin(
                 dest_project,
                 and_(
@@ -106,7 +100,6 @@ class OrdersOverviewService:
                     TransferOrder.source_location_id == src_machine.id,
                 ),
             )
-            .outerjoin(src_section, src_machine.factory_section_id == src_section.id)
             .filter(
                 or_(
                     and_(
@@ -117,9 +110,9 @@ class OrdersOverviewService:
                         TransferOrder.source_location_type.in_(('storage', 'damaged')),
                         TransferOrder.source_location_id == factory_id,
                     ),
-                    dest_section.factory_id == factory_id,
+                    dest_machine.factory_id == factory_id,
                     dest_project.factory_id == factory_id,
-                    src_section.factory_id == factory_id,
+                    src_machine.factory_id == factory_id,
                 )
             )
         )
@@ -180,12 +173,11 @@ class OrdersOverviewService:
         )
 
         po_dest_machine = aliased(Machine)
-        po_dest_section = aliased(FactorySection)
         po_dest_project = aliased(Project)
         po_factory_id = self._factory_from_location(
             PurchaseOrder.destination_type,
             PurchaseOrder.destination_id,
-            po_dest_section.factory_id,
+            po_dest_machine.factory_id,
             po_dest_project.factory_id,
         )
         po_rows = (
@@ -197,7 +189,6 @@ class OrdersOverviewService:
                     PurchaseOrder.destination_id == po_dest_machine.id,
                 ),
             )
-            .outerjoin(po_dest_section, po_dest_machine.factory_section_id == po_dest_section.id)
             .outerjoin(
                 po_dest_project,
                 and_(
@@ -215,20 +206,18 @@ class OrdersOverviewService:
             self._accumulate_factory(factory_map, fid, _dec(amount), 'purchase')
 
         to_dest_machine = aliased(Machine)
-        to_dest_section = aliased(FactorySection)
         to_dest_project = aliased(Project)
         to_src_machine = aliased(Machine)
-        to_src_section = aliased(FactorySection)
         dest_factory = self._factory_from_location(
             TransferOrder.destination_location_type,
             TransferOrder.destination_location_id,
-            to_dest_section.factory_id,
+            to_dest_machine.factory_id,
             to_dest_project.factory_id,
         )
         src_factory = self._factory_from_location(
             TransferOrder.source_location_type,
             TransferOrder.source_location_id,
-            to_src_section.factory_id,
+            to_src_machine.factory_id,
             None,
         )
         transfer_factory_id = func.coalesce(dest_factory, src_factory)
@@ -241,7 +230,6 @@ class OrdersOverviewService:
                     TransferOrder.destination_location_id == to_dest_machine.id,
                 ),
             )
-            .outerjoin(to_dest_section, to_dest_machine.factory_section_id == to_dest_section.id)
             .outerjoin(
                 to_dest_project,
                 and_(
@@ -256,7 +244,6 @@ class OrdersOverviewService:
                     TransferOrder.source_location_id == to_src_machine.id,
                 ),
             )
-            .outerjoin(to_src_section, to_src_machine.factory_section_id == to_src_section.id)
             .filter(
                 TransferOrder.workspace_id == workspace_id,
                 self._in_date_range(cast(TransferOrder.created_at, Date), from_date, to_date),

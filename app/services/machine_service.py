@@ -178,6 +178,8 @@ class MachineService(BaseService):
 
         self, db: Session, workspace_id: int,
 
+        factory_id: Optional[int] = None,
+
         factory_section_id: Optional[int] = None,
 
         is_running: Optional[bool] = None,
@@ -205,6 +207,8 @@ class MachineService(BaseService):
         machines = self.machine_manager.search_machines(
 
             session=db, workspace_id=workspace_id,
+
+            factory_id=factory_id,
 
             factory_section_id=factory_section_id,
 

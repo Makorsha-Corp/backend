@@ -49,6 +49,8 @@ from app.models.account_invoice import AccountInvoice
 from app.models.invoice_payment import InvoicePayment
 from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.financial_audit_log import FinancialAuditLog
+from app.models.payment_transaction import PaymentTransaction
+from app.models.payment_transaction_event import PaymentTransactionEvent
 # Inventory & Products
 from app.models.inventory import Inventory
 from app.models.inventory_ledger import InventoryLedger

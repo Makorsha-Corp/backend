@@ -61,8 +61,8 @@ class ItemSummaryMachinePlacement(BaseModel):
     machine_name: str
     factory_id: int
     factory_name: str
-    factory_section_id: int
-    factory_section_name: str
+    factory_section_id: int | None = None
+    factory_section_name: str | None = None
     qty: int
     req_qty: int | None = None
     defective_qty: int | None = None

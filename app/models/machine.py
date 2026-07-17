@@ -14,7 +14,7 @@ class Machine(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     is_running = Column(Boolean, nullable=False, default=False)
-    factory_section_id = Column(Integer, ForeignKey("factory_sections.id"), nullable=False)
+    factory_id = Column(Integer, ForeignKey("factories.id"), nullable=False, index=True)
 
     # Machine metadata
     model_number = Column(String(200), nullable=True)
@@ -37,7 +37,20 @@ class Machine(Base):
     deleted_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
 
     # Relationships
-    factory_section = relationship("FactorySection", backref="machines")
+    factory = relationship("Factory", backref="machines")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_machines")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_machines")
     deleter = relationship("Profile", foreign_keys=[deleted_by], backref="deleted_machines")
+    # At most one row (enforced by a unique constraint on machine_id) — populated only
+    # when the machine has an organizational section assigned.
+    section_assignment = relationship(
+        "MachineSectionAssignment", back_populates="machine", uselist=False,
+    )
+
+    @property
+    def factory_section_id(self) -> int | None:
+        return self.section_assignment.factory_section_id if self.section_assignment else None
+
+    @property
+    def factory_section_name(self) -> str | None:
+        return self.section_assignment.factory_section.name if self.section_assignment else None

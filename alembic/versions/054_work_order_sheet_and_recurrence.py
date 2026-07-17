@@ -1,7 +1,7 @@
 """Work order sheet workflow: approver slots, template recurrence, machine/section defaults.
 
 Revision ID: 054_work_order_sheet_and_recurrence
-Revises: 048_production_stages
+Revises: 049_machine_factory_direct
 """
 
 import sqlalchemy as sa
@@ -10,7 +10,7 @@ from alembic import op
 from app.db.migration_helpers import column_exists
 
 revision = '054_work_order_sheet_and_recurrence'
-down_revision = '048_production_stages'
+down_revision = '049_machine_factory_direct'
 branch_labels = None
 depends_on = None
 

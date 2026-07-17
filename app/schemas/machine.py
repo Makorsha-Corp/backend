@@ -7,7 +7,9 @@ from app.models.enums import MachineEventTypeEnum
 class MachineBase(BaseModel):
     """Base machine schema"""
     name: str
-    factory_section_id: int
+    factory_id: int
+    # Optional organizational label — if given, creates a section assignment.
+    factory_section_id: int | None = None
 
 
 class MachineCreate(MachineBase):
@@ -26,6 +28,9 @@ class MachineUpdate(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     name: str | None = None
+    factory_id: int | None = None
+    # Explicit null clears the section assignment — distinguished from "not provided"
+    # via model_fields_set in the manager, same convention as WorkOrderUpdate.
     factory_section_id: int | None = None
     model_number: str | None = None
     manufacturer: str | None = None
@@ -40,7 +45,11 @@ class MachineResponse(BaseModel):
     workspace_id: int
     name: str
     is_running: bool
-    factory_section_id: int
+    factory_id: int
+    # Read-only convenience fields resolved from machine_section_assignments —
+    # not real columns on Machine, null when the machine has no section.
+    factory_section_id: int | None = None
+    factory_section_name: str | None = None
 
     # Machine metadata
     model_number: str | None = None

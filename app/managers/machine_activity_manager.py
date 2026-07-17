@@ -14,6 +14,7 @@ from app.models.machine_activity_event import MachineActivityEvent
 
 MACHINE_LOG_FIELDS: dict[str, str] = {
     "name": "Name",
+    "factory_id": "Factory",
     "factory_section_id": "Section",
     "model_number": "Model number",
     "manufacturer": "Manufacturer",

@@ -33,6 +33,7 @@ router = APIRouter()
 def get_machines(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
+    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
     factory_section_id: Optional[int] = Query(None, description="Filter by factory section ID"),
     is_running: Optional[bool] = Query(None, description="Filter by running status"),
     search: Optional[str] = Query(None, description="Search by name, model_number, or manufacturer"),
@@ -51,6 +52,7 @@ def get_machines(
     """Get all machines in workspace"""
     return machine_service.get_machines(
         db, workspace_id=workspace.id,
+        factory_id=factory_id,
         factory_section_id=factory_section_id,
         is_running=is_running, search=search,
         maintenance_window=maintenance_window,
