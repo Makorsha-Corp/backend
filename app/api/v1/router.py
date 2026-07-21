@@ -57,6 +57,7 @@ from app.api.v1.endpoints import (
     # Discussions & Notifications
     discussions,
     notifications,
+    calendar,
 )
 
 
@@ -147,3 +148,6 @@ api_router.include_router(ledgers.router, prefix="/ledgers", tags=["ledgers"])
 # Discussions & Notifications
 api_router.include_router(discussions.router, prefix="/discussions", tags=["discussions"])
 api_router.include_router(notifications.router, prefix="/me/notifications", tags=["notifications"])
+
+# Calendar
+api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
