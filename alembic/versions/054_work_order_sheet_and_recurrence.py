@@ -7,7 +7,7 @@ Revises: 049_machine_factory_direct
 import sqlalchemy as sa
 from alembic import op
 
-from app.db.migration_helpers import column_exists
+from app.db.migration_helpers import column_exists, foreign_key_constraint_exists
 
 revision = '054_work_order_sheet_and_recurrence'
 down_revision = '049_machine_factory_direct'
@@ -44,7 +44,10 @@ def upgrade() -> None:
                 kwargs = {'nullable': False, 'server_default': sa.text('false')}
             op.add_column('work_order_templates', sa.Column(col, col_type, **kwargs))
 
-    if column_exists('work_order_templates', 'default_factory_section_id'):
+    if (
+        column_exists('work_order_templates', 'default_factory_section_id')
+        and not foreign_key_constraint_exists('work_order_templates', 'fk_wo_templates_default_section')
+    ):
         op.create_foreign_key(
             'fk_wo_templates_default_section',
             'work_order_templates',
@@ -53,7 +56,10 @@ def upgrade() -> None:
             ['id'],
             ondelete='SET NULL',
         )
-    if column_exists('work_order_templates', 'default_machine_id'):
+    if (
+        column_exists('work_order_templates', 'default_machine_id')
+        and not foreign_key_constraint_exists('work_order_templates', 'fk_wo_templates_default_machine')
+    ):
         op.create_foreign_key(
             'fk_wo_templates_default_machine',
             'work_order_templates',

@@ -29,6 +29,12 @@ def unique_constraint_exists(table: str, name: str) -> bool:
     return name in {c["name"] for c in _inspector().get_unique_constraints(table)}
 
 
+def foreign_key_constraint_exists(table: str, name: str) -> bool:
+    if not table_exists(table):
+        return False
+    return name in {c["name"] for c in _inspector().get_foreign_keys(table)}
+
+
 def drop_column_if_exists(table: str, column: str) -> None:
     if column_exists(table, column):
         op.drop_column(table, column)

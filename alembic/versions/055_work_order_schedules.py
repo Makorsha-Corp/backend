@@ -6,14 +6,43 @@ Revises: 054_work_order_sheet_and_recurrence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
+
+from app.db.migration_helpers import table_exists
 
 revision = '055_work_order_schedules'
 down_revision = '054_work_order_sheet_and_recurrence'
 branch_labels = None
 depends_on = None
 
+_SCHEDULE_STATUS_ENUM = postgresql.ENUM(
+    'STAGED', 'CONFIRMED', 'CANCELLED',
+    name='workorderschedulestatusenum',
+    create_type=False,
+)
+_PRIORITY_ENUM = postgresql.ENUM(
+    'LOW', 'MEDIUM', 'HIGH', 'URGENT',
+    name='workorderpriorityenum',
+    create_type=False,
+)
+
 
 def upgrade() -> None:
+    op.execute(
+        sa.text(
+            """
+            DO $$ BEGIN
+                CREATE TYPE workorderschedulestatusenum AS ENUM ('STAGED', 'CONFIRMED', 'CANCELLED');
+            EXCEPTION
+                WHEN duplicate_object THEN NULL;
+            END $$;
+            """
+        )
+    )
+
+    if table_exists('work_order_schedules'):
+        return
+
     op.create_table(
         'work_order_schedules',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -21,7 +50,7 @@ def upgrade() -> None:
         sa.Column('scheduled_date', sa.Date(), nullable=False),
         sa.Column(
             'status',
-            sa.Enum('STAGED', 'CONFIRMED', 'CANCELLED', name='workorderschedulestatusenum'),
+            _SCHEDULE_STATUS_ENUM,
             nullable=False,
             server_default='STAGED',
         ),
@@ -34,7 +63,7 @@ def upgrade() -> None:
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column(
             'priority',
-            sa.Enum('LOW', 'MEDIUM', 'HIGH', 'URGENT', name='workorderpriorityenum'),
+            _PRIORITY_ENUM,
             nullable=False,
             server_default='MEDIUM',
         ),

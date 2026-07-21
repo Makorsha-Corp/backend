@@ -110,6 +110,11 @@ class WorkOrderScheduleManager:
                     session, factory_section_id=factory_section_id, workspace_id=workspace_id, limit=1000,
                 )
                 machine_ids = [m.id for m in machines]
+            elif factory_id:
+                machines = machine_dao.get_by_factory(
+                    session, factory_id=factory_id, workspace_id=workspace_id, limit=1000,
+                )
+                machine_ids = [m.id for m in machines]
 
             type_name = tpl.work_order_type_name or 'Maintenance'
             for mid in machine_ids:
@@ -132,9 +137,9 @@ class WorkOrderScheduleManager:
                     continue
 
                 machine = machine_dao.get_by_id_and_workspace(session, id=mid, workspace_id=workspace_id)
-                if not machine or not machine.factory_section:
+                if not machine:
                     continue
-                resolved_factory_id = machine.factory_section.factory_id
+                resolved_factory_id = machine.factory_id
                 if factory_id and resolved_factory_id != factory_id:
                     continue
 

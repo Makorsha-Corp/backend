@@ -219,6 +219,11 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
                     limit=1000,
                 )
                 machine_ids = [m.id for m in machines]
+            elif factory_id:
+                machines = machine_dao.get_by_factory(
+                    session, factory_id=factory_id, workspace_id=workspace_id, limit=1000,
+                )
+                machine_ids = [m.id for m in machines]
 
             for mid in machine_ids:
                 existing = work_order_manager.wo_dao.get_by_machine_date_type(
