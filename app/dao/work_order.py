@@ -3,9 +3,9 @@
 SECURITY: All queries MUST filter by workspace_id.
 """
 from datetime import date
-from typing import List, Optional
+from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.dao.base import BaseDAO
 from app.models.work_order import WorkOrder
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
@@ -96,6 +96,46 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             .limit(limit)
             .all()
         )
+
+    def count_by_start_date_for_sheet(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+    ) -> Dict[date, int]:
+        """Count work orders per start_date for calendar dots (no row limit)."""
+        query = db.query(
+            WorkOrder.start_date,
+            func.count(WorkOrder.id),
+        ).filter(
+            WorkOrder.workspace_id == workspace_id,
+            WorkOrder.is_deleted == False,
+            WorkOrder.machine_id.isnot(None),
+            WorkOrder.start_date.isnot(None),
+        )
+        if factory_id:
+            query = query.filter(WorkOrder.factory_id == factory_id)
+        if machine_id:
+            query = query.filter(WorkOrder.machine_id == machine_id)
+        if start_date_from:
+            query = query.filter(WorkOrder.start_date >= start_date_from)
+        if start_date_to:
+            query = query.filter(WorkOrder.start_date <= start_date_to)
+        if status:
+            query = query.filter(WorkOrder.status == status)
+        if work_order_type_id:
+            query = query.filter(WorkOrder.work_order_type_id == work_order_type_id)
+        if priority:
+            query = query.filter(WorkOrder.priority == priority)
+        rows = query.group_by(WorkOrder.start_date).all()
+        return {row[0]: row[1] for row in rows}
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int

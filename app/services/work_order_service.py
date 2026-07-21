@@ -18,7 +18,7 @@ from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, Machine
 from app.schemas.work_order import (
     WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse,
     WorkOrderApproversList, ApprovalSummaryResponse, WorkOrderApproverResponse,
-    WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
+    WorkOrderSheetEntryCreate, WorkOrderSheetBundle, WorkOrderSheetDailyCountsResponse,
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
@@ -162,6 +162,31 @@ class WorkOrderService(BaseService):
                 ),
             ))
         return bundles
+
+    def sheet_daily_counts(
+        self,
+        db: Session,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+    ) -> WorkOrderSheetDailyCountsResponse:
+        counts = self.manager.sheet_daily_counts(
+            db,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            status=status,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+        )
+        return WorkOrderSheetDailyCountsResponse(counts=counts)
 
     def delete_work_order(self, db: Session, wo_id: int, workspace_id: int, user_id: int) -> WorkOrder:
         try:

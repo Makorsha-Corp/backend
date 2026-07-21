@@ -1046,6 +1046,31 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             limit=limit,
         )
 
+    def sheet_daily_counts(
+        self,
+        session: Session,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        start_date_from: Optional[date] = None,
+        start_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+    ) -> dict[str, int]:
+        raw = self.wo_dao.count_by_start_date_for_sheet(
+            session,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            status=status,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+        )
+        return {day.isoformat(): count for day, count in raw.items()}
+
     # ─── Events ──────────────────────────────────────────────────
     def log_event(
         self, session: Session, wo_id: int, workspace_id: int,

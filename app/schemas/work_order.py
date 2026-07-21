@@ -200,6 +200,11 @@ class WorkOrderSheetBundle(BaseModel):
     approvers: WorkOrderApproversList
 
 
+class WorkOrderSheetDailyCountsResponse(BaseModel):
+    """Work-order counts keyed by start_date ISO string (for calendar dots)."""
+    counts: dict[str, int]
+
+
 def _rebuild_work_order_sheet_bundle() -> None:
     from app.schemas.work_order_item import WorkOrderItemResponse
     WorkOrderSheetBundle.model_rebuild(_types_namespace={'WorkOrderItemResponse': WorkOrderItemResponse})

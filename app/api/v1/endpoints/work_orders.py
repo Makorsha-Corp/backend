@@ -21,6 +21,7 @@ from app.schemas.work_order import (
     ApprovalSummaryResponse, WorkOrderApproversList,
     WorkOrderEventMetadata, WorkOrderEventResponse,
     WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
+    WorkOrderSheetDailyCountsResponse,
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
@@ -99,6 +100,36 @@ def list_work_orders_sheet(
         start_date_to=start_date_to,
         skip=skip,
         limit=limit,
+    )
+
+
+@router.get(
+    "/sheet/daily-counts/",
+    response_model=WorkOrderSheetDailyCountsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Daily work-order counts for sheet calendar dots",
+)
+def list_work_orders_sheet_daily_counts(
+    factory_id: Optional[int] = Query(None),
+    machine_id: Optional[int] = Query(None),
+    start_date_from: Optional[date] = Query(None),
+    start_date_to: Optional[date] = Query(None),
+    wo_status: Optional[WorkOrderStatusEnum] = Query(None, alias="status"),
+    work_order_type_id: Optional[int] = Query(None),
+    priority: Optional[WorkOrderPriorityEnum] = Query(None),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return work_order_service.sheet_daily_counts(
+        db,
+        workspace_id=workspace.id,
+        factory_id=factory_id,
+        machine_id=machine_id,
+        start_date_from=start_date_from,
+        start_date_to=start_date_to,
+        status=wo_status,
+        work_order_type_id=work_order_type_id,
+        priority=priority,
     )
 
 
