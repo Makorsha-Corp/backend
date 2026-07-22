@@ -280,10 +280,14 @@ class CalendarService(BaseService):
                     ],
                     title=row.po_number,
                     subtitle=row.description,
-                    link="/orders/purchase",
+                    link=f"/orders/purchase?orderId={row.id}",
                     start=start,
                     end=end,
-                    meta={"total_amount": str(row.total_amount) if row.total_amount is not None else None},
+                    meta={
+                        "total_amount": str(row.total_amount) if row.total_amount is not None else None,
+                        "account_id": row.account_id,
+                        "current_status_id": row.current_status_id,
+                    },
                 )
             )
         return events
@@ -464,10 +468,11 @@ class CalendarService(BaseService):
                     ],
                     title=row.invoice_number or f"Invoice #{row.id}",
                     subtitle=row.description,
-                    link="/accounts/overview",
+                    link=f"/accounts/{row.account_id}?invoiceId={row.id}",
                     start=start,
                     end=end,
                     meta={
+                        "account_id": row.account_id,
                         "invoice_type": row.invoice_type,
                         "payment_status": row.payment_status,
                         "invoice_amount": str(row.invoice_amount) if row.invoice_amount is not None else None,
@@ -488,7 +493,8 @@ class CalendarService(BaseService):
             return []
 
         rows = (
-            db.query(InvoicePayment)
+            db.query(InvoicePayment, AccountInvoice)
+            .join(AccountInvoice, InvoicePayment.invoice_id == AccountInvoice.id)
             .filter(
                 InvoicePayment.workspace_id == workspace_id,
                 InvoicePayment.is_voided.is_(False),
@@ -500,21 +506,23 @@ class CalendarService(BaseService):
 
         return [
             CalendarEventResponse(
-                id=_event_id("invoice_payment", row.id, "payment_date"),
+                id=_event_id("invoice_payment", payment.id, "payment_date"),
                 category=CalendarCategory.INVOICES,
                 source_type="invoice_payment",
-                record_id=row.id,
-                date=row.payment_date,
+                record_id=payment.id,
+                date=payment.payment_date,
                 date_label="Payment date",
-                title=f"Payment #{row.id}",
-                subtitle=f"Invoice #{row.invoice_id}",
-                link="/accounts/overview",
+                title=f"Payment #{payment.id}",
+                subtitle=f"Invoice #{payment.invoice_id}",
+                link=f"/accounts/{invoice.account_id}?invoiceId={invoice.id}",
                 meta={
-                    "payment_amount": str(row.payment_amount) if row.payment_amount is not None else None,
-                    "payment_method": row.payment_method,
+                    "invoice_id": payment.invoice_id,
+                    "account_id": invoice.account_id,
+                    "payment_amount": str(payment.payment_amount) if payment.payment_amount is not None else None,
+                    "payment_method": payment.payment_method,
                 },
             )
-            for row in rows
+            for payment, invoice in rows
         ]
 
     def _collect_production_batches(
