@@ -1,5 +1,5 @@
 """Business logic for staged work order schedules."""
-from datetime import date, timedelta
+from datetime import date, datetime
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -14,6 +14,8 @@ from app.models.work_order_template import WorkOrderTemplate
 from app.models.enums import WorkOrderScheduleStatusEnum
 from app.schemas.work_order_schedule import StageWorkOrderDayRequest
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
+from app.utils.work_order_generation import resolve_template_machine_ids
+from app.utils.work_order_recurrence import advance_next_generation_date, should_advance_template
 
 
 class WorkOrderScheduleManager:
@@ -85,6 +87,10 @@ class WorkOrderScheduleManager:
             factory_section_id=factory_section_id,
             factory_id=factory_id,
         )
+        recurring = [
+            tpl for tpl in recurring
+            if getattr(tpl, 'generation_mode', 'schedule') == 'schedule'
+        ]
 
         seen_tpl_ids: set[int] = set()
         templates: List[WorkOrderTemplate] = []
@@ -96,25 +102,13 @@ class WorkOrderScheduleManager:
 
         created: List[WorkOrderSchedule] = []
         for tpl in templates:
-            machine_ids: List[int] = []
-            section_id = tpl.default_factory_section_id or factory_section_id
-            if tpl.default_machine_id:
-                machine_ids = [tpl.default_machine_id]
-            elif section_id:
-                machines = machine_dao.get_by_section(
-                    session, factory_section_id=section_id, workspace_id=workspace_id, limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
-            elif factory_section_id:
-                machines = machine_dao.get_by_section(
-                    session, factory_section_id=factory_section_id, workspace_id=workspace_id, limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
-            elif factory_id:
-                machines = machine_dao.get_by_factory(
-                    session, factory_id=factory_id, workspace_id=workspace_id, limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
+            machine_ids = resolve_template_machine_ids(
+                session,
+                template=tpl,
+                workspace_id=workspace_id,
+                factory_section_id=factory_section_id,
+                factory_id=factory_id,
+            )
 
             type_name = tpl.work_order_type_name or 'Maintenance'
             for mid in machine_ids:
@@ -130,7 +124,7 @@ class WorkOrderScheduleManager:
                     session,
                     workspace_id=workspace_id,
                     machine_id=mid,
-                    start_date=target_date,
+                    planned_date=target_date,
                     work_order_type_id=tpl.work_order_type_id,
                 )
                 if existing_wo:
@@ -162,15 +156,12 @@ class WorkOrderScheduleManager:
                 session.flush()
                 created.append(schedule)
 
-            if tpl.is_recurring and tpl.next_generation_date is not None and tpl.next_generation_date <= target_date:
-                if tpl.recurrence_type == 'daily':
-                    tpl.next_generation_date = target_date + timedelta(days=1)
-                elif tpl.recurrence_type == 'weekly':
-                    tpl.next_generation_date = target_date + timedelta(days=7)
-                elif tpl.recurrence_type == 'monthly':
-                    tpl.next_generation_date = target_date + timedelta(days=28)
-                else:
-                    tpl.next_generation_date = target_date + timedelta(days=1)
+            if should_advance_template(tpl, target_date):
+                tpl.next_generation_date = advance_next_generation_date(
+                    from_date=target_date,
+                    recurrence_type=tpl.recurrence_type,
+                    recurrence_day=tpl.recurrence_day,
+                )
                 session.flush()
 
         return created
@@ -201,7 +192,7 @@ class WorkOrderScheduleManager:
                 user_id=user_id,
                 overrides=WorkOrderFromTemplateCreate(
                     machine_id=record.machine_id,
-                    start_date=record.scheduled_date,
+                    planned_date=record.scheduled_date,
                     title=record.title,
                     description=record.description,
                     assigned_to=record.assigned_to,
@@ -218,14 +209,13 @@ class WorkOrderScheduleManager:
                     priority=record.priority,
                     factory_id=record.factory_id,
                     machine_id=record.machine_id,
-                    start_date=record.scheduled_date,
+                    planned_date=record.scheduled_date,
                     assigned_to=record.assigned_to,
                 ),
                 workspace_id=workspace_id,
                 user_id=user_id,
             )
 
-        from datetime import datetime
         record.status = WorkOrderScheduleStatusEnum.CONFIRMED
         record.work_order_id = wo.id
         record.confirmed_at = datetime.utcnow()
@@ -241,8 +231,6 @@ class WorkOrderScheduleManager:
         workspace_id: int,
         user_id: int,
     ) -> WorkOrderSchedule:
-        from datetime import datetime
-
         record = work_order_schedule_dao.get_by_id_and_workspace(
             session, id=schedule_id, workspace_id=workspace_id,
         )

@@ -48,7 +48,7 @@ ORDER_UPDATE_LOG_FIELDS = {
     'priority': 'Priority',
     'machine_id': 'Machine',
     'project_component_id': 'Project component',
-    'start_date': 'Start date',
+    'planned_date': 'Planned date',
     'end_date': 'End date',
     'cost': 'Cost',
     'account_id': 'Account',
@@ -202,7 +202,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 priority=template.priority,
                 factory_id=factory_id,
                 machine_id=machine.id,
-                start_date=overrides.start_date,
+                planned_date=overrides.planned_date,
                 uses_inventory=template.uses_inventory,
                 account_id=template.account_id,
                 cost=template.cost,
@@ -724,6 +724,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         wo.status = WorkOrderStatusEnum.IN_PROGRESS.value
         wo.started_by = user_id
+        if wo.planned_date is None:
+            wo.planned_date = datetime.utcnow().date()
         wo.started_at = datetime.utcnow()
         session.flush()
         summary = f'{len(pending)} item(s) consumed' if pending else 'no inventory items to consume'
@@ -946,7 +948,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             session,
             workspace_id=workspace_id,
             machine_id=data.machine_id,
-            start_date=data.start_date,
+            planned_date=data.planned_date,
             work_order_type_id=data.work_order_type_id,
         )
         if wo is None:
@@ -959,7 +961,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                     priority=data.priority,
                     factory_id=factory_id,
                     machine_id=machine.id,
-                    start_date=data.start_date,
+                    planned_date=data.planned_date,
                     uses_inventory=has_items,
                     assigned_to=data.assigned_to,
                     account_id=data.account_id,
@@ -1030,8 +1032,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         self, session: Session, workspace_id: int,
         factory_id: Optional[int] = None,
         machine_id: Optional[int] = None,
-        start_date_from: Optional[date] = None,
-        start_date_to: Optional[date] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> List[WorkOrder]:
@@ -1040,8 +1042,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             workspace_id=workspace_id,
             factory_id=factory_id,
             machine_id=machine_id,
-            start_date_from=start_date_from,
-            start_date_to=start_date_to,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
             skip=skip,
             limit=limit,
         )
@@ -1052,19 +1054,19 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         workspace_id: int,
         factory_id: Optional[int] = None,
         machine_id: Optional[int] = None,
-        start_date_from: Optional[date] = None,
-        start_date_to: Optional[date] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
         status: Optional[WorkOrderStatusEnum] = None,
         work_order_type_id: Optional[int] = None,
         priority: Optional[WorkOrderPriorityEnum] = None,
     ) -> dict[str, int]:
-        raw = self.wo_dao.count_by_start_date_for_sheet(
+        raw = self.wo_dao.count_by_calendar_date_for_sheet(
             session,
             workspace_id=workspace_id,
             factory_id=factory_id,
             machine_id=machine_id,
-            start_date_from=start_date_from,
-            start_date_to=start_date_to,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
             status=status,
             work_order_type_id=work_order_type_id,
             priority=priority,

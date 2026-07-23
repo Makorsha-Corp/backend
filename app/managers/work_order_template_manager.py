@@ -174,16 +174,20 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         factory_id: int | None = None,
     ) -> List:
         """Create draft work orders from recurring/section templates for a target day."""
-        from datetime import timedelta
-        from app.dao.machine import machine_dao
         from app.managers.work_order_manager import work_order_manager
         from app.schemas.work_order_template import WorkOrderFromTemplateCreate
         from app.models.work_order import WorkOrder
+        from app.utils.work_order_generation import resolve_template_machine_ids
+        from app.utils.work_order_recurrence import advance_next_generation_date, should_advance_template
 
         recurring = self.tpl_dao.list_recurring_due(
             session, workspace_id=workspace_id, target_date=target_date,
             factory_section_id=factory_section_id, factory_id=factory_id,
         )
+        recurring = [
+            tpl for tpl in recurring
+            if getattr(tpl, 'generation_mode', 'schedule') == 'draft'
+        ]
         section_templates: List[WorkOrderTemplate] = []
         if factory_section_id is not None:
             all_active = self.tpl_dao.get_by_workspace(
@@ -204,33 +208,20 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
 
         created: List[WorkOrder] = []
         for tpl in templates:
-            machine_ids: List[int] = []
-            if tpl.default_machine_id:
-                machine_ids = [tpl.default_machine_id]
-            elif tpl.default_factory_section_id:
-                machines = machine_dao.get_by_section(
-                    session, factory_section_id=tpl.default_factory_section_id, workspace_id=workspace_id,
-                    limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
-            elif factory_section_id:
-                machines = machine_dao.get_by_section(
-                    session, factory_section_id=factory_section_id, workspace_id=workspace_id,
-                    limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
-            elif factory_id:
-                machines = machine_dao.get_by_factory(
-                    session, factory_id=factory_id, workspace_id=workspace_id, limit=1000,
-                )
-                machine_ids = [m.id for m in machines]
+            machine_ids = resolve_template_machine_ids(
+                session,
+                template=tpl,
+                workspace_id=workspace_id,
+                factory_section_id=factory_section_id,
+                factory_id=factory_id,
+            )
 
             for mid in machine_ids:
                 existing = work_order_manager.wo_dao.get_by_machine_date_type(
                     session,
                     workspace_id=workspace_id,
                     machine_id=mid,
-                    start_date=target_date,
+                    planned_date=target_date,
                     work_order_type_id=tpl.work_order_type_id,
                 )
                 if existing:
@@ -242,20 +233,17 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
                     user_id=user_id,
                     overrides=WorkOrderFromTemplateCreate(
                         machine_id=mid,
-                        start_date=target_date,
+                        planned_date=target_date,
                     ),
                 )
                 created.append(wo)
 
-            if tpl.is_recurring and tpl.next_generation_date is not None and tpl.next_generation_date <= target_date:
-                if tpl.recurrence_type == 'daily':
-                    tpl.next_generation_date = target_date + timedelta(days=1)
-                elif tpl.recurrence_type == 'weekly':
-                    tpl.next_generation_date = target_date + timedelta(days=7)
-                elif tpl.recurrence_type == 'monthly':
-                    tpl.next_generation_date = target_date + timedelta(days=28)
-                else:
-                    tpl.next_generation_date = target_date + timedelta(days=1)
+            if should_advance_template(tpl, target_date):
+                tpl.next_generation_date = advance_next_generation_date(
+                    from_date=target_date,
+                    recurrence_type=tpl.recurrence_type,
+                    recurrence_day=tpl.recurrence_day,
+                )
                 session.flush()
 
         return created

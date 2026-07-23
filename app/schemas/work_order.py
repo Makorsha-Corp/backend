@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal, TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ class WorkOrderCreate(BaseModel):
     factory_id: int
     machine_id: int | None = None
     project_component_id: int | None = None
-    start_date: date | None = None
+    planned_date: date | None = None
     end_date: date | None = None
     # Decided once at creation — whether this order will ever consume stock items.
     uses_inventory: bool = True
@@ -35,7 +35,7 @@ class WorkOrderUpdate(BaseModel):
     priority: WorkOrderPriorityEnum | None = None
     machine_id: int | None = None
     project_component_id: int | None = None
-    start_date: date | None = None
+    planned_date: date | None = None
     end_date: date | None = None
     cost: Decimal | None = None
     account_id: int | None = None
@@ -58,7 +58,7 @@ class WorkOrderResponse(BaseModel):
     factory_id: int
     machine_id: int | None = None
     project_component_id: int | None = None
-    start_date: date | None = None
+    planned_date: date | None = None
     end_date: date | None = None
     uses_inventory: bool
     cost: Decimal | None = None
@@ -92,6 +92,14 @@ class WorkOrderResponse(BaseModel):
     is_deleted: bool
     deleted_at: datetime | None = None
     deleted_by: int | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def calendar_date(self) -> date:
+        """Planned planned_date, or created_at day when unscheduled (drafts)."""
+        if self.planned_date is not None:
+            return self.planned_date
+        return self.created_at.date()
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -182,7 +190,7 @@ class WorkOrderSheetEntryCreate(BaseModel):
     """Single-transaction sheet row create — merges into existing WO when same machine+date+type."""
     machine_id: int
     work_order_type_id: int
-    start_date: date
+    planned_date: date
     assigned_to: str | None = None
     description: str | None = None
     priority: WorkOrderPriorityEnum = WorkOrderPriorityEnum.MEDIUM
@@ -201,7 +209,7 @@ class WorkOrderSheetBundle(BaseModel):
 
 
 class WorkOrderSheetDailyCountsResponse(BaseModel):
-    """Work-order counts keyed by start_date ISO string (for calendar dots)."""
+    """Work-order counts keyed by calendar date ISO string (for calendar dots)."""
     counts: dict[str, int]
 
 

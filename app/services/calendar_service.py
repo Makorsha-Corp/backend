@@ -136,7 +136,7 @@ class CalendarService(BaseService):
                 WorkOrder.workspace_id == workspace_id,
                 WorkOrder.is_deleted.is_(False),
                 or_(
-                    and_(WorkOrder.start_date.isnot(None), WorkOrder.start_date >= start, WorkOrder.start_date <= end),
+                    and_(WorkOrder.planned_date.isnot(None), WorkOrder.planned_date >= start, WorkOrder.planned_date <= end),
                     and_(WorkOrder.end_date.isnot(None), WorkOrder.end_date >= start, WorkOrder.end_date <= end),
                 ),
             )
@@ -151,7 +151,7 @@ class CalendarService(BaseService):
                     source_type="work_order",
                     category=CalendarCategory.WORK_ORDERS,
                     date_fields=[
-                        ("start_date", "Start date"),
+                        ("planned_date", "Planned date"),
                         ("end_date", "End date"),
                     ],
                     title=row.work_order_number,

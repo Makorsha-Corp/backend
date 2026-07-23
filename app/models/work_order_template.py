@@ -45,6 +45,8 @@ class WorkOrderTemplate(Base):
     recurrence_day = Column(Integer, nullable=True)
     next_generation_date = Column(Date, nullable=True)
     auto_generate = Column(Boolean, nullable=False, default=False)
+    # schedule = staged row on calendar; draft = live draft WO on generate
+    generation_mode = Column(String(20), nullable=False, default='schedule', server_default='schedule')
 
     # === SHEET DEFAULTS ===
     default_factory_section_id = Column(Integer, ForeignKey("factory_sections.id", ondelete="SET NULL"), nullable=True, index=True)

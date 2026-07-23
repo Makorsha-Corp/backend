@@ -37,7 +37,7 @@ class WorkOrder(Base):
     work_order_template_id = Column(Integer, ForeignKey("work_order_templates.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Scheduling
-    start_date = Column(Date, nullable=True)
+    planned_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
 
     # Decided at creation time (the Maintenance wizard's "parts?" question) — when False,
