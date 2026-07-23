@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class WorkOrderCreate(BaseModel):
     """Create work order"""
     work_order_type_id: int
-    title: str
+    title: str | None = None
     description: str | None = None
     priority: WorkOrderPriorityEnum = WorkOrderPriorityEnum.MEDIUM
     factory_id: int

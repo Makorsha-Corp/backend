@@ -34,16 +34,16 @@ from app.dao.account import account_dao
 from app.dao.item import item_dao
 from app.dao.machine import machine_dao
 from app.dao.machine_item import machine_item_dao
+from app.dao.project_component import project_component_dao
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
 
 DETAILS_FIELDS = frozenset({
-    'work_order_type_id', 'title', 'description', 'priority', 'machine_id', 'project_component_id',
+    'work_order_type_id', 'description', 'priority', 'machine_id', 'project_component_id',
     'cost', 'account_id',
 })
 ORDER_UPDATE_LOG_FIELDS = {
     'work_order_type_id': 'Work order type',
-    'title': 'Title',
     'description': 'Description',
     'priority': 'Priority',
     'machine_id': 'Machine',
@@ -81,7 +81,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def approvability_gap_reason(self, session: Session, wo: WorkOrder) -> str | None:
         if not (wo.title or '').strip():
-            return 'Add a title before approvals can proceed'
+            return 'Work order setup is incomplete'
         if wo.factory_id is None:
             return 'Set a factory before approvals can proceed'
         return None
@@ -135,6 +135,40 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             detail='Set an account on the work order before creating an invoice',
         )
 
+    def _derive_default_title(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        work_order_type_id: int,
+        factory_id: int,
+        machine_id: int | None,
+        project_component_id: int | None,
+        type_name: str | None = None,
+    ) -> str:
+        if not type_name:
+            wo_type = work_order_type_dao.get_by_id_and_workspace(
+                session, id=work_order_type_id, workspace_id=workspace_id
+            )
+            type_name = wo_type.name if wo_type else 'Work order'
+
+        target: str | None = None
+        if machine_id is not None:
+            machine = machine_dao.get_by_id_and_workspace(session, id=machine_id, workspace_id=workspace_id)
+            target = machine.name if machine else f'Machine #{machine_id}'
+        elif project_component_id is not None:
+            component = project_component_dao.get_by_id_and_workspace(
+                session, id=project_component_id, workspace_id=workspace_id
+            )
+            target = component.name if component else f'Component #{project_component_id}'
+
+        if target:
+            return f'{type_name} — {target}'
+        factory = factory_dao.get_by_id_and_workspace(session, id=factory_id, workspace_id=workspace_id)
+        if factory:
+            return f'{type_name} — {factory.name}'
+        return type_name
+
     # ─── CRUD ────────────────────────────────────────────────────
     def create_work_order(
         self, session: Session, data: WorkOrderCreate,
@@ -165,6 +199,19 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         wo_number = self.wo_dao.get_next_number(session, workspace_id=workspace_id)
 
         wo_dict = data.model_dump()
+        title = (wo_dict.get('title') or '').strip()
+        if not title:
+            wo_dict['title'] = self._derive_default_title(
+                session,
+                workspace_id,
+                work_order_type_id=data.work_order_type_id,
+                factory_id=data.factory_id,
+                machine_id=data.machine_id,
+                project_component_id=data.project_component_id,
+                type_name=wo_type.name,
+            )
+        else:
+            wo_dict['title'] = title
         wo_dict['workspace_id'] = workspace_id
         wo_dict['work_order_number'] = wo_number
         wo_dict['created_by'] = user_id
@@ -272,6 +319,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             update_dict['account_id'] = data.account_id
         if 'required_approvals' in explicit_fields:
             update_dict['required_approvals'] = data.required_approvals
+        update_dict.pop('title', None)
         if not update_dict:
             record._approvals_reset = False
             return record
@@ -312,6 +360,26 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             self.log_event(
                 session, wo_id, workspace_id, 'updated', 'Order details updated', user_id,
                 metadata={'changes': changes},
+            )
+
+        structural_target_change = {'work_order_type_id', 'machine_id', 'project_component_id'}.intersection(
+            update_dict
+        )
+        if structural_target_change and record.status == WorkOrderStatusEnum.DRAFT.value:
+            next_type_id = update_dict.get('work_order_type_id', record.work_order_type_id)
+            next_machine_id = update_dict['machine_id'] if 'machine_id' in update_dict else record.machine_id
+            next_component_id = (
+                update_dict['project_component_id']
+                if 'project_component_id' in update_dict
+                else record.project_component_id
+            )
+            update_dict['title'] = self._derive_default_title(
+                session,
+                workspace_id,
+                work_order_type_id=next_type_id,
+                factory_id=record.factory_id,
+                machine_id=next_machine_id,
+                project_component_id=next_component_id,
             )
 
         update_dict['updated_by'] = user_id
