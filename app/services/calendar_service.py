@@ -10,14 +10,12 @@ from sqlalchemy.orm import Session
 from app.models.account_invoice import AccountInvoice
 from app.models.expense_order import ExpenseOrder
 from app.models.invoice_payment import InvoicePayment
-from app.models.machine import Machine
 from app.models.production_batch import ProductionBatch
 from app.models.project import Project
 from app.models.purchase_order import PurchaseOrder
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_order import SalesOrder
 from app.models.work_order import WorkOrder
-from app.models.work_order_schedule import WorkOrderSchedule
 from app.schemas.calendar import CalendarCategory, CalendarEventResponse
 from app.services.base_service import BaseService
 
@@ -58,8 +56,6 @@ class CalendarService(BaseService):
 
         collectors: List[Callable[[], List[CalendarEventResponse]]] = [
             lambda: self._collect_work_orders(db, workspace_id, start, end, allowed),
-            lambda: self._collect_work_order_schedules(db, workspace_id, start, end, allowed),
-            lambda: self._collect_machines(db, workspace_id, start, end, allowed),
             lambda: self._collect_purchase_orders(db, workspace_id, start, end, allowed),
             lambda: self._collect_expense_orders(db, workspace_id, start, end, allowed),
             lambda: self._collect_sales_orders(db, workspace_id, start, end, allowed),
@@ -163,83 +159,6 @@ class CalendarService(BaseService):
                 )
             )
         return events
-
-    def _collect_work_order_schedules(
-        self,
-        db: Session,
-        workspace_id: int,
-        start: date,
-        end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
-        if not self._category_allowed(CalendarCategory.MAINTENANCE, allowed):
-            return []
-
-        rows = (
-            db.query(WorkOrderSchedule)
-            .filter(
-                WorkOrderSchedule.workspace_id == workspace_id,
-                WorkOrderSchedule.scheduled_date >= start,
-                WorkOrderSchedule.scheduled_date <= end,
-                WorkOrderSchedule.cancelled_at.is_(None),
-            )
-            .all()
-        )
-
-        return [
-            CalendarEventResponse(
-                id=_event_id("work_order_schedule", row.id, "scheduled_date"),
-                category=CalendarCategory.MAINTENANCE,
-                source_type="work_order_schedule",
-                record_id=row.id,
-                date=row.scheduled_date,
-                date_label="Scheduled maintenance",
-                title=row.title,
-                subtitle=f"Schedule #{row.id}",
-                link="/orders/work",
-                meta={"status": row.status.value if row.status else None},
-            )
-            for row in rows
-        ]
-
-    def _collect_machines(
-        self,
-        db: Session,
-        workspace_id: int,
-        start: date,
-        end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
-        if not self._category_allowed(CalendarCategory.MAINTENANCE, allowed):
-            return []
-
-        rows = (
-            db.query(Machine)
-            .filter(
-                Machine.workspace_id == workspace_id,
-                Machine.is_deleted.is_(False),
-                Machine.next_maintenance_schedule.isnot(None),
-                Machine.next_maintenance_schedule >= start,
-                Machine.next_maintenance_schedule <= end,
-            )
-            .all()
-        )
-
-        return [
-            CalendarEventResponse(
-                id=_event_id("machine", row.id, "next_maintenance_schedule"),
-                category=CalendarCategory.MAINTENANCE,
-                source_type="machine",
-                record_id=row.id,
-                date=row.next_maintenance_schedule,
-                date_label="Next maintenance",
-                title=row.name,
-                subtitle=row.next_maintenance_note,
-                link="/machines",
-                meta={"manufacturer": row.manufacturer},
-            )
-            for row in rows
-        ]
 
     def _collect_purchase_orders(
         self,

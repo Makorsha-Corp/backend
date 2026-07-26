@@ -5,6 +5,7 @@ from app.main import app
 SHEET_PATH = "/api/v1/work-orders/sheet/"
 SHEET_DAILY_COUNTS_PATH = "/api/v1/work-orders/sheet/daily-counts/"
 SHEET_ENTRY_PATH = "/api/v1/work-orders/sheet-entry/"
+COMPLETE_AS_PLANNED_SUFFIX = "/complete-as-planned/"
 GENERATE_DRAFTS_PATH = "/api/v1/work-order-templates/generate-drafts/"
 
 
@@ -28,6 +29,13 @@ def test_work_order_sheet_entry_post_route_registered() -> None:
     paths = _openapi_paths()
     assert SHEET_ENTRY_PATH in paths
     assert "post" in paths[SHEET_ENTRY_PATH]
+
+
+def test_work_order_complete_as_planned_route_registered() -> None:
+    paths = _openapi_paths()
+    sample = f"/api/v1/work-orders/{{wo_id}}{COMPLETE_AS_PLANNED_SUFFIX}"
+    assert sample in paths
+    assert "post" in paths[sample]
 
 
 def test_work_order_template_generate_drafts_route_registered() -> None:

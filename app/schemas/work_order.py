@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal, TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, model_validator
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 
 if TYPE_CHECKING:
@@ -115,6 +115,11 @@ class WorkOrderCompleteRequest(BaseModel):
     machine_status: Literal['IDLE', 'RUNNING'] | None = None
 
 
+class WorkOrderCompleteAsPlannedRequest(BaseModel):
+    completion_notes: str | None = None
+    machine_status: Literal['IDLE', 'RUNNING'] | None = None
+
+
 class WorkOrderApproverCreate(BaseModel):
     user_id: int
     approver_slot: str | None = None  # manager | agm
@@ -156,6 +161,14 @@ class WorkOrderEventMetadata(BaseModel):
     item_name: str | None = None
     invoice_id: int | None = None
     void_note: str | None = None
+    planned_date: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    variance_days: int | None = None
+    variance_label: str | None = None
+    field: str | None = None
+    from_value: str | None = None
+    to_value: str | None = None
 
 
 class WorkOrderEventResponse(BaseModel):
@@ -197,6 +210,7 @@ class WorkOrderSheetEntryCreate(BaseModel):
     account_id: int | None = None
     cost: Decimal | None = None
     template_id: int | None = None
+    recurrence_end_date: date | None = None
     items: List[WorkOrderSheetItemLine] = []
     approvers: List[WorkOrderSheetApproverLine] = []
 
@@ -208,9 +222,30 @@ class WorkOrderSheetBundle(BaseModel):
     approvers: WorkOrderApproversList
 
 
+class WorkOrderSheetListResponse(BaseModel):
+    """Paginated sheet bundles for the machines tab."""
+    items: List[WorkOrderSheetBundle]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
+
+
 class WorkOrderSheetDailyCountsResponse(BaseModel):
     """Work-order counts keyed by calendar date ISO string (for calendar dots)."""
     counts: dict[str, int]
+
+
+class BulkDeleteFutureRecurrenceDraftsRequest(BaseModel):
+    """Delete future DRAFT work orders from the same recurring template + machine."""
+    work_order_template_id: int
+    machine_id: int
+    after_date: date | None = None
+
+
+class BulkDeleteFutureRecurrenceDraftsResponse(BaseModel):
+    deleted_count: int
+    deleted_ids: List[int]
 
 
 def _rebuild_work_order_sheet_bundle() -> None:

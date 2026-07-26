@@ -19,8 +19,6 @@ MACHINE_LOG_FIELDS: dict[str, str] = {
     "model_number": "Model number",
     "manufacturer": "Manufacturer",
     "note": "Note",
-    "next_maintenance_schedule": "Next maintenance date",
-    "next_maintenance_note": "Next maintenance note",
 }
 
 MACHINE_ITEM_LOG_FIELDS: dict[str, str] = {

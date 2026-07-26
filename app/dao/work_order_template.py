@@ -52,7 +52,9 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
         rows = query.all()
         return [
             t for t in rows
-            if t.next_generation_date is None or t.next_generation_date <= target_date
+            if t.next_generation_date is not None
+            and t.next_generation_date <= target_date
+            and (t.recurrence_end_date is None or target_date <= t.recurrence_end_date)
         ]
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[WorkOrderTemplate]:

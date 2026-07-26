@@ -17,11 +17,15 @@ from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 from app.schemas.work_order import (
     WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse, WorkOrderVoidRequest,
     WorkOrderCompleteRequest,
+    WorkOrderCompleteAsPlannedRequest,
     WorkOrderApproverCreate, WorkOrderApproverResponse,
     ApprovalSummaryResponse, WorkOrderApproversList,
     WorkOrderEventMetadata, WorkOrderEventResponse,
     WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
+    WorkOrderSheetListResponse,
     WorkOrderSheetDailyCountsResponse,
+    BulkDeleteFutureRecurrenceDraftsRequest,
+    BulkDeleteFutureRecurrenceDraftsResponse,
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
@@ -64,6 +68,9 @@ def list_work_orders(
     priority: Optional[WorkOrderPriorityEnum] = Query(None),
     factory_id: Optional[int] = Query(None),
     machine_id: Optional[int] = Query(None),
+    work_order_template_id: Optional[int] = Query(None),
+    planned_date_from: Optional[date] = Query(None),
+    planned_date_to: Optional[date] = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -71,13 +78,37 @@ def list_work_orders(
         db, workspace_id=workspace.id,
         work_order_type_id=work_order_type_id, wo_status=wo_status, priority=priority,
         factory_id=factory_id, machine_id=machine_id,
+        work_order_template_id=work_order_template_id,
+        planned_date_from=planned_date_from, planned_date_to=planned_date_to,
         skip=skip, limit=limit
+    )
+
+
+@router.post(
+    "/bulk-delete-future-drafts/",
+    response_model=BulkDeleteFutureRecurrenceDraftsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Bulk delete future DRAFT work orders from a recurring program",
+)
+def bulk_delete_future_recurrence_drafts(
+    body: BulkDeleteFutureRecurrenceDraftsRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return work_order_service.bulk_delete_future_recurrence_drafts(
+        db,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        work_order_template_id=body.work_order_template_id,
+        machine_id=body.machine_id,
+        after_date=body.after_date,
     )
 
 
 @router.get(
     "/sheet/",
-    response_model=List[WorkOrderSheetBundle],
+    response_model=WorkOrderSheetListResponse,
     status_code=status.HTTP_200_OK,
     summary="List work orders with embedded items for sheet view",
 )
@@ -86,8 +117,14 @@ def list_work_orders_sheet(
     machine_id: Optional[int] = Query(None),
     planned_date_from: Optional[date] = Query(None),
     planned_date_to: Optional[date] = Query(None),
+    wo_status: Optional[WorkOrderStatusEnum] = Query(None, alias="status"),
+    status_scope: Optional[str] = Query(None, description="Special scope, e.g. planned for future drafts"),
+    work_order_type_id: Optional[int] = Query(None),
+    priority: Optional[WorkOrderPriorityEnum] = Query(None),
+    exclude_completed: bool = Query(False),
+    search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(1000, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=100),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -98,6 +135,12 @@ def list_work_orders_sheet(
         machine_id=machine_id,
         planned_date_from=planned_date_from,
         planned_date_to=planned_date_to,
+        status=wo_status,
+        status_scope=status_scope,
+        work_order_type_id=work_order_type_id,
+        priority=priority,
+        exclude_completed=exclude_completed,
+        search=search,
         skip=skip,
         limit=limit,
     )
@@ -137,7 +180,7 @@ def list_work_orders_sheet_daily_counts(
     "/sheet-entry/",
     response_model=WorkOrderResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Sheet row entry — find-or-create WO and append consumable lines",
+    summary="Sheet row entry — find-or-create draft work order for machine+date+type",
 )
 def create_work_order_sheet_entry(
     body: WorkOrderSheetEntryCreate,
@@ -249,6 +292,25 @@ def complete_work_order(
     db: Session = Depends(get_db),
 ):
     return work_order_service.complete_work_order(
+        db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id,
+        completion_notes=body.completion_notes, machine_status=body.machine_status,
+    )
+
+
+@router.post(
+    "/{wo_id}/complete-as-planned/",
+    response_model=WorkOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Complete draft work order using planned date as actuals",
+)
+def complete_work_order_as_planned(
+    wo_id: int,
+    body: WorkOrderCompleteAsPlannedRequest = WorkOrderCompleteAsPlannedRequest(),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return work_order_service.complete_work_order_as_planned(
         db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id,
         completion_notes=body.completion_notes, machine_status=body.machine_status,
     )

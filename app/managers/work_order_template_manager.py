@@ -164,6 +164,59 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
     def get_approvers(self, session: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
         return self.approver_dao.get_by_template(session, work_order_template_id=tpl_id, workspace_id=workspace_id)
 
+    def generate_drafts_for_anchored_range(
+        self,
+        session: Session,
+        *,
+        template: WorkOrderTemplate,
+        machine_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> List:
+        """Create draft WOs for every remaining date in an anchored recurring range."""
+        from app.managers.work_order_manager import work_order_manager
+        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
+        from app.models.work_order import WorkOrder
+        from app.utils.work_order_recurrence import advance_next_generation_date
+
+        if not template.is_recurring or template.recurrence_end_date is None:
+            return []
+
+        created: List[WorkOrder] = []
+        while (
+            template.next_generation_date is not None
+            and template.next_generation_date <= template.recurrence_end_date
+        ):
+            planned = template.next_generation_date
+            existing = work_order_manager.wo_dao.get_by_machine_date_type(
+                session,
+                workspace_id=workspace_id,
+                machine_id=machine_id,
+                planned_date=planned,
+                work_order_type_id=template.work_order_type_id,
+            )
+            if not existing:
+                wo = work_order_manager.create_work_order_from_template(
+                    session,
+                    template_id=template.id,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    overrides=WorkOrderFromTemplateCreate(
+                        machine_id=machine_id,
+                        planned_date=planned,
+                    ),
+                )
+                created.append(wo)
+
+            template.next_generation_date = advance_next_generation_date(
+                from_date=planned,
+                recurrence_type=template.recurrence_type,
+                recurrence_day=template.recurrence_day,
+            )
+
+        session.flush()
+        return created
+
     def generate_drafts(
         self,
         session: Session,
@@ -184,10 +237,6 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
             session, workspace_id=workspace_id, target_date=target_date,
             factory_section_id=factory_section_id, factory_id=factory_id,
         )
-        recurring = [
-            tpl for tpl in recurring
-            if getattr(tpl, 'generation_mode', 'schedule') == 'draft'
-        ]
         section_templates: List[WorkOrderTemplate] = []
         if factory_section_id is not None:
             all_active = self.tpl_dao.get_by_workspace(
@@ -208,6 +257,13 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
 
         created: List[WorkOrder] = []
         for tpl in templates:
+            if (
+                tpl.is_recurring
+                and tpl.recurrence_end_date is not None
+                and target_date > tpl.recurrence_end_date
+            ):
+                continue
+
             machine_ids = resolve_template_machine_ids(
                 session,
                 template=tpl,

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+    # Pre-live only: allow DELETE on non-draft work orders (soft-delete). Off in production by default.
+    WORK_ORDER_ALLOW_DEV_DELETE: bool = False
 
     # SSLCommerz payment gateway
     # MOCK_MODE must be False before STORE_ID/STORE_PASSWORD are real credentials.

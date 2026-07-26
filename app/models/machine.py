@@ -1,5 +1,5 @@
 """Machine model"""
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -19,9 +19,6 @@ class Machine(Base):
     # Machine metadata
     model_number = Column(String(200), nullable=True)
     manufacturer = Column(String(200), nullable=True)
-    # TODO: next_maintenance_* may be driven by machine_maintenance_logs. Design unclear - see progressDesign.md 2026-02-28
-    next_maintenance_schedule = Column(Date, nullable=True)
-    next_maintenance_note = Column(Text, nullable=True)
     note = Column(Text, nullable=True)
 
     # Audit fields

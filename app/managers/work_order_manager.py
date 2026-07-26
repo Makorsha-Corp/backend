@@ -6,6 +6,7 @@ from typing import Any, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.managers.base_manager import BaseManager
 from app.managers.inventory_movements import (
     item_name, post_stock_in, post_stock_out, ensure_machine_item, get_machine_unit_cost,
@@ -24,6 +25,7 @@ from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderSh
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.machine_event import MachineEventCreate
+from app.utils.work_order_recurrence import seed_recurrence_from_planned_date
 from app.dao.work_order import work_order_dao
 from app.dao.work_order_item import work_order_item_dao
 from app.dao.work_order_approver import work_order_approver_dao
@@ -97,6 +99,37 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             return str(value.value)
         text = str(value).strip()
         return text if text else '—'
+
+    def _variance_vs_planned(
+        self, planned_date: Optional[date], actual_dt: Optional[datetime],
+    ) -> Optional[dict]:
+        if not planned_date or not actual_dt:
+            return None
+        actual_day = actual_dt.date() if isinstance(actual_dt, datetime) else actual_dt
+        delta = (actual_day - planned_date).days
+        if delta == 0:
+            label = 'On plan'
+        else:
+            abs_n = abs(delta)
+            unit = 'day' if abs_n == 1 else 'days'
+            direction = 'early' if delta < 0 else 'late'
+            label = f'{abs_n} {unit} {direction}'
+        return {
+            'planned_date': planned_date.isoformat(),
+            'variance_days': delta,
+            'variance_label': label,
+        }
+
+    def _schedule_metadata_for_actual(
+        self, wo: WorkOrder, actual_dt: datetime, *, actual_field: str,
+    ) -> dict:
+        meta: dict = {actual_field: actual_dt.isoformat()}
+        if wo.planned_date:
+            meta['planned_date'] = wo.planned_date.isoformat()
+            variance = self._variance_vs_planned(wo.planned_date, actual_dt)
+            if variance:
+                meta.update(variance)
+        return meta
 
     def _collect_field_changes(self, session: Session, record: WorkOrder, update_dict: dict) -> List[dict]:
         changes: List[dict] = []
@@ -219,6 +252,12 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         wo = self.wo_dao.create(session, obj_in=wo_dict)
         self.log_event(session, wo.id, workspace_id, 'created', f'Work order {wo.work_order_number} created', user_id)
+        if wo.planned_date:
+            self.log_event(
+                session, wo.id, workspace_id, 'scheduled',
+                f'Scheduled for {wo.planned_date.isoformat()}', user_id,
+                metadata={'planned_date': wo.planned_date.isoformat()},
+            )
         # No approvers assigned yet ⇒ trivially approved; auto-advance immediately.
         self._recompute_approval_status(session, wo, workspace_id, user_id)
         return wo
@@ -361,6 +400,19 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 session, wo_id, workspace_id, 'updated', 'Order details updated', user_id,
                 metadata={'changes': changes},
             )
+            for change in changes:
+                if change['field'] not in ('planned_date', 'end_date'):
+                    continue
+                self.log_event(
+                    session, wo_id, workspace_id, 'schedule_updated',
+                    f'{change["label"]} changed', user_id,
+                    metadata={
+                        'field': change['field'],
+                        'from_value': change['from_value'],
+                        'to_value': change['to_value'],
+                        'changes': [change],
+                    },
+                )
 
         structural_target_change = {'work_order_type_id', 'machine_id', 'project_component_id'}.intersection(
             update_dict
@@ -401,14 +453,44 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         priority: Optional[WorkOrderPriorityEnum] = None,
         factory_id: Optional[int] = None,
         machine_id: Optional[int] = None,
+        work_order_template_id: Optional[int] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
         skip: int = 0, limit: int = 100
     ) -> List[WorkOrder]:
         return self.wo_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             work_order_type_id=work_order_type_id, status=wo_status, priority=priority,
             factory_id=factory_id, machine_id=machine_id,
+            work_order_template_id=work_order_template_id,
+            planned_date_from=planned_date_from, planned_date_to=planned_date_to,
             skip=skip, limit=limit
         )
+
+    def bulk_delete_future_recurrence_drafts(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        work_order_template_id: int,
+        machine_id: int,
+        after_date: Optional[date] = None,
+    ) -> List[int]:
+        from datetime import date as date_type
+        cutoff = after_date or date_type.today()
+        records = self.wo_dao.list_future_drafts_for_template_machine(
+            session,
+            workspace_id=workspace_id,
+            work_order_template_id=work_order_template_id,
+            machine_id=machine_id,
+            after_date=cutoff,
+        )
+        deleted_ids: List[int] = []
+        for record in records:
+            self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
+            deleted_ids.append(record.id)
+        return deleted_ids
 
     def delete_work_order(self, session: Session, wo_id: int, workspace_id: int, user_id: int) -> WorkOrder:
         record = self.wo_dao.get_by_id_and_workspace(session, id=wo_id, workspace_id=workspace_id)
@@ -416,7 +498,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Work order with ID {wo_id} not found")
         if record.is_deleted:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Work order is already deleted")
-        if record.status != WorkOrderStatusEnum.DRAFT.value:
+        allow_dev_delete = (
+            settings.ENVIRONMENT != "production" or settings.WORK_ORDER_ALLOW_DEV_DELETE
+        )
+        if record.status != WorkOrderStatusEnum.DRAFT.value and not allow_dev_delete:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only a draft work order can be deleted — void it instead",
@@ -778,7 +863,40 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Assigned approvers must approve before work can start',
             )
-        items = self.item_dao.get_by_work_order(session, work_order_id=wo_id, workspace_id=workspace_id)
+        pending_count, previous_machine_status = self._run_start_side_effects(
+            session, wo, workspace_id, user_id,
+        )
+
+        wo.status = WorkOrderStatusEnum.IN_PROGRESS.value
+        wo.started_by = user_id
+        if wo.planned_date is None:
+            wo.planned_date = datetime.utcnow().date()
+        wo.started_at = datetime.utcnow()
+        session.flush()
+        summary = f'{pending_count} item(s) consumed' if pending_count else 'no inventory items to consume'
+        started_metadata = {
+            'items_consumed': pending_count,
+            'previous_machine_status': previous_machine_status,
+        }
+        started_metadata.update(
+            self._schedule_metadata_for_actual(wo, wo.started_at, actual_field='started_at')
+        )
+        self.log_event(
+            session, wo_id, workspace_id, 'started',
+            f'Work started — {summary}', user_id,
+            metadata=started_metadata,
+        )
+        return wo
+
+    @staticmethod
+    def _planned_date_noon_utc(planned_date: date) -> datetime:
+        return datetime(planned_date.year, planned_date.month, planned_date.day, 12, 0, 0)
+
+    def _run_start_side_effects(
+        self, session: Session, wo: WorkOrder, workspace_id: int, user_id: int,
+    ) -> tuple[int, Optional[str]]:
+        """Consume pending inventory and set machine to maintenance. Does not change WO status."""
+        items = self.item_dao.get_by_work_order(session, work_order_id=wo.id, workspace_id=workspace_id)
         pending = [i for i in items if i.uses_inventory and i.consumed_at is None]
         for item in pending:
             self._consume_item(session, wo, item, user_id)
@@ -789,25 +907,79 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 session, wo.machine_id, workspace_id, user_id, MachineEventTypeEnum.MAINTENANCE,
                 work_order_number=wo.work_order_number, work_order_id=wo.id,
             )
+        return len(pending), previous_machine_status
 
-        wo.status = WorkOrderStatusEnum.IN_PROGRESS.value
-        wo.started_by = user_id
+    def complete_as_planned(
+        self,
+        session: Session,
+        wo_id: int,
+        workspace_id: int,
+        user_id: int,
+        *,
+        completion_notes: Optional[str] = None,
+        machine_status: Optional[MachineEventTypeEnum] = None,
+    ) -> WorkOrder:
+        wo = self.get_work_order(session, wo_id, workspace_id)
+        if wo.status != WorkOrderStatusEnum.DRAFT.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Work order must be in draft to complete as planned',
+            )
         if wo.planned_date is None:
-            wo.planned_date = datetime.utcnow().date()
-        wo.started_at = datetime.utcnow()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Work order must have a planned date',
+            )
+        today = datetime.utcnow().date()
+        if wo.planned_date > today:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Complete as planned is only allowed when the planned date is today or in the past',
+            )
+        if not self.approvals_met(session, wo):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Assigned approvers must approve before work can be completed',
+            )
+
+        pending_count, previous_machine_status = self._run_start_side_effects(
+            session, wo, workspace_id, user_id,
+        )
+        actual_at = self._planned_date_noon_utc(wo.planned_date)
+        wo.started_by = user_id
+        wo.started_at = actual_at
         session.flush()
-        summary = f'{len(pending)} item(s) consumed' if pending else 'no inventory items to consume'
+
+        summary = f'{pending_count} item(s) consumed' if pending_count else 'no inventory items to consume'
+        started_metadata = {
+            'items_consumed': pending_count,
+            'previous_machine_status': previous_machine_status,
+            'completion_mode': 'complete_as_planned',
+        }
+        started_metadata.update(
+            self._schedule_metadata_for_actual(wo, actual_at, actual_field='started_at')
+        )
         self.log_event(
             session, wo_id, workspace_id, 'started',
             f'Work started — {summary}', user_id,
-            metadata={'items_consumed': len(pending), 'previous_machine_status': previous_machine_status},
+            metadata=started_metadata,
         )
-        return wo
+
+        return self.finalize_completion(
+            session, wo, user_id,
+            completion_notes=completion_notes,
+            machine_status=machine_status,
+            completed_at=actual_at,
+            event_metadata_extra={'completion_mode': 'complete_as_planned'},
+        )
 
     def finalize_completion(
         self, session: Session, wo: WorkOrder, user_id: int,
         completion_notes: Optional[str] = None,
         machine_status: Optional[MachineEventTypeEnum] = None,
+        *,
+        completed_at: Optional[datetime] = None,
+        event_metadata_extra: Optional[dict[str, Any]] = None,
     ) -> WorkOrder:
         """Stamp completion and write the usage record onto the target (machine or component).
 
@@ -816,7 +988,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         auto-detected pre-start status."""
         wo.status = WorkOrderStatusEnum.COMPLETED.value
         wo.completed_by = user_id
-        wo.completed_at = datetime.utcnow()
+        wo.completed_at = completed_at if completed_at is not None else datetime.utcnow()
         if completion_notes is not None:
             wo.completion_notes = completion_notes
         session.flush()
@@ -851,7 +1023,16 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 summary, performed_by=user_id, metadata={'work_order_id': wo.id},
             )
 
-        self.log_event(session, wo.id, wo.workspace_id, 'completed', f'Work order {wo.work_order_number} marked complete', user_id)
+        completed_metadata = self._schedule_metadata_for_actual(
+            wo, wo.completed_at, actual_field='completed_at',
+        )
+        if event_metadata_extra:
+            completed_metadata = {**(completed_metadata or {}), **event_metadata_extra}
+        self.log_event(
+            session, wo.id, wo.workspace_id, 'completed',
+            f'Work order {wo.work_order_number} marked complete', user_id,
+            metadata=completed_metadata or None,
+        )
         return wo
 
     def void_work_order(self, session: Session, wo_id: int, workspace_id: int, user_id: int, void_note: str) -> WorkOrder:
@@ -994,13 +1175,59 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         return self.item_dao.get_by_work_order(session, work_order_id=wo_id, workspace_id=workspace_id)
 
     # ─── Sheet workflow ──────────────────────────────────────────
+    def _apply_sheet_entry_lines(
+        self,
+        session: Session,
+        wo: WorkOrder,
+        *,
+        items: List[dict],
+        approvers: List[dict],
+        machine_id: int,
+        factory_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        for raw in items:
+            source_type = raw.get('source_location_type') or 'storage'
+            source_id = raw.get('source_location_id')
+            if source_id is None:
+                source_id = machine_id if source_type == 'machine' else factory_id
+            self.add_item(
+                session,
+                data=WorkOrderItemCreate(
+                    work_order_id=wo.id,
+                    item_id=raw['item_id'],
+                    quantity=Decimal(str(raw['quantity'])),
+                    uses_inventory=True,
+                    source_location_type=source_type,
+                    source_location_id=source_id,
+                    action_type=raw.get('action_type') or 'CONSUME',
+                    replaced_item_id=raw.get('replaced_item_id'),
+                ),
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
+
+        for raw in approvers:
+            try:
+                self.add_approver(
+                    session,
+                    wo_id=wo.id,
+                    user_id=raw['user_id'],
+                    workspace_id=workspace_id,
+                    assigned_by=user_id,
+                    approver_slot=raw.get('approver_slot'),
+                )
+            except HTTPException as exc:
+                if exc.status_code != status.HTTP_409_CONFLICT:
+                    raise
+
     def sheet_entry(
         self, session: Session, data: WorkOrderSheetEntryCreate,
         workspace_id: int, user_id: int,
     ) -> WorkOrder:
-        """Find-or-create WO for machine+date+type; optionally append item lines."""
+        """Find-or-create draft WO for machine+date+type; merge lines when slot exists."""
         has_items = bool(data.items)
-
         machine = machine_dao.get_by_id_and_workspace(session, id=data.machine_id, workspace_id=workspace_id)
         if not machine:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Machine with ID {data.machine_id} not found")
@@ -1059,26 +1286,16 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             session.flush()
 
         if has_items:
-            for line in data.items:
-                source_type = line.source_location_type or 'storage'
-                source_id = line.source_location_id
-                if source_id is None:
-                    source_id = data.machine_id if source_type == 'machine' else factory_id
-                self.add_item(
-                    session,
-                    data=WorkOrderItemCreate(
-                        work_order_id=wo.id,
-                        item_id=line.item_id,
-                        quantity=line.quantity,
-                        uses_inventory=True,
-                        source_location_type=source_type,
-                        source_location_id=source_id,
-                        action_type=line.action_type,
-                        replaced_item_id=line.replaced_item_id,
-                    ),
-                    workspace_id=workspace_id,
-                    user_id=user_id,
-                )
+            self._apply_sheet_entry_lines(
+                session,
+                wo,
+                items=[line.model_dump(mode='json') for line in data.items],
+                approvers=[],
+                machine_id=data.machine_id,
+                factory_id=factory_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+            )
 
         for approver_line in data.approvers:
             try:
@@ -1094,7 +1311,50 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 if exc.status_code != status.HTTP_409_CONFLICT:
                     raise
 
+        if data.template_id:
+            self._maybe_seed_template_recurrence(
+                session,
+                template_id=data.template_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                machine_id=data.machine_id,
+                planned_date=data.planned_date,
+                recurrence_end_date=data.recurrence_end_date,
+            )
+
         return wo
+
+    def _maybe_seed_template_recurrence(
+        self,
+        session: Session,
+        *,
+        template_id: int,
+        workspace_id: int,
+        user_id: int,
+        machine_id: int,
+        planned_date: date,
+        recurrence_end_date: date | None,
+    ) -> None:
+        template = work_order_template_manager.get_template(session, template_id, workspace_id)
+        if not template.is_recurring or template.next_generation_date is not None:
+            return
+        if recurrence_end_date is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='recurrence_end_date is required when placing an unanchored recurring template',
+            )
+        try:
+            seed_recurrence_from_planned_date(template, planned_date, recurrence_end_date)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        session.flush()
+        work_order_template_manager.generate_drafts_for_anchored_range(
+            session,
+            template=template,
+            machine_id=machine_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
 
     def list_sheet_orders(
         self, session: Session, workspace_id: int,
@@ -1102,8 +1362,14 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         machine_id: Optional[int] = None,
         planned_date_from: Optional[date] = None,
         planned_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        status_scope: Optional[str] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+        exclude_completed: bool = False,
+        search: Optional[str] = None,
         skip: int = 0,
-        limit: int = 1000,
+        limit: int = 50,
     ) -> List[WorkOrder]:
         return self.wo_dao.list_for_sheet(
             session,
@@ -1112,8 +1378,44 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             machine_id=machine_id,
             planned_date_from=planned_date_from,
             planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
             skip=skip,
             limit=limit,
+        )
+
+    def count_sheet_orders(
+        self,
+        session: Session,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        status_scope: Optional[str] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+        exclude_completed: bool = False,
+        search: Optional[str] = None,
+    ) -> int:
+        return self.wo_dao.count_for_sheet(
+            session,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
         )
 
     def sheet_daily_counts(

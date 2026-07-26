@@ -3,9 +3,9 @@
 SECURITY: All queries MUST filter by workspace_id.
 """
 from datetime import date
-from typing import Dict, List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import Date, cast, desc, func
+from typing import Dict, List, Optional, Tuple
+from sqlalchemy.orm import Session, Query
+from sqlalchemy import Date, cast, desc, func, or_
 from app.dao.base import BaseDAO
 from app.models.work_order import WorkOrder
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
@@ -15,6 +15,94 @@ from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
 def _work_order_calendar_date_expr():
     """SQL: coalesce(planned_date, created_at as date)."""
     return func.coalesce(WorkOrder.planned_date, cast(WorkOrder.created_at, Date))
+
+
+def _apply_sheet_list_filters(
+    query: Query,
+    *,
+    calendar_date,
+    factory_id: Optional[int] = None,
+    machine_id: Optional[int] = None,
+    planned_date_from: Optional[date] = None,
+    planned_date_to: Optional[date] = None,
+    status: Optional[WorkOrderStatusEnum] = None,
+    status_scope: Optional[str] = None,
+    work_order_type_id: Optional[int] = None,
+    priority: Optional[WorkOrderPriorityEnum] = None,
+    exclude_completed: bool = False,
+    search: Optional[str] = None,
+) -> Query:
+    if factory_id:
+        query = query.filter(WorkOrder.factory_id == factory_id)
+    if machine_id:
+        query = query.filter(WorkOrder.machine_id == machine_id)
+    if planned_date_from:
+        query = query.filter(calendar_date >= planned_date_from)
+    if planned_date_to:
+        query = query.filter(calendar_date <= planned_date_to)
+    if status_scope == "planned":
+        today = date.today()
+        query = query.filter(
+            WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+            WorkOrder.planned_date.isnot(None),
+            WorkOrder.planned_date > today,
+        )
+    elif status:
+        query = query.filter(WorkOrder.status == status)
+    if work_order_type_id:
+        query = query.filter(WorkOrder.work_order_type_id == work_order_type_id)
+    if priority:
+        query = query.filter(WorkOrder.priority == priority)
+    if exclude_completed:
+        query = query.filter(WorkOrder.status != WorkOrderStatusEnum.COMPLETED.value)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                WorkOrder.work_order_number.ilike(pattern),
+                WorkOrder.description.ilike(pattern),
+                WorkOrder.assigned_to.ilike(pattern),
+            )
+        )
+    return query
+
+
+def _sheet_base_query(
+    db: Session,
+    *,
+    workspace_id: int,
+    factory_id: Optional[int] = None,
+    machine_id: Optional[int] = None,
+    planned_date_from: Optional[date] = None,
+    planned_date_to: Optional[date] = None,
+    status: Optional[WorkOrderStatusEnum] = None,
+    status_scope: Optional[str] = None,
+    work_order_type_id: Optional[int] = None,
+    priority: Optional[WorkOrderPriorityEnum] = None,
+    exclude_completed: bool = False,
+    search: Optional[str] = None,
+) -> Tuple[Query, object]:
+    calendar_date = _work_order_calendar_date_expr()
+    query = db.query(WorkOrder).filter(
+        WorkOrder.workspace_id == workspace_id,
+        WorkOrder.is_deleted == False,
+        WorkOrder.machine_id.isnot(None),
+    )
+    query = _apply_sheet_list_filters(
+        query,
+        calendar_date=calendar_date,
+        factory_id=factory_id,
+        machine_id=machine_id,
+        planned_date_from=planned_date_from,
+        planned_date_to=planned_date_to,
+        status=status,
+        status_scope=status_scope,
+        work_order_type_id=work_order_type_id,
+        priority=priority,
+        exclude_completed=exclude_completed,
+        search=search,
+    )
+    return query, calendar_date
 
 
 class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
@@ -27,6 +115,9 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         priority: Optional[WorkOrderPriorityEnum] = None,
         factory_id: Optional[int] = None,
         machine_id: Optional[int] = None,
+        work_order_template_id: Optional[int] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
         skip: int = 0, limit: int = 100
     ) -> List[WorkOrder]:
         """Get work orders with optional filters."""
@@ -44,7 +135,40 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             query = query.filter(WorkOrder.factory_id == factory_id)
         if machine_id:
             query = query.filter(WorkOrder.machine_id == machine_id)
+        if work_order_template_id is not None:
+            query = query.filter(WorkOrder.work_order_template_id == work_order_template_id)
+        if planned_date_from:
+            query = query.filter(WorkOrder.planned_date.isnot(None))
+            query = query.filter(WorkOrder.planned_date >= planned_date_from)
+        if planned_date_to:
+            query = query.filter(WorkOrder.planned_date.isnot(None))
+            query = query.filter(WorkOrder.planned_date <= planned_date_to)
         return query.order_by(desc(WorkOrder.created_at)).offset(skip).limit(limit).all()
+
+    def list_future_drafts_for_template_machine(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        work_order_template_id: int,
+        machine_id: int,
+        after_date: date,
+    ) -> List[WorkOrder]:
+        """Draft work orders for a recurring program with planned_date strictly after after_date."""
+        return (
+            db.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.is_deleted == False,
+                WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+                WorkOrder.work_order_template_id == work_order_template_id,
+                WorkOrder.machine_id == machine_id,
+                WorkOrder.planned_date.isnot(None),
+                WorkOrder.planned_date > after_date,
+            )
+            .order_by(WorkOrder.planned_date, WorkOrder.id)
+            .all()
+        )
 
     def get_by_machine_date_type(
         self,
@@ -79,29 +203,67 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         machine_id: Optional[int] = None,
         planned_date_from: Optional[date] = None,
         planned_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        status_scope: Optional[str] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+        exclude_completed: bool = False,
+        search: Optional[str] = None,
         skip: int = 0,
-        limit: int = 1000,
+        limit: int = 50,
     ) -> List[WorkOrder]:
-        query = db.query(WorkOrder).filter(
-            WorkOrder.workspace_id == workspace_id,
-            WorkOrder.is_deleted == False,
-            WorkOrder.machine_id.isnot(None),
+        query, calendar_date = _sheet_base_query(
+            db,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
         )
-        if factory_id:
-            query = query.filter(WorkOrder.factory_id == factory_id)
-        if machine_id:
-            query = query.filter(WorkOrder.machine_id == machine_id)
-        calendar_date = _work_order_calendar_date_expr()
-        if planned_date_from:
-            query = query.filter(calendar_date >= planned_date_from)
-        if planned_date_to:
-            query = query.filter(calendar_date <= planned_date_to)
         return (
             query.order_by(desc(calendar_date), desc(WorkOrder.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
+
+    def count_for_sheet(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+        machine_id: Optional[int] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        status_scope: Optional[str] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+        exclude_completed: bool = False,
+        search: Optional[str] = None,
+    ) -> int:
+        query, _calendar_date = _sheet_base_query(
+            db,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
+        )
+        return query.count()
 
     def count_by_calendar_date_for_sheet(
         self,
@@ -126,20 +288,17 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             WorkOrder.is_deleted == False,
             WorkOrder.machine_id.isnot(None),
         )
-        if factory_id:
-            query = query.filter(WorkOrder.factory_id == factory_id)
-        if machine_id:
-            query = query.filter(WorkOrder.machine_id == machine_id)
-        if planned_date_from:
-            query = query.filter(calendar_date >= planned_date_from)
-        if planned_date_to:
-            query = query.filter(calendar_date <= planned_date_to)
-        if status:
-            query = query.filter(WorkOrder.status == status)
-        if work_order_type_id:
-            query = query.filter(WorkOrder.work_order_type_id == work_order_type_id)
-        if priority:
-            query = query.filter(WorkOrder.priority == priority)
+        query = _apply_sheet_list_filters(
+            query,
+            calendar_date=calendar_date,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
+            status=status,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+        )
         rows = query.group_by(calendar_date).all()
         return {row[0]: row[1] for row in rows}
 

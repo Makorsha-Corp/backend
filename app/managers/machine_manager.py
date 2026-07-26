@@ -3,13 +3,14 @@ Machine Manager
 
 Business logic for machine operations including status tracking via activity events.
 """
+from datetime import date, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
 from app.models.machine import Machine
-from app.models.enums import MachineEventTypeEnum
+from app.models.enums import MachineEventTypeEnum, WorkOrderStatusEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
 from app.dao.machine import machine_dao
@@ -19,6 +20,7 @@ from app.managers.machine_activity_manager import (
     MACHINE_LOG_FIELDS,
 )
 from app.managers.machine_section_assignment_manager import machine_section_assignment_manager
+from app.services.machine_work_service import machine_work_service
 
 
 class MachineManager(BaseManager[Machine]):
@@ -245,22 +247,91 @@ class MachineManager(BaseManager[Machine]):
                 ]
             return machines
 
-        return self.machine_dao.search_advanced(
+        needs_work_semantics = maintenance_window != "all" or sort_by == "maintenance_date"
+        if not needs_work_semantics:
+            return self.machine_dao.search_advanced(
+                session,
+                workspace_id=workspace_id,
+                factory_id=factory_id,
+                factory_section_id=factory_section_id,
+                is_running=is_running,
+                search=search,
+                has_model_number=has_model_number,
+                has_manufacturer=has_manufacturer,
+                latest_event_type=latest_event_type,
+                sort_by=sort_by,
+                sort_dir=sort_dir,
+                skip=skip,
+                limit=limit,
+            )
+
+        machines = self.machine_dao.search_advanced(
             session,
             workspace_id=workspace_id,
             factory_id=factory_id,
             factory_section_id=factory_section_id,
             is_running=is_running,
             search=search,
-            maintenance_window=maintenance_window,
             has_model_number=has_model_number,
             has_manufacturer=has_manufacturer,
             latest_event_type=latest_event_type,
-            sort_by=sort_by,
-            sort_dir=sort_dir,
-            skip=skip,
-            limit=limit,
+            sort_by="name" if sort_by == "maintenance_date" else sort_by,
+            sort_dir=sort_dir if sort_by != "maintenance_date" else "asc",
+            skip=0,
+            limit=10_000,
         )
+
+        today = date.today()
+        query_end = today + timedelta(days=365)
+        dates_map = machine_work_service.dates_by_machine(
+            session,
+            workspace_id=workspace_id,
+            machine_ids=[m.id for m in machines],
+            start=today - timedelta(days=3650),
+            end=query_end,
+        )
+        overdue_dates_map = machine_work_service.dates_by_machine(
+            session,
+            workspace_id=workspace_id,
+            machine_ids=[m.id for m in machines],
+            start=today - timedelta(days=3650),
+            end=query_end,
+            statuses=(WorkOrderStatusEnum.IN_PROGRESS.value,),
+        )
+
+        def matches_window(machine: Machine) -> bool:
+            dates = dates_map.get(machine.id, [])
+            if maintenance_window == "all":
+                return True
+            if maintenance_window == "none_scheduled":
+                return machine_work_service.earliest_upcoming_on_or_after(dates, today) is None
+            if maintenance_window == "overdue":
+                return machine_work_service.has_overdue(overdue_dates_map.get(machine.id, []), today)
+            if maintenance_window == "next_7_days":
+                return machine_work_service.has_upcoming_in_horizon(dates, today, 7)
+            if maintenance_window == "next_30_days":
+                return machine_work_service.has_upcoming_in_horizon(dates, today, 30)
+            return True
+
+        if maintenance_window != "all":
+            machines = [m for m in machines if matches_window(m)]
+
+        if sort_by == "maintenance_date":
+            reverse = sort_dir == "desc"
+
+            def sort_key(machine: Machine) -> tuple:
+                upcoming = machine_work_service.earliest_upcoming_on_or_after(
+                    dates_map.get(machine.id, []), today
+                )
+                return (upcoming is None, upcoming or date.max)
+
+            machines.sort(key=sort_key, reverse=reverse)
+            if reverse:
+                machines.sort(key=lambda m: machine_work_service.earliest_upcoming_on_or_after(
+                    dates_map.get(m.id, []), today
+                ) is None)
+
+        return machines[skip : skip + limit]
 
     def delete_machine(
         self,

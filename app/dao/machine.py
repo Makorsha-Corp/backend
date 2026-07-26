@@ -1,6 +1,6 @@
 """DAO operations for Machine model (workspace-scoped)"""
 from typing import List, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
 from app.dao.base import BaseDAO
@@ -112,7 +112,6 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         factory_section_id: Optional[int] = None,
         is_running: Optional[bool] = None,
         search: Optional[str] = None,
-        maintenance_window: str = "all",
         has_model_number: Optional[bool] = None,
         has_manufacturer: Optional[bool] = None,
         latest_event_type: Optional[MachineEventTypeEnum] = None,
@@ -158,27 +157,6 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         elif has_manufacturer is False:
             query = query.filter(or_(Machine.manufacturer.is_(None), Machine.manufacturer == ""))
 
-        today = date.today()
-        if maintenance_window == "overdue":
-            query = query.filter(
-                Machine.next_maintenance_schedule.isnot(None),
-                Machine.next_maintenance_schedule < today
-            )
-        elif maintenance_window == "next_7_days":
-            query = query.filter(
-                Machine.next_maintenance_schedule.isnot(None),
-                Machine.next_maintenance_schedule >= today,
-                Machine.next_maintenance_schedule <= (today + timedelta(days=7))
-            )
-        elif maintenance_window == "next_30_days":
-            query = query.filter(
-                Machine.next_maintenance_schedule.isnot(None),
-                Machine.next_maintenance_schedule >= today,
-                Machine.next_maintenance_schedule <= (today + timedelta(days=30))
-            )
-        elif maintenance_window == "none_scheduled":
-            query = query.filter(Machine.next_maintenance_schedule.is_(None))
-
         if latest_event_type is not None:
             latest_created_subq = (
                 db.query(
@@ -220,12 +198,9 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         sort_field_map = {
             "name": Machine.name,
             "created_at": Machine.created_at,
-            "maintenance_date": Machine.next_maintenance_schedule,
         }
         sort_column = sort_field_map.get(sort_by, Machine.name)
         order_by_expr = sort_column.desc() if sort_dir == "desc" else sort_column.asc()
-        if sort_by == "maintenance_date":
-            order_by_expr = order_by_expr.nullslast()
 
         return query.order_by(order_by_expr, Machine.id.asc()).offset(skip).limit(limit).all()
 

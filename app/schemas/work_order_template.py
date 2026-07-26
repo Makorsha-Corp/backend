@@ -1,12 +1,10 @@
 """Work order template schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import List
 from pydantic import BaseModel, ConfigDict
 from app.models.enums import WorkOrderPriorityEnum
 from app.schemas.work_order_item import WorkOrderItemActionType
-
-WorkOrderTemplateGenerationMode = Literal['schedule', 'draft']
 
 
 class WorkOrderTemplateItemCreate(BaseModel):
@@ -56,8 +54,9 @@ class WorkOrderTemplateCreate(BaseModel):
     recurrence_type: str | None = None
     recurrence_day: int | None = None
     next_generation_date: date | None = None
+    recurrence_start_date: date | None = None
+    recurrence_end_date: date | None = None
     auto_generate: bool = False
-    generation_mode: WorkOrderTemplateGenerationMode = 'schedule'
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
 
@@ -79,8 +78,9 @@ class WorkOrderTemplateUpdate(BaseModel):
     recurrence_type: str | None = None
     recurrence_day: int | None = None
     next_generation_date: date | None = None
+    recurrence_start_date: date | None = None
+    recurrence_end_date: date | None = None
     auto_generate: bool | None = None
-    generation_mode: WorkOrderTemplateGenerationMode | None = None
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
 
@@ -104,8 +104,9 @@ class WorkOrderTemplateResponse(BaseModel):
     recurrence_type: str | None = None
     recurrence_day: int | None = None
     next_generation_date: date | None = None
+    recurrence_start_date: date | None = None
+    recurrence_end_date: date | None = None
     auto_generate: bool = False
-    generation_mode: WorkOrderTemplateGenerationMode = 'schedule'
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
     created_by: int | None = None

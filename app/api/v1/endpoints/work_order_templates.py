@@ -46,7 +46,7 @@ def list_work_order_templates(
     "/generate-drafts/",
     response_model=List[WorkOrderResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="Generate draft work orders from recurring/section templates",
+    summary="Generate draft work orders from recurring/section templates (deprecated — range auto-generates on sheet anchor)",
 )
 def generate_work_order_drafts(
     body: GenerateWorkOrderDraftsRequest,

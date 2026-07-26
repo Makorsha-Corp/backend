@@ -18,8 +18,6 @@ class MachineCreate(MachineBase):
 
     model_number: str | None = None
     manufacturer: str | None = None
-    next_maintenance_schedule: date | None = None
-    next_maintenance_note: str | None = None
     note: str | None = None
 
 
@@ -34,8 +32,6 @@ class MachineUpdate(BaseModel):
     factory_section_id: int | None = None
     model_number: str | None = None
     manufacturer: str | None = None
-    next_maintenance_schedule: date | None = None
-    next_maintenance_note: str | None = None
     note: str | None = None
 
 
@@ -54,8 +50,6 @@ class MachineResponse(BaseModel):
     # Machine metadata
     model_number: str | None = None
     manufacturer: str | None = None
-    next_maintenance_schedule: date | None = None
-    next_maintenance_note: str | None = None
     note: str | None = None
 
     # Audit fields

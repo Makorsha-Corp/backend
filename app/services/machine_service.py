@@ -1,6 +1,6 @@
 """Machine Service for orchestrating machine workflows"""
 
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 
 from app.services.base_service import BaseService
+from app.services.machine_work_service import machine_work_service
 
 from app.managers.machine_manager import machine_manager
 
@@ -18,6 +19,7 @@ from app.models.machine import Machine
 from app.models.enums import MachineEventTypeEnum
 
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse
+from app.schemas.machine_work import MachineUpcomingWorkRow
 
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
 
@@ -231,6 +233,48 @@ class MachineService(BaseService):
         )
 
         return self._to_machine_responses(db, machines, workspace_id)
+
+
+
+    def get_upcoming_work(
+
+        self,
+
+        db: Session,
+
+        *,
+
+        workspace_id: int,
+
+        within_days: int = 7,
+
+        factory_id: Optional[int] = None,
+
+        include_overdue: bool = False,
+
+    ) -> List[MachineUpcomingWorkRow]:
+
+        """Upcoming machine work within the next N days (live union)."""
+
+        today = date.today()
+
+        end = today + timedelta(days=within_days)
+
+        start = date(1970, 1, 1) if include_overdue else today
+
+        return machine_work_service.upcoming_work(
+
+            db,
+
+            workspace_id=workspace_id,
+
+            start=start,
+
+            end=end,
+
+            factory_id=factory_id,
+
+        )
 
 
 

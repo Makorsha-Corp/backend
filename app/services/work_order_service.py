@@ -18,7 +18,8 @@ from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, Machine
 from app.schemas.work_order import (
     WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse,
     WorkOrderApproversList, ApprovalSummaryResponse, WorkOrderApproverResponse,
-    WorkOrderSheetEntryCreate, WorkOrderSheetBundle, WorkOrderSheetDailyCountsResponse,
+    WorkOrderSheetEntryCreate, WorkOrderSheetBundle, WorkOrderSheetListResponse, WorkOrderSheetDailyCountsResponse,
+    BulkDeleteFutureRecurrenceDraftsResponse,
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
@@ -95,14 +96,47 @@ class WorkOrderService(BaseService):
         priority: Optional[WorkOrderPriorityEnum] = None,
         factory_id: Optional[int] = None,
         machine_id: Optional[int] = None,
+        work_order_template_id: Optional[int] = None,
+        planned_date_from: Optional[date] = None,
+        planned_date_to: Optional[date] = None,
         skip: int = 0, limit: int = 100
     ) -> List[WorkOrder]:
         return self.manager.list_work_orders(
             db, workspace_id=workspace_id,
             work_order_type_id=work_order_type_id, wo_status=wo_status, priority=priority,
             factory_id=factory_id, machine_id=machine_id,
+            work_order_template_id=work_order_template_id,
+            planned_date_from=planned_date_from, planned_date_to=planned_date_to,
             skip=skip, limit=limit
         )
+
+    def bulk_delete_future_recurrence_drafts(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        work_order_template_id: int,
+        machine_id: int,
+        after_date: Optional[date] = None,
+    ) -> BulkDeleteFutureRecurrenceDraftsResponse:
+        try:
+            deleted_ids = self.manager.bulk_delete_future_recurrence_drafts(
+                db,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                work_order_template_id=work_order_template_id,
+                machine_id=machine_id,
+                after_date=after_date,
+            )
+            self._commit_transaction(db)
+            return BulkDeleteFutureRecurrenceDraftsResponse(
+                deleted_count=len(deleted_ids),
+                deleted_ids=deleted_ids,
+            )
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
     def sheet_entry(
         self, db: Session, data: WorkOrderSheetEntryCreate,
@@ -123,13 +157,39 @@ class WorkOrderService(BaseService):
         machine_id: Optional[int] = None,
         planned_date_from: Optional[date] = None,
         planned_date_to: Optional[date] = None,
+        status: Optional[WorkOrderStatusEnum] = None,
+        status_scope: Optional[str] = None,
+        work_order_type_id: Optional[int] = None,
+        priority: Optional[WorkOrderPriorityEnum] = None,
+        exclude_completed: bool = False,
+        search: Optional[str] = None,
         skip: int = 0,
-        limit: int = 1000,
-    ) -> List[WorkOrderSheetBundle]:
+        limit: int = 50,
+    ) -> WorkOrderSheetListResponse:
+        total = self.manager.count_sheet_orders(
+            db,
+            workspace_id=workspace_id,
+            factory_id=factory_id,
+            machine_id=machine_id,
+            planned_date_from=planned_date_from,
+            planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
+        )
         orders = self.manager.list_sheet_orders(
             db, workspace_id=workspace_id,
             factory_id=factory_id, machine_id=machine_id,
             planned_date_from=planned_date_from, planned_date_to=planned_date_to,
+            status=status,
+            status_scope=status_scope,
+            work_order_type_id=work_order_type_id,
+            priority=priority,
+            exclude_completed=exclude_completed,
+            search=search,
             skip=skip, limit=limit,
         )
         bundles: List[WorkOrderSheetBundle] = []
@@ -161,7 +221,13 @@ class WorkOrderService(BaseService):
                     summary=ApprovalSummaryResponse(approved_count=approved_count, required=required, met=met),
                 ),
             ))
-        return bundles
+        return WorkOrderSheetListResponse(
+            items=bundles,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=skip + len(bundles) < total,
+        )
 
     def sheet_daily_counts(
         self,
@@ -243,6 +309,48 @@ class WorkOrderService(BaseService):
 
             record = self.manager.finalize_completion(
                 db, wo, user_id,
+                completion_notes=completion_notes,
+                machine_status=MachineEventTypeEnum(machine_status) if machine_status else None,
+            )
+            self._commit_transaction(db)
+            db.refresh(record)
+            return record
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def complete_work_order_as_planned(
+        self, db: Session, wo_id: int, workspace_id: int, user_id: int,
+        completion_notes: Optional[str] = None,
+        machine_status: Optional[str] = None,
+    ) -> WorkOrder:
+        try:
+            wo = self.manager.get_work_order(db, wo_id, workspace_id)
+            if wo.status == WorkOrderStatusEnum.COMPLETED.value:
+                return wo
+
+            if wo.account_id is not None:
+                if not wo.invoice_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='No invoice linked — create an invoice for this external work before completing',
+                    )
+                invoice = account_invoice_dao.get_by_id_and_workspace(db, id=wo.invoice_id, workspace_id=workspace_id)
+                if not invoice:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Linked invoice not found')
+                if invoice.invoice_status == 'voided':
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Linked invoice was voided — cannot complete this order')
+                if invoice.invoice_status == 'draft':
+                    invoice = self.account_invoice_manager.confirm_invoice(
+                        session=db, invoice_id=invoice.id, workspace_id=workspace_id, user_id=user_id,
+                    )
+                    notify_invoice_action(
+                        db, workspace_id=workspace_id, entity_type='work_order', entity_id=wo_id,
+                        actor_user_id=user_id, invoice_id=invoice.id, action='confirmed', order=wo,
+                    )
+
+            record = self.manager.complete_as_planned(
+                db, wo_id, workspace_id, user_id,
                 completion_notes=completion_notes,
                 machine_status=MachineEventTypeEnum(machine_status) if machine_status else None,
             )

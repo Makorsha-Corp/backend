@@ -13,6 +13,7 @@ from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse
+from app.schemas.machine_work import MachineUpcomingWorkRow
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
 from app.schemas.machine_activity_event import MachineActivityEventResponse
 from app.services.machine_service import machine_service
@@ -62,6 +63,32 @@ def get_machines(
         sort_by=sort_by,
         sort_dir=sort_dir,
         skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/upcoming-work/",
+    response_model=List[MachineUpcomingWorkRow],
+    status_code=status.HTTP_200_OK,
+    summary="Upcoming machine work",
+    description="Open work orders with planned dates per machine",
+)
+def get_upcoming_machine_work(
+    within_days: int = Query(7, ge=1, le=365),
+    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
+    include_overdue: bool = Query(
+        False, description="Include open work with date before today"
+    ),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Get upcoming machine work within the horizon."""
+    return machine_service.get_upcoming_work(
+        db,
+        workspace_id=workspace.id,
+        within_days=within_days,
+        factory_id=factory_id,
+        include_overdue=include_overdue,
     )
 
 
