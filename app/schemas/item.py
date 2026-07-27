@@ -1,7 +1,7 @@
 """Item schemas (renamed from Part)"""
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import List
+from typing import List, Literal
 
 
 class ItemBase(BaseModel):
@@ -10,6 +10,7 @@ class ItemBase(BaseModel):
     description: str | None = None
     unit: str
     sku: str | None = None
+    item_type: Literal["physical", "service"] = "physical"
 
 
 class ItemCreate(ItemBase):
@@ -23,6 +24,7 @@ class ItemUpdate(BaseModel):
     description: str | None = None
     unit: str | None = None
     sku: str | None = None
+    item_type: Literal["physical", "service"] | None = None
     is_active: bool | None = None
     tag_ids: List[int] | None = None  # Update tags if provided
 

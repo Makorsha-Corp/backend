@@ -13,6 +13,7 @@ class SalesDeliveryBase(BaseModel):
 
 class SalesDeliveryCreate(SalesDeliveryBase):
     """Sales delivery creation schema"""
+    delivery_method_id: int  # Required: how this shipment is going out
     delivery_status: str = 'planned'
 
 
@@ -21,6 +22,7 @@ class SalesDeliveryUpdate(BaseModel):
     scheduled_date: date | None = None
     actual_delivery_date: date | None = None
     delivery_status: str | None = None
+    delivery_method_id: int | None = None
     tracking_number: str | None = None
     notes: str | None = None
 
@@ -30,6 +32,7 @@ class SalesDeliveryResponse(SalesDeliveryBase):
     id: int
     workspace_id: int
     delivery_number: str
+    delivery_method_id: int | None = None
     actual_delivery_date: date | None = None
     delivery_status: str
     created_by: int

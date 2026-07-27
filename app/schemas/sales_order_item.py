@@ -1,22 +1,34 @@
 """Sales order item schemas"""
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from decimal import Decimal
 
 
-class SalesOrderItemInput(BaseModel):
+class _CatalogOrFreeTextMixin(BaseModel):
+    """Requires either a catalog item_id or a free-text description (e.g. 'Installation fee')."""
+    item_id: int | None = None
+    description: str | None = None
+
+    @model_validator(mode="after")
+    def _require_item_or_description(self):
+        if self.item_id is None and not (self.description and self.description.strip()):
+            raise ValueError("Provide either item_id (catalog item) or description (free-text line)")
+        return self
+
+
+class SalesOrderItemInput(_CatalogOrFreeTextMixin):
     """Simple input schema for creating order items (used with order creation)"""
-    item_id: int
     quantity_ordered: int
     unit_price: Decimal
+    requires_delivery: bool = True
     notes: str | None = None
 
 
-class SalesOrderItemBase(BaseModel):
+class SalesOrderItemBase(_CatalogOrFreeTextMixin):
     """Base sales order item schema"""
-    item_id: int
     quantity_ordered: int
     unit_price: Decimal
     line_total: Decimal
+    requires_delivery: bool = True
     notes: str | None = None
 
 
@@ -28,10 +40,12 @@ class SalesOrderItemCreate(SalesOrderItemBase):
 
 class SalesOrderItemUpdate(BaseModel):
     """Sales order item update schema"""
+    description: str | None = None
     quantity_ordered: int | None = None
     quantity_delivered: int | None = None
     unit_price: Decimal | None = None
     line_total: Decimal | None = None
+    requires_delivery: bool | None = None
     notes: str | None = None
 
 

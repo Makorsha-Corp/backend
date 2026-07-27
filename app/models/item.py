@@ -21,3 +21,5 @@ class Item(Base):
     created_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
     updated_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
+    item_type = Column(String(20), nullable=False, default="physical", server_default="physical")
+    # 'physical' (ships, deducts inventory) | 'service' (one-click fulfill, no inventory movement)

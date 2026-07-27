@@ -84,6 +84,7 @@ from app.models.sales_order_item import SalesOrderItem
 # Sales Deliveries
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_delivery_item import SalesDeliveryItem
+from app.models.delivery_method import DeliveryMethod
 # Production
 from app.models.production_line import ProductionLine
 from app.models.production_formula import ProductionFormula
