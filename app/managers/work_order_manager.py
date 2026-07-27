@@ -737,6 +737,104 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         item.total_cost = None
         session.flush()
 
+    def _adjust_consumed_item_quantity(
+        self,
+        session: Session,
+        wo: WorkOrder,
+        item: WorkOrderItem,
+        *,
+        old_qty: Decimal,
+        new_qty: Decimal,
+        user_id: int,
+    ) -> None:
+        if old_qty == new_qty or not item.uses_inventory:
+            return
+        if wo.status != WorkOrderStatusEnum.IN_PROGRESS.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Consumed item quantity can only be adjusted while the work order is in progress',
+            )
+
+        old_int = int(old_qty) if old_qty == old_qty.to_integral_value() else None
+        new_int = int(new_qty) if new_qty == new_qty.to_integral_value() else None
+        if old_int is None or new_int is None or new_int <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Quantity must be a positive whole number for inventory-tracked consumed lines',
+            )
+
+        delta = new_int - old_int
+        name = item_name(session, item.item_id, wo.workspace_id)
+        source_label = (
+            f"machine #{item.source_location_id}" if item.source_location_type == 'machine' else 'storage'
+        )
+
+        if delta > 0:
+            unit_cost = post_stock_out(
+                session,
+                location_type=item.source_location_type,
+                location_id=item.source_location_id,
+                item_id=item.item_id,
+                qty=delta,
+                transaction_type='consumption',
+                source_type='work_order',
+                source_id=wo.id,
+                notes=f'{wo.work_order_number} — {name} qty increased by {delta}',
+                workspace_id=wo.workspace_id,
+                user_id=user_id,
+                activity_event_type='consumption',
+                activity_description=(
+                    f'Additional {delta} {name} consumed for work order {wo.work_order_number} (qty adjustment)'
+                ),
+            )
+            prior_total = item.total_cost or Decimal('0')
+            new_total = (prior_total + unit_cost * Decimal(delta)).quantize(Decimal('0.01'))
+            item.unit_cost = (new_total / Decimal(new_int)).quantize(Decimal('0.01'))
+            item.total_cost = new_total
+        else:
+            return_qty = -delta
+            post_stock_in(
+                session,
+                location_type=item.source_location_type,
+                location_id=item.source_location_id,
+                item_id=item.item_id,
+                qty=return_qty,
+                unit_cost=item.unit_cost or Decimal('0'),
+                transaction_type='consumption_reversal',
+                source_type='work_order',
+                source_id=wo.id,
+                notes=f'{wo.work_order_number} — {name} qty reduced by {return_qty}',
+                workspace_id=wo.workspace_id,
+                user_id=user_id,
+                activity_event_type='consumption_reversed',
+                activity_description=(
+                    f'Returned {return_qty} {name} — work order {wo.work_order_number} line qty adjusted'
+                ),
+            )
+            if item.unit_cost is not None:
+                item.total_cost = (item.unit_cost * Decimal(new_int)).quantize(Decimal('0.01'))
+            else:
+                item.total_cost = None
+
+        session.flush()
+
+        if wo.machine_id:
+            machine_activity_manager.log_event(
+                session,
+                wo.machine_id,
+                wo.workspace_id,
+                'work_order_item_qty_adjusted',
+                f'Adjusted {name} from {old_int} to {new_int} ({source_label}) for work order {wo.work_order_number}',
+                performed_by=user_id,
+                metadata={
+                    'item_id': item.item_id,
+                    'item_name': name,
+                    'old_quantity': old_int,
+                    'new_quantity': new_int,
+                    'work_order_id': wo.id,
+                },
+            )
+
     def _apply_item_completion(self, session: Session, wo: WorkOrder, item: WorkOrderItem, user_id: int) -> None:
         """Apply the completion-time inventory movement implied by an item's action_type.
         CONSUME (the default) is a no-op here — it was fully handled at start. Only
@@ -1134,14 +1232,48 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         self, session: Session, item_id: int, data: WorkOrderItemUpdate, workspace_id: int, user_id: int
     ) -> WorkOrderItem:
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
-        if not record:
+        if not record or record.is_deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order item not found")
         wo = self.get_work_order(session, record.work_order_id, workspace_id)
         self._guard_item_mutations(wo)
-        if record.consumed_at is not None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Item has already been consumed — void the order to reverse it')
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        if not update_dict:
+            return record
+
+        old_qty = record.quantity
+        new_qty = update_dict.get('quantity', old_qty)
+
+        if record.consumed_at is not None:
+            disallowed = set(update_dict.keys()) - {'quantity', 'notes'}
+            if disallowed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Consumed lines only support quantity and notes updates',
+                )
+            if 'quantity' in update_dict and new_qty != old_qty:
+                self._adjust_consumed_item_quantity(
+                    session, wo, record, old_qty=old_qty, new_qty=new_qty, user_id=user_id,
+                )
+            update_dict['updated_by'] = user_id
+            result = self.item_dao.update(session, db_obj=record, obj_in=update_dict)
+            if 'quantity' in update_dict and new_qty != old_qty:
+                name = item_name(session, result.item_id, workspace_id)
+                self.log_event(
+                    session,
+                    wo.id,
+                    workspace_id,
+                    'item_quantity_adjusted',
+                    f'Adjusted {name} from {old_qty} to {new_qty}',
+                    user_id,
+                    metadata={
+                        'item_id': result.item_id,
+                        'old_quantity': str(old_qty),
+                        'new_quantity': str(new_qty),
+                    },
+                )
+            return result
+
         update_dict['updated_by'] = user_id
         result = self.item_dao.update(session, db_obj=record, obj_in=update_dict)
 
@@ -1155,18 +1287,33 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def remove_item(self, session: Session, item_id: int, workspace_id: int, user_id: int) -> WorkOrderItem:
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
-        if not record:
+        if not record or record.is_deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work order item not found")
         wo = self.get_work_order(session, record.work_order_id, workspace_id)
         self._guard_item_mutations(wo)
-        if record.consumed_at is not None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Item has already been consumed — void the order to reverse it')
+
+        if wo.status in (WorkOrderStatusEnum.COMPLETED.value, WorkOrderStatusEnum.VOIDED.value):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Cannot remove parts from a completed or voided work order',
+            )
 
         name = item_name(session, record.item_id, workspace_id)
-        session.delete(record)
+        was_consumed = record.consumed_at is not None
+
+        if wo.status == WorkOrderStatusEnum.IN_PROGRESS.value and was_consumed and record.uses_inventory:
+            self._reverse_item_consumption(session, wo, record, user_id)
+
+        record.is_deleted = True
+        record.deleted_at = datetime.utcnow()
+        record.deleted_by = user_id
         session.flush()
-        self.log_event(session, wo.id, workspace_id, 'item_removed', f'Removed {name}', user_id)
-        if self._has_recorded_approvals(session, wo.id, workspace_id):
+
+        event_type = 'item_voided' if was_consumed else 'item_removed'
+        event_msg = f'Voided {name}' if was_consumed else f'Removed {name}'
+        self.log_event(session, wo.id, workspace_id, event_type, event_msg, user_id)
+
+        if wo.status == WorkOrderStatusEnum.DRAFT.value and self._has_recorded_approvals(session, wo.id, workspace_id):
             self.reset_approvals(session, wo.id, workspace_id, user_id, reason='Items edited')
         return record
 
@@ -1226,7 +1373,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         self, session: Session, data: WorkOrderSheetEntryCreate,
         workspace_id: int, user_id: int,
     ) -> WorkOrder:
-        """Find-or-create draft WO for machine+date+type; merge lines when slot exists."""
+        """Create a new draft WO for machine+date+type; apply lines and approvers."""
         has_items = bool(data.items)
         machine = machine_dao.get_by_id_and_workspace(session, id=data.machine_id, workspace_id=workspace_id)
         if not machine:
@@ -1239,50 +1386,26 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         if not wo_type:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Work order type not found')
 
-        wo = self.wo_dao.get_by_machine_date_type(
+        wo = self.create_work_order(
             session,
+            data=WorkOrderCreate(
+                work_order_type_id=data.work_order_type_id,
+                title=f'{wo_type.name} — {machine.name}',
+                description=data.description,
+                priority=data.priority,
+                factory_id=factory_id,
+                machine_id=machine.id,
+                planned_date=data.planned_date,
+                uses_inventory=has_items,
+                assigned_to=data.assigned_to,
+                account_id=data.account_id,
+                cost=data.cost,
+            ),
             workspace_id=workspace_id,
-            machine_id=data.machine_id,
-            planned_date=data.planned_date,
-            work_order_type_id=data.work_order_type_id,
+            user_id=user_id,
         )
-        if wo is None:
-            wo = self.create_work_order(
-                session,
-                data=WorkOrderCreate(
-                    work_order_type_id=data.work_order_type_id,
-                    title=f'{wo_type.name} — {machine.name}',
-                    description=data.description,
-                    priority=data.priority,
-                    factory_id=factory_id,
-                    machine_id=machine.id,
-                    planned_date=data.planned_date,
-                    uses_inventory=has_items,
-                    assigned_to=data.assigned_to,
-                    account_id=data.account_id,
-                    cost=data.cost,
-                ),
-                workspace_id=workspace_id,
-                user_id=user_id,
-            )
-            if data.template_id:
-                wo.work_order_template_id = data.template_id
-                session.flush()
-        else:
-            if data.assigned_to:
-                wo.assigned_to = data.assigned_to
-            if data.description:
-                wo.description = data.description
-            if data.priority:
-                wo.priority = data.priority
-            if data.account_id is not None and wo.account_id is None:
-                wo.account_id = data.account_id
-            if data.cost is not None and wo.cost is None:
-                wo.cost = data.cost
-            if data.template_id is not None and wo.work_order_template_id is None:
-                wo.work_order_template_id = data.template_id
-            if has_items and not wo.uses_inventory:
-                wo.uses_inventory = True
+        if data.template_id:
+            wo.work_order_template_id = data.template_id
             session.flush()
 
         if has_items:

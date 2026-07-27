@@ -1,10 +1,12 @@
 """Purchase order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 PurchaseOrderSection = Literal['supplier', 'details', 'items', 'invoice']
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.order_hub import OrderHubPendingHighlight, OrderHubRecentSummary
 
 
 class ActiveOrderRow(BaseModel):
@@ -140,8 +142,33 @@ class PurchaseOrderResponse(BaseModel):
     updated_at: datetime | None = None
     items_updated_at: datetime | None = None
     invoice_payment_status: str | None = None
+    item_count: int = 0
+    quantity_ordered_total: Decimal = Decimal("0")
+    quantity_received_total: Decimal = Decimal("0")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseOrderHubStatsResponse(BaseModel):
+    total_count: int
+    total_value: Decimal
+    open_count: int
+    open_value: Decimal
+    not_invoiced_count: int
+    recent_orders: List[OrderHubRecentSummary] = []
+    pending_planning_count: int = 0
+    pending_planning: List[OrderHubPendingHighlight] = []
+    missing_invoice_count: int = 0
+    missing_invoice: List[OrderHubPendingHighlight] = []
+    oldest_drafts: List[OrderHubPendingHighlight] = []
+
+
+class PurchaseOrderListResponse(BaseModel):
+    items: List[PurchaseOrderResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
 
 
 class PurchaseOrderApproverCreate(BaseModel):

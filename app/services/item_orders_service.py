@@ -312,6 +312,7 @@ class ItemOrdersService:
         filters = [
             WorkOrder.workspace_id == workspace_id,
             WorkOrderItem.item_id == item_id,
+            WorkOrderItem.is_deleted.is_(False),
         ]
         if from_date is not None and to_date is not None:
             filters.append(_in_date_range(order_date_col, from_date, to_date))

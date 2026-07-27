@@ -200,7 +200,7 @@ class WorkOrderSheetApproverLine(BaseModel):
 
 
 class WorkOrderSheetEntryCreate(BaseModel):
-    """Single-transaction sheet row create — merges into existing WO when same machine+date+type."""
+    """Single-transaction sheet row create — always creates a new work order."""
     machine_id: int
     work_order_type_id: int
     planned_date: date

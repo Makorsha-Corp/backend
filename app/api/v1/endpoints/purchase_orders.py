@@ -1,4 +1,5 @@
 """Purchase order API endpoints"""
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.schemas.purchase_order import (
     PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
+    PurchaseOrderListResponse, PurchaseOrderHubStatsResponse,
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
     PurchaseOrderItemSyncRequest,
     PurchaseOrderVoidRequest,
@@ -45,27 +47,65 @@ def _approver_response(record, profile=None, position=None) -> PurchaseOrderAppr
 router = APIRouter()
 
 
-# ─── Purchase Orders ───────────────────────────────────────────
+def _read_purchase_order_hub_filters(
+    account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    status_ids: Optional[List[int]] = Query(None),
+    factory_id: Optional[int] = Query(None),
+    destination_type: Optional[str] = Query(None),
+    invoice_filter: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    exclude_complete: bool = Query(False),
+    exclude_voided: bool = Query(False),
+) -> dict:
+    return {
+        "account_id": account_id,
+        "invoice_id": invoice_id,
+        "date_from": date_from,
+        "date_to": date_to,
+        "status_ids": status_ids,
+        "factory_id": factory_id,
+        "destination_type": destination_type,
+        "invoice_filter": invoice_filter,
+        "search": search,
+        "exclude_complete": exclude_complete,
+        "exclude_voided": exclude_voided,
+    }
+
+
+@router.get(
+    "/stats/",
+    response_model=PurchaseOrderHubStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Purchase order hub KPI stats",
+)
+def get_purchase_order_hub_stats(
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_purchase_order_hub_filters),
+):
+    return purchase_order_service.get_purchase_order_hub_stats(
+        db, workspace_id=workspace.id, **hub_filters
+    )
+
 
 @router.get(
     "/",
-    response_model=List[PurchaseOrderResponse],
+    response_model=PurchaseOrderListResponse,
     status_code=status.HTTP_200_OK,
     summary="List purchase orders"
 )
 def list_purchase_orders(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    account_id: Optional[int] = Query(None),
-    invoice_id: Optional[int] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_purchase_order_hub_filters),
 ):
     return purchase_order_service.list_purchase_orders(
-        db, workspace_id=workspace.id,
-        account_id=account_id,
-        invoice_id=invoice_id,
-        skip=skip, limit=limit
+        db, workspace_id=workspace.id, skip=skip, limit=limit, **hub_filters
     )
 
 

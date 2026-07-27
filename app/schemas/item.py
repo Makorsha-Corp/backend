@@ -1,5 +1,5 @@
 """Item schemas (renamed from Part)"""
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import List
 
@@ -52,3 +52,12 @@ class ItemWithTagsResponse(ItemBase):
     tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ItemListResponse(BaseModel):
+    """Paginated active items with tags for catalog list views."""
+    items: List[ItemWithTagsResponse] = Field(default_factory=list)
+    total: int = 0
+    skip: int = 0
+    limit: int = 0
+    has_more: bool = False

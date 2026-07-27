@@ -1,4 +1,5 @@
 """Expense order API endpoints"""
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.schemas.expense_order import (
     ExpenseOrderCreate, ExpenseOrderUpdate, ExpenseOrderResponse,
+    ExpenseOrderListResponse, ExpenseOrderHubStatsResponse,
     ExpenseOrderFromTemplateCreate, ExpenseOrderVoidRequest,
     ExpenseOrderItemCreate, ExpenseOrderItemUpdate, ExpenseOrderItemResponse,
     ExpenseOrderApproverCreate, ExpenseOrderApproverResponse,
@@ -38,25 +40,63 @@ def _approver_response(record, profile=None, position=None) -> ExpenseOrderAppro
 router = APIRouter()
 
 
+def _read_expense_order_hub_filters(
+    expense_category: Optional[str] = Query(None),
+    account_id: Optional[int] = Query(None),
+    invoice_id: Optional[int] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    status_ids: Optional[List[int]] = Query(None),
+    invoice_filter: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    exclude_complete: bool = Query(False),
+    exclude_voided: bool = Query(False),
+) -> dict:
+    return {
+        "expense_category": expense_category,
+        "account_id": account_id,
+        "invoice_id": invoice_id,
+        "date_from": date_from,
+        "date_to": date_to,
+        "status_ids": status_ids,
+        "invoice_filter": invoice_filter,
+        "search": search,
+        "exclude_complete": exclude_complete,
+        "exclude_voided": exclude_voided,
+    }
+
+
+@router.get(
+    "/stats/",
+    response_model=ExpenseOrderHubStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Expense order hub KPI stats",
+)
+def get_expense_order_hub_stats(
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_expense_order_hub_filters),
+):
+    return expense_order_service.get_expense_order_hub_stats(
+        db, workspace_id=workspace.id, **hub_filters
+    )
+
+
 @router.get(
     "/",
-    response_model=List[ExpenseOrderResponse],
+    response_model=ExpenseOrderListResponse,
     status_code=status.HTTP_200_OK,
     summary="List expense orders"
 )
 def list_expense_orders(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    expense_category: Optional[str] = Query(None),
-    account_id: Optional[int] = Query(None),
-    invoice_id: Optional[int] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_expense_order_hub_filters),
 ):
     return expense_order_service.list_expense_orders(
-        db, workspace_id=workspace.id,
-        expense_category=expense_category, account_id=account_id, invoice_id=invoice_id,
-        skip=skip, limit=limit
+        db, workspace_id=workspace.id, skip=skip, limit=limit, **hub_filters
     )
 
 

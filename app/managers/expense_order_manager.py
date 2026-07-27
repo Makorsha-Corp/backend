@@ -297,6 +297,38 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             skip=skip, limit=limit
         )
 
+    def list_expense_orders_for_hub(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        **filters,
+    ) -> List[ExpenseOrder]:
+        return self.eo_dao.list_for_hub(
+            session,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+            **filters,
+        )
+
+    def count_expense_orders_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ) -> int:
+        return self.eo_dao.count_for_hub(session, workspace_id=workspace_id, **filters)
+
+    def expense_order_hub_stats(self, session: Session, workspace_id: int, **filters):
+        return self.eo_dao.aggregate_hub_stats(session, workspace_id=workspace_id, **filters)
+
+    def list_expense_orders_recent_for_hub(
+        self, session: Session, workspace_id: int, *, limit: int = 10, **filters
+    ):
+        return self.eo_dao.list_recent_for_hub(
+            session, workspace_id=workspace_id, limit=limit, **filters
+        )
+
     def delete_expense_order(self, session: Session, eo_id: int, workspace_id: int) -> None:
         record = self.eo_dao.get_by_id_and_workspace(session, id=eo_id, workspace_id=workspace_id)
         if not record:

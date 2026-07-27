@@ -1,4 +1,5 @@
 """Transfer Order Service - transaction orchestration"""
+from datetime import date
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
@@ -68,11 +69,143 @@ class TransferOrderService(BaseService):
 
     def list_transfer_orders(
         self, db: Session, workspace_id: int,
-        skip: int = 0, limit: int = 100
-    ) -> List[TransferOrder]:
-        return self.manager.list_transfer_orders(
-            db, workspace_id=workspace_id,
-            skip=skip, limit=limit
+        skip: int = 0, limit: int = 100,
+        **hub_filters,
+    ):
+        return self.list_transfer_orders_page(
+            db, workspace_id, skip=skip, limit=limit, **hub_filters
+        )
+
+    def _hub_filter_kwargs(
+        self,
+        *,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        source_location_type: Optional[str] = None,
+        destination_location_type: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+    ) -> dict:
+        return {
+            "date_from": date_from,
+            "date_to": date_to,
+            "status_ids": status_ids,
+            "factory_id": factory_id,
+            "source_location_type": source_location_type
+            if source_location_type and source_location_type != "all"
+            else None,
+            "destination_location_type": destination_location_type
+            if destination_location_type and destination_location_type != "all"
+            else None,
+            "search": search,
+            "exclude_complete": exclude_complete,
+        }
+
+    def list_transfer_orders_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        source_location_type: Optional[str] = None,
+        destination_location_type: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+    ):
+        from app.schemas.transfer_order import TransferOrderListResponse
+
+        filters = self._hub_filter_kwargs(
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            factory_id=factory_id,
+            source_location_type=source_location_type,
+            destination_location_type=destination_location_type,
+            search=search,
+            exclude_complete=exclude_complete,
+        )
+        total = self.manager.count_transfer_orders_for_hub(db, workspace_id, **filters)
+        orders = self.manager.list_transfer_orders_for_hub(
+            db, workspace_id, skip=skip, limit=limit, **filters
+        )
+        return TransferOrderListResponse(
+            items=orders,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=skip + len(orders) < total,
+        )
+
+    def get_transfer_order_hub_stats(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        source_location_type: Optional[str] = None,
+        destination_location_type: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+    ):
+        from app.schemas.transfer_order import TransferOrderHubStatsResponse
+
+        filters = self._hub_filter_kwargs(
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            factory_id=factory_id,
+            source_location_type=source_location_type,
+            destination_location_type=destination_location_type,
+            search=search,
+            exclude_complete=exclude_complete,
+        )
+        total_count, open_count, completed_count = self.manager.transfer_order_hub_stats(
+            db, workspace_id, **filters
+        )
+        recent = self.manager.list_transfer_orders_recent_for_hub(
+            db, workspace_id, limit=10, **filters
+        )
+        machine_involved_count = (
+            self.manager.count_transfer_orders_machine_involved_for_hub(
+                db, workspace_id, **filters
+            )
+        )
+        from app.services.order_hub_stats_helpers import (
+            pending_highlight_from_dict,
+            transfer_order_to_recent_summary,
+        )
+
+        pending = self.manager.transfer_order_pending_highlights_for_hub(
+            db, workspace_id, **filters
+        )
+
+        return TransferOrderHubStatsResponse(
+            total_count=total_count,
+            open_count=open_count,
+            completed_count=completed_count,
+            machine_involved_count=machine_involved_count,
+            recent_orders=[transfer_order_to_recent_summary(o) for o in recent],
+            pending_planned_count=pending["pending_planned_count"],
+            pending_planned=[
+                pending_highlight_from_dict(x) for x in pending["pending_planned"]
+            ],
+            awaiting_setup_count=pending["awaiting_setup_count"],
+            awaiting_setup=[
+                pending_highlight_from_dict(x) for x in pending["awaiting_setup"]
+            ],
+            oldest_drafts=[
+                pending_highlight_from_dict(x) for x in pending["oldest_drafts"]
+            ],
         )
 
     def delete_transfer_order(self, db: Session, to_id: int, workspace_id: int) -> None:

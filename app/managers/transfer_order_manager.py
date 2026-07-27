@@ -358,6 +358,52 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             skip=skip, limit=limit
         )
 
+    def list_transfer_orders_for_hub(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        **filters,
+    ) -> List[TransferOrder]:
+        return self.to_dao.list_for_hub(
+            session,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+            **filters,
+        )
+
+    def count_transfer_orders_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ) -> int:
+        return self.to_dao.count_for_hub(session, workspace_id=workspace_id, **filters)
+
+    def transfer_order_hub_stats(self, session: Session, workspace_id: int, **filters):
+        return self.to_dao.aggregate_hub_stats(session, workspace_id=workspace_id, **filters)
+
+    def list_transfer_orders_recent_for_hub(
+        self, session: Session, workspace_id: int, *, limit: int = 10, **filters
+    ):
+        return self.to_dao.list_recent_for_hub(
+            session, workspace_id=workspace_id, limit=limit, **filters
+        )
+
+    def count_transfer_orders_machine_involved_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ) -> int:
+        return self.to_dao.count_machine_involved_for_hub(
+            session, workspace_id=workspace_id, **filters
+        )
+
+    def transfer_order_pending_highlights_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ):
+        return self.to_dao.get_pending_highlights_for_hub(
+            session, workspace_id=workspace_id, **filters
+        )
+
     def delete_transfer_order(self, session: Session, to_id: int, workspace_id: int) -> None:
         record = self.to_dao.get_by_id_and_workspace(session, id=to_id, workspace_id=workspace_id)
         if not record:

@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.order_hub import OrderHubPendingHighlight, OrderHubRecentSummary
+
 
 class TransferOrderItemCreate(BaseModel):
     item_id: int
@@ -79,6 +81,27 @@ class TransferOrderResponse(BaseModel):
     completed_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TransferOrderHubStatsResponse(BaseModel):
+    total_count: int
+    open_count: int
+    completed_count: int
+    machine_involved_count: int = 0
+    recent_orders: List[OrderHubRecentSummary] = []
+    pending_planned_count: int = 0
+    pending_planned: List[OrderHubPendingHighlight] = []
+    awaiting_setup_count: int = 0
+    awaiting_setup: List[OrderHubPendingHighlight] = []
+    oldest_drafts: List[OrderHubPendingHighlight] = []
+
+
+class TransferOrderListResponse(BaseModel):
+    items: List[TransferOrderResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
 
 
 class TransferOrderApproverCreate(BaseModel):

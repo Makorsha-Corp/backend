@@ -57,4 +57,8 @@ class WorkOrderItemResponse(BaseModel):
     updated_at: datetime | None = None
     updated_by: int | None = None
 
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
+    deleted_by: int | None = None
+
     model_config = ConfigDict(from_attributes=True)

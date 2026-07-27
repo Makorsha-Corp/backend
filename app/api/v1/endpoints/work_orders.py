@@ -180,7 +180,7 @@ def list_work_orders_sheet_daily_counts(
     "/sheet-entry/",
     response_model=WorkOrderResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Sheet row entry — find-or-create draft work order for machine+date+type",
+    summary="Sheet row entry — create draft work order for machine+date+type",
 )
 def create_work_order_sheet_entry(
     body: WorkOrderSheetEntryCreate,

@@ -29,6 +29,7 @@ from app.schemas.purchase_order import (
 from app.dao.account_invoice import account_invoice_dao
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
+from app.managers.po_receive_inventory import post_receive_event_inventory, reverse_po_receive_inventory
 from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse, PoReceiveEventItemResponse
 from app.services.approval_notification_service import (
     detect_section_unconfirmed,
@@ -417,21 +418,170 @@ class PurchaseOrderService(BaseService):
         self, db: Session, workspace_id: int,
         account_id: Optional[int] = None,
         invoice_id: Optional[int] = None,
-        skip: int = 0, limit: int = 100
-    ) -> List[PurchaseOrder]:
-        orders = self.manager.list_purchase_orders(
-            db, workspace_id=workspace_id,
+        skip: int = 0, limit: int = 100,
+        **hub_filters,
+    ):
+        return self.list_purchase_orders_page(
+            db,
+            workspace_id,
+            skip=skip,
+            limit=limit,
             account_id=account_id,
             invoice_id=invoice_id,
-            skip=skip, limit=limit
+            **hub_filters,
         )
+
+    def _hub_filter_kwargs(
+        self,
+        *,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        destination_type: Optional[str] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ) -> dict:
+        return {
+            "account_id": account_id,
+            "invoice_id": invoice_id,
+            "date_from": date_from,
+            "date_to": date_to,
+            "status_ids": status_ids,
+            "factory_id": factory_id,
+            "destination_type": destination_type,
+            "invoice_filter": invoice_filter if invoice_filter and invoice_filter != "all" else None,
+            "search": search,
+            "exclude_complete": exclude_complete,
+            "exclude_voided": exclude_voided,
+        }
+
+    def _prepare_listed_orders(self, db: Session, workspace_id: int, orders: List[PurchaseOrder]) -> List[PurchaseOrder]:
         self._attach_invoice_payment_status(db, orders)
+        self._attach_item_summaries(db, workspace_id, orders)
         stage_changed = any(
             self.manager.sync_po_stage(db, po, workspace_id, None) for po in orders
         )
         if stage_changed:
             self._commit_transaction(db)
         return orders
+
+    def list_purchase_orders_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        destination_type: Optional[str] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ):
+        from app.schemas.purchase_order import PurchaseOrderListResponse
+
+        filters = self._hub_filter_kwargs(
+            account_id=account_id,
+            invoice_id=invoice_id,
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            factory_id=factory_id,
+            destination_type=destination_type,
+            invoice_filter=invoice_filter,
+            search=search,
+            exclude_complete=exclude_complete,
+            exclude_voided=exclude_voided,
+        )
+        total = self.manager.count_purchase_orders_for_hub(db, workspace_id, **filters)
+        orders = self.manager.list_purchase_orders_for_hub(
+            db, workspace_id, skip=skip, limit=limit, **filters
+        )
+        orders = self._prepare_listed_orders(db, workspace_id, orders)
+        return PurchaseOrderListResponse(
+            items=orders,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=skip + len(orders) < total,
+        )
+
+    def get_purchase_order_hub_stats(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        factory_id: Optional[int] = None,
+        destination_type: Optional[str] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ):
+        from app.schemas.purchase_order import PurchaseOrderHubStatsResponse
+
+        filters = self._hub_filter_kwargs(
+            account_id=account_id,
+            invoice_id=invoice_id,
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            factory_id=factory_id,
+            destination_type=destination_type,
+            invoice_filter=invoice_filter,
+            search=search,
+            exclude_complete=exclude_complete,
+            exclude_voided=exclude_voided,
+        )
+        total_count, total_value, open_count, open_value, not_invoiced_count = (
+            self.manager.purchase_order_hub_stats(db, workspace_id, **filters)
+        )
+        recent = self.manager.list_purchase_orders_recent_for_hub(
+            db, workspace_id, limit=10, **filters
+        )
+        pending = self.manager.purchase_order_pending_highlights_for_hub(
+            db, workspace_id, **filters
+        )
+        from app.services.order_hub_stats_helpers import (
+            pending_highlight_from_dict,
+            purchase_order_to_recent_summary,
+        )
+
+        return PurchaseOrderHubStatsResponse(
+            total_count=total_count,
+            total_value=total_value,
+            open_count=open_count,
+            open_value=open_value,
+            not_invoiced_count=not_invoiced_count,
+            recent_orders=[purchase_order_to_recent_summary(o) for o in recent],
+            pending_planning_count=pending["pending_planning_count"],
+            pending_planning=[
+                pending_highlight_from_dict(x) for x in pending["pending_planning"]
+            ],
+            missing_invoice_count=pending["missing_invoice_count"],
+            missing_invoice=[
+                pending_highlight_from_dict(x) for x in pending["missing_invoice"]
+            ],
+            oldest_drafts=[
+                pending_highlight_from_dict(x) for x in pending["oldest_drafts"]
+            ],
+        )
 
     @staticmethod
     def _attach_invoice_payment_status(db: Session, orders: List[PurchaseOrder]) -> None:
@@ -448,6 +598,28 @@ class PurchaseOrderService(BaseService):
         status_map = {inv_id: ps for inv_id, ps in rows}
         for o in orders:
             o.invoice_payment_status = status_map.get(o.invoice_id)
+
+    @staticmethod
+    def _attach_item_summaries(db: Session, workspace_id: int, orders: List[PurchaseOrder]) -> None:
+        from decimal import Decimal
+
+        from app.dao.purchase_order import purchase_order_item_dao
+
+        po_ids = [o.id for o in orders]
+        summaries = purchase_order_item_dao.summarize_by_purchase_order_ids(
+            db, workspace_id=workspace_id, purchase_order_ids=po_ids
+        )
+        zero = Decimal("0")
+        for o in orders:
+            summary = summaries.get(o.id)
+            if summary is None:
+                o.item_count = 0
+                o.quantity_ordered_total = zero
+                o.quantity_received_total = zero
+            else:
+                o.item_count = summary["item_count"]
+                o.quantity_ordered_total = summary["quantity_ordered_total"]
+                o.quantity_received_total = summary["quantity_received_total"]
 
     def create_receive_event(
         self, db: Session, po_id: int, workspace_id: int, user_id: int,
@@ -490,16 +662,45 @@ class PurchaseOrderService(BaseService):
             db.add(event)
             db.flush()
 
+            event_item_pairs: list[tuple[PoReceiveEventItem, PurchaseOrderItem]] = []
             for line in data.items:
-                db.add(PoReceiveEventItem(
+                event_item = PoReceiveEventItem(
                     receive_event_id=event.id,
                     po_item_id=line.po_item_id,
                     quantity_delta=line.quantity_delta,
-                ))
+                )
+                db.add(event_item)
+                event_item_pairs.append((event_item, item_map[line.po_item_id]))
                 it = item_map[line.po_item_id]
                 it.quantity_received = Decimal(str(it.quantity_received or 0)) + line.quantity_delta
 
             db.flush()
+
+            lines_posted = post_receive_event_inventory(
+                db, po, event_item_pairs, workspace_id, user_id
+            )
+            if lines_posted > 0:
+                dest_label = (
+                    'factory storage'
+                    if po.destination_type == 'storage'
+                    else 'machine inventory'
+                    if po.destination_type == 'machine'
+                    else 'inventory'
+                )
+                self.manager.log_event(
+                    db,
+                    po_id,
+                    workspace_id,
+                    'inventory_posted',
+                    f'{lines_posted} receive line(s) posted to {dest_label}',
+                    user_id,
+                    metadata={
+                        'receive_event_id': event.id,
+                        'lines_posted': lines_posted,
+                        'destination_type': po.destination_type,
+                        'destination_id': po.destination_id,
+                    },
+                )
 
             rcc_part = f' RCC: {data.rcc}.' if data.rcc else ''
             by_part = f' Received by: {data.received_by}.' if data.received_by else ''
@@ -916,10 +1117,21 @@ class PurchaseOrderService(BaseService):
                     detail='Purchase order is already voided',
                 )
 
-            if po.order_completed:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Cannot void a completed purchase order',
+            po_lines = self.manager.item_dao.get_by_order(
+                db, purchase_order_id=po_id, workspace_id=workspace_id
+            )
+            reversed_count = reverse_po_receive_inventory(
+                db, po, po_lines, workspace_id, user_id
+            )
+            if reversed_count > 0:
+                self.manager.log_event(
+                    db,
+                    po_id,
+                    workspace_id,
+                    'inventory_reversed',
+                    f'{reversed_count} inventory posting(s) reversed for void',
+                    user_id,
+                    metadata={'reversed_count': reversed_count},
                 )
 
             if po.invoice_id is not None:

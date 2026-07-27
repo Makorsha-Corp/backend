@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemWithTagsResponse
+from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemWithTagsResponse, ItemListResponse
 from app.schemas.item_similar import SimilarItemsResponse
 from app.schemas.item_orders import ItemOrdersListResponse, ItemOrderType
 from app.schemas.item_summary import ItemSummaryResponse
@@ -26,26 +26,49 @@ router = APIRouter()
 
 
 @router.get(
+    "/units/",
+    response_model=List[str],
+    status_code=status.HTTP_200_OK,
+    summary="List distinct item units",
+    description="Distinct units for active items in the workspace (catalog filter dropdown).",
+)
+def get_item_units(
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return item_service.get_distinct_units(db, workspace_id=workspace.id)
+
+
+@router.get(
     "/",
-    response_model=List[ItemWithTagsResponse],
+    response_model=ItemListResponse,
     status_code=status.HTTP_200_OK,
     summary="List all items with tags",
     description="""
-    Get all items with their tags included, with pagination and optional search.
+    Get active items with their tags included, with pagination and optional filters.
 
-    Returns direct list of items with tags (no wrapper).
+    Returns paginated list with total count.
     """
 )
 def get_items(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, le=100, description="Maximum number of records to return"),
-    search: Optional[str] = Query(None, description="Search by item name"),
+    search: Optional[str] = Query(None, description="Search name, description, sku, id, or tag name"),
+    unit: Optional[str] = Query(None, description="Filter by exact unit"),
+    tag_ids: Optional[List[int]] = Query(None, description="Filter by any of these tag IDs"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
-    """Get all items with their tags included"""
-    items = item_service.get_items_with_tags(db, workspace_id=workspace.id, search=search, skip=skip, limit=limit)
-    return items
+    """Get paginated active items with their tags included."""
+    return item_service.get_items_page(
+        db,
+        workspace_id=workspace.id,
+        search=search,
+        skip=skip,
+        limit=limit,
+        unit=unit,
+        tag_ids=tag_ids,
+    )
 
 
 @router.get(

@@ -12,6 +12,35 @@ from app.schemas.item_tag_assignment import ItemTagAssignmentCreate, ItemTagAssi
 class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, ItemTagAssignmentResponse]):
     """DAO operations for ItemTagAssignment model"""
 
+    def get_tags_for_items(
+        self, db: Session, *, item_ids: List[int], workspace_id: int
+    ) -> Dict[int, List[ItemTag]]:
+        """
+        Get tags for multiple items in one query (SECURITY-CRITICAL).
+
+        Returns:
+            Mapping of item_id -> tags ordered by tag name.
+        """
+        if not item_ids:
+            return {}
+
+        rows = (
+            db.query(ItemTagAssignment.item_id, ItemTag)
+            .join(ItemTag, ItemTag.id == ItemTagAssignment.tag_id)
+            .filter(
+                ItemTagAssignment.item_id.in_(item_ids),
+                ItemTagAssignment.workspace_id == workspace_id,
+                ItemTag.is_active == True,
+            )
+            .order_by(ItemTagAssignment.item_id, ItemTag.name)
+            .all()
+        )
+
+        tags_by_item: Dict[int, List[ItemTag]] = {item_id: [] for item_id in item_ids}
+        for item_id, tag in rows:
+            tags_by_item[item_id].append(tag)
+        return tags_by_item
+
     def get_tags_for_item(
         self, db: Session, *, item_id: int, workspace_id: int
     ) -> List[ItemTag]:

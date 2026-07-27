@@ -36,8 +36,6 @@ from app.db.seed_po_workflow import (
     ensure_po_stage_statuses,
     ensure_po_workflow_record,
 )
-from app.managers.po_storage_inventory import post_purchase_order_to_storage
-from app.managers.po_machine_inventory import post_purchase_order_to_machine
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -417,16 +415,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail='All line items must be fully received before marking the order complete',
             )
 
-        lines_posted = 0
-        if po.destination_type == 'storage':
-            lines_posted = post_purchase_order_to_storage(
-                session, po, items, workspace_id, user_id
-            )
-        elif po.destination_type == 'machine':
-            lines_posted = post_purchase_order_to_machine(
-                session, po, items, workspace_id, user_id
-            )
-
         po.current_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, PO_COMPLETE
         )
@@ -437,27 +425,6 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
         self.sync_po_paid(session, po, workspace_id, user_id)
         self.sync_po_stage(session, po, workspace_id, user_id)
-        if lines_posted > 0:
-            if po.destination_type == 'storage':
-                self.log_event(
-                    session,
-                    po.id,
-                    workspace_id,
-                    'inventory_posted',
-                    f'{lines_posted} line(s) added to factory storage',
-                    user_id,
-                    metadata={'factory_id': po.destination_id, 'lines_posted': lines_posted},
-                )
-            elif po.destination_type == 'machine':
-                self.log_event(
-                    session,
-                    po.id,
-                    workspace_id,
-                    'inventory_posted',
-                    f'{lines_posted} line(s) added to machine inventory',
-                    user_id,
-                    metadata={'machine_id': po.destination_id, 'lines_posted': lines_posted},
-                )
         self.log_event(
             session, po.id, workspace_id, 'order_completed',
             'Order marked complete', user_id,
@@ -950,15 +917,79 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             skip=skip, limit=limit
         )
 
+    def list_purchase_orders_for_hub(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        **filters,
+    ) -> List[PurchaseOrder]:
+        return self.po_dao.list_for_hub(
+            session,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+            **filters,
+        )
+
+    def count_purchase_orders_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ) -> int:
+        return self.po_dao.count_for_hub(session, workspace_id=workspace_id, **filters)
+
+    def purchase_order_hub_stats(
+        self, session: Session, workspace_id: int, **filters
+    ):
+        return self.po_dao.aggregate_hub_stats(session, workspace_id=workspace_id, **filters)
+
+    def list_purchase_orders_recent_for_hub(
+        self, session: Session, workspace_id: int, *, limit: int = 10, **filters
+    ):
+        return self.po_dao.list_recent_for_hub(
+            session, workspace_id=workspace_id, limit=limit, **filters
+        )
+
+    def purchase_order_pending_highlights_for_hub(
+        self, session: Session, workspace_id: int, **filters
+    ):
+        return self.po_dao.get_pending_highlights_for_hub(
+            session, workspace_id=workspace_id, **filters
+        )
+
     def delete_purchase_order(self, session: Session, po_id: int, workspace_id: int) -> None:
         record = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
         if not record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Purchase order with ID {po_id} not found")
-        # Delete line items explicitly to avoid FK issues when DB constraints
-        # were created without cascading deletes.
+
+        from app.models.po_receive_event import PoReceiveEvent
+
+        receive_event_count = (
+            session.query(PoReceiveEvent.id)
+            .filter(
+                PoReceiveEvent.purchase_order_id == po_id,
+                PoReceiveEvent.workspace_id == workspace_id,
+            )
+            .count()
+        )
+        if receive_event_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Cannot delete a purchase order with receiving history — void the order instead',
+            )
+
         line_items = self.item_dao.get_by_order(
             session, purchase_order_id=po_id, workspace_id=workspace_id
         )
+        if any(self._quantity_received_decimal(line) > 0 for line in line_items):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Cannot delete a purchase order with recorded receiving — void the order instead',
+            )
+
+        # Delete line items explicitly to avoid FK issues when DB constraints
+        # were created without cascading deletes.
         for line_item in line_items:
             session.delete(line_item)
         session.flush()

@@ -1,5 +1,6 @@
 """Transfer order API endpoints"""
-from typing import List
+from datetime import date
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from app.models.workspace import Workspace
 from app.models.profile import Profile
 from app.schemas.transfer_order import (
     TransferOrderCreate, TransferOrderUpdate, TransferOrderResponse,
+    TransferOrderListResponse, TransferOrderHubStatsResponse,
     TransferOrderItemCreate, TransferOrderItemUpdate, TransferOrderItemResponse,
     TransferOrderApproverCreate, TransferOrderApproverResponse,
     ApprovalSummaryResponse, TransferOrderApproversList,
@@ -37,23 +39,61 @@ def _approver_response(record, profile=None, position=None) -> TransferOrderAppr
 router = APIRouter()
 
 
+def _read_transfer_order_hub_filters(
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    status_ids: Optional[List[int]] = Query(None),
+    factory_id: Optional[int] = Query(None),
+    source_location_type: Optional[str] = Query(None),
+    destination_location_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    exclude_complete: bool = Query(False),
+) -> dict:
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "status_ids": status_ids,
+        "factory_id": factory_id,
+        "source_location_type": source_location_type,
+        "destination_location_type": destination_location_type,
+        "search": search,
+        "exclude_complete": exclude_complete,
+    }
+
+
 # ─── Transfer Orders ───────────────────────────────────────────
 
 @router.get(
+    "/stats/",
+    response_model=TransferOrderHubStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Transfer order hub KPI stats",
+)
+def get_transfer_order_hub_stats(
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_transfer_order_hub_filters),
+):
+    return transfer_order_service.get_transfer_order_hub_stats(
+        db, workspace_id=workspace.id, **hub_filters
+    )
+
+
+@router.get(
     "/",
-    response_model=List[TransferOrderResponse],
+    response_model=TransferOrderListResponse,
     status_code=status.HTTP_200_OK,
     summary="List transfer orders"
 )
 def list_transfer_orders(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=100),
     workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    hub_filters: dict = Depends(_read_transfer_order_hub_filters),
 ):
     return transfer_order_service.list_transfer_orders(
-        db, workspace_id=workspace.id,
-        skip=skip, limit=limit
+        db, workspace_id=workspace.id, skip=skip, limit=limit, **hub_filters
     )
 
 

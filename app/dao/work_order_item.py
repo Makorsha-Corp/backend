@@ -13,13 +13,21 @@ class WorkOrderItemDAO(BaseDAO[WorkOrderItem, WorkOrderItemCreate, WorkOrderItem
     """DAO for WorkOrderItem model (workspace-scoped)"""
 
     def get_by_work_order(
-        self, db: Session, *, work_order_id: int, workspace_id: int
+        self,
+        db: Session,
+        *,
+        work_order_id: int,
+        workspace_id: int,
+        include_deleted: bool = False,
     ) -> List[WorkOrderItem]:
         """Get all items for a work order."""
-        return db.query(WorkOrderItem).filter(
+        query = db.query(WorkOrderItem).filter(
             WorkOrderItem.work_order_id == work_order_id,
             WorkOrderItem.workspace_id == workspace_id,
-        ).all()
+        )
+        if not include_deleted:
+            query = query.filter(WorkOrderItem.is_deleted.is_(False))
+        return query.all()
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int

@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.order_hub import OrderHubRecentSummary
+
 
 class ExpenseOrderItemCreate(BaseModel):
     description: str | None = None
@@ -97,6 +99,23 @@ class ExpenseOrderResponse(BaseModel):
     voided_by: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ExpenseOrderHubStatsResponse(BaseModel):
+    total_count: int
+    total_value: Decimal
+    open_count: int
+    open_value: Decimal
+    not_invoiced_count: int
+    recent_orders: List[OrderHubRecentSummary] = []
+
+
+class ExpenseOrderListResponse(BaseModel):
+    items: List[ExpenseOrderResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
 
 
 class ExpenseOrderVoidRequest(BaseModel):

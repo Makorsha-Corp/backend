@@ -5,7 +5,7 @@ from app.services.base_service import BaseService
 from app.managers.item_manager import item_manager
 from app.models.item import Item
 from app.models.profile import Profile
-from app.schemas.item import ItemCreate, ItemUpdate, ItemWithTagsResponse
+from app.schemas.item import ItemCreate, ItemUpdate, ItemWithTagsResponse, ItemListResponse
 from app.schemas.item_similar import SimilarItemsResponse
 from app.core.exceptions import NotFoundError
 from app.utils.item_name_normalize import normalize_item_name
@@ -126,65 +126,97 @@ class ItemService(BaseService):
         workspace_id: int,
         search: Optional[str] = None,
         skip: int = 0,
-        limit: int = 100
-    ) -> List[dict]:
+        limit: int = 100,
+        unit: Optional[str] = None,
+        tag_ids: Optional[List[int]] = None,
+    ) -> ItemListResponse:
         """
-        Get all items with their tags included.
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID
-            search: Optional search query for item name
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of items with tags
+        Get paginated active items with their tags included.
         """
-        items = self.item_manager.search_items(
-            session=db,
+        return self.get_items_page(
+            db,
             workspace_id=workspace_id,
-            name=search,
+            search=search,
             skip=skip,
-            limit=limit
+            limit=limit,
+            unit=unit,
+            tag_ids=tag_ids,
         )
 
-        # Enrich items with tags
+    def get_items_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+        unit: Optional[str] = None,
+        tag_ids: Optional[List[int]] = None,
+    ) -> ItemListResponse:
+        items = self.item_manager.list_items_filtered(
+            session=db,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+            search=search,
+            unit=unit,
+            tag_ids=tag_ids,
+        )
+        total = self.item_manager.count_items_filtered(
+            session=db,
+            workspace_id=workspace_id,
+            search=search,
+            unit=unit,
+            tag_ids=tag_ids,
+        )
+
+        item_ids = [item.id for item in items]
+        tags_by_item = self.item_manager.get_tags_for_items(
+            session=db,
+            item_ids=item_ids,
+            workspace_id=workspace_id,
+        )
+
         items_with_tags = []
         for item in items:
-            tags = self.item_manager.get_tags_for_item(
-                session=db,
-                item_id=item.id,
-                workspace_id=workspace_id
+            tags = tags_by_item.get(item.id, [])
+            items_with_tags.append(
+                {
+                    "id": item.id,
+                    "workspace_id": item.workspace_id,
+                    "name": item.name,
+                    "description": item.description,
+                    "unit": item.unit,
+                    "sku": item.sku,
+                    "is_active": item.is_active,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                    "created_by": item.created_by,
+                    "updated_by": item.updated_by,
+                    "tags": [
+                        {
+                            "id": tag.id,
+                            "name": tag.name,
+                            "tag_code": tag.tag_code,
+                            "color": tag.color,
+                            "icon": tag.icon,
+                            "is_system_tag": tag.is_system_tag,
+                        }
+                        for tag in tags
+                    ],
+                }
             )
 
-            item_dict = {
-                "id": item.id,
-                "workspace_id": item.workspace_id,
-                "name": item.name,
-                "description": item.description,
-                "unit": item.unit,
-                "sku": item.sku,
-                "is_active": item.is_active,
-                "created_at": item.created_at,
-                "updated_at": item.updated_at,
-                "created_by": item.created_by,
-                "updated_by": item.updated_by,
-                "tags": [
-                    {
-                        "id": tag.id,
-                        "name": tag.name,
-                        "tag_code": tag.tag_code,
-                        "color": tag.color,
-                        "icon": tag.icon,
-                        "is_system_tag": tag.is_system_tag
-                    }
-                    for tag in tags
-                ]
-            }
-            items_with_tags.append(item_dict)
+        return ItemListResponse(
+            items=items_with_tags,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=skip + len(items_with_tags) < total,
+        )
 
-        return items_with_tags
+    def get_distinct_units(self, db: Session, workspace_id: int) -> List[str]:
+        return self.item_manager.distinct_units(db, workspace_id)
 
     def get_similar_items(
         self,

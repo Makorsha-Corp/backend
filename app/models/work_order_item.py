@@ -46,6 +46,11 @@ class WorkOrderItem(Base):
     updated_at = Column(DateTime, nullable=True, onupdate=func.now())
     updated_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
 
+    # Soft delete (line void / remove)
+    is_deleted = Column(Boolean, nullable=False, default=False, server_default='false')
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+
     # Relationships
     work_order = relationship("WorkOrder", back_populates="items")
     item = relationship("Item", foreign_keys=[item_id], backref="work_order_items", lazy="joined")

@@ -82,12 +82,136 @@ class ExpenseOrderService(BaseService):
         expense_category: Optional[str] = None,
         account_id: Optional[int] = None,
         invoice_id: Optional[int] = None,
-        skip: int = 0, limit: int = 100
-    ) -> List[ExpenseOrder]:
-        return self.manager.list_expense_orders(
-            db, workspace_id=workspace_id,
-            expense_category=expense_category, account_id=account_id, invoice_id=invoice_id,
-            skip=skip, limit=limit
+        skip: int = 0, limit: int = 100,
+        **hub_filters,
+    ):
+        return self.list_expense_orders_page(
+            db,
+            workspace_id,
+            skip=skip,
+            limit=limit,
+            expense_category=expense_category,
+            account_id=account_id,
+            invoice_id=invoice_id,
+            **hub_filters,
+        )
+
+    def _hub_filter_kwargs(
+        self,
+        *,
+        expense_category: Optional[str] = None,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ) -> dict:
+        return {
+            "expense_category": expense_category,
+            "account_id": account_id,
+            "invoice_id": invoice_id,
+            "date_from": date_from,
+            "date_to": date_to,
+            "status_ids": status_ids,
+            "invoice_filter": invoice_filter if invoice_filter and invoice_filter != "all" else None,
+            "search": search,
+            "exclude_complete": exclude_complete,
+            "exclude_voided": exclude_voided,
+        }
+
+    def list_expense_orders_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+        expense_category: Optional[str] = None,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ):
+        from app.schemas.expense_order import ExpenseOrderListResponse
+
+        filters = self._hub_filter_kwargs(
+            expense_category=expense_category,
+            account_id=account_id,
+            invoice_id=invoice_id,
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            invoice_filter=invoice_filter,
+            search=search,
+            exclude_complete=exclude_complete,
+            exclude_voided=exclude_voided,
+        )
+        total = self.manager.count_expense_orders_for_hub(db, workspace_id, **filters)
+        orders = self.manager.list_expense_orders_for_hub(
+            db, workspace_id, skip=skip, limit=limit, **filters
+        )
+        return ExpenseOrderListResponse(
+            items=orders,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=skip + len(orders) < total,
+        )
+
+    def get_expense_order_hub_stats(
+        self,
+        db: Session,
+        workspace_id: int,
+        *,
+        expense_category: Optional[str] = None,
+        account_id: Optional[int] = None,
+        invoice_id: Optional[int] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        status_ids: Optional[List[int]] = None,
+        invoice_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        exclude_complete: bool = False,
+        exclude_voided: bool = False,
+    ):
+        from app.schemas.expense_order import ExpenseOrderHubStatsResponse
+
+        filters = self._hub_filter_kwargs(
+            expense_category=expense_category,
+            account_id=account_id,
+            invoice_id=invoice_id,
+            date_from=date_from,
+            date_to=date_to,
+            status_ids=status_ids,
+            invoice_filter=invoice_filter,
+            search=search,
+            exclude_complete=exclude_complete,
+            exclude_voided=exclude_voided,
+        )
+        total_count, total_value, open_count, open_value, not_invoiced_count = (
+            self.manager.expense_order_hub_stats(db, workspace_id, **filters)
+        )
+        recent = self.manager.list_expense_orders_recent_for_hub(
+            db, workspace_id, limit=10, **filters
+        )
+        from app.services.order_hub_stats_helpers import expense_order_to_recent_summary
+
+        return ExpenseOrderHubStatsResponse(
+            total_count=total_count,
+            total_value=total_value,
+            open_count=open_count,
+            open_value=open_value,
+            not_invoiced_count=not_invoiced_count,
+            recent_orders=[expense_order_to_recent_summary(o) for o in recent],
         )
 
     def delete_expense_order(self, db: Session, eo_id: int, workspace_id: int) -> None:

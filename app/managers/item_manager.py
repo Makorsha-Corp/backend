@@ -207,6 +207,47 @@ class ItemManager(BaseManager[Item]):
                 limit=limit
             )
 
+    def list_items_filtered(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+        unit: Optional[str] = None,
+        tag_ids: Optional[List[int]] = None,
+    ) -> List[Item]:
+        return self.item_dao.list_active_items_filtered(
+            session,
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+            search=search,
+            unit=unit,
+            tag_ids=tag_ids,
+        )
+
+    def count_items_filtered(
+        self,
+        session: Session,
+        workspace_id: int,
+        *,
+        search: Optional[str] = None,
+        unit: Optional[str] = None,
+        tag_ids: Optional[List[int]] = None,
+    ) -> int:
+        return self.item_dao.count_active_items_filtered(
+            session,
+            workspace_id=workspace_id,
+            search=search,
+            unit=unit,
+            tag_ids=tag_ids,
+        )
+
+    def distinct_units(self, session: Session, workspace_id: int) -> List[str]:
+        return self.item_dao.distinct_units_in_workspace(session, workspace_id=workspace_id)
+
     def find_similar_items(
         self,
         session: Session,
@@ -344,6 +385,17 @@ class ItemManager(BaseManager[Item]):
         """
         return item_tag_assignment_dao.get_tags_for_item(
             session, item_id=item_id, workspace_id=workspace_id
+        )
+
+    def get_tags_for_items(
+        self,
+        session: Session,
+        item_ids: List[int],
+        workspace_id: int,
+    ) -> dict:
+        """Get tags for multiple items in one query."""
+        return item_tag_assignment_dao.get_tags_for_items(
+            session, item_ids=item_ids, workspace_id=workspace_id
         )
 
 
