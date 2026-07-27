@@ -7,9 +7,6 @@ from app.dao.sales_order import sales_order_dao
 from app.dao.sales_order_item import sales_order_item_dao
 from app.dao.sales_delivery import sales_delivery_dao
 from app.dao.sales_delivery_item import sales_delivery_item_dao
-from app.dao.inventory_ledger import inventory_ledger_dao
-from app.dao.inventory import inventory_dao
-from app.models.enums import InventoryTypeEnum
 
 
 class SalesManager(BaseManager[SalesOrder]):
@@ -21,7 +18,8 @@ class SalesManager(BaseManager[SalesOrder]):
     Business rules:
     - Sales order MUST have at least one item
     - Deliveries update order item quantities
-    - Completed deliveries update inventory ledger
+    - Physical deliveries deduct from sellable Product stock (product_ledger)
+    - Service/free-text lines are fulfilled directly, no delivery, no stock movement
 
     Does NOT commit transactions - that's the service layer's responsibility.
     """
@@ -32,8 +30,6 @@ class SalesManager(BaseManager[SalesOrder]):
         self.sales_order_item_dao = sales_order_item_dao
         self.sales_delivery_dao = sales_delivery_dao
         self.sales_delivery_item_dao = sales_delivery_item_dao
-        self.inventory_ledger_dao = inventory_ledger_dao
-        self.inventory_dao = inventory_dao
 
     def create_sales_order_with_items(
         self,
@@ -141,6 +137,11 @@ class SalesManager(BaseManager[SalesOrder]):
             )
             if not sales_order_item:
                 raise ValueError(f"Sales order item {item_data['sales_order_item_id']} not found")
+            if not sales_order_item.requires_delivery:
+                raise ValueError(
+                    f"Sales order item {sales_order_item.id} does not require delivery — "
+                    "it should be fulfilled directly, not delivered"
+                )
 
             # Add required fields
             item_data['delivery_id'] = delivery.id
@@ -167,13 +168,12 @@ class SalesManager(BaseManager[SalesOrder]):
         user_id: int
     ) -> SalesOrder:
         """
-        Mark delivery as completed and update inventory.
+        Mark delivery as completed and deduct sellable product stock.
 
         Business logic:
         - Update delivery status to 'delivered'
         - Update sales order item quantities delivered
-        - Create inventory ledger entries (transfer_out)
-        - Update inventory snapshot
+        - Deduct from Product (is_available_for_sale=True) + write product_ledger entries
         - Check if sales order is fully delivered
 
         Args:
@@ -185,6 +185,8 @@ class SalesManager(BaseManager[SalesOrder]):
         Returns:
             Updated sales order
         """
+        from app.managers.product_manager import product_manager
+
         # Get delivery
         delivery = self.sales_delivery_dao.get_by_id_and_workspace(
             session, id=delivery_id, workspace_id=workspace_id
@@ -218,57 +220,77 @@ class SalesManager(BaseManager[SalesOrder]):
             order_item.quantity_delivered += delivery_item.quantity_delivered
             session.flush()
 
-            # Fetch inventory snapshot first so ledger has accurate before/after values
-            inventory = self.inventory_dao.get_by_factory_item_type(
-                session,
-                factory_id=sales_order.factory_id,
-                item_id=delivery_item.item_id,
-                inventory_type=InventoryTypeEnum.STORAGE,
-                workspace_id=workspace_id,
+            # Free-text lines have no catalog item, so there's no Product stock to
+            # deduct against — they're delivered (shipped) but don't move inventory.
+            if delivery_item.item_id is not None:
+                product_manager.apply_sale_deduction(
+                    session,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    factory_id=sales_order.factory_id,
+                    item_id=delivery_item.item_id,
+                    quantity=delivery_item.quantity_delivered,
+                    delivery_id=delivery_id,
+                    account_id=sales_order.account_id,
+                    notes=f"Delivery {delivery.delivery_number} for SO-{sales_order.sales_order_number}",
+                )
+
+        self._recompute_is_fully_delivered(session, sales_order, workspace_id)
+
+        return sales_order
+
+    def fulfill_service_item(
+        self,
+        session: Session,
+        order_item_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> SalesOrder:
+        """
+        Mark a sales order line that doesn't require delivery as fulfilled directly:
+        sets quantity_delivered = quantity_ordered. No SalesDelivery row,
+        no product/inventory movement. All-or-nothing; idempotent no-op if
+        already fulfilled.
+
+        Raises:
+            ValueError: If the line item doesn't exist, or requires delivery
+                (must use the delivery workflow instead).
+        """
+        order_item = self.sales_order_item_dao.get_by_id_and_workspace(
+            session, id=order_item_id, workspace_id=workspace_id
+        )
+        if not order_item:
+            raise ValueError(f"Sales order item {order_item_id} not found")
+
+        if order_item.requires_delivery:
+            raise ValueError(
+                "This line requires delivery — use the delivery workflow, not direct fulfillment"
             )
-            qty_before = inventory.qty if inventory else 0
-            avg_price = inventory.avg_price if (inventory and inventory.avg_price) else 0
-            qty_after = max(0, qty_before - delivery_item.quantity_delivered)
 
-            self.inventory_ledger_dao.create(session, obj_in={
-                'workspace_id': workspace_id,
-                'inventory_type': InventoryTypeEnum.STORAGE,
-                'factory_id': sales_order.factory_id,
-                'item_id': delivery_item.item_id,
-                'transaction_type': 'transfer_out',
-                'quantity': delivery_item.quantity_delivered,
-                'unit_cost': avg_price if avg_price else None,
-                'total_cost': (avg_price * delivery_item.quantity_delivered) if avg_price else None,
-                'qty_before': qty_before,
-                'qty_after': qty_after,
-                'avg_price_before': avg_price if avg_price else None,
-                'avg_price_after': avg_price if avg_price else None,
-                'source_type': 'sales_delivery',
-                'source_id': delivery_id,
-                'transfer_destination_type': 'customer',
-                'transfer_destination_id': sales_order.account_id,
-                'notes': f"Delivery {delivery.delivery_number} for SO-{sales_order.sales_order_number}",
-                'performed_by': user_id,
-            })
+        if order_item.quantity_delivered < order_item.quantity_ordered:
+            order_item.quantity_delivered = order_item.quantity_ordered
+            session.flush()
 
-            # Update inventory snapshot
-            if inventory:
-                inventory.qty = qty_after
-                session.flush()
+        sales_order = self.sales_order_dao.get_by_id_and_workspace(
+            session, id=order_item.sales_order_id, workspace_id=workspace_id
+        )
+        self._recompute_is_fully_delivered(session, sales_order, workspace_id)
+        return sales_order
 
-        # Check if sales order is fully delivered
+    def _recompute_is_fully_delivered(
+        self, session: Session, sales_order: SalesOrder, workspace_id: int
+    ) -> bool:
+        """Recompute and persist SalesOrder.is_fully_delivered from current item state."""
         all_items = self.sales_order_item_dao.get_by_sales_order(
             session, sales_order_id=sales_order.id, workspace_id=workspace_id
         )
         is_fully_delivered = all(
             item.quantity_delivered >= item.quantity_ordered for item in all_items
         )
-
-        if is_fully_delivered:
-            sales_order.is_fully_delivered = True
+        if sales_order.is_fully_delivered != is_fully_delivered:
+            sales_order.is_fully_delivered = is_fully_delivered
             session.flush()
-
-        return sales_order
+        return is_fully_delivered
 
 
 sales_manager = SalesManager()

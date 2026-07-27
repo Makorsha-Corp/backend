@@ -487,6 +487,58 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def fulfill_service_item(
+        self,
+        db: Session,
+        order_id: int,
+        order_item_id: int,
+        workspace_id: int,
+        current_user: Profile,
+    ) -> Tuple[SalesOrder, List[ActionMessage]]:
+        """
+        Mark a sales order line that doesn't require delivery as fulfilled directly
+        (no delivery, no inventory/product movement).
+        """
+        messages = []
+
+        try:
+            order_item = self.sales_manager.sales_order_item_dao.get_by_id_and_workspace(
+                db, id=order_item_id, workspace_id=workspace_id
+            )
+            if not order_item:
+                raise NotFoundError(f"Sales order item {order_item_id} not found")
+            if order_item.sales_order_id != order_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Sales order item {order_item_id} does not belong to sales order {order_id}",
+                )
+            if order_item.requires_delivery:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="This line requires delivery — use the delivery workflow, not direct fulfillment",
+                )
+
+            sales_order = self.sales_manager.fulfill_service_item(
+                session=db,
+                order_item_id=order_item_id,
+                workspace_id=workspace_id,
+                user_id=current_user.id,
+            )
+
+            messages.append(success_message("Line item marked as fulfilled"))
+            if sales_order.is_fully_delivered:
+                messages.append(success_message(
+                    f"Sales order {sales_order.sales_order_number} is now fully delivered"
+                ))
+
+            self._commit_transaction(db)
+            db.refresh(sales_order)
+            return sales_order, messages
+
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def get_deliveries_for_order(
         self,
         db: Session,

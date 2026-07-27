@@ -19,6 +19,8 @@ def assert_unique_catalog_item_ids(
     seen: set[int] = set()
     for entry in entries:
         item_id = get_item_id(entry)
+        if item_id is None:
+            continue  # Free-text lines have no catalog item to dedupe against
         if item_id in seen:
             catalog_item = item_dao.get_by_id_and_workspace(
                 session, id=item_id, workspace_id=workspace_id

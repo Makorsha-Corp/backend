@@ -37,6 +37,7 @@ from app.api.v1.endpoints import (
     # Sales
     sales_orders,
     sales_deliveries,
+    delivery_methods,
     # Production
     production_lines,
     production_formulas,
@@ -122,6 +123,7 @@ api_router.include_router(order_templates.router, prefix="/order-templates", tag
 # Sales
 api_router.include_router(sales_orders.router, prefix="/sales-orders", tags=["sales"])
 api_router.include_router(sales_deliveries.router, prefix="/sales-deliveries", tags=["sales"])
+api_router.include_router(delivery_methods.router, prefix="/delivery-methods", tags=["sales"])
 
 # Production
 api_router.include_router(production_lines.router, prefix="/production-lines", tags=["production"])

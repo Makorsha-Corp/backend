@@ -30,6 +30,7 @@ class SalesDelivery(Base):
     # 'planned' | 'delivered' | 'cancelled'
 
     # === SHIPPING ===
+    delivery_method_id = Column(Integer, ForeignKey("delivery_methods.id", ondelete="SET NULL"), nullable=True, index=True)
     tracking_number = Column(String(255), nullable=True)
 
     # === NOTES ===
@@ -43,6 +44,7 @@ class SalesDelivery(Base):
 
     # === RELATIONSHIPS ===
     sales_order = relationship("SalesOrder", backref="deliveries")
+    delivery_method = relationship("DeliveryMethod")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_sales_deliveries")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_sales_deliveries")
     workspace = relationship("Workspace", backref="sales_deliveries")

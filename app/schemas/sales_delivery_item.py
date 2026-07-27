@@ -12,7 +12,7 @@ class SalesDeliveryItemInput(BaseModel):
 class SalesDeliveryItemBase(BaseModel):
     """Base sales delivery item schema"""
     sales_order_item_id: int
-    item_id: int
+    item_id: int | None = None
     quantity_delivered: int
     notes: str | None = None
 

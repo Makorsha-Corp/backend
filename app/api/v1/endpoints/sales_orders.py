@@ -17,6 +17,7 @@ from app.schemas.sales_order import (
     SalesOrderResponse
 )
 from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse
+from app.schemas.response import ActionResponse
 from app.services.sales_service import sales_service
 
 
@@ -159,6 +160,29 @@ def create_invoice_from_sales_order(
         workspace_id=workspace.id,
         user_id=current_user.id,
     )
+
+
+@router.post(
+    "/{order_id}/items/{item_id}/fulfill/",
+    response_model=ActionResponse[SalesOrderResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Fulfill a service or free-text sales order line",
+    description=(
+        "Marks a non-physical line item as fully delivered (quantity_delivered = quantity_ordered). "
+        "No delivery record is created and no inventory/product stock is touched."
+    ),
+)
+def fulfill_sales_order_item(
+    order_id: int,
+    item_id: int,
+    db: Session = Depends(get_db),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user)
+):
+    sales_order, messages = sales_service.fulfill_service_item(
+        db, order_id=order_id, order_item_id=item_id, workspace_id=workspace.id, current_user=current_user
+    )
+    return ActionResponse(data=sales_order, messages=messages)
 
 
 @router.get(

@@ -61,6 +61,7 @@ from app.models.sales_order import SalesOrder
 from app.models.sales_order_item import SalesOrderItem
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_delivery_item import SalesDeliveryItem
+from app.models.delivery_method import DeliveryMethod
 
 # Order Workflow & Status
 from app.models.order_workflow import OrderWorkflow
@@ -167,6 +168,7 @@ __all__ = [
     "SalesOrderItem",
     "SalesDelivery",
     "SalesDeliveryItem",
+    "DeliveryMethod",
     # Order Workflow & Status
     "OrderWorkflow",
     "Status",

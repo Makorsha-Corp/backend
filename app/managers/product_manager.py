@@ -238,5 +238,75 @@ class ProductManager(BaseManager[Product]):
         )
         return record
 
+    def apply_sale_deduction(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        factory_id: int,
+        item_id: int,
+        quantity: int,
+        delivery_id: int,
+        account_id: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> Product:
+        """
+        Decrease sellable finished-goods (products) quantity for a physical sales delivery.
+        Operates on the is_available_for_sale=True bucket. Hard-blocks (422) if the
+        row doesn't exist or has insufficient qty — no silent floor-at-zero.
+        """
+        if quantity <= 0:
+            raise ValueError("Sale deduction quantity must be positive")
+
+        record = self.product_dao.get_by_factory_item_available(
+            session,
+            factory_id=factory_id,
+            item_id=item_id,
+            is_available_for_sale=True,
+            workspace_id=workspace_id,
+        )
+        if not record or record.qty < quantity:
+            available = record.qty if record else 0
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Insufficient sellable stock for item {item_id} at factory {factory_id}: "
+                    f"requested {quantity}, available {available}"
+                ),
+            )
+
+        old_qty = record.qty
+        old_avg = record.avg_cost
+        new_qty = old_qty - quantity
+
+        ledger_dict = {
+            "workspace_id": workspace_id,
+            "factory_id": factory_id,
+            "item_id": item_id,
+            "transaction_type": "sale",
+            "quantity": quantity,
+            "unit_cost": old_avg,
+            "total_cost": (old_avg * Decimal(quantity)) if old_avg is not None else None,
+            "qty_before": old_qty,
+            "qty_after": new_qty,
+            "avg_cost_before": old_avg,
+            "avg_cost_after": old_avg,
+            "source_type": "sales_delivery",
+            "source_id": delivery_id,
+            "transfer_destination_type": "customer",
+            "transfer_destination_id": account_id,
+            "notes": notes or f"SYSTEM - SALES DELIVERY | delivery id {delivery_id}",
+            "performed_by": user_id,
+        }
+        self.ledger_dao.create(session, obj_in=ledger_dict)
+
+        self.product_dao.update(
+            session,
+            db_obj=record,
+            obj_in={"qty": new_qty, "updated_by": user_id},
+        )
+        return record
+
 
 product_manager = ProductManager()
