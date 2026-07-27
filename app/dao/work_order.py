@@ -170,6 +170,35 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             .all()
         )
 
+    def list_drafts_outside_range_for_template_machine(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        work_order_template_id: int,
+        machine_id: int,
+        range_start: date,
+        range_end: date,
+    ) -> List[WorkOrder]:
+        """Draft work orders for a recurring program with planned_date outside [range_start, range_end]."""
+        return (
+            db.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.is_deleted == False,
+                WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+                WorkOrder.work_order_template_id == work_order_template_id,
+                WorkOrder.machine_id == machine_id,
+                WorkOrder.planned_date.isnot(None),
+                or_(
+                    WorkOrder.planned_date < range_start,
+                    WorkOrder.planned_date > range_end,
+                ),
+            )
+            .order_by(WorkOrder.planned_date, WorkOrder.id)
+            .all()
+        )
+
     def get_by_machine_date_type(
         self,
         db: Session,

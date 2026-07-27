@@ -50,14 +50,11 @@ def advance_next_generation_date(
     return from_date + timedelta(days=1)
 
 
-def seed_recurrence_from_planned_date(
+def _apply_recurrence_range(
     template,
     planned_date: date,
     recurrence_end_date: date,
 ) -> None:
-    """First sheet placement anchors recurring template schedule."""
-    if not template.is_recurring or template.next_generation_date is not None:
-        return
     validate_recurrence_span(planned_date, recurrence_end_date)
     template.recurrence_start_date = planned_date
     template.recurrence_end_date = recurrence_end_date
@@ -70,6 +67,28 @@ def seed_recurrence_from_planned_date(
         recurrence_type=template.recurrence_type,
         recurrence_day=template.recurrence_day,
     )
+
+
+def seed_recurrence_from_planned_date(
+    template,
+    planned_date: date,
+    recurrence_end_date: date,
+) -> None:
+    """First sheet placement anchors recurring template schedule."""
+    if not template.is_recurring or template.next_generation_date is not None:
+        return
+    _apply_recurrence_range(template, planned_date, recurrence_end_date)
+
+
+def reseed_recurrence_program(
+    template,
+    planned_date: date,
+    recurrence_end_date: date,
+) -> None:
+    """Overwrite recurring template schedule when user repicks range on sheet."""
+    if not template.is_recurring:
+        return
+    _apply_recurrence_range(template, planned_date, recurrence_end_date)
 
 
 def is_recurrence_program_active(template, target_date: date) -> bool:

@@ -609,6 +609,9 @@ class PurchaseOrderService(BaseService):
         summaries = purchase_order_item_dao.summarize_by_purchase_order_ids(
             db, workspace_id=workspace_id, purchase_order_ids=po_ids
         )
+        name_previews = purchase_order_item_dao.preview_names_by_purchase_order_ids(
+            db, workspace_id=workspace_id, purchase_order_ids=po_ids
+        )
         zero = Decimal("0")
         for o in orders:
             summary = summaries.get(o.id)
@@ -620,6 +623,7 @@ class PurchaseOrderService(BaseService):
                 o.item_count = summary["item_count"]
                 o.quantity_ordered_total = summary["quantity_ordered_total"]
                 o.quantity_received_total = summary["quantity_received_total"]
+            o.item_names_preview = name_previews.get(o.id, [])
 
     def create_receive_event(
         self, db: Session, po_id: int, workspace_id: int, user_id: int,

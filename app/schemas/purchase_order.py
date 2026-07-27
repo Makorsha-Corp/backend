@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import List, Literal, Optional
 
 PurchaseOrderSection = Literal['supplier', 'details', 'items', 'invoice']
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.order_hub import OrderHubPendingHighlight, OrderHubRecentSummary
 
@@ -145,6 +145,7 @@ class PurchaseOrderResponse(BaseModel):
     item_count: int = 0
     quantity_ordered_total: Decimal = Decimal("0")
     quantity_received_total: Decimal = Decimal("0")
+    item_names_preview: List[str] = Field(default_factory=list, max_length=4)
 
     model_config = ConfigDict(from_attributes=True)
 

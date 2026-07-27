@@ -25,7 +25,7 @@ from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderSh
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.machine_event import MachineEventCreate
-from app.utils.work_order_recurrence import seed_recurrence_from_planned_date
+from app.utils.work_order_recurrence import reseed_recurrence_program, seed_recurrence_from_planned_date
 from app.dao.work_order import work_order_dao
 from app.dao.work_order_item import work_order_item_dao
 from app.dao.work_order_approver import work_order_approver_dao
@@ -1447,6 +1447,37 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         return wo
 
+    def sync_recurrence_drafts_for_machine(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        template,
+        machine_id: int,
+        range_start: date,
+        range_end: date,
+    ) -> None:
+        """Remove draft orders outside the new program range and fill missing dates inside it."""
+        orphans = self.wo_dao.list_drafts_outside_range_for_template_machine(
+            session,
+            workspace_id=workspace_id,
+            work_order_template_id=template.id,
+            machine_id=machine_id,
+            range_start=range_start,
+            range_end=range_end,
+        )
+        for record in orphans:
+            self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
+        session.flush()
+        work_order_template_manager.generate_drafts_for_anchored_range(
+            session,
+            template=template,
+            machine_id=machine_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
+
     def _maybe_seed_template_recurrence(
         self,
         session: Session,
@@ -1459,24 +1490,51 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         recurrence_end_date: date | None,
     ) -> None:
         template = work_order_template_manager.get_template(session, template_id, workspace_id)
-        if not template.is_recurring or template.next_generation_date is not None:
+        if not template.is_recurring:
             return
+
         if recurrence_end_date is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='recurrence_end_date is required when placing an unanchored recurring template',
+            if template.next_generation_date is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='recurrence_end_date is required when placing an unanchored recurring template',
+                )
+            return
+
+        if template.next_generation_date is None:
+            try:
+                seed_recurrence_from_planned_date(template, planned_date, recurrence_end_date)
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            session.flush()
+            work_order_template_manager.generate_drafts_for_anchored_range(
+                session,
+                template=template,
+                machine_id=machine_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
             )
+            return
+
+        if (
+            template.recurrence_start_date == planned_date
+            and template.recurrence_end_date == recurrence_end_date
+        ):
+            return
+
         try:
-            seed_recurrence_from_planned_date(template, planned_date, recurrence_end_date)
+            reseed_recurrence_program(template, planned_date, recurrence_end_date)
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         session.flush()
-        work_order_template_manager.generate_drafts_for_anchored_range(
+        self.sync_recurrence_drafts_for_machine(
             session,
-            template=template,
-            machine_id=machine_id,
             workspace_id=workspace_id,
             user_id=user_id,
+            template=template,
+            machine_id=machine_id,
+            range_start=planned_date,
+            range_end=recurrence_end_date,
         )
 
     def list_sheet_orders(

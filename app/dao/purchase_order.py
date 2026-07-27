@@ -10,6 +10,7 @@ from sqlalchemy.orm import Query, Session, joinedload
 from app.dao.base import BaseDAO
 from app.models.account import Account
 from app.models.account_invoice import AccountInvoice
+from app.models.item import Item
 from app.models.machine import Machine
 from app.models.project import Project
 from app.models.project_component import ProjectComponent
@@ -405,6 +406,38 @@ class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, P
             }
             for po_id, count, ordered, received in rows
         }
+
+    def preview_names_by_purchase_order_ids(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        purchase_order_ids: List[int],
+        limit: int = 4,
+    ) -> dict[int, list[str]]:
+        if not purchase_order_ids or limit <= 0:
+            return {}
+        rows = (
+            db.query(
+                PurchaseOrderItem.purchase_order_id,
+                PurchaseOrderItem.item_id,
+                Item.name,
+            )
+            .join(Item, PurchaseOrderItem.item_id == Item.id)
+            .filter(
+                PurchaseOrderItem.workspace_id == workspace_id,
+                PurchaseOrderItem.purchase_order_id.in_(purchase_order_ids),
+            )
+            .order_by(PurchaseOrderItem.purchase_order_id, PurchaseOrderItem.line_number)
+            .all()
+        )
+        previews: dict[int, list[str]] = {}
+        for po_id, item_id, item_name in rows:
+            bucket = previews.setdefault(po_id, [])
+            if len(bucket) >= limit:
+                continue
+            bucket.append(item_name if item_name else f"Item #{item_id}")
+        return previews
 
 
 purchase_order_dao = PurchaseOrderDAO(PurchaseOrder)

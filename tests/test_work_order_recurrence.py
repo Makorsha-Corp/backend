@@ -8,6 +8,7 @@ import pytest
 from app.utils.work_order_recurrence import (
     RECURRENCE_MAX_SPAN_DAYS,
     advance_next_generation_date,
+    reseed_recurrence_program,
     seed_recurrence_from_planned_date,
     validate_recurrence_span,
 )
@@ -106,3 +107,18 @@ def test_seed_recurrence_skips_when_already_anchored() -> None:
     seed_recurrence_from_planned_date(tpl, date(2026, 1, 15), date(2026, 3, 15))
     assert tpl.recurrence_start_date == date(2026, 1, 1)
     assert tpl.next_generation_date == date(2026, 2, 1)
+
+
+def test_reseed_recurrence_program_overwrites_when_anchored() -> None:
+    tpl = SimpleNamespace(
+        is_recurring=True,
+        next_generation_date=date(2026, 2, 1),
+        recurrence_type='weekly',
+        recurrence_day=None,
+        recurrence_start_date=date(2026, 1, 1),
+        recurrence_end_date=date(2026, 6, 1),
+    )
+    reseed_recurrence_program(tpl, date(2026, 3, 1), date(2026, 5, 1))
+    assert tpl.recurrence_start_date == date(2026, 3, 1)
+    assert tpl.recurrence_end_date == date(2026, 5, 1)
+    assert tpl.next_generation_date == date(2026, 3, 8)
