@@ -488,42 +488,6 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def cancel_delivery(
-        self,
-        db: Session,
-        delivery_id: int,
-        workspace_id: int,
-    ) -> SalesDelivery:
-        """
-        Cancel a planned delivery so its committed quantity becomes available
-        to plan into a new delivery.
-
-        Raises:
-            NotFoundError: If delivery not found
-            HTTPException: If delivery is not in 'planned' status
-        """
-        try:
-            delivery = self.sales_manager.sales_delivery_dao.get_by_id_and_workspace(
-                db, id=delivery_id, workspace_id=workspace_id
-            )
-            if not delivery:
-                raise NotFoundError(f"Delivery with ID {delivery_id} not found")
-
-            try:
-                updated = self.sales_manager.cancel_delivery(
-                    session=db, delivery_id=delivery_id, workspace_id=workspace_id
-                )
-            except ValueError as e:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-            self._commit_transaction(db)
-            db.refresh(updated)
-            return updated
-
-        except Exception:
-            self._rollback_transaction(db)
-            raise
-
     def fulfill_service_item(
         self,
         db: Session,

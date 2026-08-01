@@ -71,18 +71,4 @@ class SalesOrderItem(Base):
     def quantity_remaining(self) -> int:
         return max(0, self.quantity_ordered - self.quantity_delivered)
 
-    @property
-    def quantity_planned(self) -> int:
-        """Quantity committed to deliveries that are planned but not yet completed or cancelled."""
-        return sum(
-            di.quantity_delivered
-            for di in self.delivery_items
-            if di.delivery is not None and di.delivery.delivery_status == "planned"
-        )
-
-    @property
-    def quantity_available_to_plan(self) -> int:
-        """How much of this line can still be added to a NEW delivery plan."""
-        return max(0, self.quantity_ordered - self.quantity_delivered - self.quantity_planned)
-
     workspace = relationship("Workspace", backref="sales_order_items")
