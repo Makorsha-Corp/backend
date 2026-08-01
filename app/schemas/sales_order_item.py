@@ -64,5 +64,7 @@ class SalesOrderItemListResponse(SalesOrderItemResponse):
     item_name: str | None = None
     item_unit: str | None = None
     quantity_remaining: int | None = None
+    quantity_planned: int | None = None
+    quantity_available_to_plan: int | None = None
 
     model_config = ConfigDict(from_attributes=True)

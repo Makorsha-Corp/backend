@@ -152,6 +152,25 @@ def complete_delivery(
     )
 
 
+@router.post(
+    "/{delivery_id}/cancel/",
+    response_model=SalesDeliveryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancel a planned delivery",
+    description=(
+        "Cancels a delivery that hasn't been completed yet, freeing up the quantity "
+        "it had committed so it can be planned into a new delivery."
+    ),
+)
+def cancel_delivery(
+    delivery_id: int,
+    db: Session = Depends(get_db),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user)
+):
+    return sales_service.cancel_delivery(db, delivery_id=delivery_id, workspace_id=workspace.id)
+
+
 @router.get(
     "/{delivery_id}/items/",
     status_code=status.HTTP_200_OK,
