@@ -19,7 +19,19 @@ from sqlalchemy import create_engine, text
 
 from app.core.config import settings
 
-OLD_HEAD = "064_waitlist_signups"
+# Every pre-squash head that exists on a real database:
+#   064_merge_...  - what Railway and teammates' DBs stopped at
+#   064_waitlist_signups - only ever existed on the author's machine (the
+#                          migration file was never committed)
+#   the 063 pair   - a DB that never ran the merge revision
+# All of them describe the same schema as the baseline except possibly the
+# waitlist_signups table, which 101_waitlist_signups creates afterwards.
+OLD_HEADS = {
+    frozenset({"064_merge_sales_delivery_and_work_order_item_soft_delete"}),
+    frozenset({"064_waitlist_signups"}),
+    frozenset({"063_merge_sales_delivery_and_work_order_template",
+               "063_work_order_item_soft_delete"}),
+}
 NEW_BASELINE = "100_squashed_baseline"
 
 
@@ -38,19 +50,22 @@ def main() -> None:
         if not rows:
             print("adopt_squashed_baseline: alembic_version empty -- nothing to do")
             return
-        if rows == [NEW_BASELINE]:
-            print("adopt_squashed_baseline: already on the squashed baseline -- nothing to do")
+        if set(rows) <= {NEW_BASELINE, "101_waitlist_signups"}:
+            print("adopt_squashed_baseline: already on/after the squashed baseline -- nothing to do")
             return
-        if rows == [OLD_HEAD]:
-            conn.execute(text("UPDATE alembic_version SET version_num = :new"),
+        if frozenset(rows) in OLD_HEADS:
+            # Collapse to a single row: the pre-squash 063 pair is two rows.
+            conn.execute(text("DELETE FROM alembic_version"))
+            conn.execute(text("INSERT INTO alembic_version (version_num) VALUES (:new)"),
                          {"new": NEW_BASELINE})
-            print(f"adopt_squashed_baseline: {OLD_HEAD} -> {NEW_BASELINE}")
+            print(f"adopt_squashed_baseline: {sorted(rows)} -> {NEW_BASELINE}")
             return
 
         print(f"adopt_squashed_baseline: unexpected revision(s) {rows!r}. "
-              f"This database is neither at {OLD_HEAD} nor {NEW_BASELINE}; "
-              "refusing to guess. Bring it to the old head with the pre-squash "
-              "migrations, or stamp it manually.", file=sys.stderr)
+              f"Expected one of {[sorted(h) for h in OLD_HEADS]} or "
+              f"{NEW_BASELINE}; refusing to guess. Bring the database to a "
+              "pre-squash head with the old migrations, or stamp it manually.",
+              file=sys.stderr)
         sys.exit(1)
 
 
