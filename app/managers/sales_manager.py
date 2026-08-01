@@ -3,6 +3,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from app.managers.base_manager import BaseManager
 from app.models.sales_order import SalesOrder
+from app.models.sales_delivery import SalesDelivery
 from app.dao.sales_order import sales_order_dao
 from app.dao.sales_order_item import sales_order_item_dao
 from app.dao.sales_delivery import sales_delivery_dao
@@ -59,13 +60,24 @@ class SalesManager(BaseManager[SalesOrder]):
         if not items_data:
             raise ValueError("Sales order must have at least one item")
 
-        from app.utils.order_catalog_items import assert_unique_catalog_item_ids
+        from app.utils.order_catalog_items import (
+            assert_unique_catalog_item_ids,
+            assert_meets_minimum_order_quantities,
+        )
 
         assert_unique_catalog_item_ids(
             session,
             workspace_id,
             items_data,
             get_item_id=lambda row: row['item_id'] if isinstance(row, dict) else row.item_id,
+        )
+        assert_meets_minimum_order_quantities(
+            session,
+            workspace_id,
+            order_data['factory_id'],
+            items_data,
+            get_item_id=lambda row: row['item_id'] if isinstance(row, dict) else row.item_id,
+            get_quantity=lambda row: row['quantity_ordered'] if isinstance(row, dict) else row.quantity_ordered,
         )
 
         # Create the sales order
@@ -141,6 +153,16 @@ class SalesManager(BaseManager[SalesOrder]):
                 raise ValueError(
                     f"Sales order item {sales_order_item.id} does not require delivery — "
                     "it should be fulfilled directly, not delivered"
+                )
+
+            requested_qty = item_data['quantity_delivered']
+            available_qty = sales_order_item.quantity_available_to_plan
+            if requested_qty > available_qty:
+                raise ValueError(
+                    f"Cannot plan {requested_qty} unit(s) for sales order item {sales_order_item.id} — "
+                    f"only {available_qty} unit(s) are available to plan "
+                    f"({sales_order_item.quantity_planned} already committed to other planned deliveries). "
+                    "Edit or delete an existing planned delivery to free up capacity."
                 )
 
             # Add required fields
@@ -238,6 +260,35 @@ class SalesManager(BaseManager[SalesOrder]):
         self._recompute_is_fully_delivered(session, sales_order, workspace_id)
 
         return sales_order
+
+    def cancel_delivery(
+        self,
+        session: Session,
+        delivery_id: int,
+        workspace_id: int,
+    ) -> SalesDelivery:
+        """
+        Cancel a planned delivery, freeing up the quantity it had committed
+        so it can be planned into a different delivery. No inventory/product
+        impact since planned deliveries never touch stock (only completing
+        one does) — this just flips the status.
+
+        Raises:
+            ValueError: If the delivery doesn't exist or isn't in 'planned' status.
+        """
+        delivery = self.sales_delivery_dao.get_by_id_and_workspace(
+            session, id=delivery_id, workspace_id=workspace_id
+        )
+        if not delivery:
+            raise ValueError(f"Delivery {delivery_id} not found")
+        if delivery.delivery_status != "planned":
+            raise ValueError(
+                f"Only planned deliveries can be cancelled (this delivery is '{delivery.delivery_status}')"
+            )
+
+        from app.schemas.sales_delivery import SalesDeliveryUpdate
+        delivery_update = SalesDeliveryUpdate(delivery_status="cancelled")
+        return self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=delivery_update)
 
     def fulfill_service_item(
         self,
