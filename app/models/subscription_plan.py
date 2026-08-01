@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime
 from sqlalchemy.types import JSON
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class SubscriptionPlan(Base):
@@ -37,5 +38,5 @@ class SubscriptionPlan(Base):
     is_active = Column(Boolean, nullable=False, default=True, index=True)
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)

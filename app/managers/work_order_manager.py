@@ -39,6 +39,7 @@ from app.dao.machine_item import machine_item_dao
 from app.dao.project_component import project_component_dao
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
+from app.utils.time import utcnow
 
 DETAILS_FIELDS = frozenset({
     'work_order_type_id', 'description', 'priority', 'machine_id', 'project_component_id',
@@ -566,7 +567,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         if met and wo.approved_at is None:
             wo.approved_by = actor_user_id
-            wo.approved_at = datetime.utcnow()
+            wo.approved_at = utcnow()
             session.flush()
             self.log_event(
                 session, wo.id, workspace_id,
@@ -647,7 +648,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 detail=self.approvability_gap_reason(session, wo) or 'Order is not ready for approval',
             )
         rec.approved = approved
-        rec.approved_at = datetime.utcnow() if approved else None
+        rec.approved_at = utcnow() if approved else None
         session.flush()
         self.log_event(
             session, wo_id, workspace_id,
@@ -688,7 +689,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             activity_event_type='consumption',
             activity_description=f'Consumed for work order {wo.work_order_number}: {qty} units of {name}',
         )
-        item.consumed_at = datetime.utcnow()
+        item.consumed_at = utcnow()
         item.consumed_by = user_id
         item.unit_cost = unit_cost
         item.total_cost = (unit_cost * Decimal(qty)).quantize(Decimal('0.01'))
@@ -968,8 +969,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         wo.status = WorkOrderStatusEnum.IN_PROGRESS.value
         wo.started_by = user_id
         if wo.planned_date is None:
-            wo.planned_date = datetime.utcnow().date()
-        wo.started_at = datetime.utcnow()
+            wo.planned_date = utcnow().date()
+        wo.started_at = utcnow()
         session.flush()
         summary = f'{pending_count} item(s) consumed' if pending_count else 'no inventory items to consume'
         started_metadata = {
@@ -1028,7 +1029,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Work order must have a planned date',
             )
-        today = datetime.utcnow().date()
+        today = utcnow().date()
         if wo.planned_date > today:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1086,7 +1087,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         auto-detected pre-start status."""
         wo.status = WorkOrderStatusEnum.COMPLETED.value
         wo.completed_by = user_id
-        wo.completed_at = completed_at if completed_at is not None else datetime.utcnow()
+        wo.completed_at = completed_at if completed_at is not None else utcnow()
         if completion_notes is not None:
             wo.completion_notes = completion_notes
         session.flush()
@@ -1158,7 +1159,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         wo.status = WorkOrderStatusEnum.VOIDED.value
         wo.void_note = void_note
-        wo.voided_at = datetime.utcnow()
+        wo.voided_at = utcnow()
         wo.voided_by = user_id
         session.flush()
         self.log_event(
@@ -1305,7 +1306,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             self._reverse_item_consumption(session, wo, record, user_id)
 
         record.is_deleted = True
-        record.deleted_at = datetime.utcnow()
+        record.deleted_at = utcnow()
         record.deleted_by = user_id
         session.flush()
 

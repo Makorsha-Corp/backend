@@ -136,6 +136,17 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
 
         return query.offset(skip).limit(limit).distinct().all()
 
+    def count_active_accounts(self, db: Session, *, workspace_id: int) -> int:
+        return (
+            db.query(Account)
+            .filter(
+                Account.workspace_id == workspace_id,
+                Account.is_active == True,
+                Account.is_deleted == False,
+            )
+            .count()
+        )
+
     def get_accounts_by_tag_id(
         self,
         db: Session,

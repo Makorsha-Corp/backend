@@ -13,8 +13,13 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
-from app.schemas.account_invoice import AccountInvoiceSummaryResponse
+from app.schemas.account import (
+    AccountCreate,
+    AccountUpdate,
+    AccountWithTagsResponse,
+    AccountHubListResponse,
+)
+from app.schemas.account_invoice import AccountInvoiceSummaryResponse, AccountInvoiceListResponse
 from app.services.account_service import account_service
 from app.services.account_invoice_service import account_invoice_service
 
@@ -65,6 +70,45 @@ def get_accounts_by_tag(
     """Get all accounts with a specific tag"""
     return account_service.get_accounts_by_tag_id(
         db, tag_id=tag_id, workspace_id=workspace.id, skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/hub/",
+    response_model=AccountHubListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Paginated accounts hub list with open-balance rollups",
+    description=(
+        "Server-paginated accounts for the accounts landing page. "
+        "section=overview|payable|receivable filters which accounts appear."
+    ),
+)
+def list_accounts_hub(
+    section: str = Query(
+        "overview",
+        pattern=r"^(overview|payable|receivable)$",
+        description="Hub section filter",
+    ),
+    search: Optional[str] = Query(None, description="Search by account name"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=500, description="Maximum number of records to return"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    items, total = account_service.get_accounts_hub_page(
+        db,
+        workspace_id=workspace.id,
+        section=section,
+        search=search,
+        skip=skip,
+        limit=limit,
+    )
+    return AccountHubListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=skip + len(items) < total,
     )
 
 
@@ -133,6 +177,93 @@ def get_account_invoice_summary(
         invoiced_total=invoiced,
         paid_total=paid,
         outstanding_total=outstanding,
+    )
+
+
+@router.get(
+    "/{account_id}/open-invoices/",
+    response_model=AccountInvoiceListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Paginated open-balance invoices for an account",
+    description=(
+        "Non-voided invoices with unpaid, partial, or overdue payment status. "
+        "Supports server-side pagination for accounts with many open invoices."
+    ),
+)
+def list_account_open_invoices(
+    account_id: int,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
+    prioritize_purchase_order_id: Optional[int] = Query(
+        None,
+        description="When set, invoices linked to this purchase order sort first",
+    ),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """List open invoices for an account with pagination."""
+    account_service.get_account_with_tags(db, account_id, workspace_id=workspace.id)
+    items, total = account_invoice_service.list_open_invoices_page(
+        db,
+        workspace_id=workspace.id,
+        account_id=account_id,
+        prioritize_purchase_order_id=prioritize_purchase_order_id,
+        skip=skip,
+        limit=limit,
+    )
+    return AccountInvoiceListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=skip + len(items) < total,
+    )
+
+
+@router.get(
+    "/{account_id}/invoices/",
+    response_model=AccountInvoiceListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Paginated invoices for an account",
+    description="Filtered, paginated invoice list for the account detail navigator.",
+)
+def list_account_invoices(
+    account_id: int,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of records to return"),
+    invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
+    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
+    invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
+    invoice_number_search: Optional[str] = Query(None, description="Search invoice_number or vendor_invoice_number"),
+    invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
+    invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
+    due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
+    due_date_to: Optional[date] = Query(None, description="Due date range end (YYYY-MM-DD)"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    account_service.get_account_with_tags(db, account_id, workspace_id=workspace.id)
+    items, total = account_invoice_service.list_account_invoices_page(
+        db,
+        workspace_id=workspace.id,
+        account_id=account_id,
+        invoice_type=invoice_type,
+        payment_status=payment_status,
+        invoice_status=invoice_status,
+        invoice_number_search=invoice_number_search,
+        invoice_date_from=invoice_date_from,
+        invoice_date_to=invoice_date_to,
+        due_date_from=due_date_from,
+        due_date_to=due_date_to,
+        skip=skip,
+        limit=limit,
+    )
+    return AccountInvoiceListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=skip + len(items) < total,
     )
 
 

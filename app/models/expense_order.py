@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Nume
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ExpenseOrder(Base):
@@ -66,9 +67,9 @@ class ExpenseOrder(Base):
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     updated_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True, onupdate=utcnow)
     items_updated_at = Column(DateTime, nullable=True)
     approved_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     approved_at = Column(DateTime, nullable=True)

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.schemas.workspace_invitation import WorkspaceInvitationCreate
+from app.utils.time import utcnow
 
 
 class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCreate, dict]):
@@ -36,7 +37,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             .filter(
                 WorkspaceInvitation.workspace_id == workspace_id,
                 WorkspaceInvitation.status == 'pending',
-                WorkspaceInvitation.expires_at > datetime.utcnow()
+                WorkspaceInvitation.expires_at > utcnow()
             )
             .all()
         )
@@ -48,7 +49,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             .filter(
                 WorkspaceInvitation.email == email,
                 WorkspaceInvitation.status == 'pending',
-                WorkspaceInvitation.expires_at > datetime.utcnow()
+                WorkspaceInvitation.expires_at > utcnow()
             )
             .all()
         )
@@ -58,7 +59,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
     ) -> WorkspaceInvitation:
         """Mark invitation as accepted"""
         invitation.status = 'accepted'
-        invitation.accepted_at = datetime.utcnow()
+        invitation.accepted_at = utcnow()
         db.flush()
         return invitation
 
@@ -85,7 +86,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             .filter(
                 WorkspaceInvitation.workspace_id == workspace_id,
                 WorkspaceInvitation.status == 'pending',
-                WorkspaceInvitation.expires_at > datetime.utcnow()
+                WorkspaceInvitation.expires_at > utcnow()
             )
             .count()
         )
@@ -106,7 +107,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             db.query(WorkspaceInvitation)
             .filter(
                 WorkspaceInvitation.status == 'pending',
-                WorkspaceInvitation.expires_at <= datetime.utcnow()
+                WorkspaceInvitation.expires_at <= utcnow()
             )
             .update({'status': 'expired'})
         )

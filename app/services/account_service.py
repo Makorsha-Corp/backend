@@ -1,8 +1,10 @@
 """Account Service for orchestrating account workflows"""
-from typing import List, Optional
+from decimal import Decimal
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 from app.services.base_service import BaseService
 from app.managers.account_manager import account_manager
+from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
 from app.core.exceptions import NotFoundError, BusinessRuleError
@@ -258,6 +260,92 @@ class AccountService(BaseService):
             accounts_with_tags.append(account_dict)
 
         return accounts_with_tags
+
+    def _account_dict_with_tags(
+        self, db: Session, account: Account, workspace_id: int
+    ) -> dict:
+        tags = self.account_manager.get_tags_for_account(
+            session=db, account_id=account.id, workspace_id=workspace_id
+        )
+        return {
+            "id": account.id,
+            "workspace_id": account.workspace_id,
+            "name": account.name,
+            "account_code": account.account_code,
+            "primary_contact_person": account.primary_contact_person,
+            "primary_email": account.primary_email,
+            "primary_phone": account.primary_phone,
+            "secondary_contact_person": account.secondary_contact_person,
+            "secondary_email": account.secondary_email,
+            "secondary_phone": account.secondary_phone,
+            "address": account.address,
+            "city": account.city,
+            "country": account.country,
+            "postal_code": account.postal_code,
+            "payment_preferences": account.payment_preferences,
+            "bank_details": account.bank_details,
+            "allow_invoices": account.allow_invoices,
+            "is_active": account.is_active,
+            "created_at": account.created_at,
+            "account_tags": [
+                {
+                    "id": tag.id,
+                    "name": tag.name,
+                    "tag_code": tag.tag_code,
+                    "color": tag.color,
+                    "icon": tag.icon,
+                    "is_system_tag": tag.is_system_tag,
+                }
+                for tag in tags
+            ],
+        }
+
+    @staticmethod
+    def _rollup_from_subquery_row(row) -> Tuple[Decimal, int, bool]:
+        if row is None:
+            return Decimal("0"), 0, False
+        outstanding = Decimal(getattr(row, "outstanding_total", 0) or 0)
+        open_count = int(getattr(row, "open_count", 0) or 0)
+        has_overdue = bool(getattr(row, "has_overdue", 0))
+        return outstanding, open_count, has_overdue
+
+    def get_accounts_hub_page(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        section: str = "overview",
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ):
+        rows, total = account_invoice_manager.list_accounts_hub_page(
+            session=db,
+            workspace_id=workspace_id,
+            section=section,
+            search=search,
+            skip=skip,
+            limit=limit,
+        )
+        items = []
+        for account, payable_row, receivable_row in rows:
+            payable_out, payable_count, payable_overdue = self._rollup_from_subquery_row(
+                payable_row
+            )
+            receivable_out, receivable_count, receivable_overdue = self._rollup_from_subquery_row(
+                receivable_row
+            )
+            account_dict = self._account_dict_with_tags(db, account, workspace_id)
+            account_dict["open_balance"] = {
+                "payable_outstanding": payable_out,
+                "receivable_outstanding": receivable_out,
+                "open_payable_count": payable_count,
+                "open_receivable_count": receivable_count,
+                "has_overdue_payable": payable_overdue,
+                "has_overdue_receivable": receivable_overdue,
+            }
+            items.append(account_dict)
+        return items, total
 
     def update_account(
         self,

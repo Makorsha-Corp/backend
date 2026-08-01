@@ -9,6 +9,7 @@ from app.dao.account_tag import account_tag_dao
 from app.dao.account_tag_assignment import account_tag_assignment_dao
 from app.schemas.account import AccountCreate, AccountUpdate
 from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
+from app.utils.time import utcnow
 
 
 class AccountManager(BaseManager[Account]):
@@ -294,7 +295,7 @@ class AccountManager(BaseManager[Account]):
         return self.account_dao.update(session, db_obj=account, obj_in={
             'is_deleted': True,
             'is_active': False,
-            'deleted_at': datetime.utcnow(),
+            'deleted_at': utcnow(),
             'deleted_by': user_id,
         })
 

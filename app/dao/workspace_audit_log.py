@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.workspace_audit_log import WorkspaceAuditLog
 from app.schemas.workspace_audit_log import WorkspaceAuditLogCreate
+from app.utils.time import utcnow
 
 
 class WorkspaceAuditLogDAO(BaseDAO[WorkspaceAuditLog, WorkspaceAuditLogCreate, dict]):
@@ -35,7 +36,7 @@ class WorkspaceAuditLogDAO(BaseDAO[WorkspaceAuditLog, WorkspaceAuditLogCreate, d
         )
 
         if days:
-            since = datetime.utcnow() - timedelta(days=days)
+            since = utcnow() - timedelta(days=days)
             query = query.filter(WorkspaceAuditLog.created_at >= since)
 
         return query.offset(skip).limit(limit).all()

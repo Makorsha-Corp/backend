@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.notification_channels import NOTIFICATION_CHANNEL
 from app.models.notification import Notification
+from app.utils.time import utcnow
 
 
 class NotificationDAO:
@@ -97,7 +98,7 @@ class NotificationDAO:
         )
         if ids:
             q = q.filter(Notification.id.in_(ids))
-        count = q.update({"is_read": True, "read_at": datetime.utcnow()}, synchronize_session=False)
+        count = q.update({"is_read": True, "read_at": utcnow()}, synchronize_session=False)
         return count
 
 

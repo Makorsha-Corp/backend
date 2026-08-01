@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Nume
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ProjectComponentItemLedger(Base):
@@ -64,7 +65,7 @@ class ProjectComponentItemLedger(Base):
     # === NOTES & AUDIT ===
     notes = Column(Text, nullable=True)
     performed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)
-    performed_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    performed_at = Column(DateTime, nullable=False, default=utcnow, index=True)
 
     # === RELATIONSHIPS ===
     project_component = relationship("ProjectComponent", backref="component_ledger_entries")

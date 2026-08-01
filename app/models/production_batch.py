@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ProductionBatch(Base):
@@ -54,8 +55,8 @@ class ProductionBatch(Base):
     # Audit fields
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     updated_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     started_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     started_at = Column(DateTime, nullable=True)

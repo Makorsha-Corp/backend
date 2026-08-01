@@ -36,6 +36,7 @@ from app.db.seed_po_workflow import (
     ensure_po_stage_statuses,
     ensure_po_workflow_record,
 )
+from app.utils.time import utcnow
 
 INVOICE_CONFIRMED_DETAIL_FIELDS = frozenset({
     'destination_type', 'destination_id', 'order_date', 'description',
@@ -1575,7 +1576,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                         detail='Cannot withdraw approval — invoice is locked',
                     )
         rec.approved = approved
-        rec.approved_at = datetime.utcnow() if approved else None
+        rec.approved_at = utcnow() if approved else None
         session.flush()
 
         self.log_event(

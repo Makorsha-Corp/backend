@@ -1,6 +1,6 @@
 """Account invoice schemas"""
 from pydantic import BaseModel, Field, ConfigDict, computed_field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -102,6 +102,31 @@ class AccountInvoiceSummaryResponse(BaseModel):
     invoiced_total: Decimal
     paid_total: Decimal
     outstanding_total: Decimal
+
+
+class AccountInvoiceListResponse(BaseModel):
+    """Paginated account invoice list."""
+    items: List[AccountInvoiceResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
+
+
+class InvoiceHubTypeSummary(BaseModel):
+    """Workspace-level open-balance summary for one invoice type."""
+    open_count: int
+    outstanding_total: Decimal
+    overdue_count: int
+    accounts_with_open_count: int
+
+
+class AccountInvoicesHubSummaryResponse(BaseModel):
+    """Workspace accounts hub invoice KPIs."""
+    payable: InvoiceHubTypeSummary
+    receivable: InvoiceHubTypeSummary
+    total_active_accounts: int
+    accounts_with_any_open_balance: int
 
 
 class InvoiceStatusEntryResponse(BaseModel):

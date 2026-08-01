@@ -11,6 +11,7 @@ from sqlalchemy import and_
 from app.dao.base import BaseDAO
 from app.models.attachment import Attachment
 from app.schemas.attachment import AttachmentCreate, AttachmentUpdate
+from app.utils.time import utcnow
 
 
 class AttachmentDAO(BaseDAO[Attachment, AttachmentCreate, AttachmentUpdate]):
@@ -111,7 +112,7 @@ class AttachmentDAO(BaseDAO[Attachment, AttachmentCreate, AttachmentUpdate]):
             return None
 
         attachment.is_deleted = True
-        attachment.deleted_at = datetime.utcnow()
+        attachment.deleted_at = utcnow()
         attachment.deleted_by = deleted_by
 
         db.add(attachment)

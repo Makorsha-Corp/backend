@@ -7,6 +7,7 @@ when a new workspace is created.
 from sqlalchemy.orm import Session
 from app.models.item_tag import ItemTag
 from datetime import datetime
+from app.utils.time import utcnow
 
 
 DEFAULT_SYSTEM_TAGS = [
@@ -101,7 +102,7 @@ def seed_default_tags(db: Session, workspace_id: int, created_by_user_id: int = 
                 is_system_tag=tag_data["is_system_tag"],
                 is_active=True,
                 usage_count=0,
-                created_at=datetime.utcnow(),
+                created_at=utcnow(),
                 created_by=created_by_user_id,
             )
             db.add(tag)

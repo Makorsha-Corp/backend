@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ProjectMember(Base):
@@ -19,7 +20,7 @@ class ProjectMember(Base):
     user_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
 
     assigned_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    assigned_at = Column(DateTime, nullable=False, default=utcnow)
 
     project = relationship("Project", back_populates="members")
     user = relationship("Profile", foreign_keys=[user_id])

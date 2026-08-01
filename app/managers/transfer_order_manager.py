@@ -27,6 +27,7 @@ from app.schemas.transfer_order import (
     TransferOrderItemUpdate,
     TransferOrderUpdate,
 )
+from app.utils.time import utcnow
 
 ROUTE_UPDATE_FIELDS = frozenset({
     'source_location_type', 'source_location_id',
@@ -450,7 +451,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
                 detail='Add at least one item before completing',
             )
 
-        now = datetime.utcnow()
+        now = utcnow()
         for line in items:
             if line.transferred_at is None:
                 line.transferred_at = now
@@ -465,7 +466,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             session, record, items, workspace_id, user_id
         )
 
-        record.completed_at = datetime.utcnow()
+        record.completed_at = utcnow()
         record.completed_by = user_id
         record.updated_by = user_id
         session.flush()
@@ -708,7 +709,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         if approved:
             self._validate_ready_for_approval(session, to, workspace_id)
         rec.approved = approved
-        rec.approved_at = datetime.utcnow() if approved else None
+        rec.approved_at = utcnow() if approved else None
         session.flush()
         self.log_event(
             session, to_id, workspace_id,

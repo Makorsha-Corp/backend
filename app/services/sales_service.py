@@ -19,6 +19,7 @@ from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
 from app.schemas.account_invoice import AccountInvoiceCreate
 from app.schemas.response import ActionMessage, success_message, info_message
 from app.core.exceptions import NotFoundError
+from app.utils.time import utcnow
 
 
 class SalesService(BaseService):
@@ -133,7 +134,7 @@ class SalesService(BaseService):
         self.account_invoice_manager.sync_items_from_list(
             db, invoice, invoice_item_dicts, user_id
         )
-        order.items_updated_at = datetime.utcnow()
+        order.items_updated_at = utcnow()
 
     def create_invoice_for_sales_order(
         self,

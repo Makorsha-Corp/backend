@@ -163,7 +163,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
     ) -> List[PurchaseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
-            .order_by(desc(PurchaseOrder.created_at))
+            .order_by(desc(PurchaseOrder.created_at), desc(PurchaseOrder.id))
             .offset(skip)
             .limit(limit)
             .all()
@@ -371,6 +371,25 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
 class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, PurchaseOrderItemUpdate]):
     def get_by_order(self, db: Session, *, purchase_order_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
         return db.query(PurchaseOrderItem).filter(PurchaseOrderItem.purchase_order_id == purchase_order_id, PurchaseOrderItem.workspace_id == workspace_id).order_by(PurchaseOrderItem.line_number).all()
+
+    def get_by_purchase_order_ids(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        purchase_order_ids: List[int],
+    ) -> List[PurchaseOrderItem]:
+        if not purchase_order_ids:
+            return []
+        return (
+            db.query(PurchaseOrderItem)
+            .filter(
+                PurchaseOrderItem.workspace_id == workspace_id,
+                PurchaseOrderItem.purchase_order_id.in_(purchase_order_ids),
+            )
+            .order_by(PurchaseOrderItem.purchase_order_id, PurchaseOrderItem.line_number)
+            .all()
+        )
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrderItem]:
         return db.query(PurchaseOrderItem).filter(PurchaseOrderItem.id == id, PurchaseOrderItem.workspace_id == workspace_id).first()

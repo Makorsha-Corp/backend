@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint, Da
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class WorkspaceMember(Base):
@@ -23,7 +24,7 @@ class WorkspaceMember(Base):
 
     # Invitation tracking
     invited_by_user_id = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    invited_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    invited_at = Column(DateTime, nullable=False, default=utcnow)
     joined_at = Column(DateTime, nullable=True)
 
     # Status
@@ -31,8 +32,8 @@ class WorkspaceMember(Base):
     left_at = Column(DateTime, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     # Relationships
     workspace = relationship("Workspace", back_populates="members")

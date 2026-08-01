@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, UniqueCon
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class PurchaseOrderApprover(Base):
@@ -22,7 +23,7 @@ class PurchaseOrderApprover(Base):
     user_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
 
     assigned_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    assigned_at = Column(DateTime, nullable=False, default=utcnow)
 
     approved = Column(Boolean, nullable=False, default=False)
     approved_at = Column(DateTime, nullable=True)

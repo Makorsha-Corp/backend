@@ -18,6 +18,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class RefreshToken(Base):
@@ -48,7 +49,7 @@ class RefreshToken(Base):
     # All rotations from the same login share a family_id (uuid hex string).
     family_id = Column(String(36), nullable=False, index=True)
 
-    issued_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    issued_at = Column(DateTime, nullable=False, default=utcnow)
     expires_at = Column(DateTime, nullable=False, index=True)
 
     revoked_at = Column(DateTime, nullable=True)

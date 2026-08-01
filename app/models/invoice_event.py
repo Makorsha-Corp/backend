@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship, backref
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class InvoiceEvent(Base):
@@ -29,7 +30,7 @@ class InvoiceEvent(Base):
     metadata_json = Column("metadata_json", JSON, nullable=True)
 
     performed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
 
     invoice = relationship("AccountInvoice", backref=backref("events", passive_deletes=True))
     performer = relationship("Profile", foreign_keys=[performed_by])

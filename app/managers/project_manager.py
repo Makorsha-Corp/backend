@@ -22,6 +22,7 @@ from app.dao.workspace_member import workspace_member_dao
 from app.dao.workspace import workspace_dao
 from app.dao.profile import profile_dao
 from app.models.profile import Profile
+from app.utils.time import utcnow
 
 PRIVILEGED_ROLES = frozenset({'owner', 'ground-team-manager'})
 
@@ -363,7 +364,7 @@ class ProjectManager(BaseManager[Project]):
         old_label = self._visibility_value(project)
         project.visibility = visibility.value
         project.updated_by = user_id
-        project.updated_at = datetime.utcnow()
+        project.updated_at = utcnow()
         session.add(project)
         session.flush()
         self.log_event(
@@ -500,7 +501,7 @@ class ProjectManager(BaseManager[Project]):
         update_dict = project_data.model_dump(exclude_unset=True, exclude_none=True)
         changes = self._collect_field_changes(project, update_dict, PROJECT_LOG_FIELDS)
         update_dict['updated_by'] = user_id
-        update_dict['updated_at'] = datetime.utcnow()
+        update_dict['updated_at'] = utcnow()
 
         updated_project = self.project_dao.update(
             session, db_obj=project, obj_in=update_dict
@@ -548,7 +549,7 @@ class ProjectManager(BaseManager[Project]):
             )
 
         project.is_deleted = True
-        project.deleted_at = datetime.utcnow()
+        project.deleted_at = utcnow()
         project.deleted_by = user_id
         session.add(project)
         session.flush()

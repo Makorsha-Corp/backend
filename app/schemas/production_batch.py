@@ -72,3 +72,9 @@ class ProductionBatchResponse(ProductionBatchInDB):
     True when outputs for this batch have been posted to factory finished goods (products).
     Only guaranteed accurate on GET /production-batches/{id}/; list endpoints may omit or default.
     """
+
+
+class ProductionBatchStatsResponse(BaseModel):
+    """Aggregate production batch counts for dashboard KPIs."""
+    in_progress_count: int
+    total_count: int

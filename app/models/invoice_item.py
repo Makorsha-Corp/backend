@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.orm import relationship, backref
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class InvoiceItem(Base):
@@ -34,7 +35,7 @@ class InvoiceItem(Base):
     line_subtotal = Column(Numeric(15, 2), nullable=False)
 
     last_synced_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
 
     invoice = relationship("AccountInvoice", backref=backref("items", passive_deletes=True))

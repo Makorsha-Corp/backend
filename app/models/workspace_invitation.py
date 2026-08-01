@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class WorkspaceInvitation(Base):
@@ -24,7 +25,7 @@ class WorkspaceInvitation(Base):
     status = Column(String(50), nullable=False, default='pending', index=True)  # 'pending', 'accepted', 'expired', 'cancelled'
 
     # Timestamps
-    invited_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    invited_at = Column(DateTime, nullable=False, default=utcnow)
     expires_at = Column(DateTime, nullable=False)
     accepted_at = Column(DateTime, nullable=True)
     accepted_by_user_id = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)

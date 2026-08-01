@@ -2,6 +2,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Must run before any alembic command: rewrites the pre-squash stamp
+# (064_waitlist_signups) to the squashed baseline id. `alembic current`
+# would otherwise error on the unknown revision.
+echo "=== adopt squashed baseline (no-op unless pre-squash stamp) ==="
+python -m scripts.adopt_squashed_baseline
 echo "=== alembic current ==="
 alembic current
 echo "=== alembic upgrade head ==="
