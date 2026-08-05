@@ -81,6 +81,8 @@ from app.models.order_template_item import OrderTemplateItem
 # Sales Orders
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_item import SalesOrderItem
+from app.models.sales_order_approver import SalesOrderApprover
+from app.models.sales_order_event import SalesOrderEvent
 # Sales Deliveries
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_delivery_item import SalesDeliveryItem

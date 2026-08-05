@@ -150,7 +150,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             },
         )
 
-        self._sync_linked_po_stage(session, updated_invoice, user_id)
+        self._sync_linked_order(session, updated_invoice, user_id)
 
         return payment
 
@@ -359,7 +359,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 description=f"Invoice payment status changed from {old_invoice_payment_status} to {new_invoice_payment_status} after payment deletion"
             )
 
-        self._sync_linked_po_stage(session, invoice, user_id)
+        self._sync_linked_order(session, invoice, user_id)
 
         return payment
 
@@ -447,26 +447,36 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             },
         )
 
-        self._sync_linked_po_stage(session, invoice, user_id)
+        self._sync_linked_order(session, invoice, user_id)
         return payment
 
 
-    def _sync_linked_po_stage(
+    def _sync_linked_order(
         self,
         session: Session,
         invoice: AccountInvoice,
         user_id: int | None,
     ) -> None:
-        if invoice.order_type != 'purchase_order' or invoice.order_id is None:
+        if invoice.order_id is None:
             return
-        from app.managers.purchase_order_manager import purchase_order_manager
+        if invoice.order_type == 'purchase_order':
+            from app.managers.purchase_order_manager import purchase_order_manager
 
-        purchase_order_manager.sync_po_for_linked_invoice(
-            session,
-            invoice_id=invoice.id,
-            workspace_id=invoice.workspace_id,
-            user_id=user_id,
-        )
+            purchase_order_manager.sync_po_for_linked_invoice(
+                session,
+                invoice_id=invoice.id,
+                workspace_id=invoice.workspace_id,
+                user_id=user_id,
+            )
+        elif invoice.order_type == 'sales_order':
+            from app.managers.sales_manager import sales_manager
+
+            sales_manager.sync_so_for_linked_invoice(
+                session,
+                invoice_id=invoice.id,
+                workspace_id=invoice.workspace_id,
+                user_id=user_id,
+            )
 
 
 # Singleton instance

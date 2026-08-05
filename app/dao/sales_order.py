@@ -10,6 +10,18 @@ from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
 class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
     """DAO operations for SalesOrder model"""
 
+    def get_by_invoice_id(
+        self, db: Session, *, invoice_id: int, workspace_id: int
+    ) -> Optional[SalesOrder]:
+        return (
+            db.query(SalesOrder)
+            .filter(
+                SalesOrder.invoice_id == invoice_id,
+                SalesOrder.workspace_id == workspace_id,
+            )
+            .first()
+        )
+
     def generate_sales_order_number(
         self, db: Session, *, workspace_id: int, year: int
     ) -> str:

@@ -59,6 +59,8 @@ from app.models.expense_order_event import ExpenseOrderEvent
 # Sales Module
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_item import SalesOrderItem
+from app.models.sales_order_approver import SalesOrderApprover
+from app.models.sales_order_event import SalesOrderEvent
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_delivery_item import SalesDeliveryItem
 from app.models.delivery_method import DeliveryMethod
@@ -166,6 +168,8 @@ __all__ = [
     # Sales Module
     "SalesOrder",
     "SalesOrderItem",
+    "SalesOrderApprover",
+    "SalesOrderEvent",
     "SalesDelivery",
     "SalesDeliveryItem",
     "DeliveryMethod",

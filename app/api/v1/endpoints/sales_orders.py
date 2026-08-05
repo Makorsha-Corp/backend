@@ -14,7 +14,14 @@ from app.models.workspace import Workspace
 from app.schemas.sales_order import (
     SalesOrderCreate,
     SalesOrderUpdate,
-    SalesOrderResponse
+    SalesOrderResponse,
+    SalesOrderApproverCreate,
+    SalesOrderApproverResponse,
+    SalesOrderApprovalSummaryResponse,
+    SalesOrderApproversList,
+    SalesOrderSectionConfirmRequest,
+    SalesOrderEventMetadata,
+    SalesOrderEventResponse,
 )
 from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse
 from app.schemas.response import ActionResponse
@@ -22,6 +29,22 @@ from app.services.sales_service import sales_service
 
 
 router = APIRouter()
+
+
+def _approver_response(record, profile=None, position=None) -> SalesOrderApproverResponse:
+    return SalesOrderApproverResponse(
+        id=record.id,
+        workspace_id=record.workspace_id,
+        sales_order_id=record.sales_order_id,
+        user_id=record.user_id,
+        user_name=profile.name if profile else None,
+        user_email=profile.email if profile else None,
+        user_position=position,
+        assigned_by=record.assigned_by,
+        assigned_at=record.assigned_at,
+        approved=record.approved,
+        approved_at=record.approved_at,
+    )
 
 
 @router.get(
@@ -160,6 +183,201 @@ def create_invoice_from_sales_order(
         workspace_id=workspace.id,
         user_id=current_user.id,
     )
+
+
+@router.post(
+    "/{order_id}/finalize-invoice/",
+    response_model=SalesOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Finalize the sales order's invoice",
+    description=(
+        "Creates the draft invoice if missing, confirms it, and locks the "
+        "order's sections. Requires customer/details/items confirmed and approvals met."
+    ),
+)
+def finalize_sales_order_invoice(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.finalize_sales_order_invoice(
+        db, order_id=order_id, workspace_id=workspace.id, user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/{order_id}/complete/",
+    response_model=SalesOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Mark sales order complete",
+    description="Allowed only when the invoice is finalized and every line has been delivered/fulfilled.",
+)
+def mark_sales_order_complete(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.mark_order_complete(
+        db, order_id=order_id, workspace_id=workspace.id, user_id=current_user.id,
+    )
+
+
+_SECTION_CONFIRM_FIELDS = {
+    'customer': 'customer_confirmed',
+    'details': 'details_confirmed',
+    'items': 'items_confirmed',
+}
+
+
+@router.patch(
+    "/{order_id}/section-confirm/",
+    response_model=SalesOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Confirm or unconfirm a sales order section",
+)
+def set_sales_order_section_confirm(
+    order_id: int,
+    body: SalesOrderSectionConfirmRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.set_section_confirm(
+        db, order_id=order_id, workspace_id=workspace.id, user_id=current_user.id,
+        section=body.section, confirmed=body.confirmed,
+    )
+
+
+# ─── Sales Order Approvers ─────────────────────────────────────
+
+@router.get(
+    "/{order_id}/approvers/",
+    response_model=SalesOrderApproversList,
+    status_code=status.HTTP_200_OK,
+    summary="List sales order approvers + approval summary",
+)
+def list_sales_order_approvers(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    rows = sales_service.list_approvers(db, order_id=order_id, workspace_id=workspace.id)
+    order = sales_service.get_sales_order(db, order_id, workspace.id)
+    approved_count, required, met = sales_service.approval_summary(db, order)
+    return SalesOrderApproversList(
+        approvers=[_approver_response(a, profile, position) for a, profile, position in rows],
+        summary=SalesOrderApprovalSummaryResponse(approved_count=approved_count, required=required, met=met),
+    )
+
+
+@router.post(
+    "/{order_id}/approvers/",
+    response_model=SalesOrderApproverResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Assign an approver to a sales order",
+)
+def add_sales_order_approver(
+    order_id: int,
+    body: SalesOrderApproverCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    approver = sales_service.add_approver(
+        db, order_id=order_id, user_id=body.user_id, workspace_id=workspace.id, assigned_by=current_user.id,
+    )
+    return _approver_response(approver)
+
+
+@router.delete(
+    "/{order_id}/approvers/{user_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove an approver from a sales order",
+)
+def remove_sales_order_approver(
+    order_id: int,
+    user_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    sales_service.remove_approver(
+        db, order_id=order_id, user_id=user_id, workspace_id=workspace.id, performed_by=current_user.id,
+    )
+
+
+@router.post(
+    "/{order_id}/approvers/me/approve/",
+    response_model=SalesOrderApproverResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Approve this sales order as the current user",
+)
+def approve_sales_order(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    approver = sales_service.set_approval(
+        db, order_id=order_id, user_id=current_user.id, workspace_id=workspace.id, approved=True,
+    )
+    return _approver_response(approver)
+
+
+@router.delete(
+    "/{order_id}/approvers/me/approve/",
+    response_model=SalesOrderApproverResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Withdraw the current user's approval",
+)
+def unapprove_sales_order(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    approver = sales_service.set_approval(
+        db, order_id=order_id, user_id=current_user.id, workspace_id=workspace.id, approved=False,
+    )
+    return _approver_response(approver)
+
+
+# ─── Sales Order Events ────────────────────────────────────────
+
+@router.get(
+    "/{order_id}/events/",
+    response_model=List[SalesOrderEventResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List sales order activity events",
+)
+def list_sales_order_events(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    rows = sales_service.list_events(db, order_id=order_id, workspace_id=workspace.id)
+    return [
+        SalesOrderEventResponse(
+            id=e.id,
+            workspace_id=e.workspace_id,
+            sales_order_id=e.sales_order_id,
+            event_type=e.event_type,
+            description=e.description,
+            metadata=(
+                SalesOrderEventMetadata.model_validate(e.metadata_json)
+                if e.metadata_json
+                else None
+            ),
+            performed_by=e.performed_by,
+            user_name=profile.name if profile else None,
+            created_at=e.created_at,
+        )
+        for e, profile in rows
+    ]
 
 
 @router.post(

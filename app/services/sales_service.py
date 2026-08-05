@@ -1,7 +1,7 @@
 """Sales Service for orchestrating sales workflows"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -11,9 +11,10 @@ from app.managers.sales_manager import sales_manager
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.dao.account import account_dao
 from app.models.sales_order import SalesOrder
+from app.models.sales_order_approver import SalesOrderApprover
+from app.models.sales_order_event import SalesOrderEvent
 from app.models.sales_delivery import SalesDelivery
 from app.models.profile import Profile
-from app.models.status import Status
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
 from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
 from app.schemas.account_invoice import AccountInvoiceCreate
@@ -35,18 +36,6 @@ class SalesService(BaseService):
         super().__init__()
         self.sales_manager = sales_manager
         self.account_invoice_manager = account_invoice_manager
-
-    @staticmethod
-    def _is_completed_status(db: Session, workspace_id: int, status_id: int) -> bool:
-        """True if this status row belongs to the workspace and its name is Completed (case-insensitive)."""
-        st = (
-            db.query(Status)
-            .filter(Status.id == status_id, Status.workspace_id == workspace_id)
-            .first()
-        )
-        if not st or not st.name:
-            return False
-        return st.name.strip().lower() == "completed"
 
     def _attach_receivable_invoice_to_sales_order(
         self,
@@ -169,6 +158,61 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def finalize_sales_order_invoice(
+        self,
+        db: Session,
+        order_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> SalesOrder:
+        """
+        Finalize the sales order's invoice: creates the draft invoice if one
+        doesn't exist yet, confirms it, and flips all section-confirm flags
+        as a side effect (mirrors Purchase Order's finalize-invoice step).
+
+        Requires customer/details/items all confirmed and approvals met.
+        """
+        try:
+            order = self.get_sales_order(db, order_id, workspace_id)
+
+            if not self.sales_manager._base_sections_confirmed(order):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Confirm customer, order details, and items before finalizing",
+                )
+            approved_count, required, met = self.sales_manager.approval_summary(db, order)
+            if not met:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Requires {required} approval(s); {approved_count} so far",
+                )
+            if order.invoice_confirmed:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Invoice is already finalized",
+                )
+
+            if order.invoice_id is None:
+                self._attach_receivable_invoice_to_sales_order(db, order, workspace_id, user_id)
+
+            self.account_invoice_manager.confirm_invoice(
+                session=db, invoice_id=order.invoice_id, workspace_id=workspace_id, user_id=user_id,
+            )
+            self.sales_manager.apply_post_invoice_confirms(db, order, workspace_id, user_id)
+            self.sales_manager.log_event(
+                db, order.id, workspace_id, 'invoice_confirmed',
+                f'Invoice #{order.invoice_id} confirmed — order locked', user_id,
+                metadata={'invoice_id': order.invoice_id},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(order)
+            self._attach_invoice_payment_status(db, [order])
+            return order
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def create_sales_order(
         self,
         db: Session,
@@ -265,6 +309,7 @@ class SalesService(BaseService):
         )
         if not order:
             raise ValueError(f"Sales order {order_id} not found")
+        self._attach_invoice_payment_status(db, [order])
         return order
 
     def get_sales_orders(
@@ -286,9 +331,27 @@ class SalesService(BaseService):
         Returns:
             List of sales orders
         """
-        return self.sales_manager.sales_order_dao.get_by_workspace(
+        orders = self.sales_manager.sales_order_dao.get_by_workspace(
             db, workspace_id=workspace_id, skip=skip, limit=limit
         )
+        self._attach_invoice_payment_status(db, orders)
+        return orders
+
+    @staticmethod
+    def _attach_invoice_payment_status(db: Session, orders: List[SalesOrder]) -> None:
+        """Batch-fetch invoice payment_status and attach as a transient attribute."""
+        from app.models.account_invoice import AccountInvoice
+        invoice_ids = [o.invoice_id for o in orders if o.invoice_id is not None]
+        if not invoice_ids:
+            for o in orders:
+                o.invoice_payment_status = None
+            return
+        rows = db.query(AccountInvoice.id, AccountInvoice.payment_status).filter(
+            AccountInvoice.id.in_(invoice_ids)
+        ).all()
+        status_map = {inv_id: ps for inv_id, ps in rows}
+        for o in orders:
+            o.invoice_payment_status = status_map.get(o.invoice_id)
 
     def update_sales_order(
         self,
@@ -299,17 +362,18 @@ class SalesService(BaseService):
         user_id: int,
     ) -> SalesOrder:
         """
-        Update sales order.
+        Update sales order (dates, description, delivery/invoice flags).
 
-        When current_status_id changes to a workspace status named \"Completed\" (case-insensitive),
-        creates a receivable invoice in the same transaction if not already invoiced.
+        Invoice creation no longer happens implicitly here — use
+        finalize_sales_order_invoice or the manual create_invoice_for_sales_order
+        path instead.
 
         Args:
             db: Database session
             order_id: Sales order ID
             workspace_id: Workspace ID
             order_update: Update data
-            user_id: User performing the update (invoice created_by context)
+            user_id: User performing the update
 
         Returns:
             Updated sales order
@@ -319,24 +383,10 @@ class SalesService(BaseService):
         """
         try:
             order = self.get_sales_order(db, order_id, workspace_id)
-            prev_status_id = order.current_status_id
 
             updated_order = self.sales_manager.sales_order_dao.update(
                 db, db_obj=order, obj_in=order_update
             )
-
-            if order_update.current_status_id is not None:
-                new_status_id = updated_order.current_status_id
-                if prev_status_id != new_status_id and self._is_completed_status(
-                    db, workspace_id, new_status_id
-                ):
-                    if (
-                        updated_order.invoice_id is None
-                        and not updated_order.is_invoiced
-                    ):
-                        self._attach_receivable_invoice_to_sales_order(
-                            db, updated_order, workspace_id, user_id
-                        )
 
             self._commit_transaction(db)
             db.refresh(updated_order)
@@ -390,7 +440,10 @@ class SalesService(BaseService):
 
             return delivery, sales_order
 
-        except Exception as e:
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -553,6 +606,12 @@ class SalesService(BaseService):
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="This line requires delivery — use the delivery workflow, not direct fulfillment",
                 )
+            parent_order = self.get_sales_order(db, order_id, workspace_id)
+            if not parent_order.invoice_confirmed:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Finalize the invoice before fulfilling this line",
+                )
 
             sales_order = self.sales_manager.fulfill_service_item(
                 session=db,
@@ -696,6 +755,91 @@ class SalesService(BaseService):
         return sales_delivery_item_dao.get_by_delivery(
             db, delivery_id=delivery_id, workspace_id=workspace_id
         )
+
+    # ─── Completion ────────────────────────────────────────────
+
+    def mark_order_complete(
+        self, db: Session, order_id: int, workspace_id: int, user_id: int
+    ) -> SalesOrder:
+        """Mark a sales order complete once the invoice is finalized and every
+        line has been delivered/fulfilled."""
+        try:
+            order = self.sales_manager.mark_order_complete(db, order_id, workspace_id, user_id)
+            self._commit_transaction(db)
+            db.refresh(order)
+            self._attach_invoice_payment_status(db, [order])
+            return order
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    # ─── Section confirm ───────────────────────────────────────
+
+    def set_section_confirm(
+        self, db: Session, order_id: int, workspace_id: int, user_id: int,
+        section: str, confirmed: bool,
+    ) -> SalesOrder:
+        try:
+            order = self.sales_manager.set_section_confirm(
+                db, order_id, workspace_id, user_id, section, confirmed,
+            )
+            self._commit_transaction(db)
+            db.refresh(order)
+            return order
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    # ─── Approvers ─────────────────────────────────────────────
+
+    def list_approvers(
+        self, db: Session, order_id: int, workspace_id: int
+    ) -> List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]]:
+        return self.sales_manager.list_approvers(db, order_id, workspace_id)
+
+    def approval_summary(self, db: Session, order: SalesOrder) -> Tuple[int, int, bool]:
+        return self.sales_manager.approval_summary(db, order)
+
+    def add_approver(
+        self, db: Session, order_id: int, user_id: int, workspace_id: int, assigned_by: int
+    ) -> SalesOrderApprover:
+        try:
+            approver = self.sales_manager.add_approver(db, order_id, user_id, workspace_id, assigned_by)
+            self._commit_transaction(db)
+            db.refresh(approver)
+            return approver
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_approver(
+        self, db: Session, order_id: int, user_id: int, workspace_id: int, performed_by: int,
+    ) -> None:
+        try:
+            self.sales_manager.remove_approver(db, order_id, user_id, workspace_id, performed_by)
+            self._commit_transaction(db)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def set_approval(
+        self, db: Session, order_id: int, user_id: int, workspace_id: int, approved: bool,
+    ) -> SalesOrderApprover:
+        try:
+            approver = self.sales_manager.set_approval(db, order_id, user_id, workspace_id, approved)
+            self._commit_transaction(db)
+            db.refresh(approver)
+            return approver
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    # ─── Events ────────────────────────────────────────────────
+
+    def list_events(
+        self, db: Session, order_id: int, workspace_id: int
+    ) -> List[Tuple[SalesOrderEvent, Optional[Profile]]]:
+        return self.sales_manager.list_events(db, order_id, workspace_id)
 
 
 sales_service = SalesService()

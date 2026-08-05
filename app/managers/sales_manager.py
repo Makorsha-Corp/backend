@@ -1,13 +1,43 @@
 """Sales Manager for sales order business logic"""
-from typing import List
+from typing import List, Optional, Tuple
+from datetime import datetime
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from app.managers.base_manager import BaseManager
 from app.models.sales_order import SalesOrder
+from app.models.sales_order_item import SalesOrderItem
+from app.models.sales_order_approver import SalesOrderApprover
+from app.models.sales_order_event import SalesOrderEvent
 from app.models.sales_delivery import SalesDelivery
+from app.models.profile import Profile
 from app.dao.sales_order import sales_order_dao
 from app.dao.sales_order_item import sales_order_item_dao
+from app.dao.sales_order_approver import sales_order_approver_dao
+from app.dao.sales_order_event import sales_order_event_dao
 from app.dao.sales_delivery import sales_delivery_dao
 from app.dao.sales_delivery_item import sales_delivery_item_dao
+from app.dao.workspace_member import workspace_member_dao
+from app.dao.profile import profile_dao
+from app.dao.account_invoice import account_invoice_dao
+
+SECTION_CONFIRM_FIELDS = {
+    'customer_confirmed': ('customer', 'Customer'),
+    'details_confirmed': ('details', 'Order details'),
+    'items_confirmed': ('items', 'Order items'),
+    'invoice_confirmed': ('invoice', 'Draft invoice'),
+}
+
+
+def all_deliverable_items_delivered(items: List[SalesOrderItem]) -> bool:
+    """True if every requires_delivery=True line has been fully delivered. Vacuously true if none."""
+    deliverable = [i for i in items if i.requires_delivery]
+    return all(i.quantity_delivered >= i.quantity_ordered for i in deliverable)
+
+
+def all_fulfilment_items_fulfilled(items: List[SalesOrderItem]) -> bool:
+    """True if every requires_delivery=False line has been fulfilled. Vacuously true if none."""
+    fulfilment = [i for i in items if not i.requires_delivery]
+    return all(i.quantity_delivered >= i.quantity_ordered for i in fulfilment)
 
 
 class SalesManager(BaseManager[SalesOrder]):
@@ -15,12 +45,15 @@ class SalesManager(BaseManager[SalesOrder]):
     AGGREGATE MANAGER: Manages SalesOrder aggregate root.
 
     Aggregate: SalesOrder + SalesOrderItems + SalesDeliveries + SalesDeliveryItems
+             + SalesOrderApprovers + SalesOrderEvents
 
     Business rules:
     - Sales order MUST have at least one item
     - Deliveries update order item quantities
     - Physical deliveries deduct from sellable Product stock (product_ledger)
     - Service/free-text lines are fulfilled directly, no delivery, no stock movement
+    - Delivery/fulfilment actions require the invoice to be finalized first
+    - Order completion requires the invoice finalized and all lines delivered/fulfilled
 
     Does NOT commit transactions - that's the service layer's responsibility.
     """
@@ -29,6 +62,8 @@ class SalesManager(BaseManager[SalesOrder]):
         super().__init__(SalesOrder)
         self.sales_order_dao = sales_order_dao
         self.sales_order_item_dao = sales_order_item_dao
+        self.approver_dao = sales_order_approver_dao
+        self.event_dao = sales_order_event_dao
         self.sales_delivery_dao = sales_delivery_dao
         self.sales_delivery_item_dao = sales_delivery_item_dao
 
@@ -90,6 +125,17 @@ class SalesManager(BaseManager[SalesOrder]):
             user_id=user_id
         )
 
+        # Auto-add the creator as an approver (unapproved).
+        session.add(SalesOrderApprover(
+            workspace_id=workspace_id,
+            sales_order_id=sales_order.id,
+            user_id=user_id,
+            assigned_by=user_id,
+            approved=False,
+        ))
+        session.flush()
+        self.log_event(session, sales_order.id, workspace_id, 'created', 'Order created', user_id)
+
         # Create order items
         for item_data in items_data:
             from app.schemas.sales_order_item import SalesOrderItemCreate
@@ -126,6 +172,16 @@ class SalesManager(BaseManager[SalesOrder]):
         """
         if not delivery_items_data:
             raise ValueError("Delivery must have at least one item")
+
+        parent_order = self.sales_order_dao.get_by_id_and_workspace(
+            session, id=delivery_data['sales_order_id'], workspace_id=workspace_id
+        )
+        if not parent_order:
+            raise ValueError(f"Sales order {delivery_data['sales_order_id']} not found")
+        if not parent_order.invoice_confirmed:
+            raise ValueError(
+                "Finalize the invoice before planning a delivery"
+            )
 
         # Create delivery
         from app.schemas.sales_delivery import SalesDeliveryCreate
@@ -318,13 +374,16 @@ class SalesManager(BaseManager[SalesOrder]):
                 "This line requires delivery — use the delivery workflow, not direct fulfillment"
             )
 
+        sales_order = self.sales_order_dao.get_by_id_and_workspace(
+            session, id=order_item.sales_order_id, workspace_id=workspace_id
+        )
+        if not sales_order.invoice_confirmed:
+            raise ValueError("Finalize the invoice before fulfilling this line")
+
         if order_item.quantity_delivered < order_item.quantity_ordered:
             order_item.quantity_delivered = order_item.quantity_ordered
             session.flush()
 
-        sales_order = self.sales_order_dao.get_by_id_and_workspace(
-            session, id=order_item.sales_order_id, workspace_id=workspace_id
-        )
         self._recompute_is_fully_delivered(session, sales_order, workspace_id)
         return sales_order
 
@@ -342,6 +401,305 @@ class SalesManager(BaseManager[SalesOrder]):
             sales_order.is_fully_delivered = is_fully_delivered
             session.flush()
         return is_fully_delivered
+
+    # ─── Section confirm ───────────────────────────────────────
+
+    def _base_sections_confirmed(self, order: SalesOrder) -> bool:
+        return bool(order.customer_confirmed and order.details_confirmed and order.items_confirmed)
+
+    def is_so_financially_locked(self, session: Session, order: SalesOrder) -> bool:
+        """True when a linked invoice is confirmed or locked (order fields locked)."""
+        if order.invoice_id is None:
+            return False
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            session, id=order.invoice_id, workspace_id=order.workspace_id
+        )
+        if not invoice:
+            return False
+        return invoice.invoice_status in ('confirmed', 'locked')
+
+    def set_section_confirm(
+        self,
+        session: Session,
+        order_id: int,
+        workspace_id: int,
+        user_id: int,
+        section: str,
+        confirmed: bool,
+    ) -> SalesOrder:
+        """Confirm or unconfirm a customer/details/items section on a sales order."""
+        field_by_section = {'customer': 'customer_confirmed', 'details': 'details_confirmed', 'items': 'items_confirmed'}
+        confirm_field = field_by_section.get(section)
+        if not confirm_field:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown section '{section}'")
+
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
+
+        old_confirmed = bool(getattr(order, confirm_field))
+        if confirmed == old_confirmed:
+            return order
+
+        if confirmed:
+            if section == 'customer' and order.account_id is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Select a customer before confirming')
+            if section == 'details' and order.order_date is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Set the order date before confirming')
+            if section == 'items':
+                items = self.sales_order_item_dao.get_by_sales_order(session, sales_order_id=order.id, workspace_id=workspace_id)
+                if not items:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Add at least one line item before confirming')
+        else:
+            if self.is_so_financially_locked(session, order):
+                _, label = SECTION_CONFIRM_FIELDS[confirm_field]
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Cannot unconfirm {label.lower()} after invoice is confirmed')
+            if order.order_completed:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot unconfirm — order is complete')
+
+        setattr(order, confirm_field, confirmed)
+        session.flush()
+
+        section_key, label = SECTION_CONFIRM_FIELDS[confirm_field]
+        event_suffix = 'confirmed' if confirmed else 'unconfirmed'
+        self.log_event(session, order_id, workspace_id, f'{section_key}_{event_suffix}', f'{label} {event_suffix}', user_id)
+
+        if not confirmed:
+            self.reset_approvals(session, order_id, workspace_id, user_id, reason='Section unconfirmed')
+
+        return order
+
+    def reset_approvals(
+        self, session: Session, order_id: int, workspace_id: int, user_id: Optional[int],
+        reason: str = 'Cleared approvals',
+    ) -> None:
+        approvers = self.approver_dao.get_by_order(session, sales_order_id=order_id, workspace_id=workspace_id)
+        reset_count = 0
+        for approver in approvers:
+            if approver.approved:
+                approver.approved = False
+                approver.approved_at = None
+                reset_count += 1
+        if reset_count:
+            session.flush()
+            self.log_event(
+                session, order_id, workspace_id, 'approvals_reset',
+                f'{reason} ({reset_count} approval(s) cleared)', user_id,
+            )
+
+    def apply_post_invoice_confirms(
+        self, session: Session, order: SalesOrder, workspace_id: int, user_id: int
+    ) -> None:
+        """Set section confirms and log events after an invoice is finalized."""
+        if not order.customer_confirmed:
+            order.customer_confirmed = True
+            self.log_event(session, order.id, workspace_id, 'customer_confirmed', 'Customer confirmed after invoice finalized', user_id)
+        if not order.details_confirmed:
+            order.details_confirmed = True
+            self.log_event(session, order.id, workspace_id, 'details_confirmed', 'Order details confirmed after invoice finalized', user_id)
+        if not order.items_confirmed:
+            order.items_confirmed = True
+            self.log_event(session, order.id, workspace_id, 'items_confirmed', 'Order items confirmed after invoice finalized', user_id)
+        if not order.invoice_confirmed:
+            order.invoice_confirmed = True
+            self.log_event(session, order.id, workspace_id, 'invoice_confirmed', 'Draft invoice confirmed', user_id)
+        session.flush()
+
+    # ─── Completion ────────────────────────────────────────────
+
+    def mark_order_complete(
+        self, session: Session, order_id: int, workspace_id: int, user_id: int
+    ) -> SalesOrder:
+        """Manually close a sales order once delivery and fulfilment are both done."""
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
+        if order.order_completed:
+            return order
+
+        if not order.invoice_confirmed:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Finalize the invoice before marking the order complete')
+
+        items = self.sales_order_item_dao.get_by_sales_order(session, sales_order_id=order.id, workspace_id=workspace_id)
+        if not (all_deliverable_items_delivered(items) and all_fulfilment_items_fulfilled(items)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Finish delivering and fulfilling all items before completing the order',
+            )
+
+        order.order_completed = True
+        order.completed_at = datetime.utcnow()
+        order.completed_by = user_id
+        session.flush()
+
+        self.sync_so_paid(session, order, workspace_id, user_id)
+        self.log_event(session, order.id, workspace_id, 'order_completed', 'Order marked complete', user_id)
+        return order
+
+    # ─── Payment sync ──────────────────────────────────────────
+
+    def _invoice_payment_status(self, session: Session, order: SalesOrder) -> Optional[str]:
+        if order.invoice_id is None:
+            return None
+        invoice = account_invoice_dao.get_by_id_and_workspace(session, id=order.invoice_id, workspace_id=order.workspace_id)
+        return invoice.payment_status if invoice else None
+
+    def sync_so_for_linked_invoice(
+        self, session: Session, invoice_id: int, workspace_id: int, user_id: Optional[int],
+    ) -> None:
+        order = self.sales_order_dao.get_by_invoice_id(session, invoice_id=invoice_id, workspace_id=workspace_id)
+        if order:
+            self.sync_so_paid(session, order, workspace_id, user_id)
+
+    def sync_so_paid(
+        self, session: Session, order: SalesOrder, workspace_id: int, user_id: Optional[int],
+    ) -> bool:
+        """Sync denormalized paid flag from linked invoice payment status."""
+        new_paid = False
+        if order.invoice_id is not None:
+            new_paid = self._invoice_payment_status(session, order) == 'paid'
+        if order.paid == new_paid:
+            return False
+        order.paid = new_paid
+        session.flush()
+        label = 'Paid' if new_paid else 'Unpaid'
+        self.log_event(
+            session, order.id, workspace_id, 'payment_status_synced',
+            f'Order marked {label.lower()} from linked invoice', user_id,
+            metadata={'paid': new_paid},
+        )
+        return True
+
+    # ─── Approvers ─────────────────────────────────────────────
+
+    def list_approvers(
+        self, session: Session, order_id: int, workspace_id: int
+    ) -> List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]]:
+        """Approvers for an order, enriched with profile + workspace position."""
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
+        approvers = self.approver_dao.get_by_order(session, sales_order_id=order_id, workspace_id=workspace_id)
+        result: List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]] = []
+        for a in approvers:
+            profile = profile_dao.get(session, id=a.user_id)
+            member = workspace_member_dao.get_by_workspace_and_user(session, workspace_id=workspace_id, user_id=a.user_id)
+            result.append((a, profile, member.position if member else None))
+        return result
+
+    def approval_summary(self, session: Session, order: SalesOrder) -> Tuple[int, int, bool]:
+        """(approved_count, required, met). required null -> all assigned must approve."""
+        approvers = self.approver_dao.get_by_order(session, sales_order_id=order.id, workspace_id=order.workspace_id)
+        approved_count = sum(1 for a in approvers if a.approved)
+        if order.required_approvals is not None:
+            required = order.required_approvals
+        elif len(approvers) > 0:
+            required = len(approvers)
+        else:
+            required = 0
+        return approved_count, required, approved_count >= required
+
+    def approvals_met(self, session: Session, order: SalesOrder) -> bool:
+        return self.approval_summary(session, order)[2]
+
+    def add_approver(
+        self, session: Session, order_id: int, user_id: int, workspace_id: int, assigned_by: int
+    ) -> SalesOrderApprover:
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
+        member = workspace_member_dao.get_by_workspace_and_user(session, workspace_id=workspace_id, user_id=user_id)
+        if not member or member.status != 'active':
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not an active member of this workspace")
+        existing = self.approver_dao.get_by_order_and_user(session, sales_order_id=order_id, user_id=user_id, workspace_id=workspace_id)
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already an approver for this order")
+        obj = SalesOrderApprover(
+            workspace_id=workspace_id, sales_order_id=order_id, user_id=user_id,
+            assigned_by=assigned_by, approved=False,
+        )
+        session.add(obj)
+        session.flush()
+        profile = profile_dao.get(session, id=user_id)
+        user_name = profile.name if profile else f'User #{user_id}'
+        self.log_event(
+            session, order_id, workspace_id, 'approver_added', f'Added {user_name} as approver', assigned_by,
+            metadata={'user_id': user_id, 'user_name': user_name},
+        )
+        return obj
+
+    def remove_approver(
+        self, session: Session, order_id: int, user_id: int, workspace_id: int,
+        performed_by: Optional[int] = None,
+    ) -> None:
+        rec = self.approver_dao.get_by_order_and_user(session, sales_order_id=order_id, user_id=user_id, workspace_id=workspace_id)
+        if not rec:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approver not found")
+        profile = profile_dao.get(session, id=user_id)
+        user_name = profile.name if profile else f'User #{user_id}'
+        session.delete(rec)
+        session.flush()
+        self.log_event(
+            session, order_id, workspace_id, 'approver_removed', f'Removed {user_name} as approver', performed_by,
+            metadata={'user_id': user_id, 'user_name': user_name},
+        )
+
+    def set_approval(
+        self, session: Session, order_id: int, user_id: int, workspace_id: int, approved: bool
+    ) -> SalesOrderApprover:
+        rec = self.approver_dao.get_by_order_and_user(session, sales_order_id=order_id, user_id=user_id, workspace_id=workspace_id)
+        if not rec:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not an assigned approver for this order")
+
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if approved:
+            if not self._base_sections_confirmed(order):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Confirm customer, order details, and items before approving')
+        else:
+            if order.order_completed:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot withdraw approval — order is complete')
+            if self.is_so_financially_locked(session, order):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot withdraw approval — invoice is locked')
+
+        rec.approved = approved
+        rec.approved_at = datetime.utcnow() if approved else None
+        session.flush()
+
+        self.log_event(
+            session, order_id, workspace_id,
+            'approved' if approved else 'approval_withdrawn',
+            'Approved order' if approved else 'Withdrew approval',
+            user_id,
+        )
+        return rec
+
+    # ─── Events ────────────────────────────────────────────────
+
+    def log_event(
+        self, session: Session, order_id: int, workspace_id: int,
+        event_type: str, description: str, performed_by: Optional[int] = None,
+        metadata: Optional[dict] = None,
+    ) -> SalesOrderEvent:
+        ev = SalesOrderEvent(
+            workspace_id=workspace_id,
+            sales_order_id=order_id,
+            event_type=event_type,
+            description=description,
+            metadata_json=metadata,
+            performed_by=performed_by,
+        )
+        session.add(ev)
+        session.flush()
+        return ev
+
+    def list_events(
+        self, session: Session, order_id: int, workspace_id: int
+    ) -> List[Tuple[SalesOrderEvent, Optional[Profile]]]:
+        order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
+        events = self.event_dao.get_by_order(session, sales_order_id=order_id, workspace_id=workspace_id)
+        return [(e, profile_dao.get(session, id=e.performed_by) if e.performed_by else None) for e in events]
 
 
 sales_manager = SalesManager()

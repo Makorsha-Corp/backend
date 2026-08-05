@@ -46,6 +46,22 @@ class SalesOrder(Base):
     # === INVOICE LINKAGE ===
     invoice_id = Column(Integer, ForeignKey("account_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     is_invoiced = Column(Boolean, nullable=False, default=False)
+    paid = Column(Boolean, nullable=False, default=False)
+
+    # === APPROVAL WORKFLOW ===
+    # current_status_id above is retained at the DB level (NOT NULL/FK) but is no
+    # longer read or written by the sales flow — lifecycle now runs entirely on
+    # these dedicated columns instead of the generic Status table.
+    customer_confirmed = Column(Boolean, nullable=False, default=False)
+    details_confirmed = Column(Boolean, nullable=False, default=False)
+    items_confirmed = Column(Boolean, nullable=False, default=False)
+    invoice_confirmed = Column(Boolean, nullable=False, default=False)
+    required_approvals = Column(Integer, nullable=True)  # null = all assigned approvers required
+
+    # === COMPLETION ===
+    order_completed = Column(Boolean, nullable=False, default=False)
+    completed_at = Column(DateTime, nullable=True)
+    completed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
 
     # === DESCRIPTION ===
     description = Column(Text, nullable=True)
@@ -64,4 +80,6 @@ class SalesOrder(Base):
     invoice = relationship("AccountInvoice", backref="sales_orders")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_sales_orders")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_sales_orders")
+    completer = relationship("Profile", foreign_keys=[completed_by], backref="completed_sales_orders")
+    approvers = relationship("SalesOrderApprover", back_populates="sales_order", cascade="all, delete-orphan")
     workspace = relationship("Workspace", backref="sales_orders")
