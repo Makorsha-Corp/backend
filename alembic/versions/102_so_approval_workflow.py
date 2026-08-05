@@ -1,7 +1,7 @@
 """Sales order approval workflow: approvers, events, section-confirm/complete columns.
 
-Revision ID: 065_sales_order_approval_workflow
-Revises: 064_merge_sales_delivery_and_work_order_item_soft_delete
+Revision ID: 102_so_approval_workflow
+Revises: 101_waitlist_signups
 Create Date: 2026-08-05
 """
 import sqlalchemy as sa
@@ -9,8 +9,8 @@ from alembic import op
 
 from app.db.migration_helpers import add_column_if_not_exists, drop_column_if_exists, table_exists
 
-revision = "065_sales_order_approval_workflow"
-down_revision = "064_merge_sales_delivery_and_work_order_item_soft_delete"
+revision = "102_so_approval_workflow"
+down_revision = "101_waitlist_signups"
 branch_labels = None
 depends_on = None
 
