@@ -25,6 +25,7 @@ from app.schemas.expense_order import (
     ExpenseOrderItemUpdate,
     ExpenseOrderUpdate,
 )
+from app.utils.time import utcnow
 
 DETAILS_FIELDS = frozenset({
     'account_id', 'expense_category', 'cost_center_id', 'expense_date', 'due_date',
@@ -549,7 +550,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
                 detail='Cannot withdraw approval — order is complete',
             )
         rec.approved = approved
-        rec.approved_at = datetime.utcnow() if approved else None
+        rec.approved_at = utcnow() if approved else None
         session.flush()
         self.log_event(
             session, eo_id, workspace_id,

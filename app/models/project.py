@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
 from app.models.enums import ProjectStatusEnum, ProjectPriorityEnum, ProjectVisibilityEnum
+from app.utils.time import utcnow
 
 
 class Project(Base):
@@ -13,7 +14,7 @@ class Project(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     factory_id = Column(Integer, ForeignKey("factories.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=False)
@@ -32,7 +33,7 @@ class Project(Base):
 
     # Audit fields
     created_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
-    updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True, onupdate=utcnow)
     updated_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     is_deleted = Column(Boolean, nullable=False, default=False)

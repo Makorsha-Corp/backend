@@ -1,6 +1,6 @@
 """Account invoice DAO operations"""
 from sqlalchemy.orm import Session, Query
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, case
 from typing import List, Optional, Tuple
 from datetime import date
 from decimal import Decimal
@@ -30,6 +30,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         due_date_to: Optional[date] = None,
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
+        open_balance_only: bool = False,
     ) -> Query:
         """
         Base query with all list filters. JOINs Account to exclude
@@ -74,6 +75,11 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
             query = query.filter(AccountInvoice.invoice_amount >= amount_min)
         if amount_max is not None:
             query = query.filter(AccountInvoice.invoice_amount <= amount_max)
+        if open_balance_only:
+            query = query.filter(
+                AccountInvoice.invoice_status != 'voided',
+                AccountInvoice.payment_status.in_(['unpaid', 'partial', 'overdue']),
+            )
 
         return query
 
@@ -116,11 +122,210 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         )
         return (
             query
-            .order_by(AccountInvoice.invoice_date.desc())
+            .order_by(AccountInvoice.invoice_date.desc(), AccountInvoice.id.desc())
             .offset(skip)
             .limit(limit)
             .all()
         )
+
+    def list_invoices_page(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        account_id: int,
+        open_balance_only: bool = False,
+        prioritize_purchase_order_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 10,
+    ) -> Tuple[List[AccountInvoice], int]:
+        """Paginated invoice listing with total count."""
+        return self.list_invoices_page_filtered(
+            db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            open_balance_only=open_balance_only,
+            prioritize_purchase_order_id=prioritize_purchase_order_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def _open_balance_subquery(self, db: Session, *, workspace_id: int, invoice_type: str):
+        return (
+            db.query(
+                AccountInvoice.account_id.label("account_id"),
+                func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0).label(
+                    "outstanding_total"
+                ),
+                func.count(AccountInvoice.id).label("open_count"),
+                func.max(
+                    case((AccountInvoice.payment_status == "overdue", 1), else_=0)
+                ).label("has_overdue"),
+            )
+            .join(Account, AccountInvoice.account_id == Account.id)
+            .filter(
+                AccountInvoice.workspace_id == workspace_id,
+                Account.is_deleted == False,
+                AccountInvoice.invoice_type == invoice_type,
+                AccountInvoice.invoice_status != "voided",
+                AccountInvoice.payment_status.in_(["unpaid", "partial", "overdue"]),
+            )
+            .group_by(AccountInvoice.account_id)
+            .subquery()
+        )
+
+    def list_accounts_hub_page(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        section: str = "overview",
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> Tuple[List[tuple], int]:
+        """
+        Paginated accounts for the accounts hub with open-balance rollups.
+        section: overview | payable | receivable
+        """
+        payable_sq = self._open_balance_subquery(db, workspace_id=workspace_id, invoice_type="payable")
+        receivable_sq = self._open_balance_subquery(
+            db, workspace_id=workspace_id, invoice_type="receivable"
+        )
+
+        query = (
+            db.query(Account, payable_sq, receivable_sq)
+            .outerjoin(payable_sq, Account.id == payable_sq.c.account_id)
+            .outerjoin(receivable_sq, Account.id == receivable_sq.c.account_id)
+            .filter(
+                Account.workspace_id == workspace_id,
+                Account.is_active == True,
+                Account.is_deleted == False,
+            )
+        )
+
+        if section == "payable":
+            query = query.filter(payable_sq.c.outstanding_total > 0)
+        elif section == "receivable":
+            query = query.filter(receivable_sq.c.outstanding_total > 0)
+
+        if search:
+            query = query.filter(Account.name.ilike(f"%{search}%"))
+
+        total = query.count()
+        rows = (
+            query.order_by(Account.name.asc(), Account.id.asc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        return rows, total
+
+    def summarize_open_hub_type(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        invoice_type: str,
+    ) -> Tuple[int, Decimal, int, int]:
+        """Open-balance aggregates for one invoice type across the workspace."""
+        query = self._build_filtered_query(
+            db,
+            workspace_id=workspace_id,
+            invoice_type=invoice_type,
+            open_balance_only=True,
+        )
+        open_count = query.count()
+        outstanding_row = query.with_entities(
+            func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0),
+        ).one()
+        overdue_count = query.filter(AccountInvoice.payment_status == "overdue").count()
+        accounts_with_open = (
+            query.with_entities(func.count(func.distinct(AccountInvoice.account_id))).scalar()
+            or 0
+        )
+        return open_count, Decimal(outstanding_row[0]), overdue_count, int(accounts_with_open)
+
+    def count_accounts_with_any_open_balance(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+    ) -> int:
+        query = self._build_filtered_query(
+            db,
+            workspace_id=workspace_id,
+            open_balance_only=True,
+        )
+        return (
+            query.with_entities(func.count(func.distinct(AccountInvoice.account_id))).scalar()
+            or 0
+        )
+
+    def list_invoices_page_filtered(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from: Optional[date] = None,
+        invoice_date_to: Optional[date] = None,
+        due_date_from: Optional[date] = None,
+        due_date_to: Optional[date] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        open_balance_only: bool = False,
+        prioritize_purchase_order_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 10,
+    ) -> Tuple[List[AccountInvoice], int]:
+        """Paginated invoice listing with filters and total count."""
+        query = self._build_filtered_query(
+            db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            open_balance_only=open_balance_only,
+        )
+        total = query.count()
+
+        if prioritize_purchase_order_id is not None:
+            priority = case(
+                (
+                    (AccountInvoice.order_id == prioritize_purchase_order_id)
+                    & (AccountInvoice.order_type == "purchase_order"),
+                    0,
+                ),
+                else_=1,
+            )
+            query = query.order_by(
+                priority,
+                AccountInvoice.invoice_date.desc(),
+                AccountInvoice.id.desc(),
+            )
+        else:
+            query = query.order_by(
+                AccountInvoice.invoice_date.desc(),
+                AccountInvoice.id.desc(),
+            )
+
+        items = query.offset(skip).limit(limit).all()
+        return items, total
 
     def summarize_invoices(
         self,

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.delivery_method import DeliveryMethod
 from app.schemas.delivery_method import DeliveryMethodCreate, DeliveryMethodUpdate
+from app.utils.time import utcnow
 
 
 class DAODeliveryMethod(BaseDAO[DeliveryMethod, DeliveryMethodCreate, DeliveryMethodUpdate]):
@@ -42,7 +43,7 @@ class DAODeliveryMethod(BaseDAO[DeliveryMethod, DeliveryMethodCreate, DeliveryMe
     ) -> DeliveryMethod:
         """Soft delete a delivery method (does NOT commit)"""
         db_obj.is_deleted = True
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

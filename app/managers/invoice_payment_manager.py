@@ -17,6 +17,7 @@ from app.dao.invoice_payment import invoice_payment_dao
 from app.dao.account_invoice import account_invoice_dao
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
+from app.utils.time import utcnow
 
 
 class InvoicePaymentManager(BaseManager[InvoicePayment]):
@@ -394,7 +395,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
 
         # Void the payment
         payment.is_voided = True
-        payment.voided_at = datetime.utcnow()
+        payment.voided_at = utcnow()
         payment.voided_by = user_id
         payment.void_note = void_note
         session.flush()

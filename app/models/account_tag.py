@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, T
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class AccountTag(Base):
@@ -24,7 +25,7 @@ class AccountTag(Base):
     is_active = Column(Boolean, nullable=False, default=True)  # Soft delete
     usage_count = Column(Integer, nullable=False, default=0)  # Number of accounts with this tag
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     created_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
 
     # Relationships

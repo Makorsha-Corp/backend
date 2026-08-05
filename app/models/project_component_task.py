@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
 from app.models.enums import TaskPriorityEnum
+from app.utils.time import utcnow
 
 
 class ProjectComponentTask(Base):
@@ -13,7 +14,7 @@ class ProjectComponentTask(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     project_component_id = Column(Integer, ForeignKey("project_components.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=False)

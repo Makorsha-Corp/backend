@@ -10,6 +10,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric, Text, JSON
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class PaymentTransaction(Base):
@@ -61,11 +62,11 @@ class PaymentTransaction(Base):
     risk_resolution_note = Column(Text, nullable=True)
 
     initiated_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    initiated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    initiated_at = Column(DateTime, nullable=False, default=utcnow)
     validated_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     workspace = relationship("Workspace", backref="payment_transactions")
     initiator = relationship("Profile", foreign_keys=[initiated_by])

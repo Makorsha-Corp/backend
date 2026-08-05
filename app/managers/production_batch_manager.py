@@ -27,6 +27,7 @@ from app.schemas.production_batch_stage_log import (
     ProductionBatchStageLogCreate,
     ProductionBatchStageLogUpdate,
 )
+from app.utils.time import utcnow
 
 
 class ProductionBatchManager(BaseManager[ProductionBatch]):
@@ -192,6 +193,20 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 session, workspace_id=workspace_id, skip=skip, limit=limit
             )
 
+    def get_batch_stats(
+        self,
+        session: Session,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+    ) -> dict:
+        in_progress = self.batch_dao.count_by_status(
+            session,
+            workspace_id=workspace_id,
+            status="in_progress",
+            factory_id=factory_id,
+        )
+        return {"in_progress_count": in_progress, "total_count": in_progress}
+
     def delete_batch(
         self,
         session: Session,
@@ -335,7 +350,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
                 'performed_by': user_id,
             })
 
-        now = datetime.utcnow()
+        now = utcnow()
         update_data = {
             'status': 'in_progress',
             'started_by': user_id,
@@ -382,7 +397,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
             raise ValueError(f"Production line {batch.production_line_id} not found")
         factory_id = line.factory_id
 
-        now = datetime.utcnow()
+        now = utcnow()
         update_data = {
             'status': 'completed',
             'completed_by': user_id,

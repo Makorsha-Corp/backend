@@ -213,7 +213,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
     ) -> List[TransferOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
-            .order_by(desc(TransferOrder.created_at))
+            .order_by(desc(TransferOrder.created_at), desc(TransferOrder.id))
             .offset(skip)
             .limit(limit)
             .all()
@@ -362,6 +362,27 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
             .all()
         )
 
+    def list_inbound_to_storage_incomplete(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        factory_id: int,
+    ) -> List[TransferOrder]:
+        """Incomplete transfers whose destination is factory storage."""
+        return (
+            db.query(TransferOrder)
+            .options(joinedload(TransferOrder.current_status))
+            .filter(
+                TransferOrder.workspace_id == workspace_id,
+                TransferOrder.completed_at.is_(None),
+                TransferOrder.destination_location_type == "storage",
+                TransferOrder.destination_location_id == factory_id,
+            )
+            .order_by(desc(TransferOrder.created_at))
+            .all()
+        )
+
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
     ) -> Optional[TransferOrder]:
@@ -407,6 +428,25 @@ class TransferOrderItemDAO(
                 TransferOrderItem.workspace_id == workspace_id,
             )
             .order_by(TransferOrderItem.line_number)
+            .all()
+        )
+
+    def get_by_transfer_order_ids(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        transfer_order_ids: List[int],
+    ) -> List[TransferOrderItem]:
+        if not transfer_order_ids:
+            return []
+        return (
+            db.query(TransferOrderItem)
+            .filter(
+                TransferOrderItem.workspace_id == workspace_id,
+                TransferOrderItem.transfer_order_id.in_(transfer_order_ids),
+            )
+            .order_by(TransferOrderItem.transfer_order_id, TransferOrderItem.line_number)
             .all()
         )
 

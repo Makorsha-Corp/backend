@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.department import Department
 from app.schemas.department import DepartmentCreate, DepartmentUpdate
+from app.utils.time import utcnow
 
 
 class DAODepartment(BaseDAO[Department, DepartmentCreate, DepartmentUpdate]):
@@ -64,7 +65,7 @@ class DAODepartment(BaseDAO[Department, DepartmentCreate, DepartmentUpdate]):
             Soft-deleted department instance (not yet committed)
         """
         db_obj.is_deleted = True
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

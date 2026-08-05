@@ -18,6 +18,7 @@ from app.schemas.production_batch import (
     ProductionBatchCreate,
     ProductionBatchUpdate,
     ProductionBatchResponse,
+    ProductionBatchStatsResponse,
 )
 from app.schemas.production_batch_item import (
     ProductionBatchItemCreate,
@@ -112,6 +113,24 @@ def get_batches(
         skip=skip,
         limit=limit,
     )
+
+
+@router.get(
+    "/stats/",
+    response_model=ProductionBatchStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Production batch KPI stats",
+    description="Aggregate batch counts for dashboard KPIs.",
+)
+def get_batch_stats(
+    factory_id: Optional[int] = Query(None, description="Filter in-progress batches by factory"),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    stats = production_batch_service.get_batch_stats(
+        db, workspace_id=workspace.id, factory_id=factory_id
+    )
+    return ProductionBatchStatsResponse(**stats)
 
 
 @router.post(

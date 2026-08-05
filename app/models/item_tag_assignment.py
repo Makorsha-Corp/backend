@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ItemTagAssignment(Base):
@@ -15,7 +16,7 @@ class ItemTagAssignment(Base):
     item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True)
     tag_id = Column(Integer, ForeignKey("item_tags.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    assigned_at = Column(DateTime, nullable=False, default=utcnow)
     assigned_by = Column(Integer, ForeignKey("profiles.id"), nullable=True)
 
     # Relationships

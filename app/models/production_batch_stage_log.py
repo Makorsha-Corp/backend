@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class ProductionBatchStageLog(Base):
@@ -25,8 +26,8 @@ class ProductionBatchStageLog(Base):
     output_quantity = Column(Integer, nullable=True)
     waste_quantity = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
     workspace = relationship("Workspace", backref="production_batch_stage_logs")
     batch = relationship("ProductionBatch", backref="stage_logs")

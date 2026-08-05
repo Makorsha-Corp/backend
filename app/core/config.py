@@ -26,13 +26,29 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:4173",
+    ]
+
+    # Landing waitlist
+    TURNSTILE_SECRET_KEY: str = ""
+    WAITLIST_ADMIN_EMAILS: List[str] = []
+    WAITLIST_IP_HASH_SALT: str = ""
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):
         if isinstance(v, str):
             return [i.strip() for i in v.split(",")]
+        return v
+
+    @field_validator("WAITLIST_ADMIN_EMAILS", mode="before")
+    @classmethod
+    def assemble_waitlist_admin_emails(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",") if i.strip()]
         return v
 
     # Environment

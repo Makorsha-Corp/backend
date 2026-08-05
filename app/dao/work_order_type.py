@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.work_order_type import WorkOrderType
 from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate
+from app.utils.time import utcnow
 
 
 class DAOWorkOrderType(BaseDAO[WorkOrderType, WorkOrderTypeCreate, WorkOrderTypeUpdate]):
@@ -43,7 +44,7 @@ class DAOWorkOrderType(BaseDAO[WorkOrderType, WorkOrderTypeCreate, WorkOrderType
     ) -> WorkOrderType:
         """Soft delete a work order type (does NOT commit)"""
         db_obj.is_deleted = True
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

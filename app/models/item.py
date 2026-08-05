@@ -2,6 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class Item(Base):
@@ -11,8 +12,8 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=True, onupdate=utcnow)
     name = Column(String, nullable=False)
     name_normalized = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)

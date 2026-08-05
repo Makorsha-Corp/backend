@@ -2,13 +2,14 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy.orm import Session, Query
+from sqlalchemy import desc, func, or_
 from app.dao.base import BaseDAO
 from app.dao.inventory_ledger import inventory_ledger_dao
 from app.models.inventory import Inventory
+from app.models.item import Item
 from app.models.enums import InventoryTypeEnum
 from app.schemas.inventory import InventoryCreate, InventoryUpdate
 
@@ -16,22 +17,146 @@ from app.schemas.inventory import InventoryCreate, InventoryUpdate
 class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
     """DAO for unified Inventory model (workspace-scoped)"""
 
+    def _filtered_query(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
+        search: Optional[str] = None,
+        include_zero_qty: bool = False,
+    ) -> Query:
+        query = (
+            db.query(Inventory)
+            .join(Item, Inventory.item_id == Item.id)
+            .filter(
+                Inventory.workspace_id == workspace_id,
+                Inventory.is_deleted == False,
+            )
+        )
+        if inventory_type:
+            query = query.filter(Inventory.inventory_type == inventory_type)
+        if factory_id:
+            query = query.filter(Inventory.factory_id == factory_id)
+        if item_id is not None:
+            query = query.filter(Inventory.item_id == item_id)
+        if not include_zero_qty:
+            query = query.filter(Inventory.qty > 0)
+        if search:
+            term = search.strip()
+            if term:
+                query = query.filter(
+                    or_(
+                        Item.name.ilike(f"%{term}%"),
+                        Item.unit.ilike(f"%{term}%"),
+                    )
+                )
+        return query
+
+    def list_filtered(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
+        search: Optional[str] = None,
+        include_zero_qty: bool = False,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Inventory]:
+        return (
+            self._filtered_query(
+                db,
+                workspace_id=workspace_id,
+                inventory_type=inventory_type,
+                factory_id=factory_id,
+                item_id=item_id,
+                search=search,
+                include_zero_qty=include_zero_qty,
+            )
+            .order_by(Item.name.asc(), Inventory.id.asc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    def count_filtered(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
+        search: Optional[str] = None,
+        include_zero_qty: bool = False,
+    ) -> int:
+        return self._filtered_query(
+            db,
+            workspace_id=workspace_id,
+            inventory_type=inventory_type,
+            factory_id=factory_id,
+            item_id=item_id,
+            search=search,
+            include_zero_qty=include_zero_qty,
+        ).count()
+
+    def stats_filtered(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        inventory_type: Optional[InventoryTypeEnum] = None,
+        factory_id: Optional[int] = None,
+        item_id: Optional[int] = None,
+        search: Optional[str] = None,
+        include_zero_qty: bool = False,
+    ) -> Tuple[int, int, Any, List[Tuple[Any, int, int]]]:
+        base = self._filtered_query(
+            db,
+            workspace_id=workspace_id,
+            inventory_type=inventory_type,
+            factory_id=factory_id,
+            item_id=item_id,
+            search=search,
+            include_zero_qty=include_zero_qty,
+        )
+        records = base.count()
+        total_qty, estimated_value = base.with_entities(
+            func.coalesce(func.sum(Inventory.qty), 0),
+            func.coalesce(func.sum(Inventory.qty * Inventory.avg_price), 0),
+        ).one()
+        by_type_rows = (
+            base.with_entities(
+                Inventory.inventory_type,
+                func.count(func.distinct(Inventory.item_id)),
+                func.coalesce(func.sum(Inventory.qty), 0),
+            )
+            .group_by(Inventory.inventory_type)
+            .all()
+        )
+        return int(records), int(total_qty or 0), estimated_value, by_type_rows
+
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
         inventory_type: Optional[InventoryTypeEnum] = None,
         factory_id: Optional[int] = None,
         skip: int = 0, limit: int = 100
     ) -> List[Inventory]:
-        """Get inventory records with optional type/factory filter."""
-        query = db.query(Inventory).filter(
-            Inventory.workspace_id == workspace_id,
-            Inventory.is_deleted == False,
+        """Get inventory records with optional type/factory filter (includes zero-qty rows)."""
+        return self.list_filtered(
+            db,
+            workspace_id=workspace_id,
+            inventory_type=inventory_type,
+            factory_id=factory_id,
+            include_zero_qty=True,
+            skip=skip,
+            limit=limit,
         )
-        if inventory_type:
-            query = query.filter(Inventory.inventory_type == inventory_type)
-        if factory_id:
-            query = query.filter(Inventory.factory_id == factory_id)
-        return query.offset(skip).limit(limit).all()
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int

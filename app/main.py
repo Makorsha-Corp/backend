@@ -1,6 +1,8 @@
 """
 FastAPI application entry point
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -29,12 +31,17 @@ from app.core.exceptions import (
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 
 
-# Initialize database with default data
-db = SessionLocal()
-try:
-    init_db(db)
-finally:
-    db.close()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Seed global default data at server startup (not at import, so tests and
+    # tooling can import app.main without a reachable database). Schema is
+    # migrated beforehand by scripts/railway_start.sh (`alembic upgrade head`).
+    db = SessionLocal()
+    try:
+        init_db(db)
+    finally:
+        db.close()
+    yield
 
 
 # Create FastAPI application
@@ -44,7 +51,8 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
-    description="Production-ready ERP API with standardized error handling and request tracking"
+    description="Production-ready ERP API with standardized error handling and request tracking",
+    lifespan=lifespan
 )
 
 app.state.limiter = limiter

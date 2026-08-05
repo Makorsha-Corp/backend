@@ -31,6 +31,7 @@ from app.models.workspace_member import WorkspaceMember
 from app.schemas.profile import ProfileCreate
 from app.schemas.response import ActionMessage, success_message, error_message, info_message
 from app.schemas.workspace import WorkspaceCreate
+from app.utils.time import utcnow
 
 
 @dataclass
@@ -108,7 +109,7 @@ class AuthService(BaseService):
         access_token = create_access_token(data=access_claims)
 
         raw_refresh, refresh_hash = create_refresh_token()
-        expires_at = datetime.utcnow() + timedelta(
+        expires_at = utcnow() + timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS
         )
 
@@ -562,7 +563,7 @@ class AuthService(BaseService):
             # --- Plain rejection cases ---
             if row.revoked_at is not None:
                 raise ValueError("Refresh token has been revoked")
-            if row.expires_at <= datetime.utcnow():
+            if row.expires_at <= utcnow():
                 raise ValueError("Refresh token has expired")
 
             # --- Healthy path: rotate ---
@@ -691,12 +692,12 @@ class AuthService(BaseService):
             ))
             # Generate fake token to prevent timing attacks
             fake_token = secrets.token_urlsafe(32)
-            fake_expires = datetime.utcnow() + timedelta(hours=1)
+            fake_expires = utcnow() + timedelta(hours=1)
             return fake_token, fake_expires, messages
 
         # Generate secure token
         reset_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        expires_at = utcnow() + timedelta(hours=1)
 
         # TODO: Store token in database
         # For now, just return the token (caller must store it)
@@ -755,7 +756,7 @@ class AuthService(BaseService):
         #     raise ValueError("Invalid or expired reset token")
         # if token_record.used:
         #     raise ValueError("Reset token has already been used")
-        # if token_record.expires_at < datetime.utcnow():
+        # if token_record.expires_at < utcnow():
         #     raise ValueError("Reset token has expired")
 
         # For now, raise not implemented error
@@ -897,7 +898,7 @@ class AuthService(BaseService):
             raise ValueError("Invalid invitation token")
 
         # Check expiration
-        if invitation.expires_at < datetime.utcnow():
+        if invitation.expires_at < utcnow():
             raise ValueError("Invitation has expired. Please request a new invitation.")
 
         # Check status

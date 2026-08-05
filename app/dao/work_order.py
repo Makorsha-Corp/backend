@@ -256,7 +256,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             search=search,
         )
         return (
-            query.order_by(desc(calendar_date), desc(WorkOrder.created_at))
+            query.order_by(desc(calendar_date), desc(WorkOrder.created_at), desc(WorkOrder.id))
             .offset(skip)
             .limit(limit)
             .all()

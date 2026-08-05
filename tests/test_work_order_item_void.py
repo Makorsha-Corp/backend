@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.managers.work_order_manager import work_order_manager
 from app.models.enums import WorkOrderStatusEnum
 from app.schemas.work_order_item import WorkOrderItemCreate
+from app.utils.time import utcnow
 
 
 def _make_wo(status: str = WorkOrderStatusEnum.DRAFT.value) -> MagicMock:
@@ -89,7 +90,7 @@ def test_remove_in_progress_consumed_item_reverses_and_soft_deletes(
     _mock_name,
 ) -> None:
     session = MagicMock()
-    item = _make_item(consumed_at=datetime.utcnow())
+    item = _make_item(consumed_at=utcnow())
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.IN_PROGRESS.value)
 
@@ -104,7 +105,7 @@ def test_remove_in_progress_consumed_item_reverses_and_soft_deletes(
 @patch.object(work_order_manager.item_dao, 'get_by_id_and_workspace')
 def test_remove_completed_item_rejected(mock_get_item, mock_get_wo) -> None:
     session = MagicMock()
-    item = _make_item(consumed_at=datetime.utcnow())
+    item = _make_item(consumed_at=utcnow())
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.COMPLETED.value)
 
@@ -184,10 +185,10 @@ def test_update_consumed_item_decrease_returns_stock(
     mock_stock_in,
 ) -> None:
     session = MagicMock()
-    item = _make_item(consumed_at=datetime.utcnow())
+    item = _make_item(consumed_at=utcnow())
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.IN_PROGRESS.value)
-    updated = _make_item(consumed_at=datetime.utcnow())
+    updated = _make_item(consumed_at=utcnow())
     updated.quantity = Decimal('1')
     mock_update.return_value = updated
 
@@ -221,10 +222,10 @@ def test_update_consumed_item_increase_deducts_stock(
     mock_stock_out,
 ) -> None:
     session = MagicMock()
-    item = _make_item(consumed_at=datetime.utcnow())
+    item = _make_item(consumed_at=utcnow())
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.IN_PROGRESS.value)
-    updated = _make_item(consumed_at=datetime.utcnow())
+    updated = _make_item(consumed_at=utcnow())
     updated.quantity = Decimal('3')
     mock_update.return_value = updated
 

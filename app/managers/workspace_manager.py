@@ -23,6 +23,7 @@ from app.db.seed_po_workflow import seed_po_workflow
 from app.db.seed_default_departments import seed_default_departments
 from app.db.seed_default_tags import seed_default_tags
 from app.db.seed_default_account_tags import seed_default_account_tags
+from app.utils.time import utcnow
 
 
 class WorkspaceManager(BaseManager[Workspace]):
@@ -105,7 +106,7 @@ class WorkspaceManager(BaseManager[Workspace]):
         workspace_dict['created_by_user_id'] = owner_user_id
 
         # Create trial_ends_at datetime
-        trial_ends = datetime.utcnow() + timedelta(days=14)  # 14-day trial
+        trial_ends = utcnow() + timedelta(days=14)  # 14-day trial
         workspace_dict['trial_ends_at'] = trial_ends
 
         workspace = Workspace(**workspace_dict)
@@ -113,7 +114,7 @@ class WorkspaceManager(BaseManager[Workspace]):
         session.flush()  # Get workspace.id
 
         # Add owner as member
-        joined_at = datetime.utcnow()
+        joined_at = utcnow()
 
         member_in = WorkspaceMemberCreate(
             workspace_id=workspace.id,
@@ -210,7 +211,7 @@ class WorkspaceManager(BaseManager[Workspace]):
             role=role,
             position=position,
             status='active',
-            joined_at=datetime.utcnow()
+            joined_at=utcnow()
         )
         member = self.member_dao.create(session, obj_in=member_in)
 
@@ -275,7 +276,7 @@ class WorkspaceManager(BaseManager[Workspace]):
 
         # Update member status to inactive
         member.status = 'inactive'
-        member.left_at = datetime.utcnow()
+        member.left_at = utcnow()
         session.flush()
 
         # Log event
@@ -366,7 +367,7 @@ class WorkspaceManager(BaseManager[Workspace]):
             position=position,
             token=invitation_token,
             invited_by_user_id=inviter_id,
-            expires_at=datetime.utcnow() + timedelta(days=3),
+            expires_at=utcnow() + timedelta(days=3),
             status='pending'
         )
         invitation = self.invitation_dao.create(session, obj_in=invitation_in)
@@ -419,7 +420,7 @@ class WorkspaceManager(BaseManager[Workspace]):
             raise ValueError("Invalid invitation token")
 
         # Check 2: Not expired
-        if invitation.expires_at < datetime.utcnow():
+        if invitation.expires_at < utcnow():
             raise ValueError("Invitation has expired. Please request a new invitation.")
 
         # Check 3: Still pending
@@ -477,7 +478,7 @@ class WorkspaceManager(BaseManager[Workspace]):
 
         # Update invitation status
         invitation.status = 'accepted'
-        invitation.accepted_at = datetime.utcnow()
+        invitation.accepted_at = utcnow()
         invitation.accepted_by_user_id = user_id
         session.flush()
 

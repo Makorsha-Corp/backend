@@ -6,6 +6,7 @@ from sqlalchemy import and_
 from app.dao.base import BaseDAO
 from app.models.factory import Factory
 from app.schemas.factory import FactoryCreate, FactoryUpdate
+from app.utils.time import utcnow
 
 
 class DAOFactory(BaseDAO[Factory, FactoryCreate, FactoryUpdate]):
@@ -104,7 +105,7 @@ class DAOFactory(BaseDAO[Factory, FactoryCreate, FactoryUpdate]):
             Soft-deleted factory instance (not yet committed)
         """
         db_obj.is_deleted = True
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

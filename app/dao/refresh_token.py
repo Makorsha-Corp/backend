@@ -13,6 +13,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.models.refresh_token import RefreshToken
+from app.utils.time import utcnow
 
 
 class RefreshTokenDAO:
@@ -36,7 +37,7 @@ class RefreshTokenDAO:
         self, db: Session, *, user_id: int
     ) -> List[RefreshToken]:
         """Return active (non-revoked, non-expired) tokens for a user."""
-        now = datetime.utcnow()
+        now = utcnow()
         return (
             db.query(RefreshToken)
             .filter(
@@ -86,7 +87,7 @@ class RefreshTokenDAO:
     ) -> None:
         """Mark a single row revoked. Optionally point at the successor row."""
         if row.revoked_at is None:
-            row.revoked_at = datetime.utcnow()
+            row.revoked_at = utcnow()
         if replaced_by_id is not None:
             row.replaced_by_id = replaced_by_id
         db.flush()
@@ -96,7 +97,7 @@ class RefreshTokenDAO:
 
         Used when reuse of an already-rotated token is detected — likely theft.
         """
-        now = datetime.utcnow()
+        now = utcnow()
         result = db.execute(
             update(RefreshToken)
             .where(
@@ -110,7 +111,7 @@ class RefreshTokenDAO:
 
     def revoke_all_for_user(self, db: Session, *, user_id: int) -> int:
         """Revoke every still-active refresh token for one user."""
-        now = datetime.utcnow()
+        now = utcnow()
         result = db.execute(
             update(RefreshToken)
             .where(
@@ -124,7 +125,7 @@ class RefreshTokenDAO:
 
     def touch_last_used(self, db: Session, *, row: RefreshToken) -> None:
         """Set `last_used_at = now` on a row (for diagnostics, not security)."""
-        row.last_used_at = datetime.utcnow()
+        row.last_used_at = utcnow()
         db.flush()
 
     def cleanup_expired(self, db: Session, *, older_than: datetime) -> int:

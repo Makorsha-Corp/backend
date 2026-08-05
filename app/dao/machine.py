@@ -9,6 +9,7 @@ from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
+from app.utils.time import utcnow
 
 # Eager-load the optional section assignment so Machine.factory_section_id/_name
 # (properties reading `self.section_assignment`) don't N+1 across a list of machines.
@@ -85,7 +86,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         """Soft delete a machine (does NOT commit)"""
         db_obj.is_deleted = True
         db_obj.is_active = False
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_active_user, get_current_workspace
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate, AccountInvoiceResponse, VoidInvoiceRequest
+from app.schemas.account_invoice import (
+    AccountInvoiceCreate,
+    AccountInvoiceUpdate,
+    AccountInvoiceResponse,
+    VoidInvoiceRequest,
+    AccountInvoicesHubSummaryResponse,
+    InvoiceHubTypeSummary,
+)
 from app.schemas.invoice_item import InvoiceItemResponse
 from app.schemas.invoice_event import InvoiceEventResponse
 from app.services.account_invoice_service import account_invoice_service
@@ -64,6 +71,38 @@ def get_invoices(
         amount_max=amount_max,
         skip=skip,
         limit=limit,
+    )
+
+
+@router.get(
+    "/hub-summary/",
+    response_model=AccountInvoicesHubSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Workspace open-invoice hub KPIs",
+    description="Aggregate open-balance counts and totals for payable and receivable invoices.",
+)
+def get_invoices_hub_summary(
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    payable, receivable, accounts_with_any, total_active = (
+        account_invoice_service.get_invoices_hub_summary(db, workspace_id=workspace.id)
+    )
+    return AccountInvoicesHubSummaryResponse(
+        payable=InvoiceHubTypeSummary(
+            open_count=payable[0],
+            outstanding_total=payable[1],
+            overdue_count=payable[2],
+            accounts_with_open_count=payable[3],
+        ),
+        receivable=InvoiceHubTypeSummary(
+            open_count=receivable[0],
+            outstanding_total=receivable[1],
+            overdue_count=receivable[2],
+            accounts_with_open_count=receivable[3],
+        ),
+        total_active_accounts=total_active,
+        accounts_with_any_open_balance=accounts_with_any,
     )
 
 

@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, String, U
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class WorkOrderApprover(Base):
@@ -19,7 +20,7 @@ class WorkOrderApprover(Base):
     user_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
 
     assigned_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    assigned_at = Column(DateTime, nullable=False, default=utcnow)
 
     # Optional slot for sheet workflow: manager | agm
     approver_slot = Column(String(32), nullable=True)

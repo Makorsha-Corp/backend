@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, JSON, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class Workspace(Base):
@@ -38,14 +39,14 @@ class Workspace(Base):
     current_factories_count = Column(Integer, nullable=False, default=0)
     current_machines_count = Column(Integer, nullable=False, default=0)
     current_projects_count = Column(Integer, nullable=False, default=0)
-    last_usage_reset_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_usage_reset_at = Column(DateTime, nullable=False, default=utcnow)
 
     # Settings
     settings = Column(JSON, nullable=False, default={})
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     # Relationships
     owner = relationship("Profile", foreign_keys=[owner_user_id], backref="owned_workspaces")

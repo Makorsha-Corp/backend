@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
+from app.utils.time import utcnow
 
 
 class DAOFactorySection(BaseDAO[FactorySection, FactorySectionCreate, FactorySectionUpdate]):
@@ -57,7 +58,7 @@ class DAOFactorySection(BaseDAO[FactorySection, FactorySectionCreate, FactorySec
             Soft-deleted factory section instance (not yet committed)
         """
         db_obj.is_deleted = True
-        db_obj.deleted_at = datetime.utcnow()
+        db_obj.deleted_at = utcnow()
         db_obj.deleted_by = deleted_by
         db.add(db_obj)
         db.flush()

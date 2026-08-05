@@ -58,6 +58,7 @@ from app.api.v1.endpoints import (
     discussions,
     notifications,
     calendar,
+    waitlist,
 )
 
 
@@ -151,3 +152,6 @@ api_router.include_router(notifications.router, prefix="/me/notifications", tags
 
 # Calendar
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
+
+# Landing waitlist (public signup + platform admin list)
+api_router.include_router(waitlist.router, prefix="/waitlist", tags=["waitlist"])

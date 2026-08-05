@@ -38,6 +38,7 @@ from app.services.approval_notification_service import (
     notify_invoice_action,
     notify_section_confirm_needed,
 )
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -940,7 +941,7 @@ class PurchaseOrderService(BaseService):
                 db, po_id=po_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
             po = self.manager.get_purchase_order(db, po_id, workspace_id)
-            po.items_updated_at = datetime.utcnow()
+            po.items_updated_at = utcnow()
             if user_id is not None:
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
@@ -966,7 +967,7 @@ class PurchaseOrderService(BaseService):
             )
             if user_id is not None:
                 po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
-                po.items_updated_at = datetime.utcnow()
+                po.items_updated_at = utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
@@ -990,7 +991,7 @@ class PurchaseOrderService(BaseService):
             )
             if user_id is not None:
                 po = self.manager.get_purchase_order(db, record.purchase_order_id, workspace_id)
-                po.items_updated_at = datetime.utcnow()
+                po.items_updated_at = utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
             self._commit_transaction(db)
             return record
@@ -1030,7 +1031,7 @@ class PurchaseOrderService(BaseService):
 
         if user_id is not None and po.account_id is not None:
             try:
-                po.items_updated_at = datetime.utcnow()
+                po.items_updated_at = utcnow()
                 self._sync_draft_invoice_for_po(db, po, workspace_id, user_id)
                 self._commit_transaction(db)
                 db.refresh(po)
@@ -1172,7 +1173,7 @@ class PurchaseOrderService(BaseService):
 
             po.voided = True
             po.void_note = void_note
-            po.voided_at = datetime.utcnow()
+            po.voided_at = utcnow()
             po.voided_by = user_id
             db.flush()
 

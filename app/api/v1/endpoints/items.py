@@ -131,6 +131,9 @@ def get_item_orders(
     ),
     from_date: Optional[date] = Query(None, description="Inclusive start date (requires to_date)"),
     to_date: Optional[date] = Query(None, description="Inclusive end date (requires from_date)"),
+    exclude_purchase_order_id: Optional[int] = Query(
+        None, description="Exclude a purchase order from results (e.g. current PO context)"
+    ),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -143,6 +146,7 @@ def get_item_orders(
         order_type=order_type,
         from_date=from_date,
         to_date=to_date,
+        exclude_purchase_order_id=exclude_purchase_order_id,
     )
 
 

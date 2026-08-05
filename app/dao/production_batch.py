@@ -2,7 +2,8 @@
 from typing import List, Optional
 from datetime import date, datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
+from app.models.production_line import ProductionLine
 from app.dao.base import BaseDAO
 from app.models.production_batch import ProductionBatch
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
@@ -147,6 +148,24 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
             .limit(limit)
             .all()
         )
+
+    def count_by_status(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        status: str,
+        factory_id: Optional[int] = None,
+    ) -> int:
+        query = db.query(func.count(ProductionBatch.id)).filter(
+            ProductionBatch.workspace_id == workspace_id,
+            ProductionBatch.status == status,
+        )
+        if factory_id is not None:
+            query = query.join(
+                ProductionLine, ProductionBatch.production_line_id == ProductionLine.id
+            ).filter(ProductionLine.factory_id == factory_id)
+        return query.scalar() or 0
 
     def get_by_date_range(
         self, db: Session, *, start_date: date, end_date: date, workspace_id: int,

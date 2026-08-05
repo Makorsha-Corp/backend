@@ -24,6 +24,7 @@ from app.dao.payment_transaction_event import payment_transaction_event_dao
 from app.core.config import settings
 from app.integrations.sslcommerz import get_sslcommerz_client
 from app.integrations.sslcommerz.client import InitSessionRequest, ValidationResult
+from app.utils.time import utcnow
 
 RECONCILE_TIMEOUT_MINUTES = 30
 
@@ -125,7 +126,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
             # A validated val_id that doesn't belong to this tran_id — either a
             # gateway bug or a replay attempt. Never apply it to this row.
             txn.status = "VALIDATED_FAILED"
-            txn.validated_at = datetime.utcnow()
+            txn.validated_at = utcnow()
             self._log_event(
                 session, txn, "validated_failed",
                 f"val_id/tran_id mismatch via {source}: gateway resolved it to tran_id={result.tran_id}",
@@ -139,7 +140,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
         txn.bank_tran_id = result.bank_tran_id
         txn.card_type = result.card_type
         txn.verify_sign = result.verify_sign
-        txn.validated_at = datetime.utcnow()
+        txn.validated_at = utcnow()
 
         if result.status not in ("VALID", "VALIDATED"):
             txn.status = "VALIDATED_FAILED"
@@ -224,7 +225,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
             return txn
 
         txn.status = terminal_status
-        txn.validated_at = datetime.utcnow()
+        txn.validated_at = utcnow()
         self._log_event(session, txn, terminal_status.lower(), f"Marked {terminal_status} via {source} (no val_id to validate)")
         session.flush()
         return txn
@@ -245,7 +246,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
 
         txn.status = "VALIDATED_SUCCESS" if approve else "VALIDATED_FAILED"
         txn.risk_resolved_by = user_id
-        txn.risk_resolved_at = datetime.utcnow()
+        txn.risk_resolved_at = utcnow()
         txn.risk_resolution_note = note
         self._log_event(
             session, txn, "risk_resolved",
@@ -263,7 +264,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
         row is re-locked and re-checked immediately before acting on it."""
         from datetime import timedelta
 
-        cutoff = datetime.utcnow() - timedelta(minutes=older_than_minutes)
+        cutoff = utcnow() - timedelta(minutes=older_than_minutes)
         stuck = self.dao.get_stuck_initiated(session, older_than=cutoff, limit=limit)
 
         client = get_sslcommerz_client()
@@ -278,7 +279,7 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
                 self._apply_validation_result(session, txn, result, source="reconciliation")
             else:
                 txn.status = "EXPIRED"
-                txn.validated_at = datetime.utcnow()
+                txn.validated_at = utcnow()
                 self._log_event(
                     session, txn, "expired",
                     f"No resolution found after {older_than_minutes} minutes (gateway status: {result.status})",

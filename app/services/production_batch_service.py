@@ -83,6 +83,16 @@ class ProductionBatchService(BaseService):
             limit=limit
         )
 
+    def get_batch_stats(
+        self,
+        db: Session,
+        workspace_id: int,
+        factory_id: Optional[int] = None,
+    ):
+        return self.batch_manager.get_batch_stats(
+            session=db, workspace_id=workspace_id, factory_id=factory_id
+        )
+
     def update_batch(
         self,
         db: Session,

@@ -129,6 +129,81 @@ class AccountInvoiceService(BaseService):
             limit=limit,
         )
 
+    def list_open_invoices_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        account_id: int,
+        prioritize_purchase_order_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 10,
+    ):
+        """List open-balance invoices for one account with server pagination."""
+        return self.account_invoice_manager.list_open_invoices_page(
+            session=db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            prioritize_purchase_order_id=prioritize_purchase_order_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def list_account_invoices_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        account_id: int,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        invoice_date_from=None,
+        invoice_date_to=None,
+        due_date_from=None,
+        due_date_to=None,
+        skip: int = 0,
+        limit: int = 50,
+    ):
+        """Paginated filtered invoices for one account."""
+        return self.account_invoice_manager.list_invoices_page(
+            session=db,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            skip=skip,
+            limit=limit,
+        )
+
+    def get_invoices_hub_summary(self, db: Session, workspace_id: int):
+        return self.account_invoice_manager.get_invoices_hub_summary(
+            session=db, workspace_id=workspace_id
+        )
+
+    def list_accounts_hub_page(
+        self,
+        db: Session,
+        workspace_id: int,
+        section: str = "overview",
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ):
+        return self.account_invoice_manager.list_accounts_hub_page(
+            session=db,
+            workspace_id=workspace_id,
+            section=section,
+            search=search,
+            skip=skip,
+            limit=limit,
+        )
+
     def summarize_invoices(
         self,
         db: Session,

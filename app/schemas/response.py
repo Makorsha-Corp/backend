@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Generic, TypeVar, Any
 from datetime import datetime
 from enum import Enum
+from app.utils.time import utcnow
 
 
 class MessageType(str, Enum):
@@ -27,7 +28,7 @@ class ActionMessage(BaseModel):
         description="Human-readable message"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=utcnow,
         description="When this action occurred"
     )
     details: Optional[dict] = Field(

@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
+from decimal import Decimal
 
 
 class AccountBase(BaseModel):
@@ -87,3 +88,27 @@ class AccountResponse(AccountInDB):
 class AccountWithTagsResponse(AccountInDB):
     """Account response schema with tags included"""
     account_tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon
+
+
+class AccountOpenBalanceRollup(BaseModel):
+    """Open invoice balances for one account."""
+    payable_outstanding: Decimal = Decimal("0")
+    receivable_outstanding: Decimal = Decimal("0")
+    open_payable_count: int = 0
+    open_receivable_count: int = 0
+    has_overdue_payable: bool = False
+    has_overdue_receivable: bool = False
+
+
+class AccountHubRowResponse(AccountWithTagsResponse):
+    """Account row for the accounts hub with open-balance rollups."""
+    open_balance: AccountOpenBalanceRollup
+
+
+class AccountHubListResponse(BaseModel):
+    """Paginated accounts hub list."""
+    items: List[AccountHubRowResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool

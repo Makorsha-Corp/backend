@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class WorkspaceAuditLog(Base):
@@ -27,7 +28,7 @@ class WorkspaceAuditLog(Base):
     metadata_json = Column("metadata", JSON, nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow, index=True)
 
     # Relationships
     workspace = relationship("Workspace", back_populates="audit_logs")

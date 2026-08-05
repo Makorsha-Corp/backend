@@ -17,8 +17,10 @@ from app.models.invoice_payment import InvoicePayment
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 from app.dao.account_invoice import account_invoice_dao
 from app.dao.account import account_dao
+from app.dao.account import account_dao
 from app.dao.invoice_item import invoice_item_dao
 from app.dao.invoice_event import invoice_event_dao
+from app.utils.time import utcnow
 
 
 class AccountInvoiceManager(BaseManager[AccountInvoice]):
@@ -159,6 +161,101 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
             due_date_to=due_date_to,
             amount_min=amount_min,
             amount_max=amount_max,
+            skip=skip,
+            limit=limit,
+        )
+
+    def list_open_invoices_page(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        account_id: int,
+        prioritize_purchase_order_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 10,
+    ) -> tuple[List[AccountInvoice], int]:
+        return self.account_invoice_dao.list_invoices_page(
+            session,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            open_balance_only=True,
+            prioritize_purchase_order_id=prioritize_purchase_order_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def list_invoices_page(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        account_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        invoice_status: Optional[str] = None,
+        invoice_number_search: Optional[str] = None,
+        account_name_search: Optional[str] = None,
+        invoice_date_from=None,
+        invoice_date_to=None,
+        due_date_from=None,
+        due_date_to=None,
+        amount_min=None,
+        amount_max=None,
+        open_balance_only: bool = False,
+        prioritize_purchase_order_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[List[AccountInvoice], int]:
+        return self.account_invoice_dao.list_invoices_page_filtered(
+            session,
+            workspace_id=workspace_id,
+            account_id=account_id,
+            invoice_type=invoice_type,
+            payment_status=payment_status,
+            invoice_status=invoice_status,
+            invoice_number_search=invoice_number_search,
+            account_name_search=account_name_search,
+            invoice_date_from=invoice_date_from,
+            invoice_date_to=invoice_date_to,
+            due_date_from=due_date_from,
+            due_date_to=due_date_to,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            open_balance_only=open_balance_only,
+            prioritize_purchase_order_id=prioritize_purchase_order_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def get_invoices_hub_summary(self, session: Session, *, workspace_id: int):
+        payable = self.account_invoice_dao.summarize_open_hub_type(
+            session, workspace_id=workspace_id, invoice_type="payable"
+        )
+        receivable = self.account_invoice_dao.summarize_open_hub_type(
+            session, workspace_id=workspace_id, invoice_type="receivable"
+        )
+        accounts_with_any = self.account_invoice_dao.count_accounts_with_any_open_balance(
+            session, workspace_id=workspace_id
+        )
+        total_active = account_dao.count_active_accounts(session, workspace_id=workspace_id)
+        return payable, receivable, accounts_with_any, total_active
+
+    def list_accounts_hub_page(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        section: str = "overview",
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ):
+        return self.account_invoice_dao.list_accounts_hub_page(
+            session,
+            workspace_id=workspace_id,
+            section=section,
+            search=search,
             skip=skip,
             limit=limit,
         )
@@ -323,7 +420,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         # Recalculate amount from items and freeze
         self._recalculate_invoice_amount(session, invoice)
-        now = datetime.utcnow()
+        now = utcnow()
         invoice.last_synced_at = now
         invoice.invoice_status = "confirmed"
         session.flush()
@@ -389,7 +486,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Draft invoices cannot be voided — delete them instead")
 
-        now = datetime.utcnow()
+        now = utcnow()
         system_void_note = f"Automatically voided — invoice #{invoice.id} was voided. Reason: {void_note}"
 
         active_payments = (
@@ -467,7 +564,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
 
         invoice_item_dao.delete_all_for_invoice(session, invoice.id)
 
-        now = datetime.utcnow()
+        now = utcnow()
         for item_dict in items:
             item_dict.setdefault("workspace_id", invoice.workspace_id)
             item_dict.setdefault("invoice_id", invoice.id)

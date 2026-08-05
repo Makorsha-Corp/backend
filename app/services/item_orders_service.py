@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from sqlalchemy import Date, and_, cast, func
 from sqlalchemy.orm import Session
@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.managers.item_manager import item_manager
 from app.models.account import Account
+from app.models.factory import Factory
+from app.models.machine import Machine
+from app.models.project import Project
+from app.models.project_component import ProjectComponent
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.sales_order import SalesOrder
@@ -39,6 +43,69 @@ def _weighted_unit_price(line_total: Decimal, quantity: Decimal) -> Decimal | No
     return line_total / quantity
 
 
+def _build_po_destination_labels(
+    db: Session,
+    *,
+    workspace_id: int,
+    destinations: Sequence[Tuple[str, int]],
+) -> Dict[Tuple[str, int], str]:
+    unique = {(dest_type, dest_id) for dest_type, dest_id in destinations if dest_id}
+    if not unique:
+        return {}
+
+    storage_ids = {dest_id for dest_type, dest_id in unique if dest_type == 'storage'}
+    machine_ids = {dest_id for dest_type, dest_id in unique if dest_type == 'machine'}
+    project_ids = {dest_id for dest_type, dest_id in unique if dest_type == 'project'}
+
+    labels: Dict[Tuple[str, int], str] = {}
+
+    if storage_ids:
+        factories = (
+            db.query(Factory.id, Factory.name)
+            .filter(Factory.workspace_id == workspace_id, Factory.id.in_(storage_ids))
+            .all()
+        )
+        for factory_id, factory_name in factories:
+            labels[('storage', factory_id)] = f'Storage ({factory_name})'
+
+    if machine_ids:
+        machines = (
+            db.query(Machine.id, Machine.name)
+            .filter(Machine.workspace_id == workspace_id, Machine.id.in_(machine_ids))
+            .all()
+        )
+        for machine_id, machine_name in machines:
+            labels[('machine', machine_id)] = f'Machine ({machine_name})'
+
+    if project_ids:
+        components = (
+            db.query(ProjectComponent.id, ProjectComponent.name, Project.name)
+            .join(Project, ProjectComponent.project_id == Project.id)
+            .filter(
+                ProjectComponent.workspace_id == workspace_id,
+                ProjectComponent.id.in_(project_ids),
+            )
+            .all()
+        )
+        for component_id, component_name, project_name in components:
+            labels[('project', component_id)] = f'Project · {project_name} / {component_name}'
+
+    for dest_type, dest_id in unique:
+        key = (dest_type, dest_id)
+        if key in labels:
+            continue
+        if dest_type == 'storage':
+            labels[key] = 'Storage'
+        elif dest_type == 'machine':
+            labels[key] = f'Machine #{dest_id}'
+        elif dest_type == 'project':
+            labels[key] = f'Component #{dest_id}'
+        else:
+            labels[key] = f'{dest_type} #{dest_id}'
+
+    return labels
+
+
 class ItemOrdersService:
     def get_orders_for_item(
         self,
@@ -51,6 +118,7 @@ class ItemOrdersService:
         order_type: Optional[ItemOrderType] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
+        exclude_purchase_order_id: Optional[int] = None,
     ) -> ItemOrdersListResponse:
         item = item_manager.get_item(db, item_id, workspace_id)
         if not item:
@@ -66,6 +134,7 @@ class ItemOrdersService:
                     item_id=item_id,
                     from_date=from_date,
                     to_date=to_date,
+                    exclude_purchase_order_id=exclude_purchase_order_id,
                 )
             )
         if order_type is None or order_type == 'transfer_order':
@@ -99,7 +168,13 @@ class ItemOrdersService:
                 )
             )
 
-        rows.sort(key=lambda row: row.created_at, reverse=True)
+        rows.sort(
+            key=lambda row: (
+                row.order_date or date.min,
+                row.created_at,
+            ),
+            reverse=True,
+        )
         total = len(rows)
         page = rows[skip : skip + limit]
         return ItemOrdersListResponse(items=page, total=total)
@@ -112,6 +187,7 @@ class ItemOrdersService:
         item_id: int,
         from_date: Optional[date],
         to_date: Optional[date],
+        exclude_purchase_order_id: Optional[int] = None,
     ) -> List[ItemOrderRowResponse]:
         order_date_col = func.coalesce(
             PurchaseOrder.order_date,
@@ -120,9 +196,12 @@ class ItemOrdersService:
         filters = [
             PurchaseOrder.workspace_id == workspace_id,
             PurchaseOrderItem.item_id == item_id,
+            PurchaseOrder.voided.is_(False),
         ]
         if from_date is not None and to_date is not None:
             filters.append(_in_date_range(order_date_col, from_date, to_date))
+        if exclude_purchase_order_id is not None:
+            filters.append(PurchaseOrder.id != exclude_purchase_order_id)
 
         results = (
             db.query(
@@ -130,6 +209,8 @@ class ItemOrdersService:
                 PurchaseOrder.po_number,
                 order_date_col.label('order_date'),
                 PurchaseOrder.created_at,
+                PurchaseOrder.destination_type,
+                PurchaseOrder.destination_id,
                 func.sum(PurchaseOrderItem.quantity_ordered).label('quantity'),
                 func.sum(PurchaseOrderItem.line_subtotal).label('line_total'),
                 Account.name,
@@ -147,14 +228,33 @@ class ItemOrdersService:
                 PurchaseOrder.po_number,
                 order_date_col,
                 PurchaseOrder.created_at,
+                PurchaseOrder.destination_type,
+                PurchaseOrder.destination_id,
                 Account.name,
                 Status.name,
             )
             .all()
         )
 
+        destination_labels = _build_po_destination_labels(
+            db,
+            workspace_id=workspace_id,
+            destinations=[(row[4], row[5]) for row in results],
+        )
+
         rows: List[ItemOrderRowResponse] = []
-        for po_id, po_number, order_date, created_at, qty, line_total, account_name, status_name in results:
+        for (
+            po_id,
+            po_number,
+            order_date,
+            created_at,
+            destination_type,
+            destination_id,
+            qty,
+            line_total,
+            account_name,
+            status_name,
+        ) in results:
             quantity = _dec(qty)
             total = _dec(line_total)
             rows.append(
@@ -168,6 +268,9 @@ class ItemOrdersService:
                     line_total=total if total > 0 else None,
                     status_name=status_name,
                     account_name=account_name,
+                    destination_label=destination_labels.get(
+                        (destination_type, destination_id)
+                    ),
                     created_at=created_at,
                 )
             )

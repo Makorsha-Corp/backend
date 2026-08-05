@@ -24,6 +24,7 @@ from app.services.approval_notification_service import (
     notify_invoice_action,
     notify_section_confirm_needed,
 )
+from app.utils.time import utcnow
 
 
 class ExpenseOrderService(BaseService):
@@ -253,7 +254,7 @@ class ExpenseOrderService(BaseService):
                     actor_user_id=user_id, invoice_id=invoice.id, action='confirmed', order=eo,
                 )
 
-            eo.completed_at = datetime.utcnow()
+            eo.completed_at = utcnow()
             eo.completed_by = user_id
             eo.updated_by = user_id
             db.flush()
@@ -298,7 +299,7 @@ class ExpenseOrderService(BaseService):
 
             eo.voided = True
             eo.void_note = void_note
-            eo.voided_at = datetime.utcnow()
+            eo.voided_at = utcnow()
             eo.voided_by = user_id
             db.flush()
             self.manager.log_event(
@@ -323,7 +324,7 @@ class ExpenseOrderService(BaseService):
                 db, eo_id=eo_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
             eo = self.manager.get_expense_order(db, eo_id, workspace_id)
-            eo.items_updated_at = datetime.utcnow()
+            eo.items_updated_at = utcnow()
             self._sync_or_create_invoice(db, eo_id, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
@@ -341,7 +342,7 @@ class ExpenseOrderService(BaseService):
                 db, item_id=item_id, data=item_in, workspace_id=workspace_id, user_id=user_id
             )
             eo = self.manager.get_expense_order(db, record.expense_order_id, workspace_id)
-            eo.items_updated_at = datetime.utcnow()
+            eo.items_updated_at = utcnow()
             self._sync_or_create_invoice(db, record.expense_order_id, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(record)
@@ -358,7 +359,7 @@ class ExpenseOrderService(BaseService):
                 db, item_id=item_id, workspace_id=workspace_id, user_id=user_id
             )
             eo = self.manager.get_expense_order(db, record.expense_order_id, workspace_id)
-            eo.items_updated_at = datetime.utcnow()
+            eo.items_updated_at = utcnow()
             self._sync_or_create_invoice(db, record.expense_order_id, workspace_id, user_id)
             self._commit_transaction(db)
             return record

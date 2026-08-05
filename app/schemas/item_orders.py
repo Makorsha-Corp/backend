@@ -19,6 +19,7 @@ class ItemOrderRowResponse(BaseModel):
     line_total: Decimal | None = None
     status_name: str | None = None
     account_name: str | None = None
+    destination_label: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

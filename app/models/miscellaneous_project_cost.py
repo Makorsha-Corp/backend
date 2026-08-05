@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, T
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class MiscellaneousProjectCost(Base):
@@ -12,7 +13,7 @@ class MiscellaneousProjectCost(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     project_component_id = Column(Integer, ForeignKey("project_components.id"), nullable=True)
     name = Column(String, nullable=False)

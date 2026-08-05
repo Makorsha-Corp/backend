@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
+from app.utils.time import utcnow
 
 
 class TransferOrderEvent(Base):
@@ -21,6 +22,6 @@ class TransferOrderEvent(Base):
     metadata_json = Column("metadata", JSON, nullable=True)
 
     performed_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
 
     performer = relationship("Profile", foreign_keys=[performed_by])

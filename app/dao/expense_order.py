@@ -152,7 +152,11 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
     ) -> List[ExpenseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
-            .order_by(desc(ExpenseOrder.expense_date), desc(ExpenseOrder.created_at))
+            .order_by(
+                desc(ExpenseOrder.expense_date),
+                desc(ExpenseOrder.created_at),
+                desc(ExpenseOrder.id),
+            )
             .offset(skip)
             .limit(limit)
             .all()

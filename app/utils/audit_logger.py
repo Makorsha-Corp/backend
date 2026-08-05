@@ -8,6 +8,7 @@ from decimal import Decimal
 from datetime import datetime, date
 from sqlalchemy.orm import Session
 from app.dao.financial_audit_log import financial_audit_log_dao, FinancialAuditLogCreate
+from app.utils.time import utcnow
 
 
 def log_financial_audit(
@@ -101,7 +102,7 @@ def log_financial_audit(
     log_dict = audit_data.model_dump(exclude_none=True)
     log_dict['workspace_id'] = workspace_id
     log_dict['performed_by'] = performed_by
-    log_dict['performed_at'] = datetime.utcnow()
+    log_dict['performed_at'] = utcnow()
 
     financial_audit_log_dao.create(session, obj_in=log_dict)
 
