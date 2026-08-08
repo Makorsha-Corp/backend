@@ -13,8 +13,13 @@ WaitlistSource = Literal[
     "unknown",
 ]
 
+WaitlistStatus = Literal["PENDING", "CONTACTED", "ACCEPTED", "DECLINED"]
+
 
 class WaitlistSignupRequest(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    company_name: Optional[str] = Field(None, max_length=200)
     email: EmailStr
     wants_product_updates: bool = False
     turnstile_token: str = Field(..., min_length=1)
@@ -29,12 +34,20 @@ class WaitlistSignupResponse(BaseModel):
 
 class WaitlistSignupItem(BaseModel):
     id: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company_name: Optional[str] = None
     email: str
     wants_product_updates: bool
     source: Optional[str] = None
+    status: WaitlistStatus
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WaitlistStatusUpdateRequest(BaseModel):
+    status: WaitlistStatus
 
 
 class WaitlistSignupListResponse(BaseModel):

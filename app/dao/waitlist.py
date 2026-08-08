@@ -20,6 +20,7 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
         limit: int = 100,
         search: Optional[str] = None,
         wants_product_updates: Optional[bool] = None,
+        status: Optional[str] = None,
     ) -> Tuple[List[WaitlistSignup], int]:
         query = db.query(self.model)
         if search:
@@ -27,6 +28,8 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
             query = query.filter(self.model.email.ilike(term))
         if wants_product_updates is not None:
             query = query.filter(self.model.wants_product_updates == wants_product_updates)
+        if status is not None:
+            query = query.filter(self.model.status == status)
 
         total = query.count()
         items = (
@@ -42,12 +45,18 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
         db: Session,
         *,
         email: str,
+        first_name: str,
+        last_name: str,
+        company_name: Optional[str],
         wants_product_updates: bool,
         source: Optional[str],
         ip_hash: Optional[str],
     ) -> WaitlistSignup:
         db_obj = self.model(
             email=email,
+            first_name=first_name,
+            last_name=last_name,
+            company_name=company_name,
             wants_product_updates=wants_product_updates,
             source=source,
             ip_hash=ip_hash,
@@ -55,6 +64,14 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
         db.add(db_obj)
         db.flush()
         return db_obj
+
+    def update_status(
+        self, db: Session, *, signup: WaitlistSignup, status: str
+    ) -> WaitlistSignup:
+        signup.status = status
+        db.add(signup)
+        db.flush()
+        return signup
 
 
 waitlist_dao = WaitlistDAO(WaitlistSignup)

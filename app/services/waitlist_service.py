@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.dao.waitlist import waitlist_dao
+from app.models.waitlist_signup import WaitlistSignup
 from app.schemas.waitlist import (
+    WaitlistSignupItem,
     WaitlistSignupListResponse,
     WaitlistSignupRequest,
     WaitlistSignupResponse,
@@ -84,6 +86,9 @@ class WaitlistService(BaseService):
             waitlist_dao.create_signup(
                 db,
                 email=email,
+                first_name=payload.first_name.strip(),
+                last_name=payload.last_name.strip(),
+                company_name=(payload.company_name or "").strip() or None,
                 wants_product_updates=payload.wants_product_updates,
                 source=payload.source,
                 ip_hash=hash_client_ip(remote_ip),
@@ -98,6 +103,17 @@ class WaitlistService(BaseService):
 
         return WaitlistSignupResponse(message=SUCCESS_MESSAGE)
 
+    def update_status(self, db: Session, *, signup_id: int, status_value: str) -> WaitlistSignupItem:
+        signup: Optional[WaitlistSignup] = waitlist_dao.get(db, signup_id)
+        if not signup:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Waitlist signup not found",
+            )
+        waitlist_dao.update_status(db, signup=signup, status=status_value)
+        self._commit_transaction(db)
+        return WaitlistSignupItem.model_validate(signup)
+
     def list_signups(
         self,
         db: Session,
@@ -106,6 +122,7 @@ class WaitlistService(BaseService):
         limit: int,
         search: Optional[str],
         wants_product_updates: Optional[bool],
+        status_value: Optional[str] = None,
     ) -> WaitlistSignupListResponse:
         items, total = waitlist_dao.list_signups(
             db,
@@ -113,6 +130,7 @@ class WaitlistService(BaseService):
             limit=limit,
             search=search,
             wants_product_updates=wants_product_updates,
+            status=status_value,
         )
         return WaitlistSignupListResponse(
             items=items,

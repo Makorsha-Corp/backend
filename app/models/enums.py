@@ -122,6 +122,14 @@ class DiscussionEntityType(str, enum.Enum):
     item              = "item"
 
 
+class WaitlistStatusEnum(str, enum.Enum):
+    """Follow-up status for a platform waitlist signup"""
+    PENDING = "PENDING"
+    CONTACTED = "CONTACTED"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"
+
+
 # Union of OrderType + DiscussionEntityType — never edit manually.
 # Add new values to OrderType or DiscussionEntityType; this updates automatically.
 NotificationEntityType = enum.Enum(

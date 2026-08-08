@@ -55,6 +55,8 @@ async def test_verify_turnstile_rejects_invalid_token() -> None:
 def test_submit_signup_honeypot_returns_success_without_db_write() -> None:
     db = MagicMock()
     payload = WaitlistSignupRequest(
+        first_name="Jane",
+        last_name="Doe",
         email="user@example.com",
         turnstile_token="token",
         website="bot-filled-this",
@@ -69,6 +71,8 @@ def test_submit_signup_duplicate_returns_silent_success() -> None:
     db = MagicMock()
     existing = MagicMock()
     payload = WaitlistSignupRequest(
+        first_name="Jane",
+        last_name="Doe",
         email="user@example.com",
         turnstile_token="token",
     )
