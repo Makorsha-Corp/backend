@@ -27,10 +27,10 @@ def test_normalize_waitlist_email() -> None:
 
 
 @pytest.mark.anyio
-async def test_verify_turnstile_skips_in_dev_without_secret() -> None:
+async def test_verify_turnstile_skips_without_secret_regardless_of_environment() -> None:
     with patch("app.services.waitlist_service.settings") as mock_settings:
         mock_settings.TURNSTILE_SECRET_KEY = ""
-        mock_settings.ENVIRONMENT = "development"
+        mock_settings.ENVIRONMENT = "production"
         await waitlist_service.verify_turnstile("token", "127.0.0.1")
 
 

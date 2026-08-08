@@ -39,12 +39,10 @@ class WaitlistService(BaseService):
     async def verify_turnstile(self, token: str, remote_ip: Optional[str]) -> None:
         secret = settings.TURNSTILE_SECRET_KEY
         if not secret:
-            if settings.ENVIRONMENT == "development":
-                return
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Waitlist verification is not configured",
-            )
+            # Turnstile isn't configured yet (no keys set) — skip verification
+            # until TURNSTILE_SECRET_KEY is set. See VITE_TURNSTILE_SITE_KEY /
+            # docs/LANDING_WAITLIST.md for setup.
+            return
 
         payload = {"secret": secret, "response": token}
         if remote_ip:
