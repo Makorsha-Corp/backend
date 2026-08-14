@@ -31,6 +31,7 @@ from app.models.workspace_member import WorkspaceMember
 from app.schemas.profile import ProfileCreate
 from app.schemas.response import ActionMessage, success_message, error_message, info_message
 from app.schemas.workspace import WorkspaceCreate
+from app.schemas.profile import ProfileMeUpdate
 from app.utils.time import utcnow
 
 
@@ -923,6 +924,32 @@ class AuthService(BaseService):
         ))
 
         return details, messages
+
+    def update_current_user(
+        self,
+        db: Session,
+        *,
+        user: Profile,
+        update: ProfileMeUpdate,
+    ) -> Profile:
+        """Update the authenticated user's profile preferences."""
+        try:
+            data = update.model_dump(exclude_unset=True)
+            if not data:
+                return user
+
+            if "name" in data and data["name"] is not None:
+                user.name = data["name"]
+            if "timezone" in data:
+                user.timezone = data["timezone"]
+
+            db.add(user)
+            self._commit_transaction(db)
+            db.refresh(user)
+            return user
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
 
 # Singleton instance

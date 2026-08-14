@@ -3,6 +3,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from typing import Any
 
+from app.utils.timezone_validate import is_valid_iana_timezone
+
 
 class WorkspaceBase(BaseModel):
     """Base workspace schema"""
@@ -22,6 +24,16 @@ class WorkspaceUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
     billing_email: str | None = None
     settings: dict | None = None
+
+    @field_validator("settings")
+    @classmethod
+    def validate_settings_timezone(cls, value: dict | None) -> dict | None:
+        if value is None:
+            return value
+        tz = value.get("timezone")
+        if tz is not None and str(tz).strip() and not is_valid_iana_timezone(str(tz).strip()):
+            raise ValueError("Invalid IANA timezone in workspace settings")
+        return value
 
 
 class WorkspaceResponse(WorkspaceBase):

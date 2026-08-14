@@ -13,6 +13,11 @@ from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpda
 class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInvoiceUpdate]):
     """DAO operations for AccountInvoice model"""
 
+    @staticmethod
+    def _outstanding_amount_expr():
+        """SQL expression — outstanding is invoice_amount - paid_amount (not a column)."""
+        return AccountInvoice.invoice_amount - AccountInvoice.paid_amount
+
     def _build_filtered_query(
         self,
         db: Session,
@@ -154,7 +159,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         return (
             db.query(
                 AccountInvoice.account_id.label("account_id"),
-                func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0).label(
+                func.coalesce(func.sum(self._outstanding_amount_expr()), 0).label(
                     "outstanding_total"
                 ),
                 func.count(AccountInvoice.id).label("open_count"),
@@ -219,7 +224,24 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
             .limit(limit)
             .all()
         )
-        return rows, total
+        return [self._reshape_accounts_hub_row(row) for row in rows], total
+
+    @staticmethod
+    def _reshape_accounts_hub_row(row) -> tuple:
+        """
+        db.query(Account, payable_sq, receivable_sq) flattens subquery columns
+        into one Row — re-pack into (account, payable_agg, receivable_agg).
+        """
+        from types import SimpleNamespace
+
+        def _agg(start: int):
+            return SimpleNamespace(
+                outstanding_total=row[start + 1] if row[start + 1] is not None else 0,
+                open_count=row[start + 2] if row[start + 2] is not None else 0,
+                has_overdue=bool(row[start + 3]) if row[start + 3] is not None else False,
+            )
+
+        return row[0], _agg(1), _agg(5)
 
     def summarize_open_hub_type(
         self,
@@ -237,7 +259,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         )
         open_count = query.count()
         outstanding_row = query.with_entities(
-            func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0),
+            func.coalesce(func.sum(self._outstanding_amount_expr()), 0),
         ).one()
         overdue_count = query.filter(AccountInvoice.payment_status == "overdue").count()
         accounts_with_open = (
@@ -371,7 +393,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         financial = query.filter(AccountInvoice.invoice_status != 'voided').with_entities(
             func.coalesce(func.sum(AccountInvoice.invoice_amount), 0),
             func.coalesce(func.sum(AccountInvoice.paid_amount), 0),
-            func.coalesce(func.sum(AccountInvoice.outstanding_amount), 0),
+            func.coalesce(func.sum(self._outstanding_amount_expr()), 0),
         ).one()
 
         return (

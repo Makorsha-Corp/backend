@@ -38,6 +38,9 @@ from app.models.access_control import AccessControl
 from app.models.discussion import Discussion
 from app.models.notification import Notification
 from app.models.attachment import Attachment
+from app.models.attachment_link import AttachmentLink
+from app.models.attachment_ledger import AttachmentLedger
+from app.models.mobile_upload_session import MobileUploadSession
 from app.models.project_attachment import ProjectAttachment
 from app.models.project_component_attachment import ProjectComponentAttachment
 from app.models.machine_activity_event import MachineActivityEvent
@@ -96,3 +99,4 @@ from app.models.production_batch_item import ProductionBatchItem
 from app.models.production_formula_stage import ProductionFormulaStage
 from app.models.production_batch_stage_log import ProductionBatchStageLog
 from app.models.waitlist_signup import WaitlistSignup
+from app.models.help_ticket import HelpTicket

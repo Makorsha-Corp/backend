@@ -19,6 +19,7 @@ class NotificationResponse(BaseModel):
     notification_type: str
     entity_type:       str
     entity_id:         int
+    entity_label:      str
     source_type:       str
     source_id:         int
     preview:           Optional[str]

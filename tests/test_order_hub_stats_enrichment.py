@@ -50,3 +50,4 @@ def test_expense_order_hub_stats_includes_recent_orders() -> None:
         recent_orders=[],
     )
     assert result.recent_orders == []
+    assert result.financial_snapshot.category_breakdown == []

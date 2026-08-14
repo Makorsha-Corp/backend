@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import List
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.order_hub import OrderHubRecentSummary
+from app.schemas.order_hub import ExpenseOrderFinancialSnapshot, OrderHubRecentSummary
 
 
 class ExpenseOrderItemCreate(BaseModel):
@@ -108,6 +108,7 @@ class ExpenseOrderHubStatsResponse(BaseModel):
     open_value: Decimal
     not_invoiced_count: int
     recent_orders: List[OrderHubRecentSummary] = []
+    financial_snapshot: ExpenseOrderFinancialSnapshot = ExpenseOrderFinancialSnapshot()
 
 
 class ExpenseOrderListResponse(BaseModel):

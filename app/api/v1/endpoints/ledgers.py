@@ -19,6 +19,7 @@ from app.models.workspace import Workspace
 from app.schemas.machine_item_ledger import MachineItemLedgerResponse
 from app.schemas.project_component_item_ledger import ProjectComponentItemLedgerResponse
 from app.schemas.inventory_ledger import InventoryLedgerResponse
+from app.schemas.attachment_ledger import AttachmentLedgerResponse
 from app.schemas.response import ActionResponse
 from app.services.ledger_service import ledger_service
 from app.models.enums import InventoryTypeEnum
@@ -221,6 +222,43 @@ def get_inventory_ledger(
         limit=limit,
     )
     return entries
+
+
+# ============================================================================
+# ATTACHMENT LEDGER ENDPOINTS
+# ============================================================================
+
+@router.get(
+    "/attachments/",
+    response_model=List[AttachmentLedgerResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get attachment ledger entries",
+    description="Immutable audit trail for attachment lifecycle (pending, ready, failed, deleted).",
+)
+def get_attachment_ledger(
+    attachment_id: Optional[int] = Query(None, description="Optional attachment filter"),
+    entity_type: Optional[str] = Query(None, description="Optional linked entity type filter"),
+    start_date: Optional[datetime] = Query(None, description="Start date filter"),
+    end_date: Optional[datetime] = Query(None, description="End date filter"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, le=100),
+    db: Session = Depends(get_db),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+):
+    """Get attachment ledger entries with optional filters."""
+    return ledger_service.get_attachment_ledger(
+        db=db,
+        workspace_id=workspace.id,
+        attachment_id=attachment_id,
+        entity_type=entity_type,
+        start_date=start_date,
+        end_date=end_date,
+        transaction_type=transaction_type,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get(

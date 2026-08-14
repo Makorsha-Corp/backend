@@ -17,6 +17,7 @@ pydantic-settings==2.14.2
 
 # CORS and middleware
 python-dateutil==2.9.0.post0
+tzdata>=2024.1
 
 # Rate limiting
 slowapi==0.1.10
@@ -25,6 +26,9 @@ slowapi==0.1.10
 pytest==9.1.1
 pytest-cov==7.1.0
 httpx==0.28.1
+
+# Media storage
+cloudinary==1.44.1
 
 # Development
 black==26.5.1

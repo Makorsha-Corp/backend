@@ -8,6 +8,7 @@ from app.managers.ledger_manager import ledger_manager
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.project_component_item_ledger import ProjectComponentItemLedger
 from app.models.inventory_ledger import InventoryLedger
+from app.models.attachment_ledger import AttachmentLedger
 from app.models.enums import InventoryTypeEnum
 from app.models.profile import Profile
 from app.schemas.response import ActionMessage, success_message, info_message, warning_message
@@ -274,6 +275,35 @@ class LedgerService(BaseService):
         except Exception as e:
             self._rollback_transaction(db)
             raise
+
+    # ============================================================================
+    # ATTACHMENT LEDGER OPERATIONS
+    # ============================================================================
+
+    def get_attachment_ledger(
+        self,
+        db: Session,
+        workspace_id: int,
+        attachment_id: Optional[int] = None,
+        entity_type: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        transaction_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[AttachmentLedger]:
+        """Get attachment ledger entries with optional filters."""
+        return self.ledger_manager.get_attachment_ledger(
+            session=db,
+            workspace_id=workspace_id,
+            attachment_id=attachment_id,
+            entity_type=entity_type,
+            start_date=start_date,
+            end_date=end_date,
+            transaction_type=transaction_type,
+            skip=skip,
+            limit=limit,
+        )
 
     # ============================================================================
     # CROSS-LEDGER REPORTING

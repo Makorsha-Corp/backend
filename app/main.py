@@ -29,6 +29,7 @@ from app.core.exceptions import (
     generic_exception_handler
 )
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
+from app.core.utc_json_middleware import UtcJsonResponseMiddleware
 
 
 @asynccontextmanager
@@ -74,6 +75,9 @@ app.add_middleware(
 
 # Rate limiting
 app.add_middleware(SlowAPIMiddleware)
+
+# Naive API datetimes → ISO-8601 UTC with Z suffix in JSON responses
+app.add_middleware(UtcJsonResponseMiddleware)
 
 # Request context (adds request ID and logging)
 app.add_middleware(RequestContextMiddleware)

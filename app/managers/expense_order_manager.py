@@ -330,6 +330,17 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             session, workspace_id=workspace_id, limit=limit, **filters
         )
 
+    def expense_order_financial_snapshot(
+        self, session: Session, workspace_id: int, **filters
+    ):
+        filtered = self.eo_dao.aggregate_financial_snapshot_filtered(
+            session, workspace_id=workspace_id, **filters
+        )
+        actionable = self.eo_dao.aggregate_financial_snapshot_actionable(
+            session, workspace_id=workspace_id
+        )
+        return {**filtered, **actionable}
+
     def delete_expense_order(self, session: Session, eo_id: int, workspace_id: int) -> None:
         record = self.eo_dao.get_by_id_and_workspace(session, id=eo_id, workspace_id=workspace_id)
         if not record:

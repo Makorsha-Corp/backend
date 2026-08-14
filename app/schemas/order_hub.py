@@ -40,3 +40,48 @@ class PurchaseOrderHubPendingStats(BaseModel):
     missing_invoice_count: int = 0
     missing_invoice: List[OrderHubPendingHighlight] = []
     oldest_drafts: List[OrderHubPendingHighlight] = []
+
+
+class ExpenseOrderFinancialBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+    total_value: Decimal
+
+
+class ExpenseOrderOpenByAccountBucket(BaseModel):
+    account_id: int
+    account_name: str | None = None
+    count: int
+    total_value: Decimal
+
+
+class ExpenseOrderFinancialSample(BaseModel):
+    id: int
+    order_number: str
+    total_value: Decimal | None = None
+    sublabel: str | None = None
+
+
+class ExpenseOrderDueTimelineBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+    total_value: Decimal
+    samples: List[ExpenseOrderFinancialSample] = []
+
+
+class ExpenseOrderUnpaidPipelineBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+    outstanding_value: Decimal
+    samples: List[ExpenseOrderFinancialSample] = []
+
+
+class ExpenseOrderFinancialSnapshot(BaseModel):
+    category_breakdown: List[ExpenseOrderFinancialBucket] = []
+    stage_pipeline: List[ExpenseOrderFinancialBucket] = []
+    open_by_account: List[ExpenseOrderOpenByAccountBucket] = []
+    due_timeline: List[ExpenseOrderDueTimelineBucket] = []
+    unpaid_pipeline: List[ExpenseOrderUnpaidPipelineBucket] = []

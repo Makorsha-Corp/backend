@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.dao.base import BaseDAO
 from app.models.attachment import Attachment
-from app.schemas.attachment import AttachmentCreate, AttachmentUpdate
+from app.schemas.attachment import AttachmentCreateInternal, AttachmentUpdateInternal
 from app.utils.time import utcnow
 
 
-class AttachmentDAO(BaseDAO[Attachment, AttachmentCreate, AttachmentUpdate]):
+class AttachmentDAO(BaseDAO[Attachment, AttachmentCreateInternal, AttachmentUpdateInternal]):
     """DAO for Attachment model (workspace-scoped)"""
 
     def get_active(

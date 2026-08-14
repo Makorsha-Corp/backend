@@ -130,6 +130,52 @@ class WaitlistStatusEnum(str, enum.Enum):
     DECLINED = "DECLINED"
 
 
+class AttachmentEntityTypeEnum(str, enum.Enum):
+    """Entity types that attachments can link to."""
+    PURCHASE_ORDER = "purchase_order"
+    SALES_ORDER = "sales_order"
+    EXPENSE_ORDER = "expense_order"
+    TRANSFER_ORDER = "transfer_order"
+    WORK_ORDER = "work_order"
+    PROJECT = "project"
+    PROJECT_COMPONENT = "project_component"
+    ITEM = "item"
+    MACHINE = "machine"
+    ACCOUNT_INVOICE = "account_invoice"
+    SUPPORT_TICKET = "support_ticket"
+    SCRATCH = "scratch"
+
+
+class HelpTicketStatusEnum(str, enum.Enum):
+    """Help ticket lifecycle status."""
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class UploadStatusEnum(str, enum.Enum):
+    """Attachment upload lifecycle status."""
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class AttachmentLedgerTransactionTypeEnum(str, enum.Enum):
+    """Attachment ledger transaction types (immutable audit trail)."""
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+    DELETED = "deleted"
+
+
+class MobileUploadSessionStatusEnum(str, enum.Enum):
+    """Mobile upload QR session lifecycle."""
+    WAITING = "waiting"
+    UPLOADED = "uploaded"
+    CONSUMED = "consumed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
 # Union of OrderType + DiscussionEntityType — never edit manually.
 # Add new values to OrderType or DiscussionEntityType; this updates automatically.
 NotificationEntityType = enum.Enum(

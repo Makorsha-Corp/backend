@@ -185,6 +185,14 @@ class ExpenseOrderService(BaseService):
         exclude_voided: bool = False,
     ):
         from app.schemas.expense_order import ExpenseOrderHubStatsResponse
+        from app.schemas.order_hub import (
+            ExpenseOrderDueTimelineBucket,
+            ExpenseOrderFinancialBucket,
+            ExpenseOrderFinancialSample,
+            ExpenseOrderFinancialSnapshot,
+            ExpenseOrderOpenByAccountBucket,
+            ExpenseOrderUnpaidPipelineBucket,
+        )
 
         filters = self._hub_filter_kwargs(
             expense_category=expense_category,
@@ -204,7 +212,42 @@ class ExpenseOrderService(BaseService):
         recent = self.manager.list_expense_orders_recent_for_hub(
             db, workspace_id, limit=10, **filters
         )
+        financial_raw = self.manager.expense_order_financial_snapshot(
+            db, workspace_id, **filters
+        )
         from app.services.order_hub_stats_helpers import expense_order_to_recent_summary
+
+        def _buckets(raw_list):
+            return [ExpenseOrderFinancialBucket(**row) for row in raw_list]
+
+        financial_snapshot = ExpenseOrderFinancialSnapshot(
+            category_breakdown=_buckets(financial_raw["category_breakdown"]),
+            stage_pipeline=_buckets(financial_raw["stage_pipeline"]),
+            open_by_account=[
+                ExpenseOrderOpenByAccountBucket(**row)
+                for row in financial_raw["open_by_account"]
+            ],
+            due_timeline=[
+                ExpenseOrderDueTimelineBucket(
+                    key=row["key"],
+                    label=row["label"],
+                    count=row["count"],
+                    total_value=row["total_value"],
+                    samples=[ExpenseOrderFinancialSample(**s) for s in row["samples"]],
+                )
+                for row in financial_raw["due_timeline"]
+            ],
+            unpaid_pipeline=[
+                ExpenseOrderUnpaidPipelineBucket(
+                    key=row["key"],
+                    label=row["label"],
+                    count=row["count"],
+                    outstanding_value=row["outstanding_value"],
+                    samples=[ExpenseOrderFinancialSample(**s) for s in row["samples"]],
+                )
+                for row in financial_raw["unpaid_pipeline"]
+            ],
+        )
 
         return ExpenseOrderHubStatsResponse(
             total_count=total_count,
@@ -213,6 +256,7 @@ class ExpenseOrderService(BaseService):
             open_value=open_value,
             not_invoiced_count=not_invoiced_count,
             recent_orders=[expense_order_to_recent_summary(o) for o in recent],
+            financial_snapshot=financial_snapshot,
         )
 
     def delete_expense_order(self, db: Session, eo_id: int, workspace_id: int) -> None:

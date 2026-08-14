@@ -15,4 +15,6 @@ class Profile(Base):
     # In production, this would link to your authentication system
     user_id = Column(String, nullable=False, unique=True)
     hashed_password = Column(String, nullable=False)
+    # IANA timezone for datetime display (e.g. Asia/Dhaka, America/New_York)
+    timezone = Column(String(64), nullable=True)
     

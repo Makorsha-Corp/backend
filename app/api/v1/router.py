@@ -59,6 +59,9 @@ from app.api.v1.endpoints import (
     notifications,
     calendar,
     waitlist,
+    attachments,
+    mobile_upload,
+    help_tickets,
 )
 
 
@@ -155,3 +158,12 @@ api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"]
 
 # Landing waitlist (public signup + platform admin list)
 api_router.include_router(waitlist.router, prefix="/waitlist", tags=["waitlist"])
+
+# Attachments (Cloudinary signed uploads)
+api_router.include_router(attachments.router, prefix="/attachments", tags=["attachments"])
+
+# Mobile upload portal (QR phone-to-desktop staging)
+api_router.include_router(mobile_upload.router, prefix="/mobile-upload", tags=["mobile-upload"])
+
+# Help / support tickets
+api_router.include_router(help_tickets.router, prefix="/help", tags=["help"])

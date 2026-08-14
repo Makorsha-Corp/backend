@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://localhost:4173",
     ]
@@ -69,6 +70,15 @@ class Settings(BaseSettings):
     # Base URL this backend is reachable at (used to build success/fail/cancel/ipn
     # callback URLs and, in mock mode, the fake GatewayPageURL)
     BACKEND_BASE_URL: str = "http://localhost:8000"
+
+    # Cloudinary (signed direct uploads; secret never sent to browser)
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_UPLOAD_ENV: str = "development"
+
+    # Attachments — max non-deleted files per (workspace, entity_type, entity_id)
+    MAX_ATTACHMENTS_PER_ENTITY: int = 25
 
     model_config = {
         "env_file": ".env",

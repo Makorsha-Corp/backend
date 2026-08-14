@@ -7,10 +7,12 @@ from app.managers.base_manager import BaseManager
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.project_component_item_ledger import ProjectComponentItemLedger
 from app.models.inventory_ledger import InventoryLedger
+from app.models.attachment_ledger import AttachmentLedger
 from app.models.enums import InventoryTypeEnum
 from app.dao.machine_item_ledger import machine_item_ledger_dao
 from app.dao.project_component_item_ledger import project_component_item_ledger_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
+from app.dao.attachment_ledger import attachment_ledger_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.inventory import inventory_dao
 from app.dao.item import item_dao
@@ -35,6 +37,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         self.machine_ledger_dao = machine_item_ledger_dao
         self.project_ledger_dao = project_component_item_ledger_dao
         self.inventory_ledger_dao = inventory_ledger_dao
+        self.attachment_ledger_dao = attachment_ledger_dao
 
         # Snapshot DAOs (for reconciliation)
         self.machine_item_dao = machine_item_dao
@@ -552,6 +555,35 @@ class LedgerManager(BaseManager[MachineItemLedger]):
             'discrepancy': discrepancy,
             'adjustment_created': True,
         }
+
+    # ============================================================================
+    # ATTACHMENT LEDGER OPERATIONS
+    # ============================================================================
+
+    def get_attachment_ledger(
+        self,
+        session: Session,
+        workspace_id: int,
+        attachment_id: Optional[int] = None,
+        entity_type: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        transaction_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[AttachmentLedger]:
+        """List attachment ledger entries for a workspace (newest first)."""
+        return self.attachment_ledger_dao.get_by_workspace(
+            session,
+            workspace_id=workspace_id,
+            attachment_id=attachment_id,
+            entity_type=entity_type,
+            start_date=start_date,
+            end_date=end_date,
+            transaction_type=transaction_type,
+            skip=skip,
+            limit=limit,
+        )
 
     # ============================================================================
     # CROSS-LEDGER REPORTING

@@ -39,6 +39,9 @@ from app.schemas.auth import (
     TokenPair as TokenPairResponse,
     LogoutRequest,
 )
+from app.schemas.profile import ProfileMeUpdate, MeResponse, ProfileResponse
+from app.utils.profile_auth import profile_to_auth_dict
+from app.dao.workspace_member import workspace_member_dao
 from app.services.auth_service import auth_service
 from app.models.profile import Profile
 from app.models.workspace import Workspace
@@ -123,11 +126,7 @@ def register(
             token_type="bearer",
             expires_in=token_pair.expires_in,
             refresh_expires_in=token_pair.refresh_expires_in,
-            user={
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-            },
+            user=profile_to_auth_dict(user),
             workspace={
                 "id": workspace.id,
                 "name": workspace.name,
@@ -201,11 +200,7 @@ def login(
             token_type="bearer",
             expires_in=token_pair.expires_in,
             refresh_expires_in=token_pair.refresh_expires_in,
-            user={
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-            },
+            user=profile_to_auth_dict(user),
             messages=[msg.model_dump() for msg in messages]
         )
 
@@ -485,6 +480,7 @@ def validate_invitation(
 
 @router.get(
     "/me/",
+    response_model=MeResponse,
     summary="Get current user",
     description="Get currently authenticated user's profile and workspace info"
 )
@@ -498,18 +494,43 @@ def get_current_user_info(
 
     Returns user profile and current workspace details.
     """
-    return {
-        "user": {
-            "id": current_user.id,
-            "name": current_user.name,
-            "email": current_user.email,
-        },
-        "workspace": {
+    membership = workspace_member_dao.get_by_workspace_and_user(
+        db,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+    )
+    role = membership.role if membership else ""
+
+    return MeResponse(
+        user=ProfileResponse.model_validate(current_user),
+        workspace={
             "id": workspace.id,
             "name": workspace.name,
-            "slug": workspace.slug
-        }
-    }
+            "slug": workspace.slug,
+            "role": role,
+            "settings": workspace.settings or {},
+        },
+    )
+
+
+@router.patch(
+    "/me/",
+    response_model=ProfileResponse,
+    summary="Update current user preferences",
+    description="Update authenticated user's profile (name, timezone)",
+)
+def update_current_user_info(
+    body: ProfileMeUpdate,
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = auth_service.update_current_user(db, user=current_user, update=body)
+        return ProfileResponse.model_validate(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {str(e)}")
 
 
 @router.post(
