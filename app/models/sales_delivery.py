@@ -34,6 +34,9 @@ class SalesDelivery(Base):
     delivery_method_id = Column(Integer, ForeignKey("delivery_methods.id", ondelete="SET NULL"), nullable=True, index=True)
     tracking_number = Column(String(255), nullable=True)
 
+    # === COMPLETION ===
+    completion_code = Column(String(100), nullable=True)
+
     # === NOTES ===
     notes = Column(Text, nullable=True)
 

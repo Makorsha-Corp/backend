@@ -49,12 +49,18 @@ class SalesOrderItemUpdate(BaseModel):
     notes: str | None = None
 
 
+class SalesOrderItemFulfillRequest(BaseModel):
+    """Optional data captured when fulfilling a non-delivery line item."""
+    completion_code: str | None = None
+
+
 class SalesOrderItemResponse(SalesOrderItemBase):
     """Sales order item response schema"""
     id: int
     workspace_id: int
     sales_order_id: int
     quantity_delivered: int
+    fulfillment_completion_code: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

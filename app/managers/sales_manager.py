@@ -1,6 +1,6 @@
 """Sales Manager for sales order business logic"""
 from typing import List, Optional, Tuple
-from datetime import datetime
+from datetime import date, datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.managers.base_manager import BaseManager
@@ -235,6 +235,12 @@ class SalesManager(BaseManager[SalesOrder]):
             workspace_id=workspace_id
         )
 
+        self.log_event(
+            session, sales_order.id, workspace_id, 'delivery_planned',
+            f'Delivery {delivery.delivery_number} planned', user_id,
+            metadata={'delivery_id': delivery.id, 'tracking_number': delivery.tracking_number},
+        )
+
         return delivery, sales_order
 
     def complete_delivery(
@@ -242,7 +248,9 @@ class SalesManager(BaseManager[SalesOrder]):
         session: Session,
         delivery_id: int,
         workspace_id: int,
-        user_id: int
+        user_id: int,
+        actual_delivery_date: Optional[date] = None,
+        completion_code: Optional[str] = None,
     ) -> SalesOrder:
         """
         Mark delivery as completed and deduct sellable product stock.
@@ -283,10 +291,10 @@ class SalesManager(BaseManager[SalesOrder]):
 
         # Update delivery status
         from app.schemas.sales_delivery import SalesDeliveryUpdate
-        from datetime import datetime
         delivery_update = SalesDeliveryUpdate(
             delivery_status='delivered',
-            actual_delivery_date=datetime.now().date()
+            actual_delivery_date=actual_delivery_date or datetime.now().date(),
+            completion_code=completion_code,
         )
         self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=delivery_update)
 
@@ -314,6 +322,16 @@ class SalesManager(BaseManager[SalesOrder]):
 
         self._recompute_is_fully_delivered(session, sales_order, workspace_id)
 
+        self.log_event(
+            session, sales_order.id, workspace_id, 'delivery_completed',
+            f'Delivery {delivery.delivery_number} marked delivered', user_id,
+            metadata={
+                'delivery_id': delivery.id,
+                'actual_delivery_date': delivery.actual_delivery_date.isoformat() if delivery.actual_delivery_date else None,
+                'completion_code': completion_code,
+            },
+        )
+
         return sales_order
 
     def cancel_delivery(
@@ -321,6 +339,7 @@ class SalesManager(BaseManager[SalesOrder]):
         session: Session,
         delivery_id: int,
         workspace_id: int,
+        user_id: Optional[int] = None,
     ) -> SalesDelivery:
         """
         Cancel a planned delivery, freeing up the quantity it had committed
@@ -343,7 +362,50 @@ class SalesManager(BaseManager[SalesOrder]):
 
         from app.schemas.sales_delivery import SalesDeliveryUpdate
         delivery_update = SalesDeliveryUpdate(delivery_status="cancelled")
-        return self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=delivery_update)
+        updated = self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=delivery_update)
+
+        self.log_event(
+            session, delivery.sales_order_id, workspace_id, 'delivery_cancelled',
+            f'Delivery {delivery.delivery_number} cancelled', user_id,
+            metadata={'delivery_id': delivery.id},
+        )
+
+        return updated
+
+    def update_delivery(
+        self,
+        session: Session,
+        delivery_id: int,
+        workspace_id: int,
+        data,
+        user_id: Optional[int] = None,
+    ) -> SalesDelivery:
+        """
+        Edit a still-planned delivery (schedule/delivery method/tracking number/notes).
+
+        Raises:
+            ValueError: If the delivery doesn't exist or isn't in 'planned' status.
+        """
+        delivery = self.sales_delivery_dao.get_by_id_and_workspace(
+            session, id=delivery_id, workspace_id=workspace_id
+        )
+        if not delivery:
+            raise ValueError(f"Delivery {delivery_id} not found")
+        if delivery.delivery_status != "planned":
+            raise ValueError(
+                f"Only planned deliveries can be edited (this delivery is '{delivery.delivery_status}')"
+            )
+        changed_fields = sorted(data.model_dump(exclude_unset=True, exclude_none=True).keys())
+        updated = self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=data)
+
+        if changed_fields:
+            self.log_event(
+                session, delivery.sales_order_id, workspace_id, 'delivery_updated',
+                f'Delivery {delivery.delivery_number} updated ({", ".join(changed_fields)})', user_id,
+                metadata={'delivery_id': delivery.id},
+            )
+
+        return updated
 
     def fulfill_service_item(
         self,
@@ -351,6 +413,7 @@ class SalesManager(BaseManager[SalesOrder]):
         order_item_id: int,
         workspace_id: int,
         user_id: int,
+        completion_code: Optional[str] = None,
     ) -> SalesOrder:
         """
         Mark a sales order line that doesn't require delivery as fulfilled directly:
@@ -381,7 +444,15 @@ class SalesManager(BaseManager[SalesOrder]):
 
         if order_item.quantity_delivered < order_item.quantity_ordered:
             order_item.quantity_delivered = order_item.quantity_ordered
+            if completion_code:
+                order_item.fulfillment_completion_code = completion_code
             session.flush()
+
+            self.log_event(
+                session, sales_order.id, workspace_id, 'item_fulfilled',
+                f'{order_item.item_name or f"Item #{order_item.item_id}"} fulfilled', user_id,
+                metadata={'item_id': order_item.id, 'completion_code': completion_code},
+            )
 
         self._recompute_is_fully_delivered(session, sales_order, workspace_id)
         return sales_order

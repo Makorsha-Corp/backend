@@ -24,7 +24,22 @@ class SalesDeliveryUpdate(BaseModel):
     delivery_status: str | None = None
     delivery_method_id: int | None = None
     tracking_number: str | None = None
+    completion_code: str | None = None
     notes: str | None = None
+
+
+class SalesDeliveryEditRequest(BaseModel):
+    """Edit a still-planned delivery (not yet completed) — schedule/tracking/method/notes only."""
+    scheduled_date: date | None = None
+    delivery_method_id: int | None = None
+    tracking_number: str | None = None
+    notes: str | None = None
+
+
+class SalesDeliveryCompleteRequest(BaseModel):
+    """Optional data captured when marking a delivery delivered."""
+    actual_delivery_date: date | None = None
+    completion_code: str | None = None
 
 
 class SalesDeliveryResponse(SalesDeliveryBase):
@@ -35,6 +50,7 @@ class SalesDeliveryResponse(SalesDeliveryBase):
     delivery_method_id: int | None = None
     actual_delivery_date: date | None = None
     delivery_status: str
+    completion_code: str | None = None
     created_by: int
     created_at: datetime
     updated_by: int | None = None

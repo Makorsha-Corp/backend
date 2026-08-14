@@ -23,7 +23,7 @@ from app.schemas.sales_order import (
     SalesOrderEventMetadata,
     SalesOrderEventResponse,
 )
-from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse
+from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse, SalesOrderItemFulfillRequest
 from app.schemas.response import ActionResponse
 from app.services.sales_service import sales_service
 
@@ -386,12 +386,14 @@ def list_sales_order_events(
 def fulfill_sales_order_item(
     order_id: int,
     item_id: int,
+    body: SalesOrderItemFulfillRequest = SalesOrderItemFulfillRequest(),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
 ):
     sales_order, messages = sales_service.fulfill_service_item(
-        db, order_id=order_id, order_item_id=item_id, workspace_id=workspace.id, current_user=current_user
+        db, order_id=order_id, order_item_id=item_id, workspace_id=workspace.id, current_user=current_user,
+        completion_code=body.completion_code,
     )
     return ActionResponse(data=sales_order, messages=messages)
 

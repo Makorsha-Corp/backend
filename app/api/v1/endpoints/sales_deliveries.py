@@ -14,6 +14,8 @@ from app.models.workspace import Workspace
 from app.schemas.sales_delivery import (
     SalesDeliveryCreate,
     SalesDeliveryUpdate,
+    SalesDeliveryEditRequest,
+    SalesDeliveryCompleteRequest,
     SalesDeliveryResponse
 )
 from app.schemas.sales_delivery_item import SalesDeliveryItemCreate, SalesDeliveryItemInput
@@ -101,6 +103,25 @@ def create_delivery(
     return delivery
 
 
+@router.patch(
+    "/{delivery_id}/",
+    response_model=SalesDeliveryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Edit a planned delivery",
+    description="Update schedule, delivery method, tracking number, or notes on a delivery that hasn't been completed yet.",
+)
+def edit_delivery(
+    delivery_id: int,
+    body: SalesDeliveryEditRequest,
+    db: Session = Depends(get_db),
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user)
+):
+    return sales_service.update_delivery(
+        db, delivery_id=delivery_id, workspace_id=workspace.id, data=body, user_id=current_user.id,
+    )
+
+
 @router.post(
     "/{delivery_id}/complete/",
     response_model=ActionResponse[SalesOrderResponse],
@@ -108,6 +129,7 @@ def create_delivery(
 )
 def complete_delivery(
     delivery_id: int,
+    body: SalesDeliveryCompleteRequest = SalesDeliveryCompleteRequest(),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
@@ -143,7 +165,9 @@ def complete_delivery(
     """
     # Service handles all logic and returns messages
     sales_order, messages = sales_service.complete_delivery(
-        db, delivery_id, workspace.id, current_user
+        db, delivery_id, workspace.id, current_user,
+        actual_delivery_date=body.actual_delivery_date,
+        completion_code=body.completion_code,
     )
 
     return ActionResponse(
@@ -168,7 +192,7 @@ def cancel_delivery(
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
 ):
-    return sales_service.cancel_delivery(db, delivery_id=delivery_id, workspace_id=workspace.id)
+    return sales_service.cancel_delivery(db, delivery_id=delivery_id, workspace_id=workspace.id, user_id=current_user.id)
 
 
 @router.get(

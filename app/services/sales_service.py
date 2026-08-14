@@ -484,7 +484,9 @@ class SalesService(BaseService):
         db: Session,
         delivery_id: int,
         workspace_id: int,
-        current_user: Profile
+        current_user: Profile,
+        actual_delivery_date: Optional[date] = None,
+        completion_code: Optional[str] = None,
     ) -> Tuple[SalesOrder, List[ActionMessage]]:
         """
         Mark delivery as completed and update inventory.
@@ -524,7 +526,9 @@ class SalesService(BaseService):
                 session=db,
                 delivery_id=delivery_id,
                 workspace_id=workspace_id,
-                user_id=current_user.id
+                user_id=current_user.id,
+                actual_delivery_date=actual_delivery_date,
+                completion_code=completion_code,
             )
 
             messages.append(success_message(
@@ -577,6 +581,7 @@ class SalesService(BaseService):
         db: Session,
         delivery_id: int,
         workspace_id: int,
+        user_id: Optional[int] = None,
     ) -> SalesDelivery:
         """
         Cancel a planned delivery so its committed quantity becomes available
@@ -595,7 +600,44 @@ class SalesService(BaseService):
 
             try:
                 updated = self.sales_manager.cancel_delivery(
-                    session=db, delivery_id=delivery_id, workspace_id=workspace_id
+                    session=db, delivery_id=delivery_id, workspace_id=workspace_id, user_id=user_id,
+                )
+            except ValueError as e:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+            self._commit_transaction(db)
+            db.refresh(updated)
+            return updated
+
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def update_delivery(
+        self,
+        db: Session,
+        delivery_id: int,
+        workspace_id: int,
+        data,
+        user_id: Optional[int] = None,
+    ) -> SalesDelivery:
+        """
+        Edit a still-planned delivery (schedule/delivery method/tracking number/notes).
+
+        Raises:
+            NotFoundError: If delivery not found
+            HTTPException: If delivery is not in 'planned' status
+        """
+        try:
+            delivery = self.sales_manager.sales_delivery_dao.get_by_id_and_workspace(
+                db, id=delivery_id, workspace_id=workspace_id
+            )
+            if not delivery:
+                raise NotFoundError(f"Delivery with ID {delivery_id} not found")
+
+            try:
+                updated = self.sales_manager.update_delivery(
+                    session=db, delivery_id=delivery_id, workspace_id=workspace_id, data=data, user_id=user_id,
                 )
             except ValueError as e:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -615,6 +657,7 @@ class SalesService(BaseService):
         order_item_id: int,
         workspace_id: int,
         current_user: Profile,
+        completion_code: Optional[str] = None,
     ) -> Tuple[SalesOrder, List[ActionMessage]]:
         """
         Mark a sales order line that doesn't require delivery as fulfilled directly
@@ -650,6 +693,7 @@ class SalesService(BaseService):
                 order_item_id=order_item_id,
                 workspace_id=workspace_id,
                 user_id=current_user.id,
+                completion_code=completion_code,
             )
 
             messages.append(success_message("Line item marked as fulfilled"))

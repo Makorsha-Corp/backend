@@ -50,6 +50,9 @@ class SalesOrderItem(Base):
     # === NOTES ===
     notes = Column(Text, nullable=True)
 
+    # === COMPLETION ===
+    fulfillment_completion_code = Column(String(100), nullable=True)
+
     # === RELATIONSHIPS ===
     sales_order = relationship("SalesOrder", backref="items")
     item = relationship("Item", backref="sales_order_items", lazy="joined")

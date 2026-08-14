@@ -125,6 +125,11 @@ class SalesOrderEventMetadata(BaseModel):
     user_name: str | None = None
     invoice_id: int | None = None
     paid: bool | None = None
+    delivery_id: int | None = None
+    item_id: int | None = None
+    tracking_number: str | None = None
+    actual_delivery_date: str | None = None
+    completion_code: str | None = None
 
 
 class SalesOrderEventResponse(BaseModel):
