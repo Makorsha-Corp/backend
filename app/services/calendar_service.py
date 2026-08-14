@@ -276,7 +276,6 @@ class CalendarService(BaseService):
                 SalesOrder.workspace_id == workspace_id,
                 or_(
                     and_(SalesOrder.order_date >= start, SalesOrder.order_date <= end),
-                    and_(SalesOrder.quotation_sent_date.isnot(None), SalesOrder.quotation_sent_date >= start, SalesOrder.quotation_sent_date <= end),
                     and_(SalesOrder.expected_delivery_date.isnot(None), SalesOrder.expected_delivery_date >= start, SalesOrder.expected_delivery_date <= end),
                 ),
             )
@@ -292,7 +291,6 @@ class CalendarService(BaseService):
                     category=CalendarCategory.SALES,
                     date_fields=[
                         ("order_date", "Order date"),
-                        ("quotation_sent_date", "Quotation sent"),
                         ("expected_delivery_date", "Expected delivery"),
                     ],
                     title=row.sales_order_number,

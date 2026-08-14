@@ -10,7 +10,6 @@ class SalesOrderBase(BaseModel):
     account_id: int
     factory_id: int
     order_date: date
-    quotation_sent_date: date | None = None
     expected_delivery_date: date | None = None
     description: str | None = None
 
@@ -23,7 +22,6 @@ class SalesOrderCreate(SalesOrderBase):
 
 class SalesOrderUpdate(BaseModel):
     """Sales order update schema"""
-    quotation_sent_date: date | None = None
     expected_delivery_date: date | None = None
     total_amount: Decimal | None = None
     is_fully_delivered: bool | None = None

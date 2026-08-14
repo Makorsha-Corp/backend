@@ -32,7 +32,6 @@ class SalesOrder(Base):
 
     # === DATES ===
     order_date = Column(Date, nullable=False, default=date.today)
-    quotation_sent_date = Column(Date, nullable=True)
     expected_delivery_date = Column(Date, nullable=True)
 
     # === TOTALS (calculated from line items) ===
