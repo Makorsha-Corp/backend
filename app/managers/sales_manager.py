@@ -26,6 +26,15 @@ SECTION_CONFIRM_FIELDS = {
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
 
+# Human-readable labels for SalesDeliveryEditRequest fields, in the order they
+# should read in the delivery_updated event description (not alphabetical).
+DELIVERY_EDIT_FIELD_LABELS = {
+    'scheduled_date': 'scheduled date',
+    'delivery_method_id': 'delivery method',
+    'tracking_number': 'tracking number',
+    'notes': 'notes',
+}
+
 
 def all_deliverable_items_delivered(items: List[SalesOrderItem]) -> bool:
     """True if every requires_delivery=True line has been fully delivered. Vacuously true if none."""
@@ -395,13 +404,16 @@ class SalesManager(BaseManager[SalesOrder]):
             raise ValueError(
                 f"Only planned deliveries can be edited (this delivery is '{delivery.delivery_status}')"
             )
-        changed_fields = sorted(data.model_dump(exclude_unset=True, exclude_none=True).keys())
+        changed_field_keys = set(data.model_dump(exclude_unset=True, exclude_none=True).keys())
         updated = self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=data)
 
-        if changed_fields:
+        if changed_field_keys:
+            changed_labels = [
+                label for key, label in DELIVERY_EDIT_FIELD_LABELS.items() if key in changed_field_keys
+            ]
             self.log_event(
                 session, delivery.sales_order_id, workspace_id, 'delivery_updated',
-                f'Delivery {delivery.delivery_number} updated ({", ".join(changed_fields)})', user_id,
+                f'Delivery {delivery.delivery_number} updated ({", ".join(changed_labels)})', user_id,
                 metadata={'delivery_id': delivery.id},
             )
 
