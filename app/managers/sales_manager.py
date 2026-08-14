@@ -446,6 +446,8 @@ class SalesManager(BaseManager[SalesOrder]):
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Select a customer before confirming')
                 if order.order_date is None:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Set the order date before confirming')
+                if not order.contact_name or not order.contact_name.strip():
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Set the customer name before confirming')
             if section == 'items':
                 items = self.sales_order_item_dao.get_by_sales_order(session, sales_order_id=order.id, workspace_id=workspace_id)
                 if not items:
