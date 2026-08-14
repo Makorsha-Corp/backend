@@ -125,6 +125,35 @@ class SalesService(BaseService):
         )
         order.items_updated_at = utcnow()
 
+    def _sync_draft_invoice_for_so(
+        self,
+        db: Session,
+        order: SalesOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> Optional[int]:
+        """
+        Auto-create a draft receivable invoice once order info + items are
+        both confirmed (mirrors Purchase Order's auto-draft-on-confirm).
+        No-op if a draft/invoice already exists or sections aren't ready yet.
+
+        Returns the new invoice id when a draft was created, else None.
+        """
+        if order.invoice_id is not None:
+            return None
+        if self.sales_manager.is_so_financially_locked(db, order):
+            return None
+        if not self.sales_manager._base_sections_confirmed(order):
+            return None
+
+        self._attach_receivable_invoice_to_sales_order(db, order, workspace_id, user_id)
+        self.sales_manager.log_event(
+            db, order.id, workspace_id, 'invoice_draft_created',
+            f'Draft invoice #{order.invoice_id} linked to {order.sales_order_number}',
+            user_id, metadata={'invoice_id': order.invoice_id},
+        )
+        return order.invoice_id
+
     def create_invoice_for_sales_order(
         self,
         db: Session,
@@ -167,9 +196,11 @@ class SalesService(BaseService):
         user_id: int,
     ) -> SalesOrder:
         """
-        Finalize the sales order's invoice: creates the draft invoice if one
-        doesn't exist yet, confirms it, and flips all section-confirm flags
-        as a side effect (mirrors Purchase Order's finalize-invoice step).
+        Finalize the sales order's invoice: confirms the draft invoice that
+        was auto-created when order info + items were both confirmed
+        (creating it here too as a fallback if one doesn't exist yet), and
+        flips all section-confirm flags as a side effect (mirrors Purchase
+        Order's finalize-invoice step).
 
         Requires order info and items both confirmed, and approvals met.
         """
@@ -784,8 +815,10 @@ class SalesService(BaseService):
             order = self.sales_manager.set_section_confirm(
                 db, order_id, workspace_id, user_id, section, confirmed,
             )
+            self._sync_draft_invoice_for_so(db, order, workspace_id, user_id)
             self._commit_transaction(db)
             db.refresh(order)
+            self._attach_invoice_payment_status(db, [order])
             return order
         except Exception:
             self._rollback_transaction(db)
