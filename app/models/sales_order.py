@@ -34,6 +34,10 @@ class SalesOrder(Base):
     order_date = Column(Date, nullable=False, default=date.today)
     expected_delivery_date = Column(Date, nullable=True)
 
+    # === POINT OF CONTACT (per-order, independent of the account's own stored contact) ===
+    contact_name = Column(String(255), nullable=True)
+    contact_phone = Column(String(50), nullable=True)
+
     # === TOTALS (calculated from line items) ===
     total_amount = Column(Numeric(15, 2), nullable=False, default=0)
 
@@ -52,8 +56,7 @@ class SalesOrder(Base):
     # current_status_id above is retained at the DB level (NOT NULL/FK) but is no
     # longer read or written by the sales flow — lifecycle now runs entirely on
     # these dedicated columns instead of the generic Status table.
-    customer_confirmed = Column(Boolean, nullable=False, default=False)
-    details_confirmed = Column(Boolean, nullable=False, default=False)
+    order_info_confirmed = Column(Boolean, nullable=False, default=False)
     items_confirmed = Column(Boolean, nullable=False, default=False)
     invoice_confirmed = Column(Boolean, nullable=False, default=False)
     required_approvals = Column(Integer, nullable=True)  # null = all assigned approvers required

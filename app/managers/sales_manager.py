@@ -21,8 +21,7 @@ from app.dao.profile import profile_dao
 from app.dao.account_invoice import account_invoice_dao
 
 SECTION_CONFIRM_FIELDS = {
-    'customer_confirmed': ('customer', 'Customer'),
-    'details_confirmed': ('details', 'Order details'),
+    'order_info_confirmed': ('order_info', 'Order info'),
     'items_confirmed': ('items', 'Order items'),
     'invoice_confirmed': ('invoice', 'Draft invoice'),
 }
@@ -405,7 +404,7 @@ class SalesManager(BaseManager[SalesOrder]):
     # ─── Section confirm ───────────────────────────────────────
 
     def _base_sections_confirmed(self, order: SalesOrder) -> bool:
-        return bool(order.customer_confirmed and order.details_confirmed and order.items_confirmed)
+        return bool(order.order_info_confirmed and order.items_confirmed)
 
     def is_so_financially_locked(self, session: Session, order: SalesOrder) -> bool:
         """True when a linked invoice is confirmed or locked (order fields locked)."""
@@ -427,8 +426,8 @@ class SalesManager(BaseManager[SalesOrder]):
         section: str,
         confirmed: bool,
     ) -> SalesOrder:
-        """Confirm or unconfirm a customer/details/items section on a sales order."""
-        field_by_section = {'customer': 'customer_confirmed', 'details': 'details_confirmed', 'items': 'items_confirmed'}
+        """Confirm or unconfirm an order_info/items section on a sales order."""
+        field_by_section = {'order_info': 'order_info_confirmed', 'items': 'items_confirmed'}
         confirm_field = field_by_section.get(section)
         if not confirm_field:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown section '{section}'")
@@ -442,10 +441,11 @@ class SalesManager(BaseManager[SalesOrder]):
             return order
 
         if confirmed:
-            if section == 'customer' and order.account_id is None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Select a customer before confirming')
-            if section == 'details' and order.order_date is None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Set the order date before confirming')
+            if section == 'order_info':
+                if order.account_id is None:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Select a customer before confirming')
+                if order.order_date is None:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Set the order date before confirming')
             if section == 'items':
                 items = self.sales_order_item_dao.get_by_sales_order(session, sales_order_id=order.id, workspace_id=workspace_id)
                 if not items:
@@ -491,12 +491,9 @@ class SalesManager(BaseManager[SalesOrder]):
         self, session: Session, order: SalesOrder, workspace_id: int, user_id: int
     ) -> None:
         """Set section confirms and log events after an invoice is finalized."""
-        if not order.customer_confirmed:
-            order.customer_confirmed = True
-            self.log_event(session, order.id, workspace_id, 'customer_confirmed', 'Customer confirmed after invoice finalized', user_id)
-        if not order.details_confirmed:
-            order.details_confirmed = True
-            self.log_event(session, order.id, workspace_id, 'details_confirmed', 'Order details confirmed after invoice finalized', user_id)
+        if not order.order_info_confirmed:
+            order.order_info_confirmed = True
+            self.log_event(session, order.id, workspace_id, 'order_info_confirmed', 'Order info confirmed after invoice finalized', user_id)
         if not order.items_confirmed:
             order.items_confirmed = True
             self.log_event(session, order.id, workspace_id, 'items_confirmed', 'Order items confirmed after invoice finalized', user_id)

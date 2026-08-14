@@ -224,13 +224,6 @@ def mark_sales_order_complete(
     )
 
 
-_SECTION_CONFIRM_FIELDS = {
-    'customer': 'customer_confirmed',
-    'details': 'details_confirmed',
-    'items': 'items_confirmed',
-}
-
-
 @router.patch(
     "/{order_id}/section-confirm/",
     response_model=SalesOrderResponse,

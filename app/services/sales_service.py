@@ -171,7 +171,7 @@ class SalesService(BaseService):
         doesn't exist yet, confirms it, and flips all section-confirm flags
         as a side effect (mirrors Purchase Order's finalize-invoice step).
 
-        Requires customer/details/items all confirmed and approvals met.
+        Requires order info and items both confirmed, and approvals met.
         """
         try:
             order = self.get_sales_order(db, order_id, workspace_id)
@@ -179,7 +179,7 @@ class SalesService(BaseService):
             if not self.sales_manager._base_sections_confirmed(order):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Confirm customer, order details, and items before finalizing",
+                    detail="Confirm order info and items before finalizing",
                 )
             approved_count, required, met = self.sales_manager.approval_summary(db, order)
             if not met:

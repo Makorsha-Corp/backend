@@ -11,6 +11,8 @@ class SalesOrderBase(BaseModel):
     factory_id: int
     order_date: date
     expected_delivery_date: date | None = None
+    contact_name: str | None = None
+    contact_phone: str | None = None
     description: str | None = None
 
 
@@ -23,6 +25,8 @@ class SalesOrderCreate(SalesOrderBase):
 class SalesOrderUpdate(BaseModel):
     """Sales order update schema"""
     expected_delivery_date: date | None = None
+    contact_name: str | None = None
+    contact_phone: str | None = None
     total_amount: Decimal | None = None
     is_fully_delivered: bool | None = None
     invoice_id: int | None = None
@@ -45,8 +49,7 @@ class SalesOrderResponse(SalesOrderBase):
     invoice_payment_status: str | None = None  # Transient, attached from linked AccountInvoice
 
     # Approval workflow
-    customer_confirmed: bool
-    details_confirmed: bool
+    order_info_confirmed: bool
     items_confirmed: bool
     invoice_confirmed: bool
     required_approvals: int | None = None
@@ -107,7 +110,7 @@ class SalesOrderApproversList(BaseModel):
 
 # ─── Section confirm ──────────────────────────────────────────
 
-SalesOrderSection = Literal['customer', 'details', 'items']
+SalesOrderSection = Literal['order_info', 'items']
 
 
 class SalesOrderSectionConfirmRequest(BaseModel):
