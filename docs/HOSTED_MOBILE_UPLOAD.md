@@ -6,6 +6,36 @@ Use this after pushing migration `112_merge_heads` (merges the attachment branch
 
 ---
 
+## Fix: "Cloudinary cloud name and API key are required" (hosted only)
+
+Local works, hosted phone upload fails → **Railway backend** missing `CLOUDINARY_*` vars (phone calls Railway `public/sign`, not Vercel).
+
+1. Open local [`backend/.env`](../.env) — copy the three Cloudinary values.
+2. **Railway → service that serves `backend-production-847f.up.railway.app` → Variables**
+3. Add or update:
+
+| Variable | Value |
+|----------|-------|
+| `CLOUDINARY_CLOUD_NAME` | from local `.env` |
+| `CLOUDINARY_API_KEY` | from local `.env` |
+| `CLOUDINARY_API_SECRET` | from local `.env` |
+| `CLOUDINARY_UPLOAD_ENV` | `production` |
+| `BACKEND_CORS_ORIGINS` | `https://frontend-theta-dusky-91.vercel.app,http://localhost:5173` (adjust Vercel URL if different) |
+
+4. **Redeploy** the backend service (variables load at process start).
+5. Retest: desktop **From phone** → scan QR → upload on phone.
+
+CLI alternative (after `railway link` to the **correct** backend service — verify URL contains `backend-production-847f`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/sync_railway_upload_env.ps1
+railway redeploy
+```
+
+**Do not** add Cloudinary vars to Vercel.
+
+---
+
 ## 1. Railway (backend)
 
 ### Migrations
@@ -40,6 +70,20 @@ Validate locally before deploy:
 ```bash
 python -m scripts.verify_hosted_upload_config
 ```
+
+Sync from local `.env` to linked Railway service (after `railway login` + `railway link`):
+
+```powershell
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts/sync_railway_upload_env.ps1
+```
+
+```bash
+# macOS / Linux
+bash scripts/sync_railway_upload_env.sh
+```
+
+Then redeploy the Railway backend service.
 
 ---
 

@@ -91,6 +91,25 @@ def test_cancel_waiting_session(mock_destroy: MagicMock) -> None:
 
 
 @patch("app.managers.mobile_upload_session_manager.destroy_resource")
+def test_cancel_uploaded_session_destroys_staging(mock_destroy: MagicMock) -> None:
+    session = _session(
+        status=MobileUploadSessionStatusEnum.UPLOADED.value,
+        public_id="ws-10/mobile-staging/1/abc123",
+        resource_type="image",
+        delivery_type="authenticated",
+    )
+    db = MagicMock()
+    manager = MobileUploadSessionManager()
+    result = manager.cancel_session(db, session=session)
+    assert result.status == MobileUploadSessionStatusEnum.CANCELLED.value
+    mock_destroy.assert_called_once_with(
+        public_id="ws-10/mobile-staging/1/abc123",
+        resource_type="image",
+        delivery_type="authenticated",
+    )
+
+
+@patch("app.managers.mobile_upload_session_manager.destroy_resource")
 @patch("app.managers.mobile_upload_session_manager.rename_resource")
 @patch("app.managers.mobile_upload_session_manager.update_resource_metadata")
 def test_promote_to_attachment(
