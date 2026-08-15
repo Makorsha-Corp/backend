@@ -4,6 +4,8 @@ FastAPI backend for the ERP system. It runs against a local **PostgreSQL** datab
 
 See [`docs/database.md`](docs/database.md) for migration workflow and schema conventions.
 
+**Hosted attachments + mobile QR upload:** [`docs/HOSTED_MOBILE_UPLOAD.md`](docs/HOSTED_MOBILE_UPLOAD.md) (Railway Cloudinary vars, Vercel `VITE_API_URL`, no secrets on frontend).
+
 **Pagination:** each list endpoint sets its own `limit` maximum (`le=` in FastAPI). Those caps are easy to outgrow; see the full-stack note at `frontend/docs/api-pagination-limits.md` (in the Makorsha workspace) and grep `le=` under `app/api/v1/endpoints/` when changing limits.
 
 ---

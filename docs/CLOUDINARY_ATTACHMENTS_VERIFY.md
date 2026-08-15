@@ -2,6 +2,8 @@
 
 Complete these steps after configuring credentials and running migration `104`.
 
+**Hosted (Railway + Vercel):** see [`HOSTED_MOBILE_UPLOAD.md`](HOSTED_MOBILE_UPLOAD.md) first.
+
 ## Prerequisites
 
 - [ ] Backend `.env` has valid `CLOUDINARY_*` vars
