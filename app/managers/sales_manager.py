@@ -500,6 +500,25 @@ class SalesManager(BaseManager[SalesOrder]):
             return False
         return invoice.invoice_status in ('confirmed', 'locked')
 
+    def unlink_invoice_from_so(
+        self,
+        session: Session,
+        order: SalesOrder,
+        user_id: int,
+        reason: str,
+        event_type: str = 'invoice_unlinked',
+    ) -> None:
+        old_invoice_id = order.invoice_id
+        order.invoice_id = None
+        order.invoice_confirmed = False
+        order.is_invoiced = False
+        order.paid = False
+        session.flush()
+        self.log_event(
+            session, order.id, order.workspace_id, event_type, reason, user_id,
+            metadata={'invoice_id': old_invoice_id},
+        )
+
     def set_section_confirm(
         self,
         session: Session,

@@ -156,6 +156,29 @@ class PurchaseOrderService(BaseService):
             })
         return items
 
+    def _delete_linked_draft_invoice_for_po(
+        self,
+        db: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Drop the auto-draft invoice when base sections are unconfirmed. No-op if none/not draft."""
+        if po.invoice_id is None:
+            return
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            db, id=po.invoice_id, workspace_id=workspace_id
+        )
+        if not invoice or invoice.invoice_status != 'draft':
+            return
+        invoice_id = po.invoice_id
+        self.account_invoice_manager.delete_invoice(db, invoice_id, workspace_id, user_id)
+        self.manager.unlink_invoice_from_po(
+            db, po, user_id,
+            f'Draft invoice #{invoice_id} deleted',
+            event_type='invoice_draft_deleted',
+        )
+
     def _sync_draft_invoice_for_po(
         self,
         db: Session,
@@ -166,19 +189,21 @@ class PurchaseOrderService(BaseService):
     ) -> int | None:
         """Ensure a draft payable invoice exists and mirrors PO supplier, totals, and items.
 
-        Returns new invoice id when a draft was created, else None.
+        When base sections are unconfirmed, deletes the linked auto-draft instead of
+        leaving a stale invoice. Returns new invoice id when a draft was created, else None.
         """
         if self.manager.is_po_financially_locked(db, po):
             return None
-        if po.account_id is None:
-            return None
         if not force_create and not self.manager._base_sections_confirmed(po):
+            self._delete_linked_draft_invoice_for_po(db, po, workspace_id, user_id)
             return None
         if force_create and not self.manager._base_sections_confirmed(po):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail='Confirm supplier, order details, and items before creating a draft invoice',
             )
+        if po.account_id is None:
+            return None
 
         description = f"Purchase order {po.po_number}"
         notes = po.description

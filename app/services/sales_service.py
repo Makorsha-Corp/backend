@@ -10,6 +10,7 @@ from app.services.base_service import BaseService
 from app.managers.sales_manager import sales_manager
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.dao.account import account_dao
+from app.dao.account_invoice import account_invoice_dao
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_approver import SalesOrderApprover
 from app.models.sales_order_event import SalesOrderEvent
@@ -125,6 +126,29 @@ class SalesService(BaseService):
         )
         order.items_updated_at = utcnow()
 
+    def _delete_linked_draft_invoice_for_so(
+        self,
+        db: Session,
+        order: SalesOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Drop the auto-draft invoice when base sections are unconfirmed. No-op if none/not draft."""
+        if order.invoice_id is None:
+            return
+        invoice = account_invoice_dao.get_by_id_and_workspace(
+            db, id=order.invoice_id, workspace_id=workspace_id
+        )
+        if not invoice or invoice.invoice_status != 'draft':
+            return
+        invoice_id = order.invoice_id
+        self.account_invoice_manager.delete_invoice(db, invoice_id, workspace_id, user_id)
+        self.sales_manager.unlink_invoice_from_so(
+            db, order, user_id,
+            f'Draft invoice #{invoice_id} deleted',
+            event_type='invoice_draft_deleted',
+        )
+
     def _sync_draft_invoice_for_so(
         self,
         db: Session,
@@ -135,15 +159,17 @@ class SalesService(BaseService):
         """
         Auto-create a draft receivable invoice once order info + items are
         both confirmed (mirrors Purchase Order's auto-draft-on-confirm).
+        Deletes a leftover auto-draft when sections are unconfirmed.
         No-op if a draft/invoice already exists or sections aren't ready yet.
 
         Returns the new invoice id when a draft was created, else None.
         """
-        if order.invoice_id is not None:
-            return None
         if self.sales_manager.is_so_financially_locked(db, order):
             return None
         if not self.sales_manager._base_sections_confirmed(order):
+            self._delete_linked_draft_invoice_for_so(db, order, workspace_id, user_id)
+            return None
+        if order.invoice_id is not None:
             return None
 
         self._attach_receivable_invoice_to_sales_order(db, order, workspace_id, user_id)
