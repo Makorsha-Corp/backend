@@ -244,9 +244,13 @@ class SalesManager(BaseManager[SalesOrder]):
             workspace_id=workspace_id
         )
 
+        total_qty = sum(item_data['quantity_delivered'] for item_data in delivery_items_data)
+        item_count = len(delivery_items_data)
         self.log_event(
             session, sales_order.id, workspace_id, 'delivery_planned',
-            f'Delivery {delivery.delivery_number} planned', user_id,
+            f'Delivery {delivery.delivery_number} planned '
+            f'({total_qty} unit{"s" if total_qty != 1 else ""} across {item_count} item{"s" if item_count != 1 else ""})',
+            user_id,
             metadata={'delivery_id': delivery.id, 'tracking_number': delivery.tracking_number},
         )
 
@@ -331,12 +335,18 @@ class SalesManager(BaseManager[SalesOrder]):
 
         self._recompute_is_fully_delivered(session, sales_order, workspace_id)
 
+        actual_date_str = delivery.actual_delivery_date.isoformat() if delivery.actual_delivery_date else None
+        completed_desc = f'Delivery {delivery.delivery_number} marked delivered'
+        if actual_date_str:
+            completed_desc += f' on {actual_date_str}'
+        if completion_code:
+            completed_desc += f' (code: {completion_code})'
         self.log_event(
             session, sales_order.id, workspace_id, 'delivery_completed',
-            f'Delivery {delivery.delivery_number} marked delivered', user_id,
+            completed_desc, user_id,
             metadata={
                 'delivery_id': delivery.id,
-                'actual_delivery_date': delivery.actual_delivery_date.isoformat() if delivery.actual_delivery_date else None,
+                'actual_delivery_date': actual_date_str,
                 'completion_code': completion_code,
             },
         )
@@ -404,7 +414,13 @@ class SalesManager(BaseManager[SalesOrder]):
             raise ValueError(
                 f"Only planned deliveries can be edited (this delivery is '{delivery.delivery_status}')"
             )
-        changed_field_keys = set(data.model_dump(exclude_unset=True, exclude_none=True).keys())
+        # Compare against the delivery's current values (not just "was this field
+        # present in the request") — the edit form always sends all fields, so
+        # presence alone would flag untouched fields as changed.
+        provided = data.model_dump(exclude_unset=True, exclude_none=True)
+        changed_field_keys = {
+            key for key, new_value in provided.items() if getattr(delivery, key, None) != new_value
+        }
         updated = self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=data)
 
         if changed_field_keys:
@@ -460,9 +476,13 @@ class SalesManager(BaseManager[SalesOrder]):
                 order_item.fulfillment_completion_code = completion_code
             session.flush()
 
+            item_label = order_item.item_name or f"Item #{order_item.item_id}"
+            fulfilled_desc = f'{item_label} fulfilled ({order_item.quantity_ordered} {order_item.item_unit or "unit(s)"})'
+            if completion_code:
+                fulfilled_desc += f' (code: {completion_code})'
             self.log_event(
                 session, sales_order.id, workspace_id, 'item_fulfilled',
-                f'{order_item.item_name or f"Item #{order_item.item_id}"} fulfilled', user_id,
+                fulfilled_desc, user_id,
                 metadata={'item_id': order_item.id, 'completion_code': completion_code},
             )
 
@@ -588,7 +608,7 @@ class SalesManager(BaseManager[SalesOrder]):
             session.flush()
             self.log_event(
                 session, order_id, workspace_id, 'approvals_reset',
-                f'{reason} ({reset_count} approval(s) cleared)', user_id,
+                f'{reset_count} approval(s) cleared — {reason}', user_id,
             )
 
     def apply_post_invoice_confirms(
@@ -602,8 +622,10 @@ class SalesManager(BaseManager[SalesOrder]):
             order.items_confirmed = True
             self.log_event(session, order.id, workspace_id, 'items_confirmed', 'Order items confirmed after invoice finalized', user_id)
         if not order.invoice_confirmed:
+            # No log_event here — the caller (SalesService.finalize_sales_order_invoice)
+            # logs a single richer 'invoice_confirmed' event right after this call,
+            # including the invoice number. Logging here too would duplicate it.
             order.invoice_confirmed = True
-            self.log_event(session, order.id, workspace_id, 'invoice_confirmed', 'Draft invoice confirmed', user_id)
         session.flush()
 
     # ─── Completion ────────────────────────────────────────────
