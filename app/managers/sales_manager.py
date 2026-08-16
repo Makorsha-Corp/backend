@@ -414,7 +414,13 @@ class SalesManager(BaseManager[SalesOrder]):
             raise ValueError(
                 f"Only planned deliveries can be edited (this delivery is '{delivery.delivery_status}')"
             )
-        changed_field_keys = set(data.model_dump(exclude_unset=True, exclude_none=True).keys())
+        # Compare against the delivery's current values (not just "was this field
+        # present in the request") — the edit form always sends all fields, so
+        # presence alone would flag untouched fields as changed.
+        provided = data.model_dump(exclude_unset=True, exclude_none=True)
+        changed_field_keys = {
+            key for key, new_value in provided.items() if getattr(delivery, key, None) != new_value
+        }
         updated = self.sales_delivery_dao.update(session, db_obj=delivery, obj_in=data)
 
         if changed_field_keys:
