@@ -1,5 +1,5 @@
 """Attachment upload API endpoints (Cloudinary signed direct upload)."""
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.cloudinary_client import CloudinaryNotConfiguredError
@@ -16,12 +16,18 @@ from app.schemas.attachment import (
     AttachmentSignRequest,
     AttachmentSignResponse,
 )
+from app.schemas.attachment_markup import (
+    AttachmentMarkupLayerResponse,
+    AttachmentMarkupListResponse,
+    AttachmentMarkupPutRequest,
+)
 from app.services.attachment_service import (
     AttachmentConfirmError,
     AttachmentNotFoundError,
     AttachmentValidationError,
     attachment_service,
 )
+from app.services.attachment_markup_service import attachment_markup_service
 
 router = APIRouter()
 
@@ -169,6 +175,93 @@ def get_attachment_pdf_page(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except CloudinaryNotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{attachment_id}/markups",
+    response_model=AttachmentMarkupListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List markup overlay layers for an attachment",
+)
+def list_attachment_markups(
+    attachment_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return all users' markup layers for a ready image or PDF attachment."""
+    try:
+        return attachment_markup_service.list_layers(
+            db,
+            workspace_id=workspace.id,
+            attachment_id=attachment_id,
+            current_user_id=current_user.id,
+        )
+    except AttachmentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AttachmentValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.put(
+    "/{attachment_id}/markups/me",
+    response_model=AttachmentMarkupLayerResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Save your markup overlay layer",
+    responses={
+        204: {"description": "Layer cleared (empty payload)"},
+    },
+)
+def put_my_attachment_markup(
+    attachment_id: int,
+    body: AttachmentMarkupPutRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Save or update the current user's markup layer. Empty payload removes the layer."""
+    try:
+        layer = attachment_markup_service.put_own_layer(
+            db,
+            workspace_id=workspace.id,
+            attachment_id=attachment_id,
+            user_id=current_user.id,
+            payload=body.payload,
+        )
+        if layer is None:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        return layer
+    except AttachmentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AttachmentValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/{attachment_id}/markups/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete your markup overlay layer",
+)
+def delete_my_attachment_markup(
+    attachment_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Remove the current user's markup layer for this attachment."""
+    try:
+        attachment_markup_service.delete_own_layer(
+            db,
+            workspace_id=workspace.id,
+            attachment_id=attachment_id,
+            user_id=current_user.id,
+        )
+    except AttachmentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AttachmentValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.delete(

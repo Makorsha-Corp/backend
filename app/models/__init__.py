@@ -89,6 +89,7 @@ from app.models.miscellaneous_project_cost import MiscellaneousProjectCost
 
 # Attachments
 from app.models.attachment import Attachment
+from app.models.attachment_markup import AttachmentMarkup
 from app.models.attachment_link import AttachmentLink
 from app.models.attachment_ledger import AttachmentLedger
 from app.models.help_ticket import HelpTicket
@@ -197,6 +198,7 @@ __all__ = [
     "MiscellaneousProjectCost",
     # Attachments
     "Attachment",
+    "AttachmentMarkup",
     "AttachmentLink",
     "AttachmentLedger",
     "HelpTicket",

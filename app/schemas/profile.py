@@ -45,6 +45,7 @@ class ProfileResponse(ProfileBase):
     id: int
     user_id: str
     timezone: str | None = None
+    is_platform_admin: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

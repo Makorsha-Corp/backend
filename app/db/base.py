@@ -38,6 +38,7 @@ from app.models.access_control import AccessControl
 from app.models.discussion import Discussion
 from app.models.notification import Notification
 from app.models.attachment import Attachment
+from app.models.attachment_markup import AttachmentMarkup
 from app.models.attachment_link import AttachmentLink
 from app.models.attachment_ledger import AttachmentLedger
 from app.models.mobile_upload_session import MobileUploadSession

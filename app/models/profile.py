@@ -1,5 +1,5 @@
 """Profile model"""
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from app.db.base_class import Base
 
 
@@ -17,4 +17,5 @@ class Profile(Base):
     hashed_password = Column(String, nullable=False)
     # IANA timezone for datetime display (e.g. Asia/Dhaka, America/New_York)
     timezone = Column(String(64), nullable=True)
-    
+    # Makorsha vendor staff — cross-workspace platform shell (/platform)
+    is_platform_admin = Column(Boolean, nullable=False, default=False, server_default="false")

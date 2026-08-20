@@ -62,6 +62,7 @@ from app.api.v1.endpoints import (
     attachments,
     mobile_upload,
     help_tickets,
+    platform_help,
 )
 
 
@@ -167,3 +168,6 @@ api_router.include_router(mobile_upload.router, prefix="/mobile-upload", tags=["
 
 # Help / support tickets
 api_router.include_router(help_tickets.router, prefix="/help", tags=["help"])
+
+# Platform admin (Makorsha staff)
+api_router.include_router(platform_help.router, prefix="/platform", tags=["platform"])
