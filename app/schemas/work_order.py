@@ -112,12 +112,12 @@ class WorkOrderCompleteRequest(BaseModel):
     completion_notes: str | None = None
     # When the order targets a machine, the caller should explicitly choose what state
     # to leave it in — if omitted, falls back to whatever status it had before starting.
-    machine_status: Literal['IDLE', 'RUNNING'] | None = None
+    machine_status: Literal['IDLE', 'OFF'] | None = None
 
 
 class WorkOrderCompleteAsPlannedRequest(BaseModel):
     completion_notes: str | None = None
-    machine_status: Literal['IDLE', 'RUNNING'] | None = None
+    machine_status: Literal['IDLE', 'OFF'] | None = None
 
 
 class WorkOrderApproverCreate(BaseModel):

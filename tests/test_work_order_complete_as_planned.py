@@ -22,6 +22,39 @@ def _future_date() -> date:
 @patch.object(work_order_manager, '_run_start_side_effects')
 @patch.object(work_order_manager, 'approvals_met', return_value=True)
 @patch.object(work_order_manager, 'get_work_order')
+def test_complete_as_planned_applies_off_machine_status(
+    mock_get_wo,
+    _mock_approvals,
+    mock_start_effects,
+    mock_log_event,
+    mock_finalize,
+) -> None:
+    session = MagicMock()
+    planned = _past_date()
+    wo = MagicMock()
+    wo.id = 11
+    wo.status = WorkOrderStatusEnum.DRAFT.value
+    wo.planned_date = planned
+    wo.work_order_number = 'WO-2026-002'
+    mock_get_wo.return_value = wo
+    mock_start_effects.return_value = (0, None)
+    mock_finalize.return_value = wo
+
+    result = work_order_manager.complete_as_planned(
+        session, wo_id=11, workspace_id=1, user_id=7,
+        machine_status=MachineEventTypeEnum.OFF,
+    )
+
+    assert result is wo
+    mock_finalize.assert_called_once()
+    assert mock_finalize.call_args.kwargs['machine_status'] == MachineEventTypeEnum.OFF
+
+
+@patch.object(work_order_manager, 'finalize_completion')
+@patch.object(work_order_manager, 'log_event')
+@patch.object(work_order_manager, '_run_start_side_effects')
+@patch.object(work_order_manager, 'approvals_met', return_value=True)
+@patch.object(work_order_manager, 'get_work_order')
 def test_complete_as_planned_happy_path(
     mock_get_wo,
     _mock_approvals,

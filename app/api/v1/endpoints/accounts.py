@@ -145,7 +145,10 @@ def get_account_invoice_summary(
     invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
     payment_status: Optional[str] = Query(None, description="Filter by payment status"),
     invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
-    invoice_number_search: Optional[str] = Query(None, description="Search invoice_number or vendor_invoice_number"),
+    invoice_number_search: Optional[str] = Query(
+        None,
+        description="Search invoice_number, vendor_invoice_number, linked order number (PO/EXP/SO/WO), or internal id when query is numeric",
+    ),
     invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
     invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
     due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
@@ -234,7 +237,10 @@ def list_account_invoices(
     invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
     payment_status: Optional[str] = Query(None, description="Filter by payment status"),
     invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
-    invoice_number_search: Optional[str] = Query(None, description="Search invoice_number or vendor_invoice_number"),
+    invoice_number_search: Optional[str] = Query(
+        None,
+        description="Search invoice_number, vendor_invoice_number, linked order number (PO/EXP/SO/WO), or internal id when query is numeric",
+    ),
     invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
     invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
     due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
