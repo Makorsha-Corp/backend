@@ -40,6 +40,9 @@ from app.schemas.auth import (
     LogoutRequest,
 )
 from app.schemas.profile import ProfileMeUpdate, MeResponse, ProfileResponse
+from app.schemas.saved_stamp import StampImageSignResponse
+from app.managers.profile_stamp_manager import profile_stamp_manager
+from app.core.cloudinary_client import CloudinaryNotConfiguredError
 from app.utils.profile_auth import profile_to_auth_dict
 from app.dao.workspace_member import workspace_member_dao
 from app.services.auth_service import auth_service
@@ -513,11 +516,29 @@ def get_current_user_info(
     )
 
 
+@router.post(
+    "/me/stamp-image/sign",
+    response_model=StampImageSignResponse,
+    summary="Sign Cloudinary upload for profile stamp image",
+)
+def sign_profile_stamp_image_upload(
+    current_user: Profile = Depends(get_current_active_user),
+):
+    """Return signed params for uploading a transparent PNG stamp to Cloudinary."""
+    try:
+        return profile_stamp_manager.sign_stamp_image_upload(current_user)
+    except CloudinaryNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+
 @router.patch(
     "/me/",
     response_model=ProfileResponse,
     summary="Update current user preferences",
-    description="Update authenticated user's profile (name, timezone)",
+    description="Update authenticated user's profile (name, timezone, saved stamp)",
 )
 def update_current_user_info(
     body: ProfileMeUpdate,

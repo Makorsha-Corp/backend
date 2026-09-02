@@ -1,12 +1,15 @@
 """Work Order Service - transaction orchestration"""
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
 from app.dao.account_invoice import account_invoice_dao
+from app.dao.work_order_assignee import work_order_assignee_dao
+from app.dao.work_order_completer import work_order_completer_dao
 from app.managers.work_order_manager import work_order_manager
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.work_order import WorkOrder
@@ -31,6 +34,13 @@ from app.services.approval_notification_service import (
 )
 
 
+@dataclass(frozen=True)
+class _WorkOrderEnrichment:
+    assignee_map: Dict[int, List[int]]
+    completer_map: Dict[int, List[int]]
+    profile_names: Dict[int, Optional[str]]
+
+
 class WorkOrderService(BaseService):
     """Service for work order workflows. Handles commit/rollback."""
 
@@ -38,6 +48,82 @@ class WorkOrderService(BaseService):
         super().__init__()
         self.manager = work_order_manager
         self.account_invoice_manager = account_invoice_manager
+
+    def _load_work_order_enrichment(
+        self, db: Session, orders: List[WorkOrder],
+    ) -> _WorkOrderEnrichment:
+        if not orders:
+            return _WorkOrderEnrichment({}, {}, {})
+
+        wo_ids = [wo.id for wo in orders]
+        assignee_map: Dict[int, List[int]] = {wo_id: [] for wo_id in wo_ids}
+        completer_map: Dict[int, List[int]] = {wo_id: [] for wo_id in wo_ids}
+
+        by_workspace: Dict[int, List[int]] = {}
+        for wo in orders:
+            by_workspace.setdefault(wo.workspace_id, []).append(wo.id)
+
+        for workspace_id, workspace_wo_ids in by_workspace.items():
+            for wo_id, user_ids in work_order_assignee_dao.get_user_ids_by_orders(
+                db, work_order_ids=workspace_wo_ids, workspace_id=workspace_id,
+            ).items():
+                assignee_map[wo_id] = user_ids
+            for wo_id, user_ids in work_order_completer_dao.get_user_ids_by_orders(
+                db, work_order_ids=workspace_wo_ids, workspace_id=workspace_id,
+            ).items():
+                completer_map[wo_id] = user_ids
+
+        profile_ids: set[int] = set()
+        for wo in orders:
+            if wo.started_by is not None:
+                profile_ids.add(wo.started_by)
+            if wo.completed_by is not None and not wo.completed_by_names:
+                profile_ids.add(wo.completed_by)
+
+        profile_names: Dict[int, Optional[str]] = {}
+        if profile_ids:
+            rows = db.query(Profile).filter(Profile.id.in_(profile_ids)).all()
+            profile_names = {p.id: p.name for p in rows}
+
+        return _WorkOrderEnrichment(
+            assignee_map=assignee_map,
+            completer_map=completer_map,
+            profile_names=profile_names,
+        )
+
+    def _to_work_order_response(
+        self,
+        db: Session,
+        wo: WorkOrder,
+        *,
+        enrichment: Optional[_WorkOrderEnrichment] = None,
+    ) -> WorkOrderResponse:
+        if enrichment is None:
+            enrichment = self._load_work_order_enrichment(db, [wo])
+
+        base = WorkOrderResponse.model_validate(wo)
+        updates: dict = {
+            'assignee_user_ids': enrichment.assignee_map.get(wo.id, []),
+            'completer_user_ids': enrichment.completer_map.get(wo.id, []),
+        }
+        if wo.started_by is not None:
+            updates['started_by_name'] = enrichment.profile_names.get(wo.started_by)
+        if wo.completed_by_names:
+            updates['completed_by_name'] = wo.completed_by_names
+        elif wo.completed_by is not None:
+            updates['completed_by_name'] = enrichment.profile_names.get(wo.completed_by)
+        return base.model_copy(update=updates)
+
+    def _to_work_order_responses(
+        self, db: Session, orders: List[WorkOrder],
+    ) -> List[WorkOrderResponse]:
+        if not orders:
+            return []
+        enrichment = self._load_work_order_enrichment(db, orders)
+        return [
+            self._to_work_order_response(db, wo, enrichment=enrichment)
+            for wo in orders
+        ]
 
     def create_work_order(
         self, db: Session, wo_in: WorkOrderCreate,
@@ -192,13 +278,17 @@ class WorkOrderService(BaseService):
             search=search,
             skip=skip, limit=limit,
         )
+        enriched_orders = {
+            response.id: response
+            for response in self._to_work_order_responses(db, orders)
+        }
         bundles: List[WorkOrderSheetBundle] = []
         for wo in orders:
             items = self.manager.get_items(db, wo.id, workspace_id)
             approver_rows = self.manager.list_approvers(db, wo.id, workspace_id)
             approved_count, required, met = self.manager.approval_summary(db, wo)
             bundles.append(WorkOrderSheetBundle(
-                order=WorkOrderResponse.model_validate(wo),
+                order=enriched_orders[wo.id],
                 items=[WorkOrderItemResponse.model_validate(i) for i in items],
                 approvers=WorkOrderApproversList(
                     approvers=[
@@ -279,6 +369,9 @@ class WorkOrderService(BaseService):
         self, db: Session, wo_id: int, workspace_id: int, user_id: int,
         completion_notes: Optional[str] = None,
         machine_status: Optional[str] = None,
+        completed_by: Optional[int] = None,
+        completed_by_names: Optional[str] = None,
+        completed_by_user_ids: Optional[list[int]] = None,
     ) -> WorkOrder:
         try:
             wo = self.manager.get_work_order(db, wo_id, workspace_id)
@@ -311,6 +404,9 @@ class WorkOrderService(BaseService):
                 db, wo, user_id,
                 completion_notes=completion_notes,
                 machine_status=MachineEventTypeEnum(machine_status) if machine_status else None,
+                completed_by_user_id=completed_by,
+                completed_by_names=completed_by_names,
+                completed_by_user_ids=completed_by_user_ids,
             )
             self._commit_transaction(db)
             db.refresh(record)
@@ -323,6 +419,9 @@ class WorkOrderService(BaseService):
         self, db: Session, wo_id: int, workspace_id: int, user_id: int,
         completion_notes: Optional[str] = None,
         machine_status: Optional[str] = None,
+        completed_by: Optional[int] = None,
+        completed_by_names: Optional[str] = None,
+        completed_by_user_ids: Optional[list[int]] = None,
     ) -> WorkOrder:
         try:
             wo = self.manager.get_work_order(db, wo_id, workspace_id)
@@ -353,6 +452,9 @@ class WorkOrderService(BaseService):
                 db, wo_id, workspace_id, user_id,
                 completion_notes=completion_notes,
                 machine_status=MachineEventTypeEnum(machine_status) if machine_status else None,
+                completed_by_user_id=completed_by,
+                completed_by_names=completed_by_names,
+                completed_by_user_ids=completed_by_user_ids,
             )
             self._commit_transaction(db)
             db.refresh(record)

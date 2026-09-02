@@ -9,7 +9,7 @@ from app.dao.attachment_markup import attachment_markup_dao
 from app.managers.attachment_manager import AttachmentNotFoundError, AttachmentValidationError
 from app.managers.attachment_markup_manager import AttachmentMarkupManager
 from app.models.enums import UploadStatusEnum
-from app.schemas.attachment_markup import MarkupPayload, PageMarks
+from app.schemas.attachment_markup import MarkupPayload, MarkupStamp, PageMarks
 
 
 def _ready_image(*, attachment_id: int = 1, workspace_id: int = 10):
@@ -106,26 +106,114 @@ def test_manager_rejects_non_image_pdf() -> None:
 def test_manager_empty_payload_deletes_row() -> None:
     manager = AttachmentMarkupManager()
     session = MagicMock()
+    previous = MagicMock()
 
     with patch(
         "app.managers.attachment_markup_manager.attachment_dao.get_active",
         return_value=_ready_image(),
     ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_dao.get_for_user",
+        return_value=previous,
+    ), patch(
         "app.managers.attachment_markup_manager.attachment_markup_dao.delete_for_user",
         return_value=True,
-    ) as delete_mock:
+    ) as delete_mock, patch(
+        "app.managers.attachment_markup_manager.attachment_markup_event_dao.create_event",
+    ) as event_mock:
         result = manager.put_own_layer(
             session,
             workspace_id=1,
             attachment_id=1,
             user_id=5,
             payload=MarkupPayload(pages={}),
+            session_id="sess-1",
         )
 
     assert result is None
     delete_mock.assert_called_once_with(
         session, workspace_id=1, attachment_id=1, user_id=5
     )
+    event_mock.assert_called_once()
+    assert event_mock.call_args.kwargs["event_type"] == "markup_cleared"
+
+
+def test_manager_put_logs_saved_and_updated_events() -> None:
+    manager = AttachmentMarkupManager()
+    session = MagicMock()
+    row = MagicMock()
+    row.user_id = 5
+    row.updated_at = datetime(2026, 8, 20, tzinfo=timezone.utc)
+    row.payload = _sample_payload().model_dump()
+    profile = MagicMock()
+    profile.name = "Bob"
+
+    with patch(
+        "app.managers.attachment_markup_manager.attachment_dao.get_active",
+        return_value=_ready_image(),
+    ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_dao.get_for_user",
+        return_value=None,
+    ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_dao.upsert_for_user",
+        return_value=row,
+    ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_event_dao.create_event",
+    ) as event_mock, patch(
+        "app.managers.attachment_markup_manager.profile_dao.get",
+        return_value=profile,
+    ):
+        manager.put_own_layer(
+            session,
+            workspace_id=1,
+            attachment_id=1,
+            user_id=5,
+            payload=_sample_payload(),
+            session_id="sess-abc",
+        )
+
+    assert event_mock.call_args.kwargs["event_type"] == "markup_saved"
+    assert event_mock.call_args.kwargs["session_id"] == "sess-abc"
+    assert event_mock.call_args.kwargs["metadata_json"] == {"pages": [1]}
+
+
+def test_manager_list_events_returns_responses() -> None:
+    manager = AttachmentMarkupManager()
+    session = MagicMock()
+    event_row = MagicMock()
+    event_row.id = 9
+    event_row.user_id = 5
+    event_row.session_id = "sess-abc"
+    event_row.event_type = "markup_updated"
+    event_row.description = "Updated marks"
+    event_row.metadata_json = {"pages": [1]}
+    event_row.created_at = datetime(2026, 8, 20, tzinfo=timezone.utc)
+    profile = MagicMock()
+    profile.name = "Bob"
+
+    with patch(
+        "app.managers.attachment_markup_manager.attachment_dao.get_active",
+        return_value=_ready_image(),
+    ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_event_dao.list_for_attachment",
+        return_value=[event_row],
+    ), patch(
+        "app.managers.attachment_markup_manager.profile_dao.get",
+        return_value=profile,
+    ):
+        events = manager.list_events(
+            session, workspace_id=1, attachment_id=1, current_user_id=5
+        )
+
+    assert len(events) == 1
+    assert events[0].event_type == "markup_updated"
+    assert events[0].is_mine is True
+
+
+def test_openapi_markup_event_path_registered() -> None:
+    from app.main import app
+
+    paths = app.openapi()["paths"]
+    assert "/api/v1/attachments/{attachment_id}/markups/events" in paths
 
 
 def test_manager_list_sets_is_mine() -> None:
@@ -173,9 +261,14 @@ def test_manager_put_uses_current_user_only() -> None:
         "app.managers.attachment_markup_manager.attachment_dao.get_active",
         return_value=_ready_image(),
     ), patch(
+        "app.managers.attachment_markup_manager.attachment_markup_dao.get_for_user",
+        return_value=None,
+    ), patch(
         "app.managers.attachment_markup_manager.attachment_markup_dao.upsert_for_user",
         return_value=row,
     ) as upsert_mock, patch(
+        "app.managers.attachment_markup_manager.attachment_markup_event_dao.create_event",
+    ), patch(
         "app.managers.attachment_markup_manager.profile_dao.get",
         return_value=profile,
     ):
@@ -242,3 +335,16 @@ def test_put_endpoint_returns_204_when_cleared() -> None:
 
     assert isinstance(result, Response)
     assert result.status_code == 204
+
+
+def test_markup_stamp_accepts_optional_id() -> None:
+    stamp = MarkupStamp(
+        id="550e8400-e29b-41d4-a716-446655440000",
+        x=0.1,
+        y=0.2,
+        width=0.2,
+        height=0.1,
+        rotation=15,
+    )
+    payload = MarkupPayload(pages={"1": PageMarks(stamps=[stamp])})
+    assert payload.pages["1"].stamps[0].id == stamp.id

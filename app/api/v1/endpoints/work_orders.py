@@ -49,6 +49,10 @@ def _approver_response(record, profile=None, position=None) -> WorkOrderApprover
     )
 
 
+def _wo_response(db: Session, wo) -> WorkOrderResponse:
+    return work_order_service._to_work_order_response(db, wo)
+
+
 router = APIRouter()
 
 
@@ -74,13 +78,16 @@ def list_work_orders(
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.list_work_orders(
+    return work_order_service._to_work_order_responses(
+        db,
+        work_order_service.list_work_orders(
         db, workspace_id=workspace.id,
         work_order_type_id=work_order_type_id, wo_status=wo_status, priority=priority,
         factory_id=factory_id, machine_id=machine_id,
         work_order_template_id=work_order_template_id,
         planned_date_from=planned_date_from, planned_date_to=planned_date_to,
         skip=skip, limit=limit
+        ),
     )
 
 
@@ -188,9 +195,9 @@ def create_work_order_sheet_entry(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return work_order_service.sheet_entry(
+    return _wo_response(db, work_order_service.sheet_entry(
         db, data=body, workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 @router.get(
@@ -204,7 +211,7 @@ def get_work_order(
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.get_work_order(db, wo_id=wo_id, workspace_id=workspace.id)
+    return _wo_response(db, work_order_service.get_work_order(db, wo_id=wo_id, workspace_id=workspace.id))
 
 
 @router.post(
@@ -219,10 +226,10 @@ def create_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.create_work_order(
+    return _wo_response(db, work_order_service.create_work_order(
         db, wo_in=wo_in,
         workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 @router.post(
@@ -238,10 +245,10 @@ def create_work_order_from_template(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.create_work_order_from_template(
+    return _wo_response(db, work_order_service.create_work_order_from_template(
         db, template_id=template_id, overrides=overrides,
         workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 @router.put(
@@ -257,10 +264,10 @@ def update_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.update_work_order(
+    return _wo_response(db, work_order_service.update_work_order(
         db, wo_id=wo_id, wo_in=wo_in,
         workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 @router.post(
@@ -275,7 +282,7 @@ def start_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return work_order_service.start_work_order(db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id)
+    return _wo_response(db, work_order_service.start_work_order(db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id))
 
 
 @router.post(
@@ -291,10 +298,13 @@ def complete_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return work_order_service.complete_work_order(
+    return _wo_response(db, work_order_service.complete_work_order(
         db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id,
         completion_notes=body.completion_notes, machine_status=body.machine_status,
-    )
+        completed_by=body.completed_by,
+        completed_by_names=body.completed_by_names,
+        completed_by_user_ids=body.completed_by_user_ids,
+    ))
 
 
 @router.post(
@@ -310,10 +320,13 @@ def complete_work_order_as_planned(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return work_order_service.complete_work_order_as_planned(
+    return _wo_response(db, work_order_service.complete_work_order_as_planned(
         db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id,
         completion_notes=body.completion_notes, machine_status=body.machine_status,
-    )
+        completed_by=body.completed_by,
+        completed_by_names=body.completed_by_names,
+        completed_by_user_ids=body.completed_by_user_ids,
+    ))
 
 
 @router.post(
@@ -330,9 +343,9 @@ def void_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return work_order_service.void_work_order(
+    return _wo_response(db, work_order_service.void_work_order(
         db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id, void_note=body.void_note,
-    )
+    ))
 
 
 @router.delete(
@@ -347,10 +360,10 @@ def delete_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.delete_work_order(
+    return _wo_response(db, work_order_service.delete_work_order(
         db, wo_id=wo_id,
         workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 @router.post(
@@ -365,9 +378,9 @@ def create_invoice_from_work_order(
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return work_order_service.create_invoice_for_work_order(
+    return _wo_response(db, work_order_service.create_invoice_for_work_order(
         db, wo_id=wo_id, workspace_id=workspace.id, user_id=current_user.id
-    )
+    ))
 
 
 # ─── Work Order Approvers ──────────────────────────────────────

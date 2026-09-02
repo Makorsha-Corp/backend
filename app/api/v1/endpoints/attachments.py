@@ -17,6 +17,7 @@ from app.schemas.attachment import (
     AttachmentSignResponse,
 )
 from app.schemas.attachment_markup import (
+    AttachmentMarkupEventListResponse,
     AttachmentMarkupLayerResponse,
     AttachmentMarkupListResponse,
     AttachmentMarkupPutRequest,
@@ -156,6 +157,7 @@ def get_attachment(
 def get_attachment_pdf_page(
     attachment_id: int,
     page: int = Query(1, ge=1),
+    width: int = Query(1600, ge=400, le=3200),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -166,6 +168,7 @@ def get_attachment_pdf_page(
             workspace_id=workspace.id,
             attachment_id=attachment_id,
             page=page,
+            width=width,
         )
     except AttachmentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -203,6 +206,32 @@ def list_attachment_markups(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.get(
+    "/{attachment_id}/markups/events",
+    response_model=AttachmentMarkupEventListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List markup activity events for an attachment",
+)
+def list_attachment_markup_events(
+    attachment_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return append-only markup audit log for a ready image or PDF attachment."""
+    try:
+        return attachment_markup_service.list_events(
+            db,
+            workspace_id=workspace.id,
+            attachment_id=attachment_id,
+            current_user_id=current_user.id,
+        )
+    except AttachmentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AttachmentValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.put(
     "/{attachment_id}/markups/me",
     response_model=AttachmentMarkupLayerResponse,
@@ -227,6 +256,7 @@ def put_my_attachment_markup(
             attachment_id=attachment_id,
             user_id=current_user.id,
             payload=body.payload,
+            session_id=body.session_id,
         )
         if layer is None:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -246,6 +276,7 @@ def put_my_attachment_markup(
 )
 def delete_my_attachment_markup(
     attachment_id: int,
+    session_id: str | None = Query(default=None, max_length=36),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -257,6 +288,7 @@ def delete_my_attachment_markup(
             workspace_id=workspace.id,
             attachment_id=attachment_id,
             user_id=current_user.id,
+            session_id=session_id,
         )
     except AttachmentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

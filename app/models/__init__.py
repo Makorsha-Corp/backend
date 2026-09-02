@@ -90,6 +90,7 @@ from app.models.miscellaneous_project_cost import MiscellaneousProjectCost
 # Attachments
 from app.models.attachment import Attachment
 from app.models.attachment_markup import AttachmentMarkup
+from app.models.attachment_markup_event import AttachmentMarkupEvent
 from app.models.attachment_link import AttachmentLink
 from app.models.attachment_ledger import AttachmentLedger
 from app.models.help_ticket import HelpTicket
@@ -114,6 +115,8 @@ from app.models.work_order_type import WorkOrderType
 from app.models.work_order_template import WorkOrderTemplate
 from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.models.work_order_template_approver import WorkOrderTemplateApprover
+from app.models.work_order_assignee import WorkOrderAssignee
+from app.models.work_order_completer import WorkOrderCompleter
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 from app.models.work_order_approver import WorkOrderApprover

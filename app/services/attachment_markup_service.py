@@ -8,6 +8,7 @@ from app.managers.attachment_markup_manager import (
     attachment_markup_manager,
 )
 from app.schemas.attachment_markup import (
+    AttachmentMarkupEventListResponse,
     AttachmentMarkupLayerResponse,
     AttachmentMarkupListResponse,
     MarkupPayload,
@@ -43,6 +44,27 @@ class AttachmentMarkupService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def list_events(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        attachment_id: int,
+        current_user_id: int,
+    ) -> AttachmentMarkupEventListResponse:
+        try:
+            items = self.manager.list_events(
+                db,
+                workspace_id=workspace_id,
+                attachment_id=attachment_id,
+                current_user_id=current_user_id,
+            )
+            self._commit_transaction(db)
+            return AttachmentMarkupEventListResponse(items=items)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def put_own_layer(
         self,
         db: Session,
@@ -51,6 +73,7 @@ class AttachmentMarkupService(BaseService):
         attachment_id: int,
         user_id: int,
         payload: MarkupPayload,
+        session_id: Optional[str] = None,
     ) -> Optional[AttachmentMarkupLayerResponse]:
         try:
             layer = self.manager.put_own_layer(
@@ -59,6 +82,7 @@ class AttachmentMarkupService(BaseService):
                 attachment_id=attachment_id,
                 user_id=user_id,
                 payload=payload,
+                session_id=session_id,
             )
             self._commit_transaction(db)
             return layer
@@ -73,6 +97,7 @@ class AttachmentMarkupService(BaseService):
         workspace_id: int,
         attachment_id: int,
         user_id: int,
+        session_id: Optional[str] = None,
     ) -> None:
         try:
             self.manager.delete_own_layer(
@@ -80,6 +105,7 @@ class AttachmentMarkupService(BaseService):
                 workspace_id=workspace_id,
                 attachment_id=attachment_id,
                 user_id=user_id,
+                session_id=session_id,
             )
             self._commit_transaction(db)
         except Exception:

@@ -1,5 +1,6 @@
 """Profile model"""
 from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from app.db.base_class import Base
 
 
@@ -19,3 +20,5 @@ class Profile(Base):
     timezone = Column(String(64), nullable=True)
     # Makorsha vendor staff — cross-workspace platform shell (/platform)
     is_platform_admin = Column(Boolean, nullable=False, default=False, server_default="false")
+    # Drawn vector or uploaded PNG stamp for attachment markup placement
+    saved_stamp = Column(JSONB, nullable=True)

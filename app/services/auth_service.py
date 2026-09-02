@@ -942,6 +942,24 @@ class AuthService(BaseService):
                 user.name = data["name"]
             if "timezone" in data:
                 user.timezone = data["timezone"]
+            if "saved_stamp" in data:
+                from app.managers.profile_stamp_manager import profile_stamp_manager
+
+                new_stamp = data["saved_stamp"]
+                if new_stamp is None:
+                    profile_stamp_manager.destroy_saved_stamp_image(user.saved_stamp)
+                    user.saved_stamp = None
+                else:
+                    validated = profile_stamp_manager.validate_saved_stamp_payload(new_stamp)
+                    if (
+                        validated
+                        and validated.get("kind") == "image"
+                        and user.saved_stamp
+                        and user.saved_stamp.get("kind") == "image"
+                        and user.saved_stamp.get("public_id") != validated.get("public_id")
+                    ):
+                        profile_stamp_manager.destroy_saved_stamp_image(user.saved_stamp)
+                    user.saved_stamp = validated
 
             db.add(user)
             self._commit_transaction(db)
