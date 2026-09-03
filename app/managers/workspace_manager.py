@@ -15,6 +15,7 @@ from app.dao.workspace_member import workspace_member_dao
 from app.dao.workspace_invitation import workspace_invitation_dao
 from app.dao.workspace_audit_log import workspace_audit_log_dao
 from app.dao.subscription_plan import subscription_plan_dao
+from app.dao.profile import profile_dao
 from app.schemas.workspace import WorkspaceCreate
 from app.schemas.workspace_member import WorkspaceMemberCreate, VALID_MEMBER_ROLES
 from app.schemas.workspace_invitation import WorkspaceInvitationCreate, VALID_INVITE_ROLES
@@ -108,6 +109,10 @@ class WorkspaceManager(BaseManager[Workspace]):
         # Create trial_ends_at datetime
         trial_ends = utcnow() + timedelta(days=14)  # 14-day trial
         workspace_dict['trial_ends_at'] = trial_ends
+
+        owner = profile_dao.get(session, id=owner_user_id)
+        if owner and owner.timezone:
+            workspace_dict['settings'] = {'timezone': owner.timezone}
 
         workspace = Workspace(**workspace_dict)
         session.add(workspace)

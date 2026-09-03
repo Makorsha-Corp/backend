@@ -3,6 +3,8 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
+from app.utils.timezone_validate import is_valid_iana_timezone
+
 
 
 class Token(BaseModel):
@@ -70,6 +72,19 @@ class RegisterRequest(BaseModel):
     position: str = Field(default="User", max_length=100)
     workspace_name: Optional[str] = Field(None, min_length=1, max_length=255)
     invitation_token: Optional[str] = None
+    timezone: Optional[str] = None
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        if not is_valid_iana_timezone(trimmed):
+            raise ValueError("Invalid IANA timezone identifier")
+        return trimmed
 
     @field_validator('password')
     @classmethod

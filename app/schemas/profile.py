@@ -15,6 +15,19 @@ class ProfileBase(BaseModel):
 class ProfileCreate(ProfileBase):
     """Profile creation schema"""
     password: str
+    timezone: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        if not is_valid_iana_timezone(trimmed):
+            raise ValueError("Invalid IANA timezone identifier")
+        return trimmed
 
 
 class ProfileUpdate(BaseModel):

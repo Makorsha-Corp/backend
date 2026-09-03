@@ -119,6 +119,7 @@ def register(
             password=body.password,
             workspace_name=body.workspace_name,
             invitation_token=body.invitation_token,
+            timezone=body.timezone,
             user_agent=user_agent,
             ip_address=ip_address,
         )
