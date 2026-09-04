@@ -8,8 +8,8 @@ import sqlalchemy as sa
 
 from app.db.migration_helpers import add_column_if_not_exists, drop_column_if_exists
 
-revision = "114_return_type_and_refunds"
-down_revision = "113_order_returns"
+revision = "121_return_type_and_refunds"
+down_revision = "120_order_returns"
 branch_labels = None
 depends_on = None
 

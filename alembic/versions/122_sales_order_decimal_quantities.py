@@ -8,8 +8,8 @@ Create Date: 2026-08-30
 import sqlalchemy as sa
 from alembic import op
 
-revision = "115_sales_order_decimal_quantities"
-down_revision = "114_return_type_and_refunds"
+revision = "122_sales_order_decimal_quantities"
+down_revision = "121_return_type_and_refunds"
 branch_labels = None
 depends_on = None
 

@@ -9,8 +9,8 @@ from alembic import op
 
 from app.db.migration_helpers import add_column_if_not_exists, drop_column_if_exists, table_exists
 
-revision = "113_order_returns"
-down_revision = "112_merge_heads"
+revision = "120_order_returns"
+down_revision = "119_work_order_workers_hybrid"
 branch_labels = None
 depends_on = None
 
