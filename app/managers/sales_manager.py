@@ -37,15 +37,29 @@ DELIVERY_EDIT_FIELD_LABELS = {
 
 
 def all_deliverable_items_delivered(items: List[SalesOrderItem]) -> bool:
-    """True if every requires_delivery=True line has been fully delivered. Vacuously true if none."""
+    """True if every requires_delivery=True line has been fully delivered. Vacuously true if none.
+
+    A refunded quantity counts toward satisfying the ordered amount — it doesn't need
+    to be (re)delivered.
+    """
     deliverable = [i for i in items if i.requires_delivery]
-    return all(i.quantity_delivered >= i.quantity_ordered for i in deliverable)
+    return all(
+        i.quantity_delivered + (i.quantity_refunded or 0) >= i.quantity_ordered
+        for i in deliverable
+    )
 
 
 def all_fulfilment_items_fulfilled(items: List[SalesOrderItem]) -> bool:
-    """True if every requires_delivery=False line has been fulfilled. Vacuously true if none."""
+    """True if every requires_delivery=False line has been fulfilled. Vacuously true if none.
+
+    A refunded quantity counts toward satisfying the ordered amount — it doesn't need
+    to be fulfilled again.
+    """
     fulfilment = [i for i in items if not i.requires_delivery]
-    return all(i.quantity_delivered >= i.quantity_ordered for i in fulfilment)
+    return all(
+        i.quantity_delivered + (i.quantity_refunded or 0) >= i.quantity_ordered
+        for i in fulfilment
+    )
 
 
 class SalesManager(BaseManager[SalesOrder]):
@@ -631,6 +645,14 @@ class SalesManager(BaseManager[SalesOrder]):
                 detail='Finish delivering and fulfilling all items before completing the order',
             )
 
+        from app.managers.sales_order_return_manager import sales_order_return_manager
+
+        if sales_order_return_manager.has_open_return(session, order.id, workspace_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Complete all open returns before marking the order complete',
+            )
+
         order.order_completed = True
         order.completed_at = datetime.utcnow()
         order.completed_by = user_id
@@ -639,6 +661,27 @@ class SalesManager(BaseManager[SalesOrder]):
         self.sync_so_paid(session, order, workspace_id, user_id)
         self.log_event(session, order.id, workspace_id, 'order_completed', 'Order marked complete', user_id)
         return order
+
+    def reopen_for_return(
+        self, session: Session, order: SalesOrder, workspace_id: int, user_id: int,
+    ) -> bool:
+        """Reopen a completed sales order when a new return starts.
+
+        No-op if the order isn't currently marked complete.
+        """
+        if not order.order_completed:
+            return False
+
+        order.order_completed = False
+        order.completed_at = None
+        order.completed_by = None
+        session.flush()
+
+        self.log_event(
+            session, order.id, workspace_id, 'order_reopened',
+            'Order reopened — a new return was started', user_id,
+        )
+        return True
 
     # ─── Payment sync ──────────────────────────────────────────
 

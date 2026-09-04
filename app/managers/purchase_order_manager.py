@@ -256,7 +256,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         if not items:
             return False
         return all(
-            self._quantity_received_decimal(i) >= Decimal(str(i.quantity_ordered))
+            self._quantity_received_decimal(i) + Decimal(str(i.quantity_refunded or 0))
+            >= Decimal(str(i.quantity_ordered))
             for i in items
         )
 
@@ -416,6 +417,14 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail='All line items must be fully received before marking the order complete',
             )
 
+        from app.managers.purchase_order_return_manager import purchase_order_return_manager
+
+        if purchase_order_return_manager.has_open_return(session, po.id, workspace_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Complete all open returns before marking the order complete',
+            )
+
         po.current_status_id = self._resolve_po_stage_status_id(
             session, workspace_id, PO_COMPLETE
         )
@@ -431,6 +440,29 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             'Order marked complete', user_id,
         )
         return po
+
+    def reopen_for_return(
+        self, session: Session, po: PurchaseOrder, workspace_id: int, user_id: int,
+    ) -> bool:
+        """Reopen a completed PO back to 'Receiving' when a new return starts.
+
+        No-op if the PO isn't currently in the Complete stage. Clears actual_delivery_date
+        since it's set at mark_order_complete time and no longer reflects reality.
+        """
+        current_name = self._current_stage_name(session, workspace_id, po.current_status_id)
+        if not self._is_po_complete_stage(current_name):
+            return False
+
+        po.current_status_id = self._resolve_po_stage_status_id(session, workspace_id, 'Receiving')
+        po.actual_delivery_date = None
+        po.updated_by = user_id
+        session.flush()
+
+        self.log_event(
+            session, po.id, workspace_id, 'order_reopened',
+            'Order reopened — a new return was started', user_id,
+        )
+        return True
 
     def create_purchase_order(
         self, session: Session, data: PurchaseOrderCreate,
@@ -1222,7 +1254,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                     session, purchase_order_id=record.purchase_order_id, workspace_id=workspace_id
                 )
                 all_done = po_items and all(
-                    Decimal(str(i.quantity_received)) >= Decimal(str(i.quantity_ordered))
+                    Decimal(str(i.quantity_received)) + Decimal(str(i.quantity_refunded or 0))
+                    >= Decimal(str(i.quantity_ordered))
                     for i in po_items
                 )
                 if all_done:

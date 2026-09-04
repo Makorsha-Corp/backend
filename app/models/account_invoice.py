@@ -1,5 +1,7 @@
 """Account invoice model - financial layer for tracking payables and receivables"""
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Numeric, Date
+from decimal import Decimal
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Numeric, Date, case
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -30,7 +32,20 @@ class AccountInvoice(Base):
     # Amounts
     invoice_amount = Column(Numeric(15, 2), nullable=False)
     paid_amount = Column(Numeric(15, 2), nullable=False, default=0)  # Sum of active (non-voided) payments
-    # outstanding_amount is CALCULATED: (invoice_amount - paid_amount)
+
+    @hybrid_property
+    def outstanding_amount(self):
+        """Outstanding balance; voided invoices always have zero outstanding."""
+        if self.invoice_status == 'voided':
+            return Decimal('0.00')
+        return self.invoice_amount - self.paid_amount
+
+    @outstanding_amount.expression
+    def outstanding_amount(cls):
+        return case(
+            (cls.invoice_status == 'voided', 0),
+            else_=cls.invoice_amount - cls.paid_amount,
+        )
 
     # Reference Numbers
     invoice_number = Column(String(100), nullable=True)

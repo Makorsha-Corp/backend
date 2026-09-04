@@ -1,4 +1,5 @@
 """Sales order item model - line items in sales orders"""
+from decimal import Decimal
 from sqlalchemy import Column, Integer, ForeignKey, Text, Numeric, String, CheckConstraint, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
@@ -39,9 +40,13 @@ class SalesOrderItem(Base):
     # catalog Product or free-text.
 
     # === QUANTITY ===
-    quantity_ordered = Column(Integer, nullable=False)  # Total quantity in contract
-    quantity_delivered = Column(Integer, nullable=False, default=0)  # How much delivered/fulfilled so far
-    # quantity_remaining = quantity_ordered - quantity_delivered (calculated)
+    quantity_ordered = Column(Numeric(15, 2), nullable=False)  # Total quantity in contract
+    quantity_delivered = Column(Numeric(15, 2), nullable=False, default=0)  # How much delivered/fulfilled so far
+    quantity_returned = Column(Numeric(15, 2), nullable=False, default=0, server_default='0')
+    quantity_refunded = Column(Numeric(15, 2), nullable=False, default=0, server_default='0')
+    # Bumped only by 'refund'-type return completions; counts toward the fully-delivered
+    # check alongside quantity_delivered so a refunded quantity doesn't need redelivering.
+    # quantity_remaining = quantity_ordered - quantity_delivered - quantity_refunded (calculated)
 
     # === PRICING ===
     unit_price = Column(Numeric(15, 2), nullable=False)  # Selling price per unit
@@ -71,21 +76,54 @@ class SalesOrderItem(Base):
         return self.item.item_type if self.item else "service"
 
     @property
-    def quantity_remaining(self) -> int:
-        return max(0, self.quantity_ordered - self.quantity_delivered)
+    def quantity_remaining(self) -> Decimal:
+        """How much is still expected to be delivered (refunded quantity no longer counts)."""
+        remaining = (
+            Decimal(str(self.quantity_ordered or 0))
+            - Decimal(str(self.quantity_delivered or 0))
+            - Decimal(str(self.quantity_refunded or 0))
+        )
+        return max(Decimal('0'), remaining)
 
     @property
-    def quantity_planned(self) -> int:
+    def quantity_planned(self) -> Decimal:
         """Quantity committed to deliveries that are planned but not yet completed or cancelled."""
         return sum(
-            di.quantity_delivered
-            for di in self.delivery_items
-            if di.delivery is not None and di.delivery.delivery_status == "planned"
+            (
+                Decimal(str(di.quantity_delivered))
+                for di in self.delivery_items
+                if di.delivery is not None and di.delivery.delivery_status == "planned"
+            ),
+            Decimal('0'),
         )
 
     @property
-    def quantity_available_to_plan(self) -> int:
+    def quantity_available_to_plan(self) -> Decimal:
         """How much of this line can still be added to a NEW delivery plan."""
-        return max(0, self.quantity_ordered - self.quantity_delivered - self.quantity_planned)
+        available = (
+            Decimal(str(self.quantity_ordered or 0))
+            - Decimal(str(self.quantity_delivered or 0))
+            - Decimal(str(self.quantity_refunded or 0))
+            - self.quantity_planned
+        )
+        return max(Decimal('0'), available)
+
+    @property
+    def quantity_pending_returned(self) -> Decimal:
+        """Quantity reserved by returns that are started but not yet completed."""
+        return sum(
+            (Decimal(str(ri.quantity_returned)) for ri in self.return_items if ri.return_.status == 'pending'),
+            Decimal('0'),
+        )
+
+    @property
+    def quantity_available_to_return(self) -> Decimal:
+        """How much of this line can still be returned."""
+        remaining = (
+            Decimal(str(self.quantity_delivered or 0))
+            - Decimal(str(self.quantity_returned or 0))
+            - self.quantity_pending_returned
+        )
+        return max(Decimal('0'), remaining)
 
     workspace = relationship("Workspace", backref="sales_order_items")

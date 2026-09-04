@@ -460,6 +460,31 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
     ) -> None:
         if invoice.order_id is None:
             return
+
+        # A return's credit-note invoice reuses the order's order_id/order_type but is
+        # never referenced by the order's own invoice_id slot, so it would otherwise
+        # never be picked up by the branches below — check for it first.
+        if invoice.order_type == 'purchase_order':
+            from app.dao.purchase_order_return import purchase_order_return_dao
+            from app.managers.purchase_order_return_manager import purchase_order_return_manager
+
+            po_return = purchase_order_return_dao.get_by_invoice_id(
+                session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+            )
+            if po_return is not None:
+                purchase_order_return_manager.sync_return_paid(session, po_return, invoice.workspace_id)
+                return
+        elif invoice.order_type == 'sales_order':
+            from app.dao.sales_order_return import sales_order_return_dao
+            from app.managers.sales_order_return_manager import sales_order_return_manager
+
+            so_return = sales_order_return_dao.get_by_invoice_id(
+                session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+            )
+            if so_return is not None:
+                sales_order_return_manager.sync_return_paid(session, so_return, invoice.workspace_id)
+                return
+
         if invoice.order_type == 'purchase_order':
             from app.managers.purchase_order_manager import purchase_order_manager
 

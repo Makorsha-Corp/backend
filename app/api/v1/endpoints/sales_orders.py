@@ -25,6 +25,11 @@ from app.schemas.sales_order import (
 )
 from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse, SalesOrderItemFulfillRequest
 from app.schemas.response import ActionResponse
+from app.schemas.sales_order_return import (
+    SalesOrderReturnCreate,
+    SalesOrderReturnResponse,
+    SalesOrderReturnVoidRequest,
+)
 from app.services.sales_service import sales_service
 
 
@@ -435,3 +440,92 @@ def get_sales_order_deliveries(
         db, order_id, workspace.id
     )
     return deliveries
+
+
+# ─── Returns ─────────────────────────────────────────────────────
+
+@router.post(
+    "/{order_id}/returns/",
+    response_model=SalesOrderReturnResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Start a return of previously-delivered/fulfilled items",
+)
+def start_sales_order_return(
+    order_id: int,
+    body: SalesOrderReturnCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.start_return(
+        db, order_id=order_id, workspace_id=workspace.id, user_id=current_user.id, data=body
+    )
+
+
+@router.get(
+    "/{order_id}/returns/",
+    response_model=List[SalesOrderReturnResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List returns for a sales order",
+)
+def list_sales_order_returns(
+    order_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return sales_service.list_returns(db, order_id=order_id, workspace_id=workspace.id)
+
+
+@router.get(
+    "/{order_id}/returns/{return_id}/",
+    response_model=SalesOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a sales order return",
+)
+def get_sales_order_return(
+    order_id: int,
+    return_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return sales_service.get_return(
+        db, order_id=order_id, return_id=return_id, workspace_id=workspace.id
+    )
+
+
+@router.post(
+    "/{order_id}/returns/{return_id}/complete/",
+    response_model=SalesOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Complete a pending sales order return",
+)
+def complete_sales_order_return(
+    order_id: int,
+    return_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.complete_return(
+        db, order_id=order_id, return_id=return_id, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{order_id}/returns/{return_id}/void/",
+    response_model=SalesOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancel a pending sales order return",
+)
+def void_sales_order_return(
+    order_id: int,
+    return_id: int,
+    body: SalesOrderReturnVoidRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return sales_service.void_return(
+        db, order_id=order_id, return_id=return_id, workspace_id=workspace.id,
+        user_id=current_user.id, void_note=body.void_note,
+    )

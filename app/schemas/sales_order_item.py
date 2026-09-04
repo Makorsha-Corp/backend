@@ -17,7 +17,7 @@ class _CatalogOrFreeTextMixin(BaseModel):
 
 class SalesOrderItemInput(_CatalogOrFreeTextMixin):
     """Simple input schema for creating order items (used with order creation)"""
-    quantity_ordered: int
+    quantity_ordered: Decimal
     unit_price: Decimal
     requires_delivery: bool = True
     notes: str | None = None
@@ -25,7 +25,7 @@ class SalesOrderItemInput(_CatalogOrFreeTextMixin):
 
 class SalesOrderItemBase(_CatalogOrFreeTextMixin):
     """Base sales order item schema"""
-    quantity_ordered: int
+    quantity_ordered: Decimal
     unit_price: Decimal
     line_total: Decimal
     requires_delivery: bool = True
@@ -41,8 +41,8 @@ class SalesOrderItemCreate(SalesOrderItemBase):
 class SalesOrderItemUpdate(BaseModel):
     """Sales order item update schema"""
     description: str | None = None
-    quantity_ordered: int | None = None
-    quantity_delivered: int | None = None
+    quantity_ordered: Decimal | None = None
+    quantity_delivered: Decimal | None = None
     unit_price: Decimal | None = None
     line_total: Decimal | None = None
     requires_delivery: bool | None = None
@@ -59,7 +59,7 @@ class SalesOrderItemResponse(SalesOrderItemBase):
     id: int
     workspace_id: int
     sales_order_id: int
-    quantity_delivered: int
+    quantity_delivered: Decimal
     fulfillment_completion_code: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -69,8 +69,11 @@ class SalesOrderItemListResponse(SalesOrderItemResponse):
     """Sales order item list response with related data"""
     item_name: str | None = None
     item_unit: str | None = None
-    quantity_remaining: int | None = None
-    quantity_planned: int | None = None
-    quantity_available_to_plan: int | None = None
+    quantity_remaining: Decimal | None = None
+    quantity_planned: Decimal | None = None
+    quantity_available_to_plan: Decimal | None = None
+    quantity_returned: Decimal = Decimal('0')
+    quantity_refunded: Decimal = Decimal('0')
+    quantity_available_to_return: Decimal = Decimal('0')
 
     model_config = ConfigDict(from_attributes=True)

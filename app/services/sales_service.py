@@ -21,6 +21,10 @@ from app.schemas.account_invoice import AccountInvoiceCreate
 from app.schemas.response import ActionMessage, success_message, info_message
 from app.core.exceptions import NotFoundError
 from app.utils.time import utcnow
+from app.models.sales_order_return import SalesOrderReturn
+from app.dao.sales_order_return import sales_order_return_dao, sales_order_return_item_dao
+from app.managers.sales_order_return_manager import sales_order_return_manager
+from app.schemas.sales_order_return import SalesOrderReturnCreate
 
 
 class SalesService(BaseService):
@@ -831,6 +835,241 @@ class SalesService(BaseService):
         return sales_delivery_item_dao.get_by_delivery(
             db, delivery_id=delivery_id, workspace_id=workspace_id
         )
+
+    # ─── Returns ────────────────────────────────────────────
+
+    def _attach_return_invoice_for_so(
+        self,
+        db: Session,
+        order: SalesOrder,
+        ret: SalesOrderReturn,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Create and immediately confirm/lock a payable credit-note invoice for a SO
+        return (no commit). Returns keep the flow simple by skipping the draft step
+        entirely — the invoice is final the moment the return starts. Cancelling the
+        return (while still pending) voids this invoice instead of reverting it to draft.
+
+        Deliberately not reusing/generalizing _attach_receivable_invoice_to_sales_order —
+        that helper links the order's own single invoice_id slot; a return needs its own
+        separate, frozen, one-shot invoice.
+        """
+        invoice_in = AccountInvoiceCreate(
+            account_id=order.account_id,
+            order_id=order.id,
+            order_type='sales_order',
+            invoice_type='payable',
+            invoice_amount=Decimal('0.00'),
+            invoice_date=date.today(),
+            description=f'Return credit note for {order.sales_order_number} ({ret.return_number})',
+            notes=ret.reason,
+            allow_payments=True,
+        )
+        invoice = self.account_invoice_manager.create_invoice(
+            session=db, invoice_data=invoice_in, workspace_id=workspace_id, user_id=user_id,
+        )
+        ret.invoice_id = invoice.id
+        db.flush()
+
+        return_items = sales_order_return_item_dao.get_by_return(
+            db, return_id=ret.id, workspace_id=workspace_id
+        )
+        item_dicts = [
+            {
+                'line_number': idx,
+                'description': ri.item_name or f'Item {ri.item_id}',
+                'item_id': ri.item_id,
+                'source_order_item_id': ri.so_item_id,
+                'source_order_item_type': 'so_item',
+                'quantity': ri.quantity_returned,
+                'unit': ri.item_unit,
+                'unit_price': ri.unit_price or Decimal('0'),
+                'line_subtotal': (ri.unit_price or Decimal('0')) * Decimal(str(ri.quantity_returned)),
+            }
+            for idx, ri in enumerate(return_items, start=1)
+        ]
+        self.account_invoice_manager.sync_items_from_list(db, invoice, item_dicts, user_id)
+        self.account_invoice_manager.confirm_invoice(db, invoice.id, workspace_id, user_id)
+
+    def start_return(
+        self, db: Session, order_id: int, workspace_id: int, user_id: int, data: SalesOrderReturnCreate,
+    ) -> SalesOrderReturn:
+        """Start a return of previously-delivered/fulfilled SO items. Opens a payable credit-note invoice."""
+        try:
+            order = self.get_sales_order(db, order_id, workspace_id)
+            items = self.sales_manager.sales_order_item_dao.get_by_sales_order(
+                db, sales_order_id=order_id, workspace_id=workspace_id
+            )
+            if not any((i.quantity_delivered or 0) > 0 for i in items):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='No items have been delivered or fulfilled yet — nothing to return',
+                )
+
+            built_items = sales_order_return_manager.validate_and_build_items(
+                db, sales_order_id=order_id, workspace_id=workspace_id, data=data
+            )
+
+            self.sales_manager.reopen_for_return(db, order, workspace_id, user_id)
+
+            ret = sales_order_return_dao.create_with_user(
+                db, workspace_id=workspace_id, sales_order_id=order_id, user_id=user_id,
+                return_type=data.return_type, reason=data.reason, notes=data.notes,
+            )
+            for item_dict in built_items:
+                sales_order_return_item_dao.create(
+                    db, obj_in={**item_dict, 'workspace_id': workspace_id, 'return_id': ret.id}
+                )
+            db.flush()
+
+            self._attach_return_invoice_for_so(db, order, ret, workspace_id, user_id)
+
+            total_qty = sum(item['quantity_returned'] for item in built_items)
+            self.sales_manager.log_event(
+                db, order_id, workspace_id, 'return_started',
+                f'Return {ret.return_number} started — {ret.return_type} '
+                f'({total_qty} unit(s) across {len(built_items)} item(s))',
+                user_id, metadata={'return_id': ret.id, 'invoice_id': ret.invoice_id, 'return_type': ret.return_type},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def complete_return(
+        self, db: Session, order_id: int, return_id: int, workspace_id: int, user_id: int,
+    ) -> SalesOrderReturn:
+        """Complete a pending return: bump returned quantities and restore sellable stock.
+
+        The return's invoice is already confirmed at start_return — nothing to do with it here.
+        """
+        from app.managers.product_manager import product_manager
+
+        try:
+            order = self.get_sales_order(db, order_id, workspace_id)
+            ret = sales_order_return_manager.get_return(db, return_id, order_id, workspace_id)
+            if ret.status != 'pending':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Only a pending return can be completed',
+                )
+
+            return_items = sales_order_return_item_dao.get_by_return(
+                db, return_id=ret.id, workspace_id=workspace_id
+            )
+            item_map = {
+                it.id: it
+                for it in self.sales_manager.sales_order_item_dao.get_by_sales_order(
+                    db, sales_order_id=order_id, workspace_id=workspace_id
+                )
+            }
+            is_refund = ret.return_type == 'refund'
+            posted = 0
+            for ri in return_items:
+                so_line = item_map.get(ri.so_item_id)
+                if so_line is None:
+                    continue
+                so_line.quantity_returned = (so_line.quantity_returned or 0) + ri.quantity_returned
+                # Reduce delivered either way — the goods physically came back. 'replace'
+                # leaves quantity_ordered untouched so the gap must be redelivered;
+                # 'refund' also bumps quantity_refunded, which counts toward the
+                # fully-delivered check so nothing further needs to ship for this quantity.
+                so_line.quantity_delivered = (so_line.quantity_delivered or 0) - ri.quantity_returned
+                if is_refund:
+                    so_line.quantity_refunded = (so_line.quantity_refunded or 0) + ri.quantity_returned
+                if ri.item_id is not None:
+                    product_manager.apply_sale_return(
+                        db,
+                        workspace_id=workspace_id,
+                        user_id=user_id,
+                        factory_id=order.factory_id,
+                        item_id=ri.item_id,
+                        quantity=ri.quantity_returned,
+                        return_id=ret.id,
+                        account_id=order.account_id,
+                        notes=f'Return {ret.return_number} for SO-{order.sales_order_number}',
+                    )
+                    posted += 1
+            db.flush()
+
+            ret.status = 'completed'
+            ret.completed_at = utcnow()
+            ret.completed_by = user_id
+            db.flush()
+
+            total_qty = sum(ri.quantity_returned for ri in return_items)
+            gap_note = ' — redeliver to close the gap' if not is_refund else ''
+            self.sales_manager.log_event(
+                db, order_id, workspace_id, 'return_completed',
+                f'Return {ret.return_number} completed — {ret.return_type} '
+                f'({total_qty} unit(s), {posted} inventory line(s) posted){gap_note}',
+                user_id, metadata={'return_id': ret.id, 'return_type': ret.return_type},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def void_return(
+        self, db: Session, order_id: int, return_id: int, workspace_id: int, user_id: int, void_note: str,
+    ) -> SalesOrderReturn:
+        """Cancel a still-pending return: void its (already-confirmed) invoice and free up
+        the quantity it had reserved so a new return can be started for the same items.
+        Nothing physical has happened yet for a pending return (no quantity/inventory
+        changes), so there's nothing else to reverse.
+        """
+        try:
+            self.get_sales_order(db, order_id, workspace_id)
+            ret = sales_order_return_manager.get_return(db, return_id, order_id, workspace_id)
+            if ret.status != 'pending':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Only a pending return can be cancelled',
+                )
+
+            if ret.invoice_id is not None:
+                self.account_invoice_manager.void_invoice(db, ret.invoice_id, workspace_id, user_id, void_note)
+
+            ret.status = 'voided'
+            sales_order_return_manager.sync_return_paid(db, ret, workspace_id)
+            db.flush()
+
+            self.sales_manager.log_event(
+                db, order_id, workspace_id, 'return_voided',
+                f'Return {ret.return_number} cancelled — {void_note}',
+                user_id, metadata={'return_id': ret.id, 'void_note': void_note},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def list_returns(self, db: Session, order_id: int, workspace_id: int) -> List[SalesOrderReturn]:
+        self.get_sales_order(db, order_id, workspace_id)
+        return sales_order_return_manager.list_returns(db, order_id, workspace_id)
+
+    def get_return(self, db: Session, order_id: int, return_id: int, workspace_id: int) -> SalesOrderReturn:
+        self.get_sales_order(db, order_id, workspace_id)
+        return sales_order_return_manager.get_return(db, return_id, order_id, workspace_id)
 
     # ─── Completion ────────────────────────────────────────────
 

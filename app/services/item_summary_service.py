@@ -482,17 +482,19 @@ class ItemSummaryService:
             db.query(
                 PurchaseOrderItem.quantity_ordered,
                 PurchaseOrderItem.quantity_received,
+                PurchaseOrderItem.quantity_refunded,
             )
             .join(PurchaseOrder, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id)
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
                 PurchaseOrderItem.item_id == item_id,
-                PurchaseOrderItem.quantity_ordered > PurchaseOrderItem.quantity_received,
+                PurchaseOrderItem.quantity_ordered
+                > PurchaseOrderItem.quantity_received + PurchaseOrderItem.quantity_refunded,
             )
             .all()
         )
         open_count = len(open_rows)
-        open_qty = sum(_dec(o) - _dec(r) for o, r in open_rows)
+        open_qty = sum(_dec(o) - _dec(r) - _dec(f) for o, r, f in open_rows)
 
         return ItemSummaryPricing(
             last_unit_price=_dec(last_row[0]) if last_row and last_row[0] is not None else None,

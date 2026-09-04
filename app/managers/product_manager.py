@@ -12,6 +12,19 @@ from app.dao.product_ledger import product_ledger_dao
 from app.dao.factory import factory_dao
 
 
+def _quantity_to_int(quantity: Decimal | int, *, label: str) -> int:
+    """Product/product_ledger stock stays whole-unit (Integer) even though SO/PO line
+    items carry Decimal(15,2) precision — mirrors po_receive_inventory._delta_to_int.
+    """
+    dec = Decimal(str(quantity))
+    if dec != dec.to_integral_value():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'{label} has a fractional quantity; stock requires whole units',
+        )
+    return int(dec)
+
+
 class ProductManager(BaseManager[Product]):
     """Manager for product (finished goods) business logic."""
 
@@ -246,7 +259,7 @@ class ProductManager(BaseManager[Product]):
         user_id: int,
         factory_id: int,
         item_id: int,
-        quantity: int,
+        quantity: Decimal | int,
         delivery_id: int,
         account_id: Optional[int] = None,
         notes: Optional[str] = None,
@@ -258,6 +271,7 @@ class ProductManager(BaseManager[Product]):
         """
         if quantity <= 0:
             raise ValueError("Sale deduction quantity must be positive")
+        quantity = _quantity_to_int(quantity, label="Delivery line")
 
         record = self.product_dao.get_by_factory_item_available(
             session,
@@ -297,6 +311,80 @@ class ProductManager(BaseManager[Product]):
             "transfer_destination_type": "customer",
             "transfer_destination_id": account_id,
             "notes": notes or f"SYSTEM - SALES DELIVERY | delivery id {delivery_id}",
+            "performed_by": user_id,
+        }
+        self.ledger_dao.create(session, obj_in=ledger_dict)
+
+        self.product_dao.update(
+            session,
+            db_obj=record,
+            obj_in={"qty": new_qty, "updated_by": user_id},
+        )
+        return record
+
+    def apply_sale_return(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        user_id: int,
+        factory_id: int,
+        item_id: int,
+        quantity: Decimal | int,
+        return_id: int,
+        account_id: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> Product:
+        """
+        Increase sellable finished-goods (products) quantity from a customer return.
+        Operates on the is_available_for_sale=True bucket — the symmetric counterpart
+        to apply_sale_deduction. Returned units carry the bucket's existing average
+        cost (no new cost input), so avg_cost is left unchanged.
+        """
+        if quantity <= 0:
+            raise ValueError("Sale return quantity must be positive")
+        quantity = _quantity_to_int(quantity, label="Return line")
+
+        record = self.product_dao.get_by_factory_item_available(
+            session,
+            factory_id=factory_id,
+            item_id=item_id,
+            is_available_for_sale=True,
+            workspace_id=workspace_id,
+        )
+        if not record:
+            prod_dict = {
+                "workspace_id": workspace_id,
+                "item_id": item_id,
+                "factory_id": factory_id,
+                "qty": 0,
+                "avg_cost": None,
+                "is_available_for_sale": True,
+                "created_by": user_id,
+            }
+            record = self.product_dao.create(session, obj_in=prod_dict)
+
+        old_qty = record.qty
+        old_avg = record.avg_cost
+        new_qty = old_qty + quantity
+
+        ledger_dict = {
+            "workspace_id": workspace_id,
+            "factory_id": factory_id,
+            "item_id": item_id,
+            "transaction_type": "return",
+            "quantity": quantity,
+            "unit_cost": old_avg,
+            "total_cost": (old_avg * Decimal(quantity)) if old_avg is not None else None,
+            "qty_before": old_qty,
+            "qty_after": new_qty,
+            "avg_cost_before": old_avg,
+            "avg_cost_after": old_avg,
+            "source_type": "sales_return_item",
+            "source_id": return_id,
+            "transfer_destination_type": "customer",
+            "transfer_destination_id": account_id,
+            "notes": notes or f"SYSTEM - SALES RETURN | return id {return_id}",
             "performed_by": user_id,
         }
         self.ledger_dao.create(session, obj_in=ledger_dict)

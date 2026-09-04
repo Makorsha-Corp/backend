@@ -11,6 +11,7 @@ from app.managers.po_receive_inventory import (
     reverse_po_receive_inventory,
 )
 from app.managers import purchase_order_manager as po_manager_module
+from app.managers import purchase_order_return_manager as po_return_manager_module
 
 
 def _make_po(*, destination_type: str = 'storage', destination_id: int = 1) -> MagicMock:
@@ -159,6 +160,7 @@ def test_post_receive_insufficient_stock_raises(
     assert 'Insufficient stock' in exc.value.detail
 
 
+@patch.object(po_return_manager_module.purchase_order_return_manager, 'has_open_return', return_value=False)
 @patch.object(po_manager_module.purchase_order_manager, 'log_event')
 @patch.object(po_manager_module.purchase_order_manager, 'sync_po_stage')
 @patch.object(po_manager_module.purchase_order_manager, 'sync_po_paid')
@@ -176,6 +178,7 @@ def test_mark_order_complete_does_not_post_inventory(
     _mock_sync_paid,
     _mock_sync_stage,
     mock_log,
+    _mock_has_open_return,
 ) -> None:
     session = MagicMock()
     po = _make_po()

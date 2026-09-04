@@ -26,6 +26,11 @@ from app.services.purchase_order_service import purchase_order_service
 from app.services.purchase_order_item_insights_service import purchase_order_item_insights_service
 from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse
 from app.schemas.purchase_order_item_insights import PoItemPriceInsightsResponse
+from app.schemas.purchase_order_return import (
+    PurchaseOrderReturnCreate,
+    PurchaseOrderReturnResponse,
+    PurchaseOrderReturnVoidRequest,
+)
 
 
 def _approver_response(record, profile=None, position=None) -> PurchaseOrderApproverResponse:
@@ -346,6 +351,95 @@ def list_receive_events(
 ):
     return purchase_order_service.list_receive_events(
         db, po_id=po_id, workspace_id=workspace.id
+    )
+
+
+# ─── Returns ─────────────────────────────────────────────────────
+
+@router.post(
+    "/{po_id}/returns/",
+    response_model=PurchaseOrderReturnResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Start a return of previously-received items",
+)
+def start_purchase_order_return(
+    po_id: int,
+    body: PurchaseOrderReturnCreate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.start_return(
+        db, po_id=po_id, workspace_id=workspace.id, user_id=current_user.id, data=body
+    )
+
+
+@router.get(
+    "/{po_id}/returns/",
+    response_model=List[PurchaseOrderReturnResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List returns for a purchase order",
+)
+def list_purchase_order_returns(
+    po_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.list_returns(db, po_id=po_id, workspace_id=workspace.id)
+
+
+@router.get(
+    "/{po_id}/returns/{return_id}/",
+    response_model=PurchaseOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a purchase order return",
+)
+def get_purchase_order_return(
+    po_id: int,
+    return_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.get_return(
+        db, po_id=po_id, return_id=return_id, workspace_id=workspace.id
+    )
+
+
+@router.post(
+    "/{po_id}/returns/{return_id}/complete/",
+    response_model=PurchaseOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Complete a pending purchase order return",
+)
+def complete_purchase_order_return(
+    po_id: int,
+    return_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.complete_return(
+        db, po_id=po_id, return_id=return_id, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{po_id}/returns/{return_id}/void/",
+    response_model=PurchaseOrderReturnResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancel a pending purchase order return",
+)
+def void_purchase_order_return(
+    po_id: int,
+    return_id: int,
+    body: PurchaseOrderReturnVoidRequest,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.void_return(
+        db, po_id=po_id, return_id=return_id, workspace_id=workspace.id,
+        user_id=current_user.id, void_note=body.void_note,
     )
 
 

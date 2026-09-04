@@ -31,6 +31,11 @@ from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpda
 from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
 from app.managers.po_receive_inventory import post_receive_event_inventory, reverse_po_receive_inventory
 from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse, PoReceiveEventItemResponse
+from app.models.purchase_order_return import PurchaseOrderReturn
+from app.dao.purchase_order_return import purchase_order_return_dao, purchase_order_return_item_dao
+from app.managers.purchase_order_return_manager import purchase_order_return_manager
+from app.managers.po_return_inventory import post_purchase_return_inventory
+from app.schemas.purchase_order_return import PurchaseOrderReturnCreate
 from app.services.approval_notification_service import (
     detect_section_unconfirmed,
     handle_add_approver,
@@ -651,7 +656,9 @@ class PurchaseOrderService(BaseService):
             new_qty = Decimal(str(it.quantity_received or 0)) + line.quantity_delta
             if new_qty < 0:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Resulting received quantity for item {line.po_item_id} cannot be negative')
-            if new_qty > Decimal(str(it.quantity_ordered)):
+            # A refunded quantity has already been settled — it can't be re-received on top.
+            max_receivable = Decimal(str(it.quantity_ordered)) - Decimal(str(it.quantity_refunded or 0))
+            if new_qty > max_receivable:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Resulting received quantity for item {line.po_item_id} exceeds ordered quantity')
 
         try:
@@ -732,7 +739,8 @@ class PurchaseOrderService(BaseService):
             # Check if all items are now fully received → log milestone
             updated_items = self.manager.item_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)
             all_fully_received = bool(updated_items) and all(
-                Decimal(str(i.quantity_received or 0)) >= Decimal(str(i.quantity_ordered))
+                Decimal(str(i.quantity_received or 0)) + Decimal(str(i.quantity_refunded or 0))
+                >= Decimal(str(i.quantity_ordered))
                 for i in updated_items
             )
             if all_fully_received:
@@ -790,6 +798,231 @@ class PurchaseOrderService(BaseService):
             created_at=event.created_at,
             items=items,
         )
+
+    # ─── Returns ─────────────────────────────────────────────
+
+    def _attach_return_invoice_for_po(
+        self,
+        db: Session,
+        po: PurchaseOrder,
+        ret: PurchaseOrderReturn,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Create and immediately confirm/lock a receivable credit-note invoice for a PO
+        return (no commit). Returns keep the flow simple by skipping the draft step
+        entirely — the invoice is final the moment the return starts. Cancelling the
+        return (while still pending) voids this invoice instead of reverting it to draft.
+
+        Deliberately not reusing/generalizing _sync_draft_invoice_for_po — that helper is
+        tightly coupled to the PO's own single invoice_id slot and re-syncs on every order
+        update, neither of which applies to a return's frozen, one-shot invoice.
+        """
+        invoice_in = AccountInvoiceCreate(
+            account_id=po.account_id,
+            order_id=po.id,
+            order_type='purchase_order',
+            invoice_type='receivable',
+            invoice_amount=Decimal('0.00'),
+            invoice_date=date.today(),
+            description=f'Return credit note for {po.po_number} ({ret.return_number})',
+            notes=ret.reason,
+            allow_payments=True,
+        )
+        invoice = self.account_invoice_manager.create_invoice(
+            session=db, invoice_data=invoice_in, workspace_id=workspace_id, user_id=user_id,
+        )
+        ret.invoice_id = invoice.id
+        db.flush()
+
+        return_items = purchase_order_return_item_dao.get_by_return(
+            db, return_id=ret.id, workspace_id=workspace_id
+        )
+        item_dicts = [
+            {
+                'line_number': idx,
+                'description': ri.item_name or f'Item {ri.item_id}',
+                'item_id': ri.item_id,
+                'source_order_item_id': ri.po_item_id,
+                'source_order_item_type': 'po_item',
+                'quantity': ri.quantity_returned,
+                'unit': ri.item_unit,
+                'unit_price': ri.unit_price or Decimal('0'),
+                'line_subtotal': (ri.unit_price or Decimal('0')) * Decimal(str(ri.quantity_returned)),
+            }
+            for idx, ri in enumerate(return_items, start=1)
+        ]
+        self.account_invoice_manager.sync_items_from_list(db, invoice, item_dicts, user_id)
+        self.account_invoice_manager.confirm_invoice(db, invoice.id, workspace_id, user_id)
+
+    def start_return(
+        self, db: Session, po_id: int, workspace_id: int, user_id: int, data: PurchaseOrderReturnCreate,
+    ) -> PurchaseOrderReturn:
+        """Start a return of previously-received PO items. Opens a receivable credit-note invoice."""
+        try:
+            po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            if po.voided:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Cannot return items on a voided purchase order',
+                )
+            items = self.manager.item_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)
+            if not any(Decimal(str(i.quantity_received or 0)) > 0 for i in items):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='No items have been received yet — nothing to return',
+                )
+
+            built_items = purchase_order_return_manager.validate_and_build_items(
+                db, purchase_order_id=po_id, workspace_id=workspace_id, data=data
+            )
+
+            self.manager.reopen_for_return(db, po, workspace_id, user_id)
+
+            ret = purchase_order_return_dao.create_with_user(
+                db, workspace_id=workspace_id, purchase_order_id=po_id, user_id=user_id,
+                return_type=data.return_type, reason=data.reason, notes=data.notes,
+            )
+            for item_dict in built_items:
+                purchase_order_return_item_dao.create(
+                    db, obj_in={**item_dict, 'workspace_id': workspace_id, 'return_id': ret.id}
+                )
+            db.flush()
+
+            self._attach_return_invoice_for_po(db, po, ret, workspace_id, user_id)
+
+            total_qty = sum(item['quantity_returned'] for item in built_items)
+            self.manager.log_event(
+                db, po_id, workspace_id, 'return_started',
+                f'Return {ret.return_number} started — {ret.return_type} '
+                f'({total_qty} unit(s) across {len(built_items)} item(s))',
+                user_id, metadata={'return_id': ret.id, 'invoice_id': ret.invoice_id, 'return_type': ret.return_type},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def complete_return(
+        self, db: Session, po_id: int, return_id: int, workspace_id: int, user_id: int,
+    ) -> PurchaseOrderReturn:
+        """Complete a pending return: bump returned quantities and post inventory out.
+
+        The return's invoice is already confirmed at start_return — nothing to do with it here.
+        """
+        try:
+            po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            ret = purchase_order_return_manager.get_return(db, return_id, po_id, workspace_id)
+            if ret.status != 'pending':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Only a pending return can be completed',
+                )
+
+            return_items = purchase_order_return_item_dao.get_by_return(
+                db, return_id=ret.id, workspace_id=workspace_id
+            )
+            item_map = {
+                it.id: it
+                for it in self.manager.item_dao.get_by_order(db, purchase_order_id=po_id, workspace_id=workspace_id)
+            }
+            is_refund = ret.return_type == 'refund'
+            pairs = []
+            for ri in return_items:
+                po_line = item_map.get(ri.po_item_id)
+                if po_line is None:
+                    continue
+                delta = Decimal(str(ri.quantity_returned))
+                po_line.quantity_returned = Decimal(str(po_line.quantity_returned or 0)) + delta
+                # Reduce received either way — the goods physically left. 'replace' leaves
+                # quantity_ordered untouched so the gap must be re-received; 'refund' also
+                # bumps quantity_refunded, which counts toward the fully-received check so
+                # nothing further needs to arrive for this quantity.
+                po_line.quantity_received = Decimal(str(po_line.quantity_received or 0)) - delta
+                if is_refund:
+                    po_line.quantity_refunded = Decimal(str(po_line.quantity_refunded or 0)) + delta
+                pairs.append((ri, po_line))
+            db.flush()
+
+            posted = post_purchase_return_inventory(db, po, pairs, workspace_id, user_id)
+
+            ret.status = 'completed'
+            ret.completed_at = utcnow()
+            ret.completed_by = user_id
+            db.flush()
+
+            total_qty = sum(ri.quantity_returned for ri in return_items)
+            gap_note = ' — re-receive to close the gap' if not is_refund else ''
+            self.manager.log_event(
+                db, po_id, workspace_id, 'return_completed',
+                f'Return {ret.return_number} completed — {ret.return_type} '
+                f'({total_qty} unit(s), {posted} inventory line(s) posted){gap_note}',
+                user_id, metadata={'return_id': ret.id, 'return_type': ret.return_type},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def void_return(
+        self, db: Session, po_id: int, return_id: int, workspace_id: int, user_id: int, void_note: str,
+    ) -> PurchaseOrderReturn:
+        """Cancel a still-pending return: void its (already-confirmed) invoice and free up
+        the quantity it had reserved so a new return can be started for the same items.
+        Nothing physical has happened yet for a pending return (no quantity/inventory
+        changes), so there's nothing else to reverse.
+        """
+        try:
+            self.manager.get_purchase_order(db, po_id, workspace_id)
+            ret = purchase_order_return_manager.get_return(db, return_id, po_id, workspace_id)
+            if ret.status != 'pending':
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Only a pending return can be cancelled',
+                )
+
+            if ret.invoice_id is not None:
+                self.account_invoice_manager.void_invoice(db, ret.invoice_id, workspace_id, user_id, void_note)
+
+            ret.status = 'voided'
+            purchase_order_return_manager.sync_return_paid(db, ret, workspace_id)
+            db.flush()
+
+            self.manager.log_event(
+                db, po_id, workspace_id, 'return_voided',
+                f'Return {ret.return_number} cancelled — {void_note}',
+                user_id, metadata={'return_id': ret.id, 'void_note': void_note},
+            )
+
+            self._commit_transaction(db)
+            db.refresh(ret)
+            return ret
+        except HTTPException:
+            self._rollback_transaction(db)
+            raise
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def list_returns(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderReturn]:
+        self.manager.get_purchase_order(db, po_id, workspace_id)
+        return purchase_order_return_manager.list_returns(db, po_id, workspace_id)
+
+    def get_return(self, db: Session, po_id: int, return_id: int, workspace_id: int) -> PurchaseOrderReturn:
+        self.manager.get_purchase_order(db, po_id, workspace_id)
+        return purchase_order_return_manager.get_return(db, return_id, po_id, workspace_id)
 
     def list_active_orders_for_context(
         self,

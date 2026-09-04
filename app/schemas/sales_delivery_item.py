@@ -1,11 +1,12 @@
 """Sales delivery item schemas"""
+from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
 
 
 class SalesDeliveryItemInput(BaseModel):
     """Simple input schema for creating delivery items (used with delivery creation)"""
     sales_order_item_id: int
-    quantity_delivered: int
+    quantity_delivered: Decimal
     notes: str | None = None
 
 
@@ -13,7 +14,7 @@ class SalesDeliveryItemBase(BaseModel):
     """Base sales delivery item schema"""
     sales_order_item_id: int
     item_id: int | None = None
-    quantity_delivered: int
+    quantity_delivered: Decimal
     notes: str | None = None
 
 
@@ -25,7 +26,7 @@ class SalesDeliveryItemCreate(SalesDeliveryItemBase):
 
 class SalesDeliveryItemUpdate(BaseModel):
     """Sales delivery item update schema"""
-    quantity_delivered: int | None = None
+    quantity_delivered: Decimal | None = None
     notes: str | None = None
 
 

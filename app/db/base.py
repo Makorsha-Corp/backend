@@ -68,6 +68,7 @@ from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.models.purchase_order_event import PurchaseOrderEvent
 from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
+from app.models.purchase_order_return import PurchaseOrderReturn, PurchaseOrderReturnItem
 # Transfer Orders
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
@@ -90,6 +91,7 @@ from app.models.sales_order_event import SalesOrderEvent
 from app.models.sales_delivery import SalesDelivery
 from app.models.sales_delivery_item import SalesDeliveryItem
 from app.models.delivery_method import DeliveryMethod
+from app.models.sales_order_return import SalesOrderReturn, SalesOrderReturnItem
 # Production
 from app.models.production_line import ProductionLine
 from app.models.production_formula import ProductionFormula

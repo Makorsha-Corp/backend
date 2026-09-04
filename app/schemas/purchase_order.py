@@ -62,6 +62,10 @@ class PurchaseOrderItemResponse(BaseModel):
     item_unit: str | None = None
     quantity_ordered: Decimal
     quantity_received: Decimal
+    quantity_returned: Decimal = Decimal('0')
+    quantity_refunded: Decimal = Decimal('0')
+    quantity_available_to_return: Decimal = Decimal('0')
+    quantity_remaining: Decimal = Decimal('0')
     unit_price: Decimal | None = None
     line_subtotal: Decimal | None = None
     notes: str | None = None
