@@ -7,6 +7,7 @@ import pytest
 from app.managers.attachment_manager import AttachmentManager
 from app.managers.help_ticket_manager import HelpTicketManager, HelpTicketNotFoundError
 from app.models.enums import AttachmentEntityTypeEnum, HelpTicketStatusEnum
+from app.models.profile import Profile
 from app.models.help_ticket import HelpTicket
 from app.schemas.attachment import AttachmentSignRequest
 from app.schemas.help_ticket import HelpTicketUpdate
@@ -54,8 +55,11 @@ def test_generate_ticket_number_increments() -> None:
 def test_get_by_id_and_workspace_not_found(mock_dao: MagicMock) -> None:
     mock_dao.get_by_id_and_workspace.return_value = None
     manager = HelpTicketManager()
+    user = Profile(id=1, name="A", email="a@t.com", user_id="u", hashed_password="x")
     with pytest.raises(HelpTicketNotFoundError):
-        manager.get_by_id_and_workspace(MagicMock(), ticket_id=99, workspace_id=10)
+        manager.get_by_id_and_workspace(
+            MagicMock(), ticket_id=99, workspace_id=10, user=user, role="owner"
+        )
 
 
 @patch("app.managers.help_ticket_manager.help_ticket_dao")

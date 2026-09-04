@@ -53,9 +53,11 @@ landing waitlist:
 
 ```
 TURNSTILE_SECRET_KEY=
-WAITLIST_ADMIN_EMAILS=you@example.com
+WAITLIST_ADMIN_EMAILS=you@example.com   # optional legacy; platform admins use is_platform_admin
 WAITLIST_IP_HASH_SALT=
 ```
+
+Platform admin bootstrap (Support + Waitlist in ERP): see **[`docs/PLATFORM_ADMIN.md`](./PLATFORM_ADMIN.md)** — production Railway steps, operator guide, and security for Makorsha staff.
 
 `BACKEND_CORS_ORIGINS` gained `http://localhost:4173` (landing preview).
 

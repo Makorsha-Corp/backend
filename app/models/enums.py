@@ -120,6 +120,7 @@ class DiscussionEntityType(str, enum.Enum):
     machine           = "machine"
     inventory         = "inventory"
     item              = "item"
+    support_ticket    = "support_ticket"
 
 
 class WaitlistStatusEnum(str, enum.Enum):

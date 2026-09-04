@@ -65,14 +65,19 @@ class WorkOrderResponse(BaseModel):
     account_id: int | None = None
     invoice_id: int | None = None
     assigned_to: str | None = None
+    assignee_user_ids: list[int] = []
+    completer_user_ids: list[int] = []
 
     required_approvals: int | None = None
     approved_by: int | None = None
     approved_at: datetime | None = None
 
     started_by: int | None = None
+    started_by_name: str | None = None
     started_at: datetime | None = None
     completed_by: int | None = None
+    completed_by_name: str | None = None
+    completed_by_names: str | None = None
     completed_at: datetime | None = None
 
     void_note: str | None = None
@@ -110,14 +115,19 @@ class WorkOrderVoidRequest(BaseModel):
 
 class WorkOrderCompleteRequest(BaseModel):
     completion_notes: str | None = None
-    # When the order targets a machine, the caller should explicitly choose what state
-    # to leave it in — if omitted, falls back to whatever status it had before starting.
-    machine_status: Literal['IDLE', 'RUNNING'] | None = None
+    machine_status: Literal['IDLE', 'OFF'] | None = None
+    completed_by_names: str | None = None
+    completed_by_user_ids: list[int] | None = None
+    # Legacy single worker (maps to one-element list when names/ids omitted).
+    completed_by: int | None = None
 
 
 class WorkOrderCompleteAsPlannedRequest(BaseModel):
     completion_notes: str | None = None
-    machine_status: Literal['IDLE', 'RUNNING'] | None = None
+    machine_status: Literal['IDLE', 'OFF'] | None = None
+    completed_by_names: str | None = None
+    completed_by_user_ids: list[int] | None = None
+    completed_by: int | None = None
 
 
 class WorkOrderApproverCreate(BaseModel):
@@ -169,6 +179,14 @@ class WorkOrderEventMetadata(BaseModel):
     field: str | None = None
     from_value: str | None = None
     to_value: str | None = None
+    completed_by: int | None = None
+    completed_by_name: str | None = None
+    completed_by_names: str | None = None
+    completed_by_user_ids: list[int] | None = None
+    recorded_by: int | None = None
+    assignee_user_ids: list[int] | None = None
+    assigned_to: str | None = None
+    started_by_user_id: int | None = None
 
 
 class WorkOrderEventResponse(BaseModel):

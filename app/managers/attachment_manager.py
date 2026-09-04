@@ -601,21 +601,22 @@ class AttachmentManager:
 
         resource_type = attachment.resource_type or "image"
         delivery_type = attachment.delivery_type or "upload"
+        transform: dict[str, Any] = {
+            "page": page,
+            "fetch_format": "jpg",
+            "quality": "auto:good",
+            "width": width,
+            "crop": "limit",
+        }
+        if width >= 1200:
+            transform["density"] = 200
         return build_signed_delivery_url(
             public_id=attachment.public_id,
             resource_type=resource_type,
             delivery_type=delivery_type,
             version=int(attachment.version),
             fmt="jpg",
-            transformation=[
-                {
-                    "page": page,
-                    "fetch_format": "jpg",
-                    "quality": "auto",
-                    "width": width,
-                    "crop": "limit",
-                },
-            ],
+            transformation=[transform],
         )
 
     def get_pdf_page_image(
@@ -625,11 +626,12 @@ class AttachmentManager:
         attachment_id: int,
         workspace_id: int,
         page: int,
+        width: int = 1600,
     ) -> dict[str, Any]:
         attachment = attachment_dao.get_active(session, attachment_id, workspace_id)
         if not attachment:
             raise AttachmentNotFoundError(f"Attachment {attachment_id} not found.")
-        url = self.build_pdf_page_image_url(attachment, page=page)
+        url = self.build_pdf_page_image_url(attachment, page=page, width=width)
         return {
             "url": url,
             "page": page,

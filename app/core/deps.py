@@ -141,6 +141,10 @@ def get_current_workspace(
             detail=f"Workspace with ID {workspace_id} not found"
         )
     
+    # Platform admins may operate in any workspace (support inbox workspace switch).
+    if getattr(current_user, "is_platform_admin", False):
+        return workspace
+
     # Validate user has access to workspace
     if not workspace_member_dao.has_access(
         db, user_id=current_user.id, workspace_id=workspace_id
@@ -149,5 +153,17 @@ def get_current_workspace(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this workspace"
         )
-    
+
     return workspace
+
+
+def get_platform_admin(
+    current_user: Profile = Depends(get_current_active_user),
+) -> Profile:
+    """Require Makorsha platform admin flag on the authenticated profile."""
+    if not getattr(current_user, "is_platform_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform admin access required",
+        )
+    return current_user

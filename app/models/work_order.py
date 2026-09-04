@@ -51,6 +51,7 @@ class WorkOrder(Base):
 
     # People
     assigned_to = Column(String(255), nullable=True)
+    completed_by_names = Column(String(255), nullable=True)
 
     # === APPROVALS ===
     required_approvals = Column(Integer, nullable=True)
@@ -101,6 +102,16 @@ class WorkOrder(Base):
     items = relationship("WorkOrderItem", back_populates="work_order", lazy="dynamic")
     approvers = relationship(
         "WorkOrderApprover",
+        back_populates="work_order",
+        cascade="all, delete-orphan",
+    )
+    assignee_links = relationship(
+        "WorkOrderAssignee",
+        back_populates="work_order",
+        cascade="all, delete-orphan",
+    )
+    completer_links = relationship(
+        "WorkOrderCompleter",
         back_populates="work_order",
         cascade="all, delete-orphan",
     )

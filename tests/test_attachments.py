@@ -285,12 +285,43 @@ def test_build_pdf_page_image_url(mock_build_url: MagicMock, mock_settings: Magi
     attachment.page_count = 5
 
     manager = AttachmentManager()
-    url = manager.build_pdf_page_image_url(attachment, page=2)
+    url = manager.build_pdf_page_image_url(attachment, page=2, width=2400)
 
     assert url == "https://res.cloudinary.com/demo/page-2.jpg"
     mock_build_url.assert_called_once()
     assert mock_build_url.call_args.kwargs["fmt"] == "jpg"
-    assert mock_build_url.call_args.kwargs["transformation"][0]["page"] == 2
+    transform = mock_build_url.call_args.kwargs["transformation"][0]
+    assert transform["page"] == 2
+    assert transform["width"] == 2400
+    assert transform["quality"] == "auto:good"
+    assert transform["density"] == 200
+
+
+@patch("app.managers.attachment_manager.settings")
+@patch("app.managers.attachment_manager.build_signed_delivery_url")
+def test_build_pdf_page_image_url_default_width_no_density(
+    mock_build_url: MagicMock, mock_settings: MagicMock,
+) -> None:
+    mock_settings.CLOUDINARY_CLOUD_NAME = "demo"
+    mock_settings.CLOUDINARY_API_SECRET = "secret"
+    mock_build_url.return_value = "https://res.cloudinary.com/demo/page-1.jpg"
+
+    attachment = MagicMock()
+    attachment.upload_status = "ready"
+    attachment.mime_type = "application/pdf"
+    attachment.format = "pdf"
+    attachment.public_id = "development/ws-1/abc"
+    attachment.version = 1710000000
+    attachment.resource_type = "image"
+    attachment.delivery_type = "authenticated"
+    attachment.page_count = 1
+
+    manager = AttachmentManager()
+    manager.build_pdf_page_image_url(attachment, page=1, width=1600)
+
+    transform = mock_build_url.call_args.kwargs["transformation"][0]
+    assert transform["width"] == 1600
+    assert "density" not in transform
 
 
 @patch("app.managers.attachment_manager.attachment_link_dao")

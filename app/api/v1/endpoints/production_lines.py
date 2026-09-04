@@ -35,7 +35,7 @@ router = APIRouter()
 )
 def get_production_lines(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, le=100, description="Maximum number of records to return"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
     active_only: bool = Query(False, description="Only return active production lines"),
     workspace: Workspace = Depends(get_current_workspace),

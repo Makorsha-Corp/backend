@@ -30,6 +30,8 @@ from app.dao.work_order import work_order_dao
 from app.dao.work_order_item import work_order_item_dao
 from app.dao.work_order_approver import work_order_approver_dao
 from app.dao.work_order_event import work_order_event_dao
+from app.dao.work_order_assignee import work_order_assignee_dao
+from app.dao.work_order_completer import work_order_completer_dao
 from app.dao.work_order_type import work_order_type_dao
 from app.dao.factory import factory_dao
 from app.dao.account import account_dao
@@ -40,6 +42,11 @@ from app.dao.project_component import project_component_dao
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.utils.time import utcnow
+from app.utils.work_order_workers import (
+    load_active_member_lookups,
+    resolve_worker_text_to_members,
+    display_names_for_user_ids,
+)
 
 DETAILS_FIELDS = frozenset({
     'work_order_type_id', 'description', 'priority', 'machine_id', 'project_component_id',
@@ -131,6 +138,18 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             if variance:
                 meta.update(variance)
         return meta
+
+    def _started_worker_metadata(
+        self, session: Session, wo: WorkOrder, workspace_id: int, user_id: int,
+    ) -> dict[str, Any]:
+        assignee_ids = work_order_assignee_dao.get_user_ids_by_order(
+            session, work_order_id=wo.id, workspace_id=workspace_id,
+        )
+        return {
+            'assigned_to': wo.assigned_to,
+            'assignee_user_ids': assignee_ids,
+            'started_by_user_id': user_id,
+        }
 
     def _collect_field_changes(self, session: Session, record: WorkOrder, update_dict: dict) -> List[dict]:
         changes: List[dict] = []
@@ -252,7 +271,21 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         wo_dict['status'] = WorkOrderStatusEnum.DRAFT.value
 
         wo = self.wo_dao.create(session, obj_in=wo_dict)
-        self.log_event(session, wo.id, workspace_id, 'created', f'Work order {wo.work_order_number} created', user_id)
+        created_metadata: dict[str, Any] | None = None
+        if wo.assigned_to:
+            self._sync_assignees_from_text(session, wo, wo.assigned_to)
+            assignee_ids = work_order_assignee_dao.get_user_ids_by_order(
+                session, work_order_id=wo.id, workspace_id=workspace_id,
+            )
+            created_metadata = {
+                'assigned_to': wo.assigned_to,
+                'assignee_user_ids': assignee_ids,
+            }
+        self.log_event(
+            session, wo.id, workspace_id, 'created',
+            f'Work order {wo.work_order_number} created', user_id,
+            metadata=created_metadata,
+        )
         if wo.planned_date:
             self.log_event(
                 session, wo.id, workspace_id, 'scheduled',
@@ -397,11 +430,28 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             approvals_reset = True
 
         if changes:
+            event_metadata: dict[str, Any] = {'changes': changes}
+            if 'assigned_to' in update_dict:
+                assignee_ids = self._sync_assignees_from_text(
+                    session, record, update_dict.get('assigned_to'),
+                )
+                event_metadata['assignee_user_ids'] = assignee_ids
             self.log_event(
                 session, wo_id, workspace_id, 'updated', 'Order details updated', user_id,
-                metadata={'changes': changes},
+                metadata=event_metadata,
             )
             for change in changes:
+                if change['field'] == 'assigned_to':
+                    self.log_event(
+                        session, wo_id, workspace_id, 'workers_updated',
+                        'Workers updated', user_id,
+                        metadata={
+                            'from_value': change['from_value'],
+                            'to_value': change['to_value'],
+                            'assigned_to': update_dict.get('assigned_to'),
+                            'assignee_user_ids': event_metadata.get('assignee_user_ids', []),
+                        },
+                    )
                 if change['field'] not in ('planned_date', 'end_date'):
                     continue
                 self.log_event(
@@ -437,6 +487,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
         update_dict['updated_by'] = user_id
         updated = self.wo_dao.update(session, db_obj=record, obj_in=update_dict)
+        if 'assigned_to' in update_dict and not changes:
+            self._sync_assignees_from_text(session, updated, updated.assigned_to)
         self._recompute_approval_status(session, updated, workspace_id, user_id)
         updated._approvals_reset = approvals_reset
         return updated
@@ -980,6 +1032,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         started_metadata.update(
             self._schedule_metadata_for_actual(wo, wo.started_at, actual_field='started_at')
         )
+        started_metadata.update(
+            self._started_worker_metadata(session, wo, workspace_id, user_id)
+        )
         self.log_event(
             session, wo_id, workspace_id, 'started',
             f'Work started — {summary}', user_id,
@@ -1008,6 +1063,68 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             )
         return len(pending), previous_machine_status
 
+    def _ensure_active_workspace_member(
+        self, session: Session, workspace_id: int, user_id: int,
+    ) -> None:
+        member = workspace_member_dao.get_by_workspace_and_user(
+            session, workspace_id=workspace_id, user_id=user_id,
+        )
+        if not member or member.status != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='User is not an active member of this workspace',
+            )
+
+    def _sync_assignees_from_text(
+        self, session: Session, wo: WorkOrder, assigned_text: str | None,
+    ) -> list[int]:
+        lookups = load_active_member_lookups(session, wo.workspace_id)
+        resolution = resolve_worker_text_to_members(assigned_text, lookups)
+        work_order_assignee_dao.replace_for_order(
+            session,
+            work_order_id=wo.id,
+            workspace_id=wo.workspace_id,
+            user_ids=resolution.matched_user_ids,
+        )
+        return resolution.matched_user_ids
+
+    def _resolve_completion_workers(
+        self,
+        session: Session,
+        workspace_id: int,
+        performed_by_user_id: int,
+        *,
+        completed_by_names: Optional[str] = None,
+        completed_by_user_ids: Optional[list[int]] = None,
+        completed_by_user_id: Optional[int] = None,
+    ) -> tuple[str | None, list[int]]:
+        user_ids = list(completed_by_user_ids or [])
+        if completed_by_user_id is not None and not user_ids:
+            user_ids = [completed_by_user_id]
+
+        if user_ids:
+            for uid in user_ids:
+                self._ensure_active_workspace_member(session, workspace_id, uid)
+            names_text = (
+                completed_by_names.strip()
+                if completed_by_names and completed_by_names.strip()
+                else display_names_for_user_ids(session, user_ids)
+            )
+            return names_text, user_ids
+
+        if completed_by_names and completed_by_names.strip():
+            lookups = load_active_member_lookups(session, workspace_id)
+            resolution = resolve_worker_text_to_members(completed_by_names, lookups)
+            for uid in resolution.matched_user_ids:
+                self._ensure_active_workspace_member(session, workspace_id, uid)
+            display = resolution.display_text or completed_by_names.strip()
+            return display, resolution.matched_user_ids
+
+        self._ensure_active_workspace_member(session, workspace_id, performed_by_user_id)
+        actor = profile_dao.get(session, id=performed_by_user_id)
+        actor_name = actor.name if actor and actor.name else f'User #{performed_by_user_id}'
+        return actor_name, [performed_by_user_id]
+
     def complete_as_planned(
         self,
         session: Session,
@@ -1017,6 +1134,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         *,
         completion_notes: Optional[str] = None,
         machine_status: Optional[MachineEventTypeEnum] = None,
+        completed_by_user_id: Optional[int] = None,
+        completed_by_user_ids: Optional[list[int]] = None,
+        completed_by_names: Optional[str] = None,
     ) -> WorkOrder:
         wo = self.get_work_order(session, wo_id, workspace_id)
         if wo.status != WorkOrderStatusEnum.DRAFT.value:
@@ -1058,6 +1178,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         started_metadata.update(
             self._schedule_metadata_for_actual(wo, actual_at, actual_field='started_at')
         )
+        started_metadata.update(
+            self._started_worker_metadata(session, wo, workspace_id, user_id)
+        )
         self.log_event(
             session, wo_id, workspace_id, 'started',
             f'Work started — {summary}', user_id,
@@ -1069,14 +1192,20 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             completion_notes=completion_notes,
             machine_status=machine_status,
             completed_at=actual_at,
+            completed_by_user_id=completed_by_user_id,
+            completed_by_user_ids=completed_by_user_ids,
+            completed_by_names=completed_by_names,
             event_metadata_extra={'completion_mode': 'complete_as_planned'},
         )
 
     def finalize_completion(
-        self, session: Session, wo: WorkOrder, user_id: int,
+        self, session: Session, wo: WorkOrder, performed_by_user_id: int,
         completion_notes: Optional[str] = None,
         machine_status: Optional[MachineEventTypeEnum] = None,
         *,
+        completed_by_user_id: Optional[int] = None,
+        completed_by_user_ids: Optional[list[int]] = None,
+        completed_by_names: Optional[str] = None,
         completed_at: Optional[datetime] = None,
         event_metadata_extra: Optional[dict[str, Any]] = None,
     ) -> WorkOrder:
@@ -1085,23 +1214,40 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         `machine_status`, when given, is the caller's explicit choice of what state to leave
         the machine in (asked interactively at completion time) and takes priority over the
         auto-detected pre-start status."""
+        names_text, completer_ids = self._resolve_completion_workers(
+            session,
+            wo.workspace_id,
+            performed_by_user_id,
+            completed_by_names=completed_by_names,
+            completed_by_user_ids=completed_by_user_ids,
+            completed_by_user_id=completed_by_user_id,
+        )
+
         wo.status = WorkOrderStatusEnum.COMPLETED.value
-        wo.completed_by = user_id
+        wo.completed_by_names = names_text
+        wo.completed_by = completer_ids[0] if completer_ids else None
         wo.completed_at = completed_at if completed_at is not None else utcnow()
         if completion_notes is not None:
             wo.completion_notes = completion_notes
         session.flush()
 
+        work_order_completer_dao.replace_for_order(
+            session,
+            work_order_id=wo.id,
+            workspace_id=wo.workspace_id,
+            user_ids=completer_ids,
+        )
+
         if wo.machine_id is not None:
             items = self.item_dao.get_by_work_order(session, work_order_id=wo.id, workspace_id=wo.workspace_id)
             for item in items:
-                self._apply_item_completion(session, wo, item, user_id)
+                self._apply_item_completion(session, wo, item, performed_by_user_id)
 
         if wo.machine_id is not None:
             machine_activity_manager.log_event(
                 session, wo.machine_id, wo.workspace_id, 'work_order_completed',
                 f'Work order completed: {wo.work_order_number} — {wo.title}',
-                performed_by=user_id, metadata={'work_order_id': wo.id},
+                performed_by=performed_by_user_id, metadata={'work_order_id': wo.id},
             )
             if machine_status is not None:
                 revert_to = machine_status
@@ -1109,7 +1255,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 previous_status = self._previous_machine_status(session, wo)
                 revert_to = MachineEventTypeEnum(previous_status) if previous_status else MachineEventTypeEnum.IDLE
             self._set_machine_status(
-                session, wo.machine_id, wo.workspace_id, user_id, revert_to,
+                session, wo.machine_id, wo.workspace_id, performed_by_user_id, revert_to,
                 work_order_number=wo.work_order_number, work_order_id=wo.id,
             )
 
@@ -1119,7 +1265,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 summary = f'{summary}. {wo.completion_notes}'
             project_component_activity_manager.log_event(
                 session, wo.project_component_id, wo.workspace_id, 'work_order_completed',
-                summary, performed_by=user_id, metadata={'work_order_id': wo.id},
+                summary, performed_by=performed_by_user_id, metadata={'work_order_id': wo.id},
             )
 
         completed_metadata = self._schedule_metadata_for_actual(
@@ -1127,9 +1273,19 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         )
         if event_metadata_extra:
             completed_metadata = {**(completed_metadata or {}), **event_metadata_extra}
+        completed_metadata = {
+            **(completed_metadata or {}),
+            'completed_by_names': names_text,
+            'completed_by_name': names_text,
+            'completed_by_user_ids': completer_ids,
+        }
+        if completer_ids and completer_ids[0] != performed_by_user_id:
+            completed_metadata['recorded_by'] = performed_by_user_id
+        elif completer_ids:
+            completed_metadata['completed_by'] = completer_ids[0]
         self.log_event(
             session, wo.id, wo.workspace_id, 'completed',
-            f'Work order {wo.work_order_number} marked complete', user_id,
+            f'Work order {wo.work_order_number} marked complete', performed_by_user_id,
             metadata=completed_metadata or None,
         )
         return wo

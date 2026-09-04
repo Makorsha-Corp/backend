@@ -1,4 +1,4 @@
-"""Platform waitlist admin access — email allowlist from env."""
+"""Platform waitlist admin access — platform admin flag or email allowlist."""
 from fastapi import Depends, HTTPException, status
 
 from app.core.config import settings
@@ -7,6 +7,10 @@ from app.models.profile import Profile
 
 
 def get_waitlist_admin(current_user: Profile = Depends(get_current_active_user)) -> Profile:
+    """Allow Makorsha platform admins or legacy WAITLIST_ADMIN_EMAILS allowlist."""
+    if getattr(current_user, "is_platform_admin", False):
+        return current_user
+
     allowlist = {
         email.strip().lower()
         for email in settings.WAITLIST_ADMIN_EMAILS
@@ -14,8 +18,8 @@ def get_waitlist_admin(current_user: Profile = Depends(get_current_active_user))
     }
     if not allowlist:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Waitlist admin access is not configured",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Waitlist admin access requires platform admin or WAITLIST_ADMIN_EMAILS",
         )
 
     user_email = (current_user.email or "").strip().lower()

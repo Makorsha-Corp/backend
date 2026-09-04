@@ -93,7 +93,7 @@ class CancelBatchRequest(BaseModel):
 )
 def get_batches(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, le=100, description="Maximum number of records to return"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     production_line_id: Optional[int] = Query(None, description="Filter by production line ID"),
     formula_id: Optional[int] = Query(None, description="Filter by formula ID"),
     batch_status: Optional[str] = Query(

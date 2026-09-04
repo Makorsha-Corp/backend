@@ -1,4 +1,6 @@
 """Profile schemas"""
+from typing import Any
+
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
 from app.utils.timezone_validate import is_valid_iana_timezone
@@ -13,6 +15,19 @@ class ProfileBase(BaseModel):
 class ProfileCreate(ProfileBase):
     """Profile creation schema"""
     password: str
+    timezone: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        if not is_valid_iana_timezone(trimmed):
+            raise ValueError("Invalid IANA timezone identifier")
+        return trimmed
 
 
 class ProfileUpdate(BaseModel):
@@ -26,6 +41,7 @@ class ProfileMeUpdate(BaseModel):
     """Self-service profile update (auth/me)."""
     name: str | None = None
     timezone: str | None = None
+    saved_stamp: dict[str, Any] | None = None
 
     @field_validator("timezone")
     @classmethod
@@ -45,6 +61,8 @@ class ProfileResponse(ProfileBase):
     id: int
     user_id: str
     timezone: str | None = None
+    is_platform_admin: bool = False
+    saved_stamp: dict[str, Any] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

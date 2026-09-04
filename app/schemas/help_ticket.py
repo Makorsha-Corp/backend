@@ -31,9 +31,15 @@ class HelpTicketResponse(BaseModel):
     category: str | None
     status: HelpTicketStatusEnum
     created_by: int | None
+    creator_name: str | None = None
     created_at: datetime
     updated_at: datetime
     closed_at: datetime | None
     closed_by: int | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PlatformHelpTicketListItem(HelpTicketResponse):
+    """Cross-workspace ticket row for platform support inbox."""
+    workspace_name: str

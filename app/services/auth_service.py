@@ -144,6 +144,7 @@ class AuthService(BaseService):
         password: str,
         workspace_name: Optional[str] = None,
         invitation_token: Optional[str] = None,
+        timezone: Optional[str] = None,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
@@ -195,6 +196,7 @@ class AuthService(BaseService):
                     email=email,
                     password=password,
                     invitation_token=invitation_token,
+                    timezone=timezone,
                     user_agent=user_agent,
                     ip_address=ip_address,
                 )
@@ -208,6 +210,7 @@ class AuthService(BaseService):
                     email=email,
                     password=password,
                     workspace_name=workspace_name,
+                    timezone=timezone,
                     user_agent=user_agent,
                     ip_address=ip_address,
                 )
@@ -220,6 +223,7 @@ class AuthService(BaseService):
                     name=name,
                     email=email,
                     password=password,
+                    timezone=timezone,
                     user_agent=user_agent,
                     ip_address=ip_address,
                 )
@@ -247,6 +251,7 @@ class AuthService(BaseService):
         name: str,
         email: str,
         password: str,
+        timezone: Optional[str] = None,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Tuple[Profile, None, TokenPair, list[ActionMessage]]:
@@ -257,6 +262,7 @@ class AuthService(BaseService):
             name=name,
             email=email,
             password=password,
+            timezone=timezone,
         )
         user = self.profile_dao.create(db, obj_in=profile_in)
         db.flush()
@@ -280,6 +286,7 @@ class AuthService(BaseService):
         email: str,
         password: str,
         invitation_token: str,
+        timezone: Optional[str] = None,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
@@ -313,6 +320,7 @@ class AuthService(BaseService):
             name=name,
             email=email,
             password=password,
+            timezone=timezone,
         )
         user = self.profile_dao.create(db, obj_in=profile_in)
         db.flush()  # Get user.id
@@ -352,6 +360,7 @@ class AuthService(BaseService):
         email: str,
         password: str,
         workspace_name: str,
+        timezone: Optional[str] = None,
         user_agent: Optional[str] = None,
         ip_address: Optional[str] = None,
     ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
@@ -373,6 +382,7 @@ class AuthService(BaseService):
             name=name,
             email=email,
             password=password,
+            timezone=timezone,
         )
         user = self.profile_dao.create(db, obj_in=profile_in)
         db.flush()  # Get user.id
@@ -942,6 +952,24 @@ class AuthService(BaseService):
                 user.name = data["name"]
             if "timezone" in data:
                 user.timezone = data["timezone"]
+            if "saved_stamp" in data:
+                from app.managers.profile_stamp_manager import profile_stamp_manager
+
+                new_stamp = data["saved_stamp"]
+                if new_stamp is None:
+                    profile_stamp_manager.destroy_saved_stamp_image(user.saved_stamp)
+                    user.saved_stamp = None
+                else:
+                    validated = profile_stamp_manager.validate_saved_stamp_payload(new_stamp)
+                    if (
+                        validated
+                        and validated.get("kind") == "image"
+                        and user.saved_stamp
+                        and user.saved_stamp.get("kind") == "image"
+                        and user.saved_stamp.get("public_id") != validated.get("public_id")
+                    ):
+                        profile_stamp_manager.destroy_saved_stamp_image(user.saved_stamp)
+                    user.saved_stamp = validated
 
             db.add(user)
             self._commit_transaction(db)

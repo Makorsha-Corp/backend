@@ -38,6 +38,8 @@ from app.models.access_control import AccessControl
 from app.models.discussion import Discussion
 from app.models.notification import Notification
 from app.models.attachment import Attachment
+from app.models.attachment_markup import AttachmentMarkup
+from app.models.attachment_markup_event import AttachmentMarkupEvent
 from app.models.attachment_link import AttachmentLink
 from app.models.attachment_ledger import AttachmentLedger
 from app.models.mobile_upload_session import MobileUploadSession
@@ -60,6 +62,8 @@ from app.models.inventory_ledger import InventoryLedger
 from app.models.product import Product
 from app.models.product_ledger import ProductLedger
 # Work Orders
+from app.models.work_order_assignee import WorkOrderAssignee
+from app.models.work_order_completer import WorkOrderCompleter
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 # Purchase Orders

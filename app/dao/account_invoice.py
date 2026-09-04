@@ -1,22 +1,76 @@
 """Account invoice DAO operations"""
 from sqlalchemy.orm import Session, Query
-from sqlalchemy import or_, func, case
-from typing import List, Optional, Tuple
+from sqlalchemy import or_, and_, func, case
+from typing import List, Optional, Tuple, Type
 from datetime import date
 from decimal import Decimal
 from app.dao.base import BaseDAO
 from app.models.account_invoice import AccountInvoice
 from app.models.account import Account
+from app.models.purchase_order import PurchaseOrder
+from app.models.expense_order import ExpenseOrder
+from app.models.sales_order import SalesOrder
+from app.models.work_order import WorkOrder
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 
 
 class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInvoiceUpdate]):
     """DAO operations for AccountInvoice model"""
 
+    _ILIKE_ESCAPE = "\\"
+
+    @staticmethod
+    def _escape_ilike(value: str) -> str:
+        """Escape user input for safe ILIKE substring matching."""
+        escaped = value.replace("\\", "\\\\")
+        escaped = escaped.replace("%", "\\%").replace("_", "\\_")
+        return escaped
+
+    @classmethod
+    def _invoice_number_search_ilike_term(cls, raw: str) -> str:
+        stripped = raw.strip()
+        if not stripped:
+            return ""
+        return f"%{cls._escape_ilike(stripped)}%"
+
     @staticmethod
     def _outstanding_amount_expr():
         """SQL expression — outstanding is invoice_amount - paid_amount (not a column)."""
         return AccountInvoice.invoice_amount - AccountInvoice.paid_amount
+
+    def _order_number_search_conditions(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        term: str,
+    ):
+        """Match invoices linked to orders whose number ILIKE term (forward + reverse FK)."""
+        order_specs: List[Tuple[str, Type, object]] = [
+            ("purchase_order", PurchaseOrder, PurchaseOrder.po_number),
+            ("expense_order", ExpenseOrder, ExpenseOrder.expense_number),
+            ("sales_order", SalesOrder, SalesOrder.sales_order_number),
+            ("work_order", WorkOrder, WorkOrder.work_order_number),
+        ]
+        conditions = []
+        for order_type, order_model, number_column in order_specs:
+            matching_order_ids = db.query(order_model.id).filter(
+                order_model.workspace_id == workspace_id,
+                number_column.ilike(term, escape=self._ILIKE_ESCAPE),
+            )
+            conditions.append(
+                and_(
+                    AccountInvoice.order_type == order_type,
+                    AccountInvoice.order_id.in_(matching_order_ids),
+                )
+            )
+            matching_invoice_ids = db.query(order_model.invoice_id).filter(
+                order_model.workspace_id == workspace_id,
+                order_model.invoice_id.isnot(None),
+                number_column.ilike(term, escape=self._ILIKE_ESCAPE),
+            )
+            conditions.append(AccountInvoice.id.in_(matching_invoice_ids))
+        return or_(*conditions)
 
     def _build_filtered_query(
         self,
@@ -59,13 +113,20 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         if invoice_status:
             query = query.filter(AccountInvoice.invoice_status == invoice_status)
         if invoice_number_search:
-            term = f"%{invoice_number_search}%"
-            query = query.filter(
-                or_(
-                    AccountInvoice.invoice_number.ilike(term),
-                    AccountInvoice.vendor_invoice_number.ilike(term),
-                )
-            )
+            raw = invoice_number_search.strip()
+            term = self._invoice_number_search_ilike_term(raw)
+            search_conditions = [
+                AccountInvoice.invoice_number.ilike(term, escape=self._ILIKE_ESCAPE),
+                AccountInvoice.vendor_invoice_number.ilike(term, escape=self._ILIKE_ESCAPE),
+                self._order_number_search_conditions(
+                    db,
+                    workspace_id=workspace_id,
+                    term=term,
+                ),
+            ]
+            if raw.isdigit():
+                search_conditions.append(AccountInvoice.id == int(raw))
+            query = query.filter(or_(*search_conditions))
         if account_name_search:
             query = query.filter(Account.name.ilike(f"%{account_name_search}%"))
         if invoice_date_from:

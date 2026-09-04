@@ -154,6 +154,7 @@ class AttachmentService(BaseService):
         workspace_id: int,
         attachment_id: int,
         page: int,
+        width: int = 1600,
     ):
         from app.schemas.attachment import AttachmentPdfPageResponse
 
@@ -162,6 +163,7 @@ class AttachmentService(BaseService):
             attachment_id=attachment_id,
             workspace_id=workspace_id,
             page=page,
+            width=width,
         )
         return AttachmentPdfPageResponse(**payload)
 
