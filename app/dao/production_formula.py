@@ -130,29 +130,4 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
             .first()
         )
 
-    def get_formula_versions(
-        self, db: Session, *, formula_code: str, workspace_id: int
-    ) -> List[ProductionFormula]:
-        """
-        Get all versions of a formula (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            formula_code: Formula code
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            List of formula versions ordered by version number
-        """
-        return (
-            db.query(ProductionFormula)
-            .filter(
-                ProductionFormula.workspace_id == workspace_id,
-                ProductionFormula.formula_code == formula_code
-            )
-            .order_by(ProductionFormula.version.desc())
-            .all()
-        )
-
-
 production_formula_dao = ProductionFormulaDAO(ProductionFormula)

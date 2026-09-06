@@ -120,29 +120,6 @@ class ItemService(BaseService):
             limit=limit
         )
 
-    def get_items_with_tags(
-        self,
-        db: Session,
-        workspace_id: int,
-        search: Optional[str] = None,
-        skip: int = 0,
-        limit: int = 100,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
-    ) -> ItemListResponse:
-        """
-        Get paginated active items with their tags included.
-        """
-        return self.get_items_page(
-            db,
-            workspace_id=workspace_id,
-            search=search,
-            skip=skip,
-            limit=limit,
-            unit=unit,
-            tag_ids=tag_ids,
-        )
-
     def get_items_page(
         self,
         db: Session,

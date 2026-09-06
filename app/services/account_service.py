@@ -156,35 +156,6 @@ class AccountService(BaseService):
             ]
         }
 
-    def get_accounts(
-        self,
-        db: Session,
-        workspace_id: int,
-        search: Optional[str] = None,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[Account]:
-        """
-        Get all accounts with optional search and pagination.
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID
-            search: Optional search query for account name
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of accounts
-        """
-        return self.account_manager.search_accounts(
-            session=db,
-            workspace_id=workspace_id,
-            name=search,
-            skip=skip,
-            limit=limit
-        )
-
     def get_accounts_with_tags(
         self,
         db: Session,

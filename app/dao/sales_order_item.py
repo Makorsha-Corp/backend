@@ -47,23 +47,4 @@ class DAOSalesOrderItem(BaseDAO[SalesOrderItem, SalesOrderItemCreate, SalesOrder
             .all()
         )
 
-    def get_pending_items(
-        self,
-        db: Session,
-        *,
-        sales_order_id: int,
-        workspace_id: int
-    ) -> List[SalesOrderItem]:
-        """Get sales order items that haven't been fully delivered"""
-        return (
-            db.query(SalesOrderItem)
-            .filter(
-                SalesOrderItem.sales_order_id == sales_order_id,
-                SalesOrderItem.workspace_id == workspace_id,
-                SalesOrderItem.quantity_delivered < SalesOrderItem.quantity_ordered
-            )
-            .all()
-        )
-
-
 sales_order_item_dao = DAOSalesOrderItem(SalesOrderItem)

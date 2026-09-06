@@ -17,7 +17,6 @@ from app.models.invoice_payment import InvoicePayment
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
 from app.dao.account_invoice import account_invoice_dao
 from app.dao.account import account_dao
-from app.dao.account import account_dao
 from app.dao.invoice_item import invoice_item_dao
 from app.dao.invoice_event import invoice_event_dao
 from app.utils.time import utcnow

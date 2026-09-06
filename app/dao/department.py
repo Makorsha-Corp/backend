@@ -23,33 +23,6 @@ class DAODepartment(BaseDAO[Department, DepartmentCreate, DepartmentUpdate]):
     - create_with_workspace() - Create department with workspace_id
     """
 
-    def get_active_departments(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Department]:
-        """
-        Get all active, non-deleted departments for a workspace (SECURITY-CRITICAL: workspace-filtered)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of active, non-deleted departments belonging to the workspace
-        """
-        return (
-            db.query(Department)
-            .filter(
-                Department.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                Department.is_active == True,
-                Department.is_deleted == False
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def soft_delete(
         self, db: Session, *, db_obj: Department, deleted_by: int
     ) -> Department:

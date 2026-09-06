@@ -155,36 +155,6 @@ class ProjectComponentItemLedgerDAO(BaseDAO[ProjectComponentItemLedger, ProjectC
             .all()
         )
 
-    def get_consumption_entries(
-        self, db: Session, *, project_component_id: int, workspace_id: int,
-        start_date: datetime = None, end_date: datetime = None
-    ) -> List[ProjectComponentItemLedger]:
-        """
-        Get consumption entries for a project component (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            project_component_id: Project component ID
-            workspace_id: Workspace ID to filter by
-            start_date: Optional start date filter
-            end_date: Optional end date filter
-
-        Returns:
-            List of consumption ledger entries
-        """
-        query = db.query(ProjectComponentItemLedger).filter(
-            ProjectComponentItemLedger.workspace_id == workspace_id,
-            ProjectComponentItemLedger.project_component_id == project_component_id,
-            ProjectComponentItemLedger.transaction_type == 'consumption'
-        )
-
-        if start_date:
-            query = query.filter(ProjectComponentItemLedger.performed_at >= start_date)
-        if end_date:
-            query = query.filter(ProjectComponentItemLedger.performed_at <= end_date)
-
-        return query.order_by(ProjectComponentItemLedger.performed_at.desc()).all()
-
     def calculate_balance(
         self, db: Session, *, project_component_id: int, item_id: int, workspace_id: int
     ) -> tuple[int, Decimal]:

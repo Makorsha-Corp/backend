@@ -21,13 +21,4 @@ class SubscriptionPlanDAO(BaseDAO[SubscriptionPlan, SubscriptionPlanCreate, Subs
             .first()
         )
 
-    def get_active_plans(self, db: Session) -> List[SubscriptionPlan]:
-        """Get all active subscription plans (excluding custom plans)"""
-        return (
-            db.query(SubscriptionPlan)
-            .filter(SubscriptionPlan.is_active == True, SubscriptionPlan.is_custom == False)
-            .all()
-        )
-
-
 subscription_plan_dao = SubscriptionPlanDAO(SubscriptionPlan)

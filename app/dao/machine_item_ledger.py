@@ -164,36 +164,6 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
             .all()
         )
 
-    def get_consumption_entries(
-        self, db: Session, *, machine_id: int, workspace_id: int,
-        start_date: datetime = None, end_date: datetime = None
-    ) -> List[MachineItemLedger]:
-        """
-        Get consumption entries for a machine (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            machine_id: Machine ID
-            workspace_id: Workspace ID to filter by
-            start_date: Optional start date filter
-            end_date: Optional end date filter
-
-        Returns:
-            List of consumption ledger entries
-        """
-        query = db.query(MachineItemLedger).filter(
-            MachineItemLedger.workspace_id == workspace_id,
-            MachineItemLedger.machine_id == machine_id,
-            MachineItemLedger.transaction_type == 'consumption'
-        )
-
-        if start_date:
-            query = query.filter(MachineItemLedger.performed_at >= start_date)
-        if end_date:
-            query = query.filter(MachineItemLedger.performed_at <= end_date)
-
-        return query.order_by(MachineItemLedger.performed_at.desc()).all()
-
     def calculate_balance(
         self, db: Session, *, machine_id: int, item_id: int, workspace_id: int
     ) -> tuple[int, Decimal]:

@@ -22,22 +22,6 @@ class DAODeliveryMethod(BaseDAO[DeliveryMethod, DeliveryMethodCreate, DeliveryMe
     - get_by_id_and_workspace() - Get specific delivery method in workspace
     """
 
-    def get_active_delivery_methods(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[DeliveryMethod]:
-        """Get all active, non-deleted delivery methods for a workspace (SECURITY-CRITICAL: workspace-filtered)"""
-        return (
-            db.query(DeliveryMethod)
-            .filter(
-                DeliveryMethod.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                DeliveryMethod.is_active == True,
-                DeliveryMethod.is_deleted == False
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def soft_delete(
         self, db: Session, *, db_obj: DeliveryMethod, deleted_by: int
     ) -> DeliveryMethod:

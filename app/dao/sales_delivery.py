@@ -135,13 +135,4 @@ class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDelivery
             .all()
         )
 
-    def get_pending_deliveries(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[SalesDelivery]:
-        """Get deliveries with status 'planned'"""
-        return self.get_by_status(
-            db, delivery_status='planned', workspace_id=workspace_id, skip=skip, limit=limit
-        )
-
-
 sales_delivery_dao = DAOSalesDelivery(SalesDelivery)

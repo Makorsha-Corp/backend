@@ -49,26 +49,6 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
             InventoryLedger.workspace_id == workspace_id,
         ).first()
 
-    def get_by_factory_and_item(
-        self, db: Session, *, factory_id: int, item_id: int, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
-        """Get ledger entries for a specific factory/item; optionally narrow to one inventory_type."""
-        query = db.query(InventoryLedger).filter(
-            InventoryLedger.workspace_id == workspace_id,
-            InventoryLedger.factory_id == factory_id,
-            InventoryLedger.item_id == item_id,
-        )
-        if inventory_type:
-            query = query.filter(InventoryLedger.inventory_type == inventory_type)
-        return (
-            query.order_by(desc(InventoryLedger.performed_at))
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_by_transaction_type(
         self, db: Session, *, transaction_type: str, workspace_id: int,
         inventory_type: Optional[InventoryTypeEnum] = None,

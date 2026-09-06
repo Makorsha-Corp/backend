@@ -51,21 +51,6 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
             query = query.filter(Machine.is_deleted == False)
         return query.offset(skip).limit(limit).all()
 
-    def get_running_machines(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Machine]:
-        """Get all running machines (SECURITY-CRITICAL: workspace-filtered)"""
-        return (
-            db.query(Machine)
-            .options(_SECTION_EAGER_LOAD)
-            .filter(
-                Machine.workspace_id == workspace_id,
-                Machine.is_running == True,
-                Machine.is_deleted == False
-            )
-            .offset(skip).limit(limit).all()
-        )
-
     def get_active_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
     ) -> List[Machine]:

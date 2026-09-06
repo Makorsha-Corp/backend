@@ -107,40 +107,7 @@ class BusinessRuleError(APIException):
         )
 
 
-class RateLimitError(APIException):
-    """429 - Too many requests"""
-    def __init__(self, detail: str = "Rate limit exceeded. Please try again later."):
-        super().__init__(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error_type="rate_limit_exceeded",
-            title="Rate Limit Exceeded",
-            detail=detail
-        )
-
-
 # Server Errors (5xx)
-
-class InternalServerError(APIException):
-    """500 - Internal server error"""
-    def __init__(self, detail: str = "An unexpected error occurred"):
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_type="internal_error",
-            title="Internal Server Error",
-            detail=detail
-        )
-
-
-class ServiceUnavailableError(APIException):
-    """503 - Service temporarily unavailable"""
-    def __init__(self, detail: str = "Service temporarily unavailable"):
-        super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error_type="service_unavailable",
-            title="Service Unavailable",
-            detail=detail
-        )
-
 
 # ==================== EXCEPTION HANDLERS ====================
 

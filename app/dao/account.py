@@ -40,57 +40,6 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
             .all()
         )
 
-    def get_by_account_code_in_workspace(
-        self, db: Session, *, workspace_id: int, account_code: str
-    ) -> Optional[Account]:
-        """
-        Get account by account_code within workspace (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            account_code: Account code to search for
-
-        Returns:
-            Account with matching code or None
-        """
-        return (
-            db.query(Account)
-            .filter(
-                Account.workspace_id == workspace_id,
-                Account.account_code == account_code,
-                Account.is_deleted == False
-            )
-            .first()
-        )
-
-    def get_active_accounts_in_workspace(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Account]:
-        """
-        Get only active accounts within workspace
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of active accounts in workspace
-        """
-        return (
-            db.query(Account)
-            .filter(
-                Account.workspace_id == workspace_id,
-                Account.is_active == True,
-                Account.is_deleted == False
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_accounts_in_workspace(
         self,
         db: Session,
@@ -184,34 +133,5 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
             .distinct()
             .all()
         )
-
-    def get_accounts_with_invoices_enabled(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Account]:
-        """
-        Get accounts that have invoices enabled
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of accounts with allow_invoices=True
-        """
-        return (
-            db.query(Account)
-            .filter(
-                Account.workspace_id == workspace_id,
-                Account.allow_invoices == True,
-                Account.is_active == True,
-                Account.is_deleted == False
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
 
 account_dao = AccountDAO(Account)

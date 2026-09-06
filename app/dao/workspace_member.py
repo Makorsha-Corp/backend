@@ -22,17 +22,6 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
             .first()
         )
 
-    def get_user_workspaces(self, db: Session, *, user_id: int) -> List[WorkspaceMember]:
-        """Get all workspaces user belongs to (active only)"""
-        return (
-            db.query(WorkspaceMember)
-            .filter(
-                WorkspaceMember.user_id == user_id,
-                WorkspaceMember.status == 'active'
-            )
-            .all()
-        )
-
     def get_by_user(self, db: Session, *, user_id: int) -> List[WorkspaceMember]:
         """Get all workspace memberships for a user (alias for get_user_workspaces)"""
         return (
@@ -51,31 +40,6 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
             query = query.filter(WorkspaceMember.status == status)
 
         return query.all()
-
-    def get_workspace_members_count(
-        self, db: Session, *, workspace_id: int, status: str = 'active'
-    ) -> int:
-        """Get count of members in workspace"""
-        query = db.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == workspace_id)
-
-        if status:
-            query = query.filter(WorkspaceMember.status == status)
-
-        return query.count()
-
-    def update_role(
-        self, db: Session, *, workspace_id: int, user_id: int, new_role: str, position: str | None = None
-    ) -> WorkspaceMember:
-        """Update user's role (and optionally position) in workspace"""
-        member = self.get_by_workspace_and_user(db, workspace_id=workspace_id, user_id=user_id)
-        if not member:
-            raise ValueError("User is not a member of this workspace")
-
-        member.role = new_role
-        if position is not None:
-            member.position = position
-        db.flush()
-        return member
 
     def get_by_workspace(self, db: Session, *, workspace_id: int) -> List[WorkspaceMember]:
         """Get all members in workspace (alias for get_workspace_members)"""

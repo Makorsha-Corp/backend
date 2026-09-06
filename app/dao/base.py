@@ -192,26 +192,3 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             .first()
         )
 
-    def create_in_workspace(
-        self, db: Session, *, obj_in: CreateSchemaType, workspace_id: int
-    ) -> ModelType:
-        """
-        Create a new record in workspace (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            obj_in: Pydantic schema with creation data
-            workspace_id: Workspace ID to assign
-
-        Returns:
-            Created model instance (not yet committed)
-
-        Note:
-            ALWAYS use this instead of create() for workspace-scoped models.
-            Automatically sets workspace_id on the created object.
-        """
-        obj_in_data = obj_in.model_dump()
-        db_obj = self.model(**obj_in_data, workspace_id=workspace_id)
-        db.add(db_obj)
-        db.flush()  # Flush to get ID, but don't commit
-        return db_obj

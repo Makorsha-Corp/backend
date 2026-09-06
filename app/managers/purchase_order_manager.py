@@ -826,25 +826,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     def _items_structure_confirmed(self, session: Session, po: PurchaseOrder) -> bool:
         return bool(po.items_confirmed or self.is_po_financially_locked(session, po))
 
-    def details_complete_for_invoice(self, po: PurchaseOrder) -> bool:
-        return (
-            po.account_id is not None
-            and bool(po.destination_type)
-            and po.destination_id is not None
-            and po.order_date is not None
-        )
-
     def _base_sections_confirmed(self, po: PurchaseOrder) -> bool:
         return bool(
             po.supplier_confirmed
             and po.details_confirmed
             and po.items_confirmed
-        )
-
-    def _all_sections_confirmed(self, po: PurchaseOrder) -> bool:
-        return bool(
-            self._base_sections_confirmed(po)
-            and po.invoice_confirmed
         )
 
     def _validate_section_confirm(

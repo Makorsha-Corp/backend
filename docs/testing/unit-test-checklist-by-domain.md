@@ -115,13 +115,13 @@ _(no methods defined in class body)_
 
 - [ ] `RefreshTokenDAO.get_by_hash()` — L22
 - [ ] `RefreshTokenDAO.get_by_id()` — L33
-- [ ] `RefreshTokenDAO.list_active_for_user()` — L36 ⚠️ **[possibly unused — verify before testing]**
+- [x] `RefreshTokenDAO.list_active_for_user()` — L36 ~~[DELETED DEAD CODE]~~
 - [ ] `RefreshTokenDAO.create()` — L52
 - [ ] `RefreshTokenDAO.revoke()` — L81
 - [ ] `RefreshTokenDAO.revoke_family()` — L95
 - [ ] `RefreshTokenDAO.revoke_all_for_user()` — L112
 - [ ] `RefreshTokenDAO.touch_last_used()` — L126
-- [ ] `RefreshTokenDAO.cleanup_expired()` — L131 ⚠️ **[possibly unused — verify before testing]**
+- [x] `RefreshTokenDAO.cleanup_expired()` — L131 ~~[DELETED DEAD CODE]~~
 
 ## Workspace, Accounts & Org Structure (164 callables)
 
@@ -212,7 +212,7 @@ _(no methods defined in class body)_
 - [ ] `AccountService.create_account()` — L30
 - [ ] `AccountService.get_account()` — L71
 - [ ] `AccountService.get_account_with_tags()` — L96
-- [ ] `AccountService.get_accounts()` — L159 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AccountService.get_accounts()` — L159 ~~[DELETED DEAD CODE]~~
 - [ ] `AccountService.get_accounts_with_tags()` — L188
 - [ ] `AccountService._account_dict_with_tags()` — L264 _(private)_
 - [ ] `AccountService._rollup_from_subquery_row()` — L304 _(private)_
@@ -311,12 +311,12 @@ _(no methods defined in class body)_
 #### class `AccountDAO` (BaseDAO[Account, AccountCreate, AccountUpdate])
 
 - [ ] `AccountDAO.search_by_name_in_workspace()` — L14
-- [ ] `AccountDAO.get_by_account_code_in_workspace()` — L43 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `AccountDAO.get_active_accounts_in_workspace()` — L67 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AccountDAO.get_by_account_code_in_workspace()` — L43 ~~[DELETED DEAD CODE]~~
+- [x] `AccountDAO.get_active_accounts_in_workspace()` — L67 ~~[DELETED DEAD CODE]~~
 - [ ] `AccountDAO.get_accounts_in_workspace()` — L94
 - [ ] `AccountDAO.count_active_accounts()` — L139
 - [ ] `AccountDAO.get_accounts_by_tag_id()` — L150
-- [ ] `AccountDAO.get_accounts_with_invoices_enabled()` — L188 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AccountDAO.get_accounts_with_invoices_enabled()` — L188 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/account_tag.py` (5)
 
@@ -333,7 +333,7 @@ _(no methods defined in class body)_
 #### class `AccountTagAssignmentDAO` (BaseDAO[AccountTagAssignment, AccountTagAssignmentCreate, AccountTagAssignmentCreate])
 
 - [ ] `AccountTagAssignmentDAO.get_tags_for_account()` — L24
-- [ ] `AccountTagAssignmentDAO.get_accounts_for_tag()` — L48 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AccountTagAssignmentDAO.get_accounts_for_tag()` — L48 ~~[DELETED DEAD CODE]~~
 - [ ] `AccountTagAssignmentDAO.get_assignment()` — L75
 - [ ] `AccountTagAssignmentDAO.assignment_exists()` — L100
 - [ ] `AccountTagAssignmentDAO.delete_assignment()` — L120
@@ -353,7 +353,7 @@ _(no methods defined in class body)_
 
 #### class `DAODepartment` (BaseDAO[Department, DepartmentCreate, DepartmentUpdate])
 
-- [ ] `DAODepartment.get_active_departments()` — L26 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAODepartment.get_active_departments()` — L26 ~~[DELETED DEAD CODE]~~
 - [ ] `DAODepartment.soft_delete()` — L53
 - [ ] `DAODepartment.restore()` — L74
 
@@ -380,18 +380,18 @@ _(no methods defined in class body)_
 #### class `WorkspaceDAO` (BaseDAO[Workspace, WorkspaceCreate, WorkspaceUpdate])
 
 - [ ] `WorkspaceDAO.get_by_slug()` — L12
-- [ ] `WorkspaceDAO.get_by_owner()` — L16 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceDAO.increment_usage()` — L24 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceDAO.decrement_usage()` — L42 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceDAO.check_limit()` — L60 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceDAO.get_by_owner()` — L16 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceDAO.increment_usage()` — L24 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceDAO.decrement_usage()` — L42 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceDAO.check_limit()` — L60 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/workspace_audit_log.py` (4)
 
 #### class `WorkspaceAuditLogDAO` (BaseDAO[WorkspaceAuditLog, WorkspaceAuditLogCreate, dict])
 
-- [ ] `WorkspaceAuditLogDAO.get_workspace_logs()` — L14 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceAuditLogDAO.get_user_logs()` — L44 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceAuditLogDAO.get_logs_by_action()` — L65 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceAuditLogDAO.get_workspace_logs()` — L14 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceAuditLogDAO.get_user_logs()` — L44 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceAuditLogDAO.get_logs_by_action()` — L65 ~~[DELETED DEAD CODE]~~
 - [ ] `WorkspaceAuditLogDAO.log_action()` — L87
 
 #### `app/dao/workspace_invitation.py` (10)
@@ -399,26 +399,26 @@ _(no methods defined in class body)_
 #### class `WorkspaceInvitationDAO` (BaseDAO[WorkspaceInvitation, WorkspaceInvitationCreate, dict])
 
 - [ ] `WorkspaceInvitationDAO.get_by_token()` — L14
-- [ ] `WorkspaceInvitationDAO.get_by_workspace_and_email()` — L18 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceInvitationDAO.get_by_workspace_and_email()` — L18 ~~[DELETED DEAD CODE]~~
 - [ ] `WorkspaceInvitationDAO.get_pending_invitations()` — L31
 - [ ] `WorkspaceInvitationDAO.get_user_invitations()` — L45
-- [ ] `WorkspaceInvitationDAO.mark_as_accepted()` — L57 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceInvitationDAO.mark_as_expired()` — L66 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceInvitationDAO.mark_as_cancelled()` — L74 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceInvitationDAO.mark_as_accepted()` — L57 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceInvitationDAO.mark_as_expired()` — L66 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceInvitationDAO.mark_as_cancelled()` — L74 ~~[DELETED DEAD CODE]~~
 - [ ] `WorkspaceInvitationDAO.count_pending_invitations()` — L82
 - [ ] `WorkspaceInvitationDAO.get_all_invitations()` — L94
-- [ ] `WorkspaceInvitationDAO.cleanup_expired_invitations()` — L104 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceInvitationDAO.cleanup_expired_invitations()` — L104 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/workspace_member.py` (9)
 
 #### class `WorkspaceMemberDAO` (BaseDAO[WorkspaceMember, WorkspaceMemberCreate, WorkspaceMemberUpdate])
 
 - [ ] `WorkspaceMemberDAO.get_by_workspace_and_user()` — L12
-- [ ] `WorkspaceMemberDAO.get_user_workspaces()` — L25 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceMemberDAO.get_user_workspaces()` — L25 ~~[DELETED DEAD CODE]~~
 - [ ] `WorkspaceMemberDAO.get_by_user()` — L36
 - [ ] `WorkspaceMemberDAO.get_workspace_members()` — L44
-- [ ] `WorkspaceMemberDAO.get_workspace_members_count()` — L55 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `WorkspaceMemberDAO.update_role()` — L66 ⚠️ **[possibly unused — verify before testing]**
+- [x] `WorkspaceMemberDAO.get_workspace_members_count()` — L55 ~~[DELETED DEAD CODE]~~
+- [x] `WorkspaceMemberDAO.update_role()` — L66 ~~[DELETED DEAD CODE]~~
 - [ ] `WorkspaceMemberDAO.get_by_workspace()` — L80
 - [ ] `WorkspaceMemberDAO.count_active_members()` — L84
 - [ ] `WorkspaceMemberDAO.has_access()` — L95
@@ -490,7 +490,7 @@ _(no methods defined in class body)_
 - [ ] `ItemService.create_item()` — L28
 - [ ] `ItemService.get_item()` — L69
 - [ ] `ItemService.get_items()` — L94
-- [ ] `ItemService.get_items_with_tags()` — L123 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ItemService.get_items_with_tags()` — L123 ~~[DELETED DEAD CODE]~~
 - [ ] `ItemService.get_items_page()` — L146
 - [ ] `ItemService.get_distinct_units()` — L218
 - [ ] `ItemService.get_similar_items()` — L221
@@ -572,7 +572,7 @@ _(no methods defined in class body)_
 #### class `ItemDAO` (BaseDAO[Item, ItemCreate, ItemUpdate])
 
 - [ ] `ItemDAO.search_by_name_in_workspace()` — L72
-- [ ] `ItemDAO.get_by_sku_in_workspace()` — L100 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ItemDAO.get_by_sku_in_workspace()` — L100 ~~[DELETED DEAD CODE]~~
 - [ ] `ItemDAO.get_active_items_in_workspace()` — L123
 - [ ] `ItemDAO.list_active_items_filtered()` — L149
 - [ ] `ItemDAO.count_active_items_filtered()` — L170
@@ -589,7 +589,7 @@ _(no methods defined in class body)_
 
 - [ ] `ItemTagDAO.get_by_code_in_workspace()` — L12
 - [ ] `ItemTagDAO.get_system_tags_in_workspace()` — L35
-- [ ] `ItemTagDAO.get_user_tags_in_workspace()` — L58 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ItemTagDAO.get_user_tags_in_workspace()` — L58 ~~[DELETED DEAD CODE]~~
 - [ ] `ItemTagDAO.get_active_tags_in_workspace()` — L81
 - [ ] `ItemTagDAO.increment_usage_count()` — L104
 - [ ] `ItemTagDAO.decrement_usage_count()` — L124
@@ -600,10 +600,10 @@ _(no methods defined in class body)_
 
 - [ ] `ItemTagAssignmentDAO.get_tags_for_items()` — L15
 - [ ] `ItemTagAssignmentDAO.get_tags_for_item()` — L44
-- [ ] `ItemTagAssignmentDAO.get_items_with_tag()` — L69 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ItemTagAssignmentDAO.get_items_with_tags()` — L97 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ItemTagAssignmentDAO.get_items_with_tag()` — L69 ~~[DELETED DEAD CODE]~~
+- [x] `ItemTagAssignmentDAO.get_items_with_tags()` — L97 ~~[DELETED DEAD CODE]~~
 - [ ] `ItemTagAssignmentDAO.assignment_exists()` — L131
-- [ ] `ItemTagAssignmentDAO.remove_assignment()` — L156 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ItemTagAssignmentDAO.remove_assignment()` — L156 ~~[DELETED DEAD CODE]~~
 - [ ] `ItemTagAssignmentDAO.count_active_items_per_tag()` — L187
 - [ ] `ItemTagAssignmentDAO.remove_all_tags_from_item()` — L208
 
@@ -678,7 +678,7 @@ _(no methods defined in class body)_
 - [ ] `_weighted_avg_price()` — L38 _(private)_
 - [ ] `_ensure_machine_item()` — L52 _(private)_
 - [ ] `_ledger_exists_for_source()` — L71 _(private)_
-- [ ] `post_purchase_order_to_machine()` — L86 ⚠️ **[possibly unused — verify before testing]**
+- [x] `post_purchase_order_to_machine()` — L86 ~~[DELETED DEAD CODE]~~
 
 #### `app/managers/po_receive_inventory.py` (10)
 
@@ -711,7 +711,7 @@ _(no methods defined in class body)_
 
 - [ ] `_quantity_to_int()` — L18 _(private)_
 - [ ] `_weighted_avg_price()` — L36 _(private)_
-- [ ] `post_purchase_order_to_storage()` — L50 ⚠️ **[possibly unused — verify before testing]**
+- [x] `post_purchase_order_to_storage()` — L50 ~~[DELETED DEAD CODE]~~
 
 #### `app/managers/to_inventory.py` (5)
 
@@ -783,7 +783,7 @@ _(no methods defined in class body)_
 
 - [ ] `InventoryLedgerDAO.get_by_workspace()` — L24
 - [ ] `InventoryLedgerDAO.get_by_id_and_workspace()` — L43
-- [ ] `InventoryLedgerDAO.get_by_factory_and_item()` — L52 ⚠️ **[possibly unused — verify before testing]**
+- [x] `InventoryLedgerDAO.get_by_factory_and_item()` — L52 ~~[DELETED DEAD CODE]~~
 - [ ] `InventoryLedgerDAO.get_by_transaction_type()` — L72
 - [ ] `InventoryLedgerDAO.get_by_date_range()` — L97
 - [ ] `InventoryLedgerDAO.get_by_order()` — L124
@@ -802,7 +802,7 @@ _(no methods defined in class body)_
 - [ ] `MachineItemLedgerDAO.get_by_order()` — L87
 - [ ] `MachineItemLedgerDAO.get_by_date_range()` — L111
 - [ ] `MachineItemLedgerDAO.get_by_machine()` — L138
-- [ ] `MachineItemLedgerDAO.get_consumption_entries()` — L167 ⚠️ **[possibly unused — verify before testing]**
+- [x] `MachineItemLedgerDAO.get_consumption_entries()` — L167 ~~[DELETED DEAD CODE]~~
 - [ ] `MachineItemLedgerDAO.calculate_balance()` — L197
 - [ ] `MachineItemLedgerDAO.get_latest_entry()` — L227
 
@@ -823,7 +823,7 @@ _(no methods defined in class body)_
 - [ ] `ProjectComponentItemLedgerDAO.get_by_transaction_type()` — L74
 - [ ] `ProjectComponentItemLedgerDAO.get_by_order()` — L103
 - [ ] `ProjectComponentItemLedgerDAO.get_by_date_range()` — L127
-- [ ] `ProjectComponentItemLedgerDAO.get_consumption_entries()` — L158 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectComponentItemLedgerDAO.get_consumption_entries()` — L158 ~~[DELETED DEAD CODE]~~
 - [ ] `ProjectComponentItemLedgerDAO.calculate_balance()` — L188
 - [ ] `ProjectComponentItemLedgerDAO.get_latest_entry()` — L218
 - [ ] `ProjectComponentItemLedgerDAO.calculate_total_cost_for_component()` — L244
@@ -869,9 +869,9 @@ _(no methods defined in class body)_
 - [ ] `PurchaseOrderManager._confirmed_supplier_update_fields()` — L812 _(private)_
 - [ ] `PurchaseOrderManager._confirmed_detail_update_fields()` — L819 _(private)_
 - [ ] `PurchaseOrderManager._items_structure_confirmed()` — L826 _(private)_
-- [ ] `PurchaseOrderManager.details_complete_for_invoice()` — L829 ⚠️ **[possibly unused — verify before testing]**
+- [x] `PurchaseOrderManager.details_complete_for_invoice()` — L829 ~~[DELETED DEAD CODE]~~
 - [ ] `PurchaseOrderManager._base_sections_confirmed()` — L837 _(private)_
-- [ ] `PurchaseOrderManager._all_sections_confirmed()` — L844 _(private)_ ⚠️ **[possibly unused — verify before testing]**
+- [x] `PurchaseOrderManager._all_sections_confirmed()` — L844 _(private)_ ~~[DELETED DEAD CODE]~~
 - [ ] `PurchaseOrderManager._validate_section_confirm()` — L850 _(private)_
 - [ ] `PurchaseOrderManager.apply_post_invoice_confirms()` — L900
 - [ ] `PurchaseOrderManager.get_purchase_order()` — L934
@@ -1109,7 +1109,7 @@ _(no methods defined in class body)_
 - [ ] `SalesService._sync_draft_invoice_for_so()` — L156 _(private)_
 - [ ] `SalesService.create_invoice_for_sales_order()` — L187
 - [ ] `SalesService.finalize_sales_order_invoice()` — L221
-- [ ] `SalesService.create_sales_order()` — L278 ⚠️ **[possibly unused — verify before testing]**
+- [x] `SalesService.create_sales_order()` — L278 ~~[DELETED DEAD CODE]~~
 - [ ] `SalesService.create_sales_order_from_dict()` — L305
 - [ ] `SalesService.get_sales_order()` — L349
 - [ ] `SalesService.get_sales_orders()` — L377
@@ -1151,15 +1151,15 @@ _(no methods defined in class body)_
 - [ ] `DAOSalesDelivery.get_by_sales_order()` — L77
 - [ ] `DAOSalesDelivery.get_by_status()` — L94
 - [ ] `DAOSalesDelivery.get_by_date_range()` — L115
-- [ ] `DAOSalesDelivery.get_pending_deliveries()` — L138 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOSalesDelivery.get_pending_deliveries()` — L138 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/sales_delivery_item.py` (3)
 
 #### class `DAOSalesDeliveryItem` (BaseDAO[SalesDeliveryItem, SalesDeliveryItemCreate, SalesDeliveryItemUpdate])
 
 - [ ] `DAOSalesDeliveryItem.get_by_delivery()` — L12
-- [ ] `DAOSalesDeliveryItem.get_by_sales_order_item()` — L29 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `DAOSalesDeliveryItem.calculate_total_delivered()` — L46 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOSalesDeliveryItem.get_by_sales_order_item()` — L29 ~~[DELETED DEAD CODE]~~
+- [x] `DAOSalesDeliveryItem.calculate_total_delivered()` — L46 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/sales_order.py` (8)
 
@@ -1168,11 +1168,11 @@ _(no methods defined in class body)_
 - [ ] `DAOSalesOrder.get_by_invoice_id()` — L13
 - [ ] `DAOSalesOrder.generate_sales_order_number()` — L25
 - [ ] `DAOSalesOrder.create_with_user()` — L53
-- [ ] `DAOSalesOrder.get_by_account()` — L90 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOSalesOrder.get_by_account()` — L90 ~~[DELETED DEAD CODE]~~
 - [ ] `DAOSalesOrder.get_by_factory()` — L111
 - [ ] `DAOSalesOrder.get_by_status()` — L132
-- [ ] `DAOSalesOrder.get_pending_deliveries()` — L153 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `DAOSalesOrder.get_uninvoiced_orders()` — L168 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOSalesOrder.get_pending_deliveries()` — L153 ~~[DELETED DEAD CODE]~~
+- [x] `DAOSalesOrder.get_uninvoiced_orders()` — L168 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/sales_order_approver.py` (2)
 
@@ -1193,7 +1193,7 @@ _(no methods defined in class body)_
 
 - [ ] `DAOSalesOrderItem.get_by_sales_order()` — L12
 - [ ] `DAOSalesOrderItem.get_by_item()` — L29
-- [ ] `DAOSalesOrderItem.get_pending_items()` — L50 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOSalesOrderItem.get_pending_items()` — L50 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/sales_order_return.py` (6)
 
@@ -1225,7 +1225,7 @@ _(no methods defined in class body)_
 - [ ] `TransferOrderManager._ready_for_approval()` — L90 _(private)_
 - [ ] `TransferOrderManager._validate_ready_for_approval()` — L97 _(private)_
 - [ ] `TransferOrderManager._has_any_approval()` — L119 _(private)_
-- [ ] `TransferOrderManager._all_items_transferred()` — L125 _(private)_ ⚠️ **[possibly unused — verify before testing]**
+- [x] `TransferOrderManager._all_items_transferred()` — L125 _(private)_ ~~[DELETED DEAD CODE]~~
 - [ ] `TransferOrderManager._format_scalar_value()` — L130 _(private)_
 - [ ] `TransferOrderManager._format_location_id()` — L140 _(private)_
 - [ ] `TransferOrderManager._format_field_value()` — L163 _(private)_
@@ -1444,7 +1444,7 @@ _(no methods defined in class body)_
 - [ ] `MachineWorkService.earliest_upcoming_on_or_after()` — L176
 - [ ] `MachineWorkService.has_overdue()` — L181
 - [ ] `MachineWorkService.has_upcoming_in_horizon()` — L185
-- [ ] `MachineWorkService.has_upcoming_work()` — L189 ⚠️ **[possibly unused — verify before testing]**
+- [x] `MachineWorkService.has_upcoming_work()` — L189 ~~[DELETED DEAD CODE]~~
 
 #### `app/services/work_order_service.py` (30)
 
@@ -1645,7 +1645,7 @@ _(no methods defined in class body)_
 
 #### class `DAOWorkOrderType` (BaseDAO[WorkOrderType, WorkOrderTypeCreate, WorkOrderTypeUpdate])
 
-- [ ] `DAOWorkOrderType.get_active_types()` — L25 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOWorkOrderType.get_active_types()` — L25 ~~[DELETED DEAD CODE]~~
 - [ ] `DAOWorkOrderType.soft_delete()` — L42
 - [ ] `DAOWorkOrderType.restore()` — L53
 
@@ -1919,7 +1919,7 @@ _(no methods defined in class body)_
 
 #### class `DAODeliveryMethod` (BaseDAO[DeliveryMethod, DeliveryMethodCreate, DeliveryMethodUpdate])
 
-- [ ] `DAODeliveryMethod.get_active_delivery_methods()` — L25 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAODeliveryMethod.get_active_delivery_methods()` — L25 ~~[DELETED DEAD CODE]~~
 - [ ] `DAODeliveryMethod.soft_delete()` — L41
 - [ ] `DAODeliveryMethod.restore()` — L52
 
@@ -2008,7 +2008,7 @@ _(no methods defined in class body)_
 
 - [ ] `MachineSectionAssignmentManager.__init__()` — L15 _(dunder)_
 - [ ] `MachineSectionAssignmentManager.set_assignment()` — L19
-- [ ] `MachineSectionAssignmentManager.get_for_machine()` — L51 ⚠️ **[possibly unused — verify before testing]**
+- [x] `MachineSectionAssignmentManager.get_for_machine()` — L51 ~~[DELETED DEAD CODE]~~
 - [ ] `MachineSectionAssignmentManager.clear_for_section()` — L56
 
 ### Services
@@ -2059,7 +2059,7 @@ _(no methods defined in class body)_
 
 - [ ] `DAOMachine.get_by_factory()` — L26
 - [ ] `DAOMachine.get_by_section()` — L39
-- [ ] `DAOMachine.get_running_machines()` — L54 ⚠️ **[possibly unused — verify before testing]**
+- [x] `DAOMachine.get_running_machines()` — L54 ~~[DELETED DEAD CODE]~~
 - [ ] `DAOMachine.get_active_by_workspace()` — L69
 - [ ] `DAOMachine.soft_delete()` — L83
 - [ ] `DAOMachine.restore()` — L95
@@ -2272,7 +2272,7 @@ _(no methods defined in class body)_
 
 - [ ] `ProjectMemberDAO.get_by_project()` — L10
 - [ ] `ProjectMemberDAO.get_by_project_and_user()` — L23
-- [ ] `ProjectMemberDAO.get_project_ids_for_user()` — L36 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectMemberDAO.get_project_ids_for_user()` — L36 ~~[DELETED DEAD CODE]~~
 
 ## Production (125 callables)
 
@@ -2318,7 +2318,7 @@ _(no methods defined in class body)_
 - [ ] `ProductionFormulaManager.update_formula_item()` — L198
 - [ ] `ProductionFormulaManager.remove_formula_item()` — L222
 - [ ] `ProductionFormulaManager.get_formula_items()` — L237
-- [ ] `ProductionFormulaManager.get_formula_base_output()` — L265 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionFormulaManager.get_formula_base_output()` — L265 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionFormulaManager._validate_stage_refs()` — L295 _(private)_
 - [ ] `ProductionFormulaManager.get_formula_stages()` — L326
 - [ ] `ProductionFormulaManager.add_formula_stage()` — L338
@@ -2399,14 +2399,14 @@ _(no methods defined in class body)_
 #### class `ProductionBatchDAO` (BaseDAO[ProductionBatch, ProductionBatchCreate, ProductionBatchUpdate])
 
 - [ ] `ProductionBatchDAO.get_by_workspace()` — L18
-- [ ] `ProductionBatchDAO.get_by_batch_number()` — L42 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionBatchDAO.get_by_batch_number()` — L42 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionBatchDAO.get_by_production_line()` — L65
 - [ ] `ProductionBatchDAO.get_by_formula()` — L94
 - [ ] `ProductionBatchDAO.get_by_status()` — L123
 - [ ] `ProductionBatchDAO.count_by_status()` — L152
 - [ ] `ProductionBatchDAO.get_by_date_range()` — L170
-- [ ] `ProductionBatchDAO.get_in_progress_batches()` — L201 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionBatchDAO.get_completed_batches()` — L224 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionBatchDAO.get_in_progress_batches()` — L201 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionBatchDAO.get_completed_batches()` — L224 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionBatchDAO.get_by_id_and_workspace()` — L251
 - [ ] `ProductionBatchDAO.generate_batch_number()` — L274
 
@@ -2416,10 +2416,10 @@ _(no methods defined in class body)_
 
 - [ ] `ProductionBatchItemDAO.get_by_batch()` — L15
 - [ ] `ProductionBatchItemDAO.get_by_batch_and_role()` — L38
-- [ ] `ProductionBatchItemDAO.get_inputs_for_batch()` — L63 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionBatchItemDAO.get_outputs_for_batch()` — L81 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionBatchItemDAO.get_waste_for_batch()` — L99 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionBatchItemDAO.get_byproducts_for_batch()` — L117 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionBatchItemDAO.get_inputs_for_batch()` — L63 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionBatchItemDAO.get_outputs_for_batch()` — L81 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionBatchItemDAO.get_waste_for_batch()` — L99 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionBatchItemDAO.get_byproducts_for_batch()` — L117 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionBatchItemDAO.get_by_item()` — L135
 - [ ] `ProductionBatchItemDAO.get_by_id_and_workspace()` — L163
 
@@ -2439,7 +2439,7 @@ _(no methods defined in class body)_
 - [ ] `ProductionFormulaDAO.get_active_by_workspace()` — L61
 - [ ] `ProductionFormulaDAO.get_default_formulas()` — L87
 - [ ] `ProductionFormulaDAO.get_by_id_and_workspace()` — L110
-- [ ] `ProductionFormulaDAO.get_formula_versions()` — L133 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionFormulaDAO.get_formula_versions()` — L133 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/production_formula_item.py` (7)
 
@@ -2447,10 +2447,10 @@ _(no methods defined in class body)_
 
 - [ ] `ProductionFormulaItemDAO.get_by_formula()` — L15
 - [ ] `ProductionFormulaItemDAO.get_by_formula_and_role()` — L38
-- [ ] `ProductionFormulaItemDAO.get_inputs_for_formula()` — L63 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionFormulaItemDAO.get_outputs_for_formula()` — L81 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionFormulaItemDAO.get_waste_for_formula()` — L99 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProductionFormulaItemDAO.get_byproducts_for_formula()` — L117 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionFormulaItemDAO.get_inputs_for_formula()` — L63 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionFormulaItemDAO.get_outputs_for_formula()` — L81 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionFormulaItemDAO.get_waste_for_formula()` — L99 ~~[DELETED DEAD CODE]~~
+- [x] `ProductionFormulaItemDAO.get_byproducts_for_formula()` — L117 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionFormulaItemDAO.get_by_id_and_workspace()` — L135
 
 #### `app/dao/production_formula_stage.py` (3)
@@ -2459,7 +2459,7 @@ _(no methods defined in class body)_
 
 - [ ] `ProductionFormulaStageDAO.get_by_formula()` — L12
 - [ ] `ProductionFormulaStageDAO.get_by_id_and_workspace()` — L25
-- [ ] `ProductionFormulaStageDAO.get_max_stage_order()` — L34 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionFormulaStageDAO.get_max_stage_order()` — L34 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/production_line.py` (6)
 
@@ -2469,7 +2469,7 @@ _(no methods defined in class body)_
 - [ ] `ProductionLineDAO.get_by_factory()` — L38
 - [ ] `ProductionLineDAO.get_by_machine()` — L65
 - [ ] `ProductionLineDAO.get_active_by_workspace()` — L88
-- [ ] `ProductionLineDAO.get_standalone_lines()` — L114 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProductionLineDAO.get_standalone_lines()` — L114 ~~[DELETED DEAD CODE]~~
 - [ ] `ProductionLineDAO.get_by_id_and_workspace()` — L136
 
 ## Invoicing & Accounts Receivable (85 callables)
@@ -2579,8 +2579,8 @@ _(no methods defined in class body)_
 - [ ] `AccountInvoiceDAO.summarize_invoices()` — L413
 - [ ] `AccountInvoiceDAO.get_by_order()` — L467
 - [ ] `AccountInvoiceDAO.update_paid_amount()` — L480
-- [ ] `AccountInvoiceDAO.get_overdue_invoices()` — L496 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `AccountInvoiceDAO.get_invoices_with_payments_enabled()` — L522 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AccountInvoiceDAO.get_overdue_invoices()` — L496 ~~[DELETED DEAD CODE]~~
+- [x] `AccountInvoiceDAO.get_invoices_with_payments_enabled()` — L522 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/invoice_event.py` (2)
 
@@ -2604,9 +2604,9 @@ _(no methods defined in class body)_
 - [ ] `InvoicePaymentDAO.get_by_invoice()` — L16
 - [ ] `InvoicePaymentDAO.get_by_id_and_workspace_with_creator()` — L39
 - [ ] `InvoicePaymentDAO.get_by_date_range()` — L57
-- [ ] `InvoicePaymentDAO.get_by_payment_method()` — L88 ⚠️ **[possibly unused — verify before testing]**
+- [x] `InvoicePaymentDAO.get_by_payment_method()` — L88 ~~[DELETED DEAD CODE]~~
 - [ ] `InvoicePaymentDAO.get_total_paid_for_invoice()` — L117
-- [ ] `InvoicePaymentDAO.get_recent_payments()` — L142 ⚠️ **[possibly unused — verify before testing]**
+- [x] `InvoicePaymentDAO.get_recent_payments()` — L142 ~~[DELETED DEAD CODE]~~
 
 ## Subscription Billing & Payment Gateway (39 callables)
 
@@ -2716,7 +2716,7 @@ _(no methods defined in class body)_
 
 - [ ] `SubscriptionPlanDAO.get_by_name()` — L12
 - [ ] `SubscriptionPlanDAO.get_default_plan()` — L16
-- [ ] `SubscriptionPlanDAO.get_active_plans()` — L24 ⚠️ **[possibly unused — verify before testing]**
+- [x] `SubscriptionPlanDAO.get_active_plans()` — L24 ~~[DELETED DEAD CODE]~~
 
 ## Notifications & Discussions (16 callables)
 
@@ -2998,8 +2998,8 @@ _(no methods defined in class body)_
 #### class `AttachmentDAO` (BaseDAO[Attachment, AttachmentCreateInternal, AttachmentUpdateInternal])
 
 - [ ] `AttachmentDAO.get_active()` — L20
-- [ ] `AttachmentDAO.get_multi_active()` — L42 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `AttachmentDAO.get_by_uploader()` — L64 ⚠️ **[possibly unused — verify before testing]**
+- [x] `AttachmentDAO.get_multi_active()` — L42 ~~[DELETED DEAD CODE]~~
+- [x] `AttachmentDAO.get_by_uploader()` — L64 ~~[DELETED DEAD CODE]~~
 - [ ] `AttachmentDAO.soft_delete()` — L88
 - [ ] `AttachmentDAO.restore()` — L122
 
@@ -3056,22 +3056,22 @@ _(no methods defined in class body)_
 #### class `ProjectAttachmentDAO` (BaseDAO[ProjectAttachment, ProjectAttachmentCreate, ProjectAttachmentResponse])
 
 - [ ] `ProjectAttachmentDAO.get_by_project()` — L19
-- [ ] `ProjectAttachmentDAO.get_by_attachment()` — L46 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectAttachmentDAO.get_by_attachment()` — L46 ~~[DELETED DEAD CODE]~~
 - [ ] `ProjectAttachmentDAO.get_link()` — L65
-- [ ] `ProjectAttachmentDAO.link_exists()` — L88 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProjectAttachmentDAO.unlink()` — L105 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProjectAttachmentDAO.get_attachment_count()` — L128 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectAttachmentDAO.link_exists()` — L88 ~~[DELETED DEAD CODE]~~
+- [x] `ProjectAttachmentDAO.unlink()` — L105 ~~[DELETED DEAD CODE]~~
+- [x] `ProjectAttachmentDAO.get_attachment_count()` — L128 ~~[DELETED DEAD CODE]~~
 
 #### `app/dao/project_component_attachment.py` (6)
 
 #### class `ProjectComponentAttachmentDAO` (BaseDAO[ProjectComponentAttachment, ProjectComponentAttachmentCreate, ProjectComponentAttachmentResponse])
 
-- [ ] `ProjectComponentAttachmentDAO.get_by_project_component()` — L19 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProjectComponentAttachmentDAO.get_by_attachment()` — L47 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectComponentAttachmentDAO.get_by_project_component()` — L19 ~~[DELETED DEAD CODE]~~
+- [x] `ProjectComponentAttachmentDAO.get_by_attachment()` — L47 ~~[DELETED DEAD CODE]~~
 - [ ] `ProjectComponentAttachmentDAO.get_link()` — L66
-- [ ] `ProjectComponentAttachmentDAO.link_exists()` — L89 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProjectComponentAttachmentDAO.unlink()` — L106 ⚠️ **[possibly unused — verify before testing]**
-- [ ] `ProjectComponentAttachmentDAO.get_attachment_count()` — L129 ⚠️ **[possibly unused — verify before testing]**
+- [x] `ProjectComponentAttachmentDAO.link_exists()` — L89 ~~[DELETED DEAD CODE]~~
+- [x] `ProjectComponentAttachmentDAO.unlink()` — L106 ~~[DELETED DEAD CODE]~~
+- [x] `ProjectComponentAttachmentDAO.get_attachment_count()` — L129 ~~[DELETED DEAD CODE]~~
 
 ## Help, Waitlist & Platform Admin (35 callables)
 
@@ -3287,15 +3287,15 @@ _(no methods defined in class body)_
 
 - [ ] `BusinessRuleError.__init__()` — L100 _(dunder)_
 
-#### class `RateLimitError` (APIException) ⚠️ **[possibly unused — verify before testing]**
+#### class `RateLimitError` (APIException) ~~[DELETED DEAD CODE]~~
 
 - [ ] `RateLimitError.__init__()` — L112 _(dunder)_
 
-#### class `InternalServerError` (APIException) ⚠️ **[possibly unused — verify before testing]**
+#### class `InternalServerError` (APIException) ~~[DELETED DEAD CODE]~~
 
 - [ ] `InternalServerError.__init__()` — L125 _(dunder)_
 
-#### class `ServiceUnavailableError` (APIException) ⚠️ **[possibly unused — verify before testing]**
+#### class `ServiceUnavailableError` (APIException) ~~[DELETED DEAD CODE]~~
 
 - [ ] `ServiceUnavailableError.__init__()` — L136 _(dunder)_
 
@@ -3338,5 +3338,5 @@ _(no methods defined in class body)_
 - [ ] `BaseDAO.remove()` — L120
 - [ ] `BaseDAO.get_by_workspace()` — L142
 - [ ] `BaseDAO.get_by_id_and_workspace()` — L168
-- [ ] `BaseDAO.create_in_workspace()` — L195 ⚠️ **[possibly unused — verify before testing]**
+- [x] `BaseDAO.create_in_workspace()` — L195 ~~[DELETED DEAD CODE]~~
 

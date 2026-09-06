@@ -97,29 +97,6 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
             .all()
         )
 
-    def get_by_sku_in_workspace(
-        self, db: Session, *, workspace_id: int, sku: str
-    ) -> Optional[Item]:
-        """
-        Get item by SKU within workspace (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            sku: SKU to search for
-
-        Returns:
-            Item with matching SKU or None
-        """
-        return (
-            db.query(Item)
-            .filter(
-                Item.workspace_id == workspace_id,
-                Item.sku == sku
-            )
-            .first()
-        )
-
     def get_active_items_in_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
     ) -> List[Item]:

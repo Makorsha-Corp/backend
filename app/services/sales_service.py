@@ -275,33 +275,6 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def create_sales_order(
-        self,
-        db: Session,
-        order_in: SalesOrderCreate,
-        items_data: List[dict],
-        workspace_id: int,
-        current_user: Profile
-    ) -> SalesOrder:
-        """
-        Create a new sales order with items.
-
-        Args:
-            db: Database session
-            order_in: Sales order creation data
-            items_data: List of items to sell
-            workspace_id: Workspace ID
-            current_user: Current authenticated user
-
-        Returns:
-            Created sales order
-
-        Raises:
-            Exception: If creation fails
-        """
-        order_data = order_in.model_dump()
-        return self.create_sales_order_from_dict(db, order_data, items_data, workspace_id, current_user)
-
     def create_sales_order_from_dict(
         self,
         db: Session,

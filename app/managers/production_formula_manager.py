@@ -262,34 +262,6 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
             session, formula_id=formula_id, workspace_id=workspace_id
         )
 
-    def get_formula_base_output(
-        self,
-        session: Session,
-        formula_id: int,
-        workspace_id: int
-    ) -> int:
-        """
-        Calculate the base output quantity for a formula.
-
-        Sums up the quantities of all 'output' role items.
-        Used for scaling calculations when starting a batch.
-
-        Returns:
-            Total base output quantity (sum of all output items)
-
-        Raises:
-            ValueError: If formula has no output items defined
-        """
-        output_items = self.formula_item_dao.get_by_formula_and_role(
-            session, formula_id=formula_id, item_role='output', workspace_id=workspace_id
-        )
-        if not output_items:
-            raise ValueError(
-                f"Formula {formula_id} has no output items defined. "
-                f"Add at least one item with role='output' before using the formula."
-            )
-        return sum(item.quantity for item in output_items)
-
     # ─── Formula Stage CRUD ─────────────────────────────────────────
 
     def _validate_stage_refs(

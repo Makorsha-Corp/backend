@@ -186,29 +186,4 @@ class MachineWorkService(BaseService):
         end = date.fromordinal(today.toordinal() + horizon_days)
         return any(today <= d <= end for d in dates)
 
-    def has_upcoming_work(
-        self,
-        db: Session,
-        *,
-        workspace_id: int,
-        machine_id: int,
-        from_date: date,
-    ) -> bool:
-        """True when machine has any open WO on/after from_date."""
-        return (
-            db.query(WorkOrder.id)
-            .filter(
-                WorkOrder.workspace_id == workspace_id,
-                WorkOrder.machine_id == machine_id,
-                WorkOrder.is_deleted.is_(False),
-                WorkOrder.status.in_(_OPEN_WO_STATUSES),
-                WorkOrder.planned_date.isnot(None),
-                WorkOrder.planned_date >= from_date,
-            )
-            .limit(1)
-            .first()
-            is not None
-        )
-
-
 machine_work_service = MachineWorkService()

@@ -33,22 +33,6 @@ class RefreshTokenDAO:
     def get_by_id(self, db: Session, *, id: int) -> Optional[RefreshToken]:
         return db.query(RefreshToken).filter(RefreshToken.id == id).first()
 
-    def list_active_for_user(
-        self, db: Session, *, user_id: int
-    ) -> List[RefreshToken]:
-        """Return active (non-revoked, non-expired) tokens for a user."""
-        now = utcnow()
-        return (
-            db.query(RefreshToken)
-            .filter(
-                RefreshToken.user_id == user_id,
-                RefreshToken.revoked_at.is_(None),
-                RefreshToken.expires_at > now,
-            )
-            .order_by(RefreshToken.issued_at.desc())
-            .all()
-        )
-
     def create(
         self,
         db: Session,
@@ -127,21 +111,5 @@ class RefreshTokenDAO:
         """Set `last_used_at = now` on a row (for diagnostics, not security)."""
         row.last_used_at = utcnow()
         db.flush()
-
-    def cleanup_expired(self, db: Session, *, older_than: datetime) -> int:
-        """Hard-delete refresh tokens whose `expires_at` is older than the cutoff.
-
-        Intended to be called by a periodic job to keep the table bounded.
-        Tokens that are merely revoked but not yet expired are kept so reuse
-        detection still works.
-        """
-        deleted = (
-            db.query(RefreshToken)
-            .filter(RefreshToken.expires_at < older_than)
-            .delete(synchronize_session=False)
-        )
-        db.flush()
-        return int(deleted)
-
 
 refresh_token_dao = RefreshTokenDAO()

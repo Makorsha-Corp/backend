@@ -45,33 +45,6 @@ class AccountTagAssignmentDAO(BaseDAO[AccountTagAssignment, AccountTagAssignment
             .all()
         )
 
-    def get_accounts_for_tag(
-        self, db: Session, *, tag_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccountTagAssignment]:
-        """
-        Get all account assignments for a tag (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            tag_id: Tag ID
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of account assignments for the tag
-        """
-        return (
-            db.query(AccountTagAssignment)
-            .filter(
-                AccountTagAssignment.workspace_id == workspace_id,
-                AccountTagAssignment.tag_id == tag_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_assignment(
         self, db: Session, *, account_id: int, tag_id: int, workspace_id: int
     ) -> Optional[AccountTagAssignment]:

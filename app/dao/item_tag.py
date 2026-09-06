@@ -55,29 +55,6 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
             .all()
         )
 
-    def get_user_tags_in_workspace(
-        self, db: Session, *, workspace_id: int
-    ) -> List[ItemTag]:
-        """
-        Get all user-created tags within workspace
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            List of user-created tags in workspace
-        """
-        return (
-            db.query(ItemTag)
-            .filter(
-                ItemTag.workspace_id == workspace_id,
-                ItemTag.is_system_tag == False,
-                ItemTag.is_active == True
-            )
-            .all()
-        )
-
     def get_active_tags_in_workspace(
         self, db: Session, *, workspace_id: int
     ) -> List[ItemTag]:

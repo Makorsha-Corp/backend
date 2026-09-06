@@ -48,11 +48,6 @@ class MachineSectionAssignmentManager:
             workspace_id=workspace_id, user_id=user_id,
         )
 
-    def get_for_machine(
-        self, session: Session, *, machine_id: int, workspace_id: int
-    ) -> Optional[MachineSectionAssignment]:
-        return self.assignment_dao.get_by_machine(session, machine_id=machine_id, workspace_id=workspace_id)
-
     def clear_for_section(
         self, session: Session, *, factory_section_id: int, workspace_id: int
     ) -> list[int]:

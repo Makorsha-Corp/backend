@@ -111,28 +111,6 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
             .all()
         )
 
-    def get_standalone_lines(
-        self, db: Session, *, workspace_id: int
-    ) -> List[ProductionLine]:
-        """
-        Get standalone production lines (not attached to machines) (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            List of standalone production lines
-        """
-        return (
-            db.query(ProductionLine)
-            .filter(
-                ProductionLine.workspace_id == workspace_id,
-                ProductionLine.machine_id.is_(None)
-            )
-            .all()
-        )
-
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
     ) -> Optional[ProductionLine]:

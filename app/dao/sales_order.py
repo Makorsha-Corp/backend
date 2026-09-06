@@ -87,27 +87,6 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
         db.flush()
         return db_obj
 
-    def get_by_account(
-        self,
-        db: Session,
-        *,
-        account_id: int,
-        workspace_id: int,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[SalesOrder]:
-        """Get sales orders by customer account"""
-        return (
-            db.query(SalesOrder)
-            .filter(
-                SalesOrder.account_id == account_id,
-                SalesOrder.workspace_id == workspace_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_by_factory(
         self,
         db: Session,
@@ -149,36 +128,5 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
             .limit(limit)
             .all()
         )
-
-    def get_pending_deliveries(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[SalesOrder]:
-        """Get sales orders with pending deliveries"""
-        return (
-            db.query(SalesOrder)
-            .filter(
-                SalesOrder.is_fully_delivered == False,
-                SalesOrder.workspace_id == workspace_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
-    def get_uninvoiced_orders(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[SalesOrder]:
-        """Get sales orders that haven't been invoiced"""
-        return (
-            db.query(SalesOrder)
-            .filter(
-                SalesOrder.is_invoiced == False,
-                SalesOrder.workspace_id == workspace_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
 
 sales_order_dao = DAOSalesOrder(SalesOrder)

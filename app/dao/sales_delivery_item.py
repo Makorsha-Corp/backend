@@ -26,40 +26,4 @@ class DAOSalesDeliveryItem(BaseDAO[SalesDeliveryItem, SalesDeliveryItemCreate, S
             .all()
         )
 
-    def get_by_sales_order_item(
-        self,
-        db: Session,
-        *,
-        sales_order_item_id: int,
-        workspace_id: int
-    ) -> List[SalesDeliveryItem]:
-        """Get all delivery items for a sales order item (tracks delivery history)"""
-        return (
-            db.query(SalesDeliveryItem)
-            .filter(
-                SalesDeliveryItem.sales_order_item_id == sales_order_item_id,
-                SalesDeliveryItem.workspace_id == workspace_id
-            )
-            .all()
-        )
-
-    def calculate_total_delivered(
-        self,
-        db: Session,
-        *,
-        sales_order_item_id: int,
-        workspace_id: int
-    ) -> int:
-        """Calculate total quantity delivered for a sales order item"""
-        result = (
-            db.query(SalesDeliveryItem)
-            .filter(
-                SalesDeliveryItem.sales_order_item_id == sales_order_item_id,
-                SalesDeliveryItem.workspace_id == workspace_id
-            )
-            .all()
-        )
-        return sum(item.quantity_delivered for item in result)
-
-
 sales_delivery_item_dao = DAOSalesDeliveryItem(SalesDeliveryItem)

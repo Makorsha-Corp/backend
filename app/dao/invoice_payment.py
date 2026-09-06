@@ -85,35 +85,6 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
             .all()
         )
 
-    def get_by_payment_method(
-        self, db: Session, *, workspace_id: int, payment_method: str,
-        skip: int = 0, limit: int = 100
-    ) -> List[InvoicePayment]:
-        """
-        Get payments by payment method (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            payment_method: Payment method (cash, bank_transfer, cheque, card)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of payments with matching method
-        """
-        return (
-            db.query(InvoicePayment)
-            .filter(
-                InvoicePayment.workspace_id == workspace_id,
-                InvoicePayment.payment_method == payment_method
-            )
-            .order_by(InvoicePayment.payment_date.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_total_paid_for_invoice(
         self, db: Session, *, invoice_id: int, workspace_id: int
     ) -> Decimal:
@@ -138,33 +109,5 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
             .scalar()
         )
         return result if result else Decimal('0.00')
-
-    def get_recent_payments(
-        self, db: Session, *, workspace_id: int, days: int = 30, limit: int = 50
-    ) -> List[InvoicePayment]:
-        """
-        Get recent payments within last N days (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            days: Number of days to look back
-            limit: Maximum number of records to return
-
-        Returns:
-            List of recent payments
-        """
-        cutoff_date = date.today() - timedelta(days=days)
-        return (
-            db.query(InvoicePayment)
-            .filter(
-                InvoicePayment.workspace_id == workspace_id,
-                InvoicePayment.payment_date >= cutoff_date
-            )
-            .order_by(InvoicePayment.payment_date.desc())
-            .limit(limit)
-            .all()
-        )
-
 
 invoice_payment_dao = InvoicePaymentDAO(InvoicePayment)

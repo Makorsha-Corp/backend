@@ -22,23 +22,6 @@ class DAOWorkOrderType(BaseDAO[WorkOrderType, WorkOrderTypeCreate, WorkOrderType
     - get_by_id_and_workspace() - Get specific work order type in workspace
     """
 
-    def get_active_types(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderType]:
-        """Get all active, non-deleted work order types for a workspace (SECURITY-CRITICAL: workspace-filtered)"""
-        return (
-            db.query(WorkOrderType)
-            .filter(
-                WorkOrderType.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                WorkOrderType.is_active == True,
-                WorkOrderType.is_deleted == False
-            )
-            .order_by(WorkOrderType.name)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def soft_delete(
         self, db: Session, *, db_obj: WorkOrderType, deleted_by: int
     ) -> WorkOrderType:

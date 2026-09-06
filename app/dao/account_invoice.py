@@ -493,47 +493,4 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
             db.flush()
         return invoice
 
-    def get_overdue_invoices(
-        self, db: Session, *, workspace_id: int, as_of_date: date = None
-    ) -> List[AccountInvoice]:
-        """
-        Get all overdue invoices (SECURITY-CRITICAL)
-
-        TODO: Replace with a cron job that updates payment_status to 'overdue'
-              nightly for confirmed invoices past their due_date with unpaid/partial status.
-        """
-        if as_of_date is None:
-            as_of_date = date.today()
-
-        return (
-            db.query(AccountInvoice)
-            .join(Account, AccountInvoice.account_id == Account.id)
-            .filter(
-                AccountInvoice.workspace_id == workspace_id,
-                Account.is_deleted == False,
-                AccountInvoice.payment_status.in_(['unpaid', 'partial']),
-                AccountInvoice.invoice_status != 'voided',
-                AccountInvoice.due_date < as_of_date
-            )
-            .order_by(AccountInvoice.due_date)
-            .all()
-        )
-
-    def get_invoices_with_payments_enabled(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccountInvoice]:
-        """Get invoices that have payments enabled"""
-        return (
-            db.query(AccountInvoice)
-            .filter(
-                AccountInvoice.workspace_id == workspace_id,
-                AccountInvoice.allow_payments == True
-            )
-            .order_by(AccountInvoice.invoice_date.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
-
 account_invoice_dao = AccountInvoiceDAO(AccountInvoice)

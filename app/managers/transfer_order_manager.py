@@ -122,11 +122,6 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         )
         return any(a.approved for a in approvers)
 
-    def _all_items_transferred(self, items: List[TransferOrderItem]) -> bool:
-        if not items:
-            return False
-        return all(i.transferred_at is not None for i in items)
-
     def _format_scalar_value(self, field: str, value: Any) -> str:
         if value is None:
             return '—'
