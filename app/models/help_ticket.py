@@ -26,6 +26,7 @@ class HelpTicket(Base):
     description = Column(Text, nullable=False)
     category = Column(String(80), nullable=True)
     status = Column(String(16), nullable=False, default="open", index=True)
+    type = Column(String(16), nullable=False, default="support", index=True)
 
     created_by = Column(
         Integer,

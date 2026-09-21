@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.workspace_member import workspace_member_dao
 from app.managers.help_ticket_manager import HelpTicketForbiddenError, HelpTicketNotFoundError
-from app.models.enums import HelpTicketStatusEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.help_ticket import HelpTicketCreate, HelpTicketResponse, HelpTicketUpdate
@@ -47,6 +47,7 @@ def create_help_ticket(
 )
 def list_help_tickets(
     status_filter: Optional[HelpTicketStatusEnum] = Query(None, alias="status"),
+    type_filter: Optional[HelpTicketTypeEnum] = Query(None, alias="type"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     workspace: Workspace = Depends(get_current_workspace),
@@ -60,6 +61,7 @@ def list_help_tickets(
         user=current_user,
         role=role,
         status=status_filter,
+        ticket_type=type_filter,
         skip=skip,
         limit=limit,
     )

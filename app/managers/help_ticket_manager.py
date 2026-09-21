@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 
 from app.dao.help_ticket import help_ticket_dao
-from app.models.enums import HelpTicketStatusEnum, RoleEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum, RoleEnum
 from app.models.help_ticket import HelpTicket
 from app.models.profile import Profile
 from app.schemas.help_ticket import (
@@ -73,10 +73,12 @@ class HelpTicketManager:
         user: Profile,
         role: str | None,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> list[HelpTicket]:
         status_value = status.value if status is not None else None
+        type_value = ticket_type.value if ticket_type is not None else None
         created_by_filter = None
         if not self.can_view_all_tickets(role):
             created_by_filter = user.id
@@ -84,6 +86,7 @@ class HelpTicketManager:
             session,
             workspace_id=workspace_id,
             status=status_value,
+            ticket_type=type_value,
             created_by=created_by_filter,
             skip=skip,
             limit=limit,
@@ -94,14 +97,17 @@ class HelpTicketManager:
         session: Session,
         *,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> list[PlatformHelpTicketListItem]:
         status_value = status.value if status is not None else None
+        type_value = ticket_type.value if ticket_type is not None else None
         rows = help_ticket_dao.list_platform(
             session,
             status=status_value,
+            ticket_type=type_value,
             search=search,
             skip=skip,
             limit=limit,

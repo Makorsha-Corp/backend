@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import HelpTicketStatusEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 
 
 class HelpTicketCreate(BaseModel):
@@ -11,6 +11,7 @@ class HelpTicketCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(..., min_length=1)
     category: str | None = Field(default=None, max_length=80)
+    type: HelpTicketTypeEnum = Field(default=HelpTicketTypeEnum.SUPPORT)
 
 
 class HelpTicketUpdate(BaseModel):
@@ -30,6 +31,7 @@ class HelpTicketResponse(BaseModel):
     description: str
     category: str | None
     status: HelpTicketStatusEnum
+    type: HelpTicketTypeEnum
     created_by: int | None
     creator_name: str | None = None
     created_at: datetime

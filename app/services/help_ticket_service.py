@@ -9,7 +9,7 @@ from app.managers.help_ticket_manager import (
     HelpTicketNotFoundError,
     help_ticket_manager,
 )
-from app.models.enums import HelpTicketStatusEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.help_ticket import (
@@ -61,6 +61,7 @@ class HelpTicketService(BaseService):
         user: Profile,
         role: str | None,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[HelpTicketResponse]:
@@ -70,6 +71,7 @@ class HelpTicketService(BaseService):
             user=user,
             role=role,
             status=status,
+            ticket_type=ticket_type,
             skip=skip,
             limit=limit,
         )
@@ -129,6 +131,7 @@ class HelpTicketService(BaseService):
         db: Session,
         *,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 100,
@@ -136,6 +139,7 @@ class HelpTicketService(BaseService):
         return self.manager.list_platform_tickets(
             db,
             status=status,
+            ticket_type=ticket_type,
             search=search,
             skip=skip,
             limit=limit,
