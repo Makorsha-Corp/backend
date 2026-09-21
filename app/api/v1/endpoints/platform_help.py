@@ -5,10 +5,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_platform_admin
-from app.managers.help_ticket_manager import HelpTicketNotFoundError
+from app.managers.help_ticket_manager import (
+    HelpTicketInvalidTransitionError,
+    HelpTicketNotFoundError,
+    HelpTicketStatusChangeForbiddenError,
+)
 from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
-from app.schemas.help_ticket import PlatformHelpTicketListItem
+from app.schemas.help_ticket import (
+    HelpTicketResponse,
+    HelpTicketUpdate,
+    PlatformHelpTicketListItem,
+)
 from app.services.help_ticket_service import help_ticket_service
 
 router = APIRouter()
@@ -52,3 +60,26 @@ def get_platform_help_ticket(
         return help_ticket_service.get_platform_ticket(db, ticket_id=ticket_id)
     except HelpTicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/help/tickets/{ticket_id}",
+    response_model=HelpTicketResponse,
+    summary="Update help ticket status (platform admin)",
+)
+def update_platform_help_ticket(
+    ticket_id: int,
+    payload: HelpTicketUpdate,
+    admin: Profile = Depends(get_platform_admin),
+    db: Session = Depends(get_db),
+):
+    try:
+        return help_ticket_service.update_platform_ticket(
+            db, ticket_id=ticket_id, user=admin, payload=payload
+        )
+    except HelpTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except HelpTicketStatusChangeForbiddenError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except HelpTicketInvalidTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

@@ -149,7 +149,8 @@ class AttachmentEntityTypeEnum(str, enum.Enum):
 
 class HelpTicketStatusEnum(str, enum.Enum):
     """Help ticket lifecycle status."""
-    OPEN = "open"
+    PENDING = "pending"
+    OPENED = "opened"
     CLOSED = "closed"
 
 

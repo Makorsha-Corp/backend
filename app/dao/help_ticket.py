@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session, joinedload
 
 from app.dao.base import BaseDAO
+from app.models.enums import HelpTicketStatusEnum
 from app.models.help_ticket import HelpTicket
 from app.models.profile import Profile
 from app.models.workspace import Workspace
@@ -50,7 +51,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
             workspace_id=workspace_id,
             ticket_number=ticket_number,
             created_by=user_id,
-            status="open",
+            status=HelpTicketStatusEnum.PENDING.value,
             type=ticket_type,
         )
         db.add(db_obj)

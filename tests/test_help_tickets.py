@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.managers.attachment_manager import AttachmentManager
-from app.managers.help_ticket_manager import HelpTicketManager, HelpTicketNotFoundError
+from app.managers.help_ticket_manager import (
+    HelpTicketInvalidTransitionError,
+    HelpTicketManager,
+    HelpTicketNotFoundError,
+    HelpTicketStatusChangeForbiddenError,
+)
 from app.models.enums import AttachmentEntityTypeEnum, HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.help_ticket import HelpTicket
@@ -21,7 +26,7 @@ def _ticket(**overrides) -> HelpTicket:
         title="Login issue",
         description="Cannot sign in on mobile.",
         category="Bug",
-        status=HelpTicketStatusEnum.OPEN.value,
+        status=HelpTicketStatusEnum.PENDING.value,
         type=HelpTicketTypeEnum.SUPPORT.value,
         created_by=5,
         created_at=datetime.now(timezone.utc),
@@ -65,10 +70,29 @@ def test_get_by_id_and_workspace_not_found(mock_dao: MagicMock) -> None:
 
 @patch("app.managers.help_ticket_manager.help_ticket_dao")
 @patch("app.managers.help_ticket_manager.utcnow")
+def test_open_ticket_from_pending(mock_utcnow: MagicMock, mock_dao: MagicMock) -> None:
+    ticket = _ticket(status=HelpTicketStatusEnum.PENDING.value)
+    mock_dao.update.return_value = ticket
+    manager = HelpTicketManager()
+    manager.update_ticket(
+        MagicMock(),
+        ticket=ticket,
+        payload=HelpTicketUpdate(status=HelpTicketStatusEnum.OPENED),
+        user_id=7,
+        is_platform_admin=True,
+    )
+    update_arg = mock_dao.update.call_args.kwargs["obj_in"]
+    assert update_arg["status"] == HelpTicketStatusEnum.OPENED.value
+    assert "closed_at" not in update_arg
+    assert "closed_by" not in update_arg
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+@patch("app.managers.help_ticket_manager.utcnow")
 def test_close_ticket_sets_closed_fields(mock_utcnow: MagicMock, mock_dao: MagicMock) -> None:
     closed_time = datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc)
     mock_utcnow.return_value = closed_time
-    ticket = _ticket()
+    ticket = _ticket(status=HelpTicketStatusEnum.OPENED.value)
     mock_dao.update.return_value = ticket
     manager = HelpTicketManager()
     manager.update_ticket(
@@ -76,6 +100,7 @@ def test_close_ticket_sets_closed_fields(mock_utcnow: MagicMock, mock_dao: Magic
         ticket=ticket,
         payload=HelpTicketUpdate(status=HelpTicketStatusEnum.CLOSED),
         user_id=7,
+        is_platform_admin=True,
     )
     mock_dao.update.assert_called_once()
     update_arg = mock_dao.update.call_args.kwargs["obj_in"]
@@ -96,13 +121,57 @@ def test_reopen_ticket_clears_closed_fields(mock_dao: MagicMock) -> None:
     manager.update_ticket(
         MagicMock(),
         ticket=ticket,
-        payload=HelpTicketUpdate(status=HelpTicketStatusEnum.OPEN),
+        payload=HelpTicketUpdate(status=HelpTicketStatusEnum.OPENED),
         user_id=7,
+        is_platform_admin=True,
     )
     update_arg = mock_dao.update.call_args.kwargs["obj_in"]
-    assert update_arg["status"] == HelpTicketStatusEnum.OPEN.value
+    assert update_arg["status"] == HelpTicketStatusEnum.OPENED.value
     assert update_arg["closed_at"] is None
     assert update_arg["closed_by"] is None
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_mill_user_cannot_change_status(mock_dao: MagicMock) -> None:
+    ticket = _ticket(status=HelpTicketStatusEnum.PENDING.value)
+    manager = HelpTicketManager()
+    with pytest.raises(HelpTicketStatusChangeForbiddenError):
+        manager.update_ticket(
+            MagicMock(),
+            ticket=ticket,
+            payload=HelpTicketUpdate(status=HelpTicketStatusEnum.OPENED),
+            user_id=5,
+            is_platform_admin=False,
+        )
+    mock_dao.update.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("current", "target"),
+    [
+        (HelpTicketStatusEnum.PENDING, HelpTicketStatusEnum.CLOSED),
+        (HelpTicketStatusEnum.OPENED, HelpTicketStatusEnum.PENDING),
+        (HelpTicketStatusEnum.CLOSED, HelpTicketStatusEnum.PENDING),
+        (HelpTicketStatusEnum.CLOSED, HelpTicketStatusEnum.CLOSED),
+    ],
+)
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_invalid_status_transition_rejected(
+    mock_dao: MagicMock,
+    current: HelpTicketStatusEnum,
+    target: HelpTicketStatusEnum,
+) -> None:
+    ticket = _ticket(status=current.value)
+    manager = HelpTicketManager()
+    with pytest.raises(HelpTicketInvalidTransitionError):
+        manager.update_ticket(
+            MagicMock(),
+            ticket=ticket,
+            payload=HelpTicketUpdate(status=target),
+            user_id=7,
+            is_platform_admin=True,
+        )
+    mock_dao.update.assert_not_called()
 
 
 @patch("app.managers.attachment_manager.help_ticket_dao")
@@ -247,3 +316,62 @@ def test_dao_create_with_user_defaults_type_to_support() -> None:
     payload = HelpTicketCreate(title="Bug", description="Something broke")
     ticket = dao.create_with_user(db, obj_in=payload, workspace_id=10, user_id=5)
     assert ticket.type == "support"
+
+
+def test_dao_create_with_user_sets_status_pending() -> None:
+    """DAO create_with_user always sets status to pending."""
+    from app.dao.help_ticket import DAOHelpTicket
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.count.return_value = 0
+    dao = DAOHelpTicket(HelpTicket)
+
+    payload = HelpTicketCreate(title="Bug", description="Something broke")
+    ticket = dao.create_with_user(db, obj_in=payload, workspace_id=10, user_id=5)
+    assert ticket.status == HelpTicketStatusEnum.PENDING.value
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_list_tickets_passes_status_filter(mock_dao: MagicMock) -> None:
+    mock_dao.list_by_workspace.return_value = []
+    manager = HelpTicketManager()
+    user = Profile(id=1, name="A", email="a@t.com", user_id="u", hashed_password="x")
+    manager.list_tickets(
+        MagicMock(),
+        workspace_id=10,
+        user=user,
+        role="owner",
+        status=HelpTicketStatusEnum.OPENED,
+    )
+    assert mock_dao.list_by_workspace.call_args.kwargs["status"] == "opened"
+
+
+def test_help_tickets_endpoint_rejects_mill_user_status_patch() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.core.deps import get_current_active_user, get_current_workspace, get_db
+    from app.main import app
+    from app.models.workspace import Workspace
+
+    user = Profile(id=5, name="Mill User", email="m@t.com", user_id="u5", hashed_password="x")
+    user.is_platform_admin = False
+    workspace = Workspace(id=10, name="Acme", slug="acme")
+
+    db = MagicMock()
+
+    app.dependency_overrides[get_current_active_user] = lambda: user
+    app.dependency_overrides[get_current_workspace] = lambda: workspace
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        with patch(
+            "app.api.v1.endpoints.help_tickets.help_ticket_service.update_ticket",
+            side_effect=HelpTicketStatusChangeForbiddenError("Only platform admins may change ticket status."),
+        ):
+            client = TestClient(app)
+            response = client.patch(
+                "/api/v1/help/tickets/1",
+                json={"status": "opened"},
+            )
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()

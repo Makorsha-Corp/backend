@@ -27,6 +27,21 @@ class HelpTicketForbiddenError(PermissionError):
     """Caller may not access this ticket."""
 
 
+class HelpTicketStatusChangeForbiddenError(PermissionError):
+    """Caller may not change ticket status."""
+
+
+class HelpTicketInvalidTransitionError(ValueError):
+    """Requested status transition is not allowed."""
+
+
+ALLOWED_STATUS_TRANSITIONS: dict[HelpTicketStatusEnum, set[HelpTicketStatusEnum]] = {
+    HelpTicketStatusEnum.PENDING: {HelpTicketStatusEnum.OPENED},
+    HelpTicketStatusEnum.OPENED: {HelpTicketStatusEnum.CLOSED},
+    HelpTicketStatusEnum.CLOSED: {HelpTicketStatusEnum.OPENED},
+}
+
+
 class HelpTicketManager:
     """Manager for help ticket workflows."""
 
@@ -148,20 +163,40 @@ class HelpTicketManager:
         ticket: HelpTicket,
         payload: HelpTicketUpdate,
         user_id: int,
+        is_platform_admin: bool = False,
     ) -> HelpTicket:
         update_data = payload.model_dump(exclude_unset=True)
         new_status = update_data.pop("status", None)
 
         if new_status is not None:
-            status_value = (
-                new_status.value if isinstance(new_status, HelpTicketStatusEnum) else new_status
+            if not is_platform_admin:
+                raise HelpTicketStatusChangeForbiddenError(
+                    "Only platform admins may change ticket status."
+                )
+            target_status = (
+                new_status
+                if isinstance(new_status, HelpTicketStatusEnum)
+                else HelpTicketStatusEnum(new_status)
             )
-            if status_value == HelpTicketStatusEnum.CLOSED.value:
-                update_data["status"] = HelpTicketStatusEnum.CLOSED.value
+            try:
+                current_status = HelpTicketStatusEnum(ticket.status)
+            except ValueError as exc:
+                raise HelpTicketInvalidTransitionError(
+                    f"Cannot transition from invalid status '{ticket.status}'."
+                ) from exc
+            allowed = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+            if target_status not in allowed:
+                raise HelpTicketInvalidTransitionError(
+                    f"Cannot transition from {current_status.value} to {target_status.value}."
+                )
+            update_data["status"] = target_status.value
+            if target_status == HelpTicketStatusEnum.CLOSED:
                 update_data["closed_at"] = utcnow()
                 update_data["closed_by"] = user_id
-            elif status_value == HelpTicketStatusEnum.OPEN.value:
-                update_data["status"] = HelpTicketStatusEnum.OPEN.value
+            elif (
+                target_status == HelpTicketStatusEnum.OPENED
+                and current_status == HelpTicketStatusEnum.CLOSED
+            ):
                 update_data["closed_at"] = None
                 update_data["closed_by"] = None
 

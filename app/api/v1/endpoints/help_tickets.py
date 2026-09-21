@@ -6,7 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.workspace_member import workspace_member_dao
-from app.managers.help_ticket_manager import HelpTicketForbiddenError, HelpTicketNotFoundError
+from app.managers.help_ticket_manager import (
+    HelpTicketForbiddenError,
+    HelpTicketInvalidTransitionError,
+    HelpTicketNotFoundError,
+    HelpTicketStatusChangeForbiddenError,
+)
 from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
@@ -119,3 +124,7 @@ def update_help_ticket(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except HelpTicketForbiddenError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except HelpTicketStatusChangeForbiddenError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except HelpTicketInvalidTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
