@@ -105,4 +105,5 @@ from app.models.production_batch_item import ProductionBatchItem
 from app.models.production_formula_stage import ProductionFormulaStage
 from app.models.production_batch_stage_log import ProductionBatchStageLog
 from app.models.waitlist_signup import WaitlistSignup
+from app.models.landing_perf_report import LandingPerfReport
 from app.models.help_ticket import HelpTicket
