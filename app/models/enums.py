@@ -153,6 +153,12 @@ class HelpTicketStatusEnum(str, enum.Enum):
     CLOSED = "closed"
 
 
+class HelpTicketTypeEnum(str, enum.Enum):
+    """Help ticket type discriminator."""
+    SUPPORT = "support"
+    FEEDBACK = "feedback"
+
+
 class UploadStatusEnum(str, enum.Enum):
     """Attachment upload lifecycle status."""
     PENDING = "pending"

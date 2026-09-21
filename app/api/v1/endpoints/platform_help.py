@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_platform_admin
 from app.managers.help_ticket_manager import HelpTicketNotFoundError
-from app.models.enums import HelpTicketStatusEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.schemas.help_ticket import PlatformHelpTicketListItem
 from app.services.help_ticket_service import help_ticket_service
@@ -21,6 +21,7 @@ router = APIRouter()
 )
 def list_platform_help_tickets(
     status_filter: Optional[HelpTicketStatusEnum] = Query(None, alias="status"),
+    type_filter: Optional[HelpTicketTypeEnum] = Query(None, alias="type"),
     search: Optional[str] = Query(None, max_length=200),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
@@ -30,6 +31,7 @@ def list_platform_help_tickets(
     return help_ticket_service.list_platform_tickets(
         db,
         status=status_filter,
+        ticket_type=type_filter,
         search=search,
         skip=skip,
         limit=limit,

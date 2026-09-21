@@ -41,12 +41,17 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         ticket_number = self.generate_ticket_number(
             db, workspace_id=workspace_id, year=current_year
         )
+        data = obj_in.model_dump()
+        ticket_type = data.pop("type", "support")
+        if hasattr(ticket_type, "value"):
+            ticket_type = ticket_type.value
         db_obj = HelpTicket(
-            **obj_in.model_dump(),
+            **data,
             workspace_id=workspace_id,
             ticket_number=ticket_number,
             created_by=user_id,
             status="open",
+            type=ticket_type,
         )
         db.add(db_obj)
         db.flush()
@@ -85,6 +90,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         *,
         workspace_id: int,
         status: Optional[str] = None,
+        ticket_type: Optional[str] = None,
         created_by: Optional[int] = None,
         skip: int = 0,
         limit: int = 100,
@@ -96,6 +102,8 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         )
         if status is not None:
             query = query.filter(HelpTicket.status == status)
+        if ticket_type is not None:
+            query = query.filter(HelpTicket.type == ticket_type)
         if created_by is not None:
             query = query.filter(HelpTicket.created_by == created_by)
         return (
@@ -110,6 +118,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         db: Session,
         *,
         status: Optional[str] = None,
+        ticket_type: Optional[str] = None,
         search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
@@ -123,6 +132,8 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         )
         if status is not None:
             query = query.filter(HelpTicket.status == status)
+        if ticket_type is not None:
+            query = query.filter(HelpTicket.type == ticket_type)
         if search:
             term = f"%{search.strip()}%"
             query = query.filter(
