@@ -1,7 +1,7 @@
 """Expense order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.order_hub import ExpenseOrderFinancialSnapshot, OrderHubRecentSummary
@@ -48,7 +48,7 @@ class ExpenseOrderCreate(BaseModel):
     due_date: date | None = None
     description: str | None = None
     order_template_id: int | None = None
-    items: List[ExpenseOrderItemCreate] | None = None
+    items: list[ExpenseOrderItemCreate] | None = None
 
 
 class ExpenseOrderFromTemplateCreate(BaseModel):
@@ -107,12 +107,12 @@ class ExpenseOrderHubStatsResponse(BaseModel):
     open_count: int
     open_value: Decimal
     not_invoiced_count: int
-    recent_orders: List[OrderHubRecentSummary] = []
+    recent_orders: list[OrderHubRecentSummary] = []
     financial_snapshot: ExpenseOrderFinancialSnapshot = ExpenseOrderFinancialSnapshot()
 
 
 class ExpenseOrderListResponse(BaseModel):
-    items: List[ExpenseOrderResponse]
+    items: list[ExpenseOrderResponse]
     total: int
     skip: int
     limit: int
@@ -150,12 +150,12 @@ class ApprovalSummaryResponse(BaseModel):
 
 
 class ExpenseOrderApproversList(BaseModel):
-    approvers: List[ExpenseOrderApproverResponse]
+    approvers: list[ExpenseOrderApproverResponse]
     summary: ApprovalSummaryResponse
 
 
 class ExpenseOrderEventMetadata(BaseModel):
-    changes: List[dict] | None = None
+    changes: list[dict] | None = None
     user_id: int | None = None
     user_name: str | None = None
     line_number: int | None = None

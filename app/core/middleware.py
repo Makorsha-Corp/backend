@@ -1,9 +1,10 @@
 """API middleware for request tracking, logging, and security"""
-from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import Request
-import uuid
-import time
 import logging
+import time
+import uuid
+
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 

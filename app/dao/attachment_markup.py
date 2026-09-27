@@ -1,5 +1,4 @@
 """Attachment markup DAO — workspace-scoped overlay storage."""
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,7 @@ class AttachmentMarkupDAO(BaseDAO[AttachmentMarkup, object, object]):
         *,
         workspace_id: int,
         attachment_id: int,
-    ) -> List[AttachmentMarkup]:
+    ) -> list[AttachmentMarkup]:
         return (
             db.query(AttachmentMarkup)
             .filter(
@@ -34,7 +33,7 @@ class AttachmentMarkupDAO(BaseDAO[AttachmentMarkup, object, object]):
         workspace_id: int,
         attachment_id: int,
         user_id: int,
-    ) -> Optional[AttachmentMarkup]:
+    ) -> AttachmentMarkup | None:
         return (
             db.query(AttachmentMarkup)
             .filter(

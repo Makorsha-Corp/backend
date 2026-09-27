@@ -1,7 +1,16 @@
 """Project component model"""
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.models.enums import ProjectStatusEnum
 from app.utils.time import utcnow

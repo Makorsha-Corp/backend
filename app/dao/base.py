@@ -1,9 +1,10 @@
 """Base DAO (Data Access Object) operations"""
-from typing import Generic, TypeVar, Type, List, Optional, Any, Dict
+from typing import Any, Generic, TypeVar
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.db.base_class import Base
 
+from app.db.base_class import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -19,7 +20,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     The service layer is responsible for commit/rollback.
     """
 
-    def __init__(self, model: Type[ModelType]):
+    def __init__(self, model: type[ModelType]):
         """
         Initialize DAO object with model
 
@@ -28,7 +29,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         self.model = model
 
-    def get(self, db: Session, id: Any) -> Optional[ModelType]:
+    def get(self, db: Session, id: Any) -> ModelType | None:
         """
         Get a single record by ID
 
@@ -43,7 +44,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def get_multi(
         self, db: Session, *, skip: int = 0, limit: int = 100
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get multiple records with pagination
 
@@ -57,7 +58,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         return db.query(self.model).offset(skip).limit(limit).all()
 
-    def create(self, db: Session, *, obj_in: CreateSchemaType | Dict[str, Any]) -> ModelType:
+    def create(self, db: Session, *, obj_in: CreateSchemaType | dict[str, Any]) -> ModelType:
         """
         Create a new record (does NOT commit)
 
@@ -87,7 +88,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db: Session,
         *,
         db_obj: ModelType,
-        obj_in: UpdateSchemaType | Dict[str, Any]
+        obj_in: UpdateSchemaType | dict[str, Any]
     ) -> ModelType:
         """
         Update an existing record (does NOT commit)
@@ -141,7 +142,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """
         Get multiple records filtered by workspace (SECURITY-CRITICAL)
 
@@ -167,7 +168,7 @@ class BaseDAO(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ModelType]:
+    ) -> ModelType | None:
         """
         Get single record by ID AND workspace (SECURITY-CRITICAL)
 

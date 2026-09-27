@@ -2,6 +2,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 WorkOrderItemActionType = Literal['CONSUME', 'INSTALL', 'REPLACE', 'BORROW']
@@ -11,7 +12,7 @@ class WorkOrderItemCreate(BaseModel):
     """Create work order item"""
     work_order_id: int
     item_id: int
-    quantity: Decimal = Decimal("1")
+    quantity: Decimal = Decimal(1)
     notes: str | None = None
     uses_inventory: bool = False
     source_location_type: str | None = None  # 'storage' | 'machine'

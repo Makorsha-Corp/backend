@@ -1,8 +1,8 @@
 """Machine item ledger schemas"""
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MachineItemLedgerBase(BaseModel):
@@ -17,35 +17,34 @@ class MachineItemLedgerBase(BaseModel):
     # State tracking
     qty_before: int
     qty_after: int
-    value_before: Optional[Decimal] = None
-    value_after: Optional[Decimal] = None
-    avg_price_before: Optional[Decimal] = None
-    avg_price_after: Optional[Decimal] = None
+    value_before: Decimal | None = None
+    value_after: Decimal | None = None
+    avg_price_before: Decimal | None = None
+    avg_price_after: Decimal | None = None
 
     # Attribution
     source_type: str
-    source_id: Optional[int] = None
-    order_id: Optional[int] = None
-    invoice_id: Optional[int] = None
+    source_id: int | None = None
+    order_id: int | None = None
+    invoice_id: int | None = None
 
     # Transfer context
-    transfer_source_type: Optional[str] = None
-    transfer_source_id: Optional[int] = None
-    transfer_destination_type: Optional[str] = None
-    transfer_destination_id: Optional[int] = None
+    transfer_source_type: str | None = None
+    transfer_source_id: int | None = None
+    transfer_destination_type: str | None = None
+    transfer_destination_id: int | None = None
 
     # Notes
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class MachineItemLedgerCreate(MachineItemLedgerBase):
     """Schema for creating a machine item ledger entry (workspace_id and performed_by injected by service)"""
-    pass
 
 
 class MachineItemLedgerUpdate(BaseModel):
     """Schema for updating a machine item ledger entry (generally should be immutable)"""
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class MachineItemLedgerInDB(MachineItemLedgerBase):
@@ -60,4 +59,3 @@ class MachineItemLedgerInDB(MachineItemLedgerBase):
 
 class MachineItemLedgerResponse(MachineItemLedgerInDB):
     """Machine item ledger response schema"""
-    pass

@@ -10,7 +10,6 @@ class AppSettingsBase(BaseModel):
 
 class AppSettingsCreate(AppSettingsBase):
     """App settings creation schema"""
-    pass
 
 
 class AppSettingsUpdate(BaseModel):

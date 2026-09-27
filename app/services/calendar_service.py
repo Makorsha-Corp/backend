@@ -1,8 +1,8 @@
 """Calendar service — aggregates dated records across the workspace."""
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Sequence
 from datetime import date, datetime
-from typing import Callable, Iterable, List, Optional, Sequence, Set, Tuple
 
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
@@ -19,18 +19,18 @@ from app.models.work_order import WorkOrder
 from app.schemas.calendar import CalendarCategory, CalendarEventResponse
 from app.services.base_service import BaseService
 
-DateFieldSpec = Tuple[str, str]  # (column_attr, human label)
+DateFieldSpec = tuple[str, str]  # (column_attr, human label)
 
 
 def _event_id(source_type: str, record_id: int, date_field: str) -> str:
     return f"{source_type}:{record_id}:{date_field}"
 
 
-def _date_in_range(value: Optional[date], start: date, end: date) -> bool:
+def _date_in_range(value: date | None, start: date, end: date) -> bool:
     return value is not None and start <= value <= end
 
 
-def _dt_to_date(value: Optional[datetime]) -> Optional[date]:
+def _dt_to_date(value: datetime | None) -> date | None:
     if value is None:
         return None
     return value.date()
@@ -46,15 +46,15 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        types: Optional[Sequence[CalendarCategory]] = None,
-    ) -> List[CalendarEventResponse]:
+        types: Sequence[CalendarCategory] | None = None,
+    ) -> list[CalendarEventResponse]:
         if start > end:
             raise ValueError("start must be on or before end")
 
-        allowed: Optional[Set[CalendarCategory]] = set(types) if types else None
-        events: List[CalendarEventResponse] = []
+        allowed: set[CalendarCategory] | None = set(types) if types else None
+        events: list[CalendarEventResponse] = []
 
-        collectors: List[Callable[[], List[CalendarEventResponse]]] = [
+        collectors: list[Callable[[], list[CalendarEventResponse]]] = [
             lambda: self._collect_work_orders(db, workspace_id, start, end, allowed),
             lambda: self._collect_purchase_orders(db, workspace_id, start, end, allowed),
             lambda: self._collect_expense_orders(db, workspace_id, start, end, allowed),
@@ -73,7 +73,7 @@ class CalendarService(BaseService):
         return events
 
     def _category_allowed(
-        self, category: CalendarCategory, allowed: Optional[Set[CalendarCategory]]
+        self, category: CalendarCategory, allowed: set[CalendarCategory] | None
     ) -> bool:
         return allowed is None or category in allowed
 
@@ -85,13 +85,13 @@ class CalendarService(BaseService):
         category: CalendarCategory,
         date_fields: Iterable[DateFieldSpec],
         title: str,
-        subtitle: Optional[str],
+        subtitle: str | None,
         link: str,
         start: date,
         end: date,
-        meta: Optional[dict] = None,
-    ) -> List[CalendarEventResponse]:
-        out: List[CalendarEventResponse] = []
+        meta: dict | None = None,
+    ) -> list[CalendarEventResponse]:
+        out: list[CalendarEventResponse] = []
         base_meta = meta or {}
         for field_name, label in date_fields:
             value = getattr(record, field_name, None)
@@ -121,8 +121,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.WORK_ORDERS, allowed):
             return []
 
@@ -139,7 +139,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -166,8 +166,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.PURCHASE, allowed):
             return []
 
@@ -185,7 +185,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -217,8 +217,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.EXPENSE, allowed):
             return []
 
@@ -235,7 +235,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -265,8 +265,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.SALES, allowed):
             return []
 
@@ -282,7 +282,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -309,8 +309,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.SALES, allowed):
             return []
 
@@ -327,7 +327,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -354,8 +354,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.INVOICES, allowed):
             return []
 
@@ -372,7 +372,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             events.extend(
                 self._expand_date_fields(
@@ -404,8 +404,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.INVOICES, allowed):
             return []
 
@@ -448,8 +448,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.PRODUCTION, allowed):
             return []
 
@@ -486,8 +486,8 @@ class CalendarService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        allowed: Optional[Set[CalendarCategory]],
-    ) -> List[CalendarEventResponse]:
+        allowed: set[CalendarCategory] | None,
+    ) -> list[CalendarEventResponse]:
         if not self._category_allowed(CalendarCategory.PROJECTS, allowed):
             return []
 
@@ -507,7 +507,7 @@ class CalendarService(BaseService):
             .all()
         )
 
-        events: List[CalendarEventResponse] = []
+        events: list[CalendarEventResponse] = []
         for row in rows:
             # Normalize DateTime fields to date for event output
             class _ProjectDates:

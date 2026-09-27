@@ -1,6 +1,6 @@
 """Item model (renamed from Part)"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

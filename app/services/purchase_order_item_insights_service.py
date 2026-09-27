@@ -1,15 +1,16 @@
 """Batch price history insights for items on a purchase order."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from app.managers.purchase_order_manager import purchase_order_manager
 from app.models.account import Account
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
@@ -19,12 +20,11 @@ from app.schemas.purchase_order_item_insights import (
     ItemPriceInsightRow,
     PoItemPriceInsightsResponse,
 )
-from app.managers.purchase_order_manager import purchase_order_manager
 
 
 def _dec(value) -> Decimal:
     if value is None:
-        return Decimal('0')
+        return Decimal(0)
     return Decimal(str(value))
 
 
@@ -81,12 +81,12 @@ class PurchaseOrderItemInsightsService:
             exclude_po_id=po_id,
         )
 
-        by_item: Dict[int, List[_HistoryLine]] = {iid: [] for iid in item_ids}
+        by_item: dict[int, list[_HistoryLine]] = {iid: [] for iid in item_ids}
         for line in lines:
             by_item.setdefault(line.item_id, []).append(line)
 
         today = date.today()
-        rows: List[ItemPriceInsightRow] = []
+        rows: list[ItemPriceInsightRow] = []
         for item_id in item_ids:
             item_lines = by_item.get(item_id, [])
             rows.append(
@@ -119,7 +119,7 @@ class PurchaseOrderItemInsightsService:
         workspace_id: int,
         item_ids: Sequence[int],
         exclude_po_id: int,
-    ) -> List[_HistoryLine]:
+    ) -> list[_HistoryLine]:
         order_date_col = func.coalesce(
             PurchaseOrder.order_date,
             cast(PurchaseOrder.created_at, Date),
@@ -163,7 +163,7 @@ class PurchaseOrderItemInsightsService:
             for row in results
         ]
 
-    def _pick_last_ordered(self, lines: List[_HistoryLine]) -> ItemPriceInsightRef | None:
+    def _pick_last_ordered(self, lines: list[_HistoryLine]) -> ItemPriceInsightRef | None:
         priced = [ln for ln in lines if ln.order_date is not None]
         if not priced:
             if not lines:
@@ -179,7 +179,7 @@ class PurchaseOrderItemInsightsService:
 
     def _pick_min_price_ref(
         self,
-        lines: List[_HistoryLine],
+        lines: list[_HistoryLine],
         *,
         from_date: date | None = None,
         to_date: date | None = None,
@@ -209,7 +209,7 @@ class PurchaseOrderItemInsightsService:
         )
         return _to_ref(line)
 
-    def _pick_avg_supplier_lowest(self, lines: List[_HistoryLine]) -> ItemPriceInsightRef | None:
+    def _pick_avg_supplier_lowest(self, lines: list[_HistoryLine]) -> ItemPriceInsightRef | None:
         priced = [
             ln
             for ln in lines
@@ -218,22 +218,22 @@ class PurchaseOrderItemInsightsService:
         if not priced:
             return None
 
-        buckets: Dict[int, dict] = {}
+        buckets: dict[int, dict] = {}
         for ln in priced:
             bucket = buckets.setdefault(
                 ln.account_id,
                 {
                     'account_name': ln.account_name or f'Account #{ln.account_id}',
                     'po_ids': set(),
-                    'total_qty_weight': Decimal('0'),
-                    'weighted_sum': Decimal('0'),
+                    'total_qty_weight': Decimal(0),
+                    'weighted_sum': Decimal(0),
                     'lines': [],
                 },
             )
             if ln.account_name:
                 bucket['account_name'] = ln.account_name
             bucket['po_ids'].add(ln.purchase_order_id)
-            qty = ln.quantity_ordered if ln.quantity_ordered > 0 else Decimal('1')
+            qty = ln.quantity_ordered if ln.quantity_ordered > 0 else Decimal(1)
             bucket['total_qty_weight'] += qty
             bucket['weighted_sum'] += qty * ln.unit_price
             bucket['lines'].append(ln)

@@ -1,5 +1,5 @@
 """Validation helpers for catalog line items on orders."""
-from typing import Callable, Iterable, Optional
+from collections.abc import Callable, Iterable
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ def assert_unique_catalog_item_ids(
     entries: Iterable,
     *,
     get_item_id: Callable,
-    detail_template: Optional[str] = None,
+    detail_template: str | None = None,
 ) -> None:
     """Reject payloads that list the same catalog item more than once."""
     seen: set[int] = set()

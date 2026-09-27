@@ -1,11 +1,11 @@
 """Factory Service for orchestrating factory workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.factory_manager import factory_manager
 from app.models.factory import Factory
 from app.schemas.factory import FactoryCreate, FactoryUpdate
+from app.services.base_service import BaseService
 
 
 class FactoryService(BaseService):
@@ -59,7 +59,7 @@ class FactoryService(BaseService):
 
             return factory
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -89,10 +89,10 @@ class FactoryService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Factory]:
+    ) -> list[Factory]:
         """
         Get factories in workspace.
 
@@ -154,7 +154,7 @@ class FactoryService(BaseService):
 
             return factory
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -195,7 +195,7 @@ class FactoryService(BaseService):
 
             return factory
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

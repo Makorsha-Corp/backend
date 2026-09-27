@@ -7,7 +7,6 @@ SECURITY: every query scopes to a known user_id (or workspace_id) — there is
 no global lookup that could leak across users.
 """
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ from app.utils.time import utcnow
 class RefreshTokenDAO:
     """Workspace-aware DAO for `refresh_tokens`."""
 
-    def get_by_hash(self, db: Session, *, token_hash: str) -> Optional[RefreshToken]:
+    def get_by_hash(self, db: Session, *, token_hash: str) -> RefreshToken | None:
         """Look up a refresh token row by its sha256 hash.
 
         The hash column is UNIQUE, so this returns at most one row.
@@ -30,7 +29,7 @@ class RefreshTokenDAO:
             .first()
         )
 
-    def get_by_id(self, db: Session, *, id: int) -> Optional[RefreshToken]:
+    def get_by_id(self, db: Session, *, id: int) -> RefreshToken | None:
         return db.query(RefreshToken).filter(RefreshToken.id == id).first()
 
     def create(
@@ -41,9 +40,9 @@ class RefreshTokenDAO:
         token_hash: str,
         family_id: str,
         expires_at: datetime,
-        workspace_id: Optional[int] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        workspace_id: int | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
     ) -> RefreshToken:
         """Insert a new refresh token row.
 
@@ -67,7 +66,7 @@ class RefreshTokenDAO:
         db: Session,
         *,
         row: RefreshToken,
-        replaced_by_id: Optional[int] = None,
+        replaced_by_id: int | None = None,
     ) -> None:
         """Mark a single row revoked. Optionally point at the successor row."""
         if row.revoked_at is None:

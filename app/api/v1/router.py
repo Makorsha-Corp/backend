@@ -1,70 +1,70 @@
 """API v1 router configuration"""
 from fastapi import APIRouter
+
 from app.api.v1.endpoints import (
-    auth,
-    workspaces,
-    # Organization
-    departments,
-    factories,
-    factory_sections,
-    machines,
-    machine_maintenance_logs,
-    statuses,
-    # Items & Inventory
-    items,
-    item_tags,
-    machine_items,
-    inventory,
-    products,
+    access_control,
+    account_invoices,
+    account_tags,
     # Accounts & Financial
     accounts,
-    account_tags,
-    account_invoices,
-    invoice_items,
-    invoice_payments,
-    financial_audit_logs,
-    payments,
-    # Orders
-    order_workflows,
-    work_orders,
-    work_order_types,
-    work_order_templates,
-    purchase_orders,
-    transfer_orders,
-    expense_orders,
-    order_templates,
-    orders_overview,
-    # Sales
-    sales_orders,
-    sales_deliveries,
-    delivery_methods,
-    # Production
-    production_lines,
-    production_formulas,
-    production_batches,
-    # Projects
-    projects,
-    project_components,
-    project_component_items,
-    project_component_tasks,
-    miscellaneous_project_costs,
-    project_component_notes,
     # Settings
     app_settings,
-    access_control,
-    # Ledgers
-    ledgers,
+    attachments,
+    auth,
+    calendar,
+    delivery_methods,
+    # Organization
+    departments,
     # Discussions & Notifications
     discussions,
-    notifications,
-    calendar,
-    waitlist,
-    attachments,
-    mobile_upload,
+    expense_orders,
+    factories,
+    factory_sections,
+    financial_audit_logs,
     help_tickets,
+    inventory,
+    invoice_items,
+    invoice_payments,
+    item_tags,
+    # Items & Inventory
+    items,
+    # Ledgers
+    ledgers,
+    machine_items,
+    machine_maintenance_logs,
+    machines,
+    miscellaneous_project_costs,
+    mobile_upload,
+    notifications,
+    order_templates,
+    # Orders
+    order_workflows,
+    orders_overview,
+    payments,
     platform_help,
+    production_batches,
+    production_formulas,
+    # Production
+    production_lines,
+    products,
+    project_component_items,
+    project_component_notes,
+    project_component_tasks,
+    project_components,
+    # Projects
+    projects,
+    purchase_orders,
+    sales_deliveries,
+    # Sales
+    sales_orders,
+    statuses,
+    transfer_orders,
+    waitlist,
+    work_order_templates,
+    work_order_types,
+    work_orders,
+    workspaces,
 )
-
 
 api_router = APIRouter()
 

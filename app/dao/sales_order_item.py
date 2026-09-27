@@ -1,6 +1,7 @@
 """Sales order item DAO operations"""
-from typing import List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.sales_order_item import SalesOrderItem
 from app.schemas.sales_order_item import SalesOrderItemCreate, SalesOrderItemUpdate
@@ -15,7 +16,7 @@ class DAOSalesOrderItem(BaseDAO[SalesOrderItem, SalesOrderItemCreate, SalesOrder
         *,
         sales_order_id: int,
         workspace_id: int
-    ) -> List[SalesOrderItem]:
+    ) -> list[SalesOrderItem]:
         """Get all items for a sales order"""
         return (
             db.query(SalesOrderItem)
@@ -34,7 +35,7 @@ class DAOSalesOrderItem(BaseDAO[SalesOrderItem, SalesOrderItemCreate, SalesOrder
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesOrderItem]:
+    ) -> list[SalesOrderItem]:
         """Get all sales order items for a specific item"""
         return (
             db.query(SalesOrderItem)

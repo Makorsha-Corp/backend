@@ -1,5 +1,4 @@
 """DAO for platform waitlist signups."""
-from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -9,7 +8,7 @@ from app.schemas.waitlist import WaitlistSignupRequest
 
 
 class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupRequest]):
-    def get_by_email(self, db: Session, *, email: str) -> Optional[WaitlistSignup]:
+    def get_by_email(self, db: Session, *, email: str) -> WaitlistSignup | None:
         return db.query(self.model).filter(self.model.email == email).first()
 
     def list_signups(
@@ -18,10 +17,10 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
         *,
         skip: int = 0,
         limit: int = 100,
-        search: Optional[str] = None,
-        wants_product_updates: Optional[bool] = None,
-        status: Optional[str] = None,
-    ) -> Tuple[List[WaitlistSignup], int]:
+        search: str | None = None,
+        wants_product_updates: bool | None = None,
+        status: str | None = None,
+    ) -> tuple[list[WaitlistSignup], int]:
         query = db.query(self.model)
         if search:
             term = f"%{search.strip().lower()}%"
@@ -47,10 +46,10 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
         email: str,
         first_name: str,
         last_name: str,
-        company_name: Optional[str],
+        company_name: str | None,
         wants_product_updates: bool,
-        source: Optional[str],
-        ip_hash: Optional[str],
+        source: str | None,
+        ip_hash: str | None,
     ) -> WaitlistSignup:
         db_obj = self.model(
             email=email,

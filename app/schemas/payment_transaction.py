@@ -1,8 +1,8 @@
 """Payment transaction schemas"""
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class InitiatePaymentRequest(BaseModel):
@@ -10,19 +10,19 @@ class InitiatePaymentRequest(BaseModel):
     amount: Decimal = Field(..., gt=0)
     currency: str = Field("BDT", min_length=3, max_length=3)
     cus_phone: str = Field(..., min_length=3, max_length=50)
-    cus_name: Optional[str] = Field(None, max_length=255, description="Defaults to the current user's profile name")
-    cus_email: Optional[str] = Field(None, max_length=255, description="Defaults to the current user's profile email")
-    value_a: Optional[str] = Field(None, max_length=255, description="Caller-defined correlation metadata, echoed back unchanged")
-    value_b: Optional[str] = Field(None, max_length=255)
-    value_c: Optional[str] = Field(None, max_length=255)
-    value_d: Optional[str] = Field(None, max_length=255)
+    cus_name: str | None = Field(None, max_length=255, description="Defaults to the current user's profile name")
+    cus_email: str | None = Field(None, max_length=255, description="Defaults to the current user's profile email")
+    value_a: str | None = Field(None, max_length=255, description="Caller-defined correlation metadata, echoed back unchanged")
+    value_b: str | None = Field(None, max_length=255)
+    value_c: str | None = Field(None, max_length=255)
+    value_d: str | None = Field(None, max_length=255)
 
 
 class InitiatePaymentResponse(BaseModel):
     tran_id: str
     status: str
-    gateway_page_url: Optional[str] = None
-    failed_reason: Optional[str] = None
+    gateway_page_url: str | None = None
+    failed_reason: str | None = None
 
 
 class ResolveRiskRequest(BaseModel):
@@ -41,38 +41,38 @@ class PaymentTransactionInDB(BaseModel):
     amount: Decimal
     currency: str
 
-    cus_name: Optional[str] = None
-    cus_email: Optional[str] = None
-    cus_phone: Optional[str] = None
+    cus_name: str | None = None
+    cus_email: str | None = None
+    cus_phone: str | None = None
 
-    value_a: Optional[str] = None
-    value_b: Optional[str] = None
-    value_c: Optional[str] = None
-    value_d: Optional[str] = None
+    value_a: str | None = None
+    value_b: str | None = None
+    value_c: str | None = None
+    value_d: str | None = None
 
-    session_key: Optional[str] = None
-    gateway_page_url: Optional[str] = None
+    session_key: str | None = None
+    gateway_page_url: str | None = None
 
-    val_id: Optional[str] = None
-    risk_level: Optional[int] = None
-    risk_title: Optional[str] = None
-    bank_tran_id: Optional[str] = None
-    card_type: Optional[str] = None
+    val_id: str | None = None
+    risk_level: int | None = None
+    risk_title: str | None = None
+    bank_tran_id: str | None = None
+    card_type: str | None = None
 
-    risk_resolved_by: Optional[int] = None
-    risk_resolved_at: Optional[datetime] = None
-    risk_resolution_note: Optional[str] = None
+    risk_resolved_by: int | None = None
+    risk_resolved_at: datetime | None = None
+    risk_resolution_note: str | None = None
 
-    initiated_by: Optional[int] = None
+    initiated_by: int | None = None
     initiated_at: datetime
-    validated_at: Optional[datetime] = None
+    validated_at: datetime | None = None
 
     created_at: datetime
     updated_at: datetime
 
 
 class PaymentTransactionResponse(PaymentTransactionInDB):
-    initiated_by_name: Optional[str] = None
+    initiated_by_name: str | None = None
 
 
 class PaymentTransactionEventResponse(BaseModel):
@@ -82,8 +82,8 @@ class PaymentTransactionEventResponse(BaseModel):
     payment_transaction_id: int
     event_type: str
     description: str
-    metadata_json: Optional[dict] = None
-    performed_by: Optional[int] = None
+    metadata_json: dict | None = None
+    performed_by: int | None = None
     created_at: datetime
 
 

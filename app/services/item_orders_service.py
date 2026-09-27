@@ -1,9 +1,9 @@
 """Orders that include a catalog item."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Sequence, Tuple
 
 from sqlalchemy import Date, and_, cast, func
 from sqlalchemy.orm import Session
@@ -24,12 +24,16 @@ from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
-from app.schemas.item_orders import ItemOrderRowResponse, ItemOrdersListResponse, ItemOrderType
+from app.schemas.item_orders import (
+    ItemOrderRowResponse,
+    ItemOrdersListResponse,
+    ItemOrderType,
+)
 
 
 def _dec(value) -> Decimal:
     if value is None:
-        return Decimal('0')
+        return Decimal(0)
     return Decimal(str(value))
 
 
@@ -47,8 +51,8 @@ def _build_po_destination_labels(
     db: Session,
     *,
     workspace_id: int,
-    destinations: Sequence[Tuple[str, int]],
-) -> Dict[Tuple[str, int], str]:
+    destinations: Sequence[tuple[str, int]],
+) -> dict[tuple[str, int], str]:
     unique = {(dest_type, dest_id) for dest_type, dest_id in destinations if dest_id}
     if not unique:
         return {}
@@ -57,7 +61,7 @@ def _build_po_destination_labels(
     machine_ids = {dest_id for dest_type, dest_id in unique if dest_type == 'machine'}
     project_ids = {dest_id for dest_type, dest_id in unique if dest_type == 'project'}
 
-    labels: Dict[Tuple[str, int], str] = {}
+    labels: dict[tuple[str, int], str] = {}
 
     if storage_ids:
         factories = (
@@ -115,16 +119,16 @@ class ItemOrdersService:
         item_id: int,
         skip: int = 0,
         limit: int = 50,
-        order_type: Optional[ItemOrderType] = None,
-        from_date: Optional[date] = None,
-        to_date: Optional[date] = None,
-        exclude_purchase_order_id: Optional[int] = None,
+        order_type: ItemOrderType | None = None,
+        from_date: date | None = None,
+        to_date: date | None = None,
+        exclude_purchase_order_id: int | None = None,
     ) -> ItemOrdersListResponse:
         item = item_manager.get_item(db, item_id, workspace_id)
         if not item:
             raise NotFoundError(f"Item with ID {item_id} not found")
 
-        rows: List[ItemOrderRowResponse] = []
+        rows: list[ItemOrderRowResponse] = []
 
         if order_type is None or order_type == 'purchase_order':
             rows.extend(
@@ -185,10 +189,10 @@ class ItemOrdersService:
         *,
         workspace_id: int,
         item_id: int,
-        from_date: Optional[date],
-        to_date: Optional[date],
-        exclude_purchase_order_id: Optional[int] = None,
-    ) -> List[ItemOrderRowResponse]:
+        from_date: date | None,
+        to_date: date | None,
+        exclude_purchase_order_id: int | None = None,
+    ) -> list[ItemOrderRowResponse]:
         order_date_col = func.coalesce(
             PurchaseOrder.order_date,
             cast(PurchaseOrder.created_at, Date),
@@ -242,7 +246,7 @@ class ItemOrdersService:
             destinations=[(row[4], row[5]) for row in results],
         )
 
-        rows: List[ItemOrderRowResponse] = []
+        rows: list[ItemOrderRowResponse] = []
         for (
             po_id,
             po_number,
@@ -282,9 +286,9 @@ class ItemOrdersService:
         *,
         workspace_id: int,
         item_id: int,
-        from_date: Optional[date],
-        to_date: Optional[date],
-    ) -> List[ItemOrderRowResponse]:
+        from_date: date | None,
+        to_date: date | None,
+    ) -> list[ItemOrderRowResponse]:
         order_date_col = cast(TransferOrder.created_at, Date)
         filters = [
             TransferOrder.workspace_id == workspace_id,
@@ -318,7 +322,7 @@ class ItemOrdersService:
             .all()
         )
 
-        rows: List[ItemOrderRowResponse] = []
+        rows: list[ItemOrderRowResponse] = []
         for to_id, transfer_number, order_date, created_at, qty, status_name in results:
             rows.append(
                 ItemOrderRowResponse(
@@ -339,9 +343,9 @@ class ItemOrdersService:
         *,
         workspace_id: int,
         item_id: int,
-        from_date: Optional[date],
-        to_date: Optional[date],
-    ) -> List[ItemOrderRowResponse]:
+        from_date: date | None,
+        to_date: date | None,
+    ) -> list[ItemOrderRowResponse]:
         order_date_col = func.coalesce(
             SalesOrder.order_date,
             cast(SalesOrder.created_at, Date),
@@ -382,7 +386,7 @@ class ItemOrdersService:
             .all()
         )
 
-        rows: List[ItemOrderRowResponse] = []
+        rows: list[ItemOrderRowResponse] = []
         for so_id, so_number, order_date, created_at, qty, line_total, account_name, status_name in results:
             quantity = _dec(qty)
             total = _dec(line_total)
@@ -408,9 +412,9 @@ class ItemOrdersService:
         *,
         workspace_id: int,
         item_id: int,
-        from_date: Optional[date],
-        to_date: Optional[date],
-    ) -> List[ItemOrderRowResponse]:
+        from_date: date | None,
+        to_date: date | None,
+    ) -> list[ItemOrderRowResponse]:
         order_date_col = cast(WorkOrder.created_at, Date)
         filters = [
             WorkOrder.workspace_id == workspace_id,
@@ -444,7 +448,7 @@ class ItemOrdersService:
             .all()
         )
 
-        rows: List[ItemOrderRowResponse] = []
+        rows: list[ItemOrderRowResponse] = []
         for wo_id, wo_number, order_date, created_at, qty, status in results:
             rows.append(
                 ItemOrderRowResponse(

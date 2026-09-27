@@ -1,7 +1,8 @@
 """Sales delivery DAO operations"""
-from typing import List
+from datetime import date, datetime
+
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+
 from app.dao.base import BaseDAO
 from app.models.sales_delivery import SalesDelivery
 from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
@@ -80,7 +81,7 @@ class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDelivery
         *,
         sales_order_id: int,
         workspace_id: int
-    ) -> List[SalesDelivery]:
+    ) -> list[SalesDelivery]:
         """Get all deliveries for a sales order"""
         return (
             db.query(SalesDelivery)
@@ -99,7 +100,7 @@ class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDelivery
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesDelivery]:
+    ) -> list[SalesDelivery]:
         """Get deliveries by status"""
         return (
             db.query(SalesDelivery)
@@ -121,7 +122,7 @@ class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDelivery
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesDelivery]:
+    ) -> list[SalesDelivery]:
         """Get deliveries within a date range"""
         return (
             db.query(SalesDelivery)

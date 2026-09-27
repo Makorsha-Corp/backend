@@ -1,20 +1,24 @@
 """Item tag assignment DAO operations"""
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
-from typing import Dict, List, Optional
+
 from app.dao.base import BaseDAO
 from app.models.item import Item
-from app.models.item_tag_assignment import ItemTagAssignment
 from app.models.item_tag import ItemTag
-from app.schemas.item_tag_assignment import ItemTagAssignmentCreate, ItemTagAssignmentResponse
+from app.models.item_tag_assignment import ItemTagAssignment
+from app.schemas.item_tag_assignment import (
+    ItemTagAssignmentCreate,
+    ItemTagAssignmentResponse,
+)
 
 
 class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, ItemTagAssignmentResponse]):
     """DAO operations for ItemTagAssignment model"""
 
     def get_tags_for_items(
-        self, db: Session, *, item_ids: List[int], workspace_id: int
-    ) -> Dict[int, List[ItemTag]]:
+        self, db: Session, *, item_ids: list[int], workspace_id: int
+    ) -> dict[int, list[ItemTag]]:
         """
         Get tags for multiple items in one query (SECURITY-CRITICAL).
 
@@ -36,14 +40,14 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             .all()
         )
 
-        tags_by_item: Dict[int, List[ItemTag]] = {item_id: [] for item_id in item_ids}
+        tags_by_item: dict[int, list[ItemTag]] = {item_id: [] for item_id in item_ids}
         for item_id, tag in rows:
             tags_by_item[item_id].append(tag)
         return tags_by_item
 
     def get_tags_for_item(
         self, db: Session, *, item_id: int, workspace_id: int
-    ) -> List[ItemTag]:
+    ) -> list[ItemTag]:
         """
         Get all tags assigned to an item (SECURITY-CRITICAL)
 
@@ -93,7 +97,7 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
 
     def count_active_items_per_tag(
         self, db: Session, *, workspace_id: int
-    ) -> Dict[int, int]:
+    ) -> dict[int, int]:
         """
         Count tag assignments for active (non-deleted) items only.
 

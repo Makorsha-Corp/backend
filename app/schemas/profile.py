@@ -1,7 +1,7 @@
 """Profile schemas"""
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 from app.utils.timezone_validate import is_valid_iana_timezone
 

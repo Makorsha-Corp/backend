@@ -1,12 +1,12 @@
 """Machine Section Assignment Manager - the optional machine -> factory section link"""
-from typing import Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory_section import factory_section_dao
+from app.dao.machine_section_assignment import machine_section_assignment_dao
 from app.models.machine import Machine
 from app.models.machine_section_assignment import MachineSectionAssignment
-from app.dao.machine_section_assignment import machine_section_assignment_dao
-from app.dao.factory_section import factory_section_dao
 
 
 class MachineSectionAssignmentManager:
@@ -18,8 +18,8 @@ class MachineSectionAssignmentManager:
 
     def set_assignment(
         self, session: Session, *, machine_id: int, factory_id: int,
-        factory_section_id: Optional[int], workspace_id: int, user_id: int,
-    ) -> Optional[MachineSectionAssignment]:
+        factory_section_id: int | None, workspace_id: int, user_id: int,
+    ) -> MachineSectionAssignment | None:
         """Assign a machine to a section, or clear its assignment when
         `factory_section_id` is None. Validates the section belongs to the same
         factory as the machine and isn't deleted."""

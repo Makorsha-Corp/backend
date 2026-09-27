@@ -4,11 +4,15 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.project_component_task import ProjectComponentTask
-from app.schemas.project_component_task import ProjectComponentTaskCreate, ProjectComponentTaskUpdate
+from app.schemas.project_component_task import (
+    ProjectComponentTaskCreate,
+    ProjectComponentTaskUpdate,
+)
 
 
 class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTaskCreate, ProjectComponentTaskUpdate]):
@@ -20,10 +24,10 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
         *,
         project_component_id: int,
         workspace_id: int,
-        is_note: Optional[bool] = None,
+        is_note: bool | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ProjectComponentTask]:
+    ) -> list[ProjectComponentTask]:
         """
         Get tasks/notes by project component ID (SECURITY-CRITICAL: workspace-filtered).
 
@@ -39,7 +43,7 @@ class DAOProjectComponentTask(BaseDAO[ProjectComponentTask, ProjectComponentTask
 
     def get_incomplete_tasks(
         self, db: Session, *, project_component_id: int, workspace_id: int, is_note: bool = False, skip: int = 0, limit: int = 100
-    ) -> List[ProjectComponentTask]:
+    ) -> list[ProjectComponentTask]:
         """
         Get incomplete tasks by project component ID (SECURITY-CRITICAL: workspace-filtered)
 

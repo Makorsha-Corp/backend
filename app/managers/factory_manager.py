@@ -3,14 +3,14 @@ Factory Manager
 
 Business logic for factory operations.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory import factory_dao
 from app.managers.base_manager import BaseManager
 from app.models.factory import Factory
 from app.schemas.factory import FactoryCreate, FactoryUpdate
-from app.dao.factory import factory_dao
 
 
 class FactoryManager(BaseManager[Factory]):
@@ -183,11 +183,11 @@ class FactoryManager(BaseManager[Factory]):
         self,
         session: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
-    ) -> List[Factory]:
+    ) -> list[Factory]:
         """
         Search factories in workspace.
 
@@ -272,7 +272,7 @@ class FactoryManager(BaseManager[Factory]):
         session: Session,
         workspace_id: int,
         name: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """
         Check if factory with given name exists in workspace (excluding deleted).
@@ -300,7 +300,7 @@ class FactoryManager(BaseManager[Factory]):
         session: Session,
         workspace_id: int,
         abbreviation: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """
         Check if factory with given abbreviation exists in workspace (excluding deleted).

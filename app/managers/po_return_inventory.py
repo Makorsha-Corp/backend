@@ -1,6 +1,6 @@
 """Post purchase-order return inventory per return item (goods going back to the supplier)."""
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Sequence, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -54,7 +54,7 @@ def _quantity_to_int(quantity: Decimal, *, po_item_id: int) -> int:
 def post_purchase_return_inventory(
     session: Session,
     po: PurchaseOrder,
-    return_item_pairs: Sequence[Tuple[PurchaseOrderReturnItem, PurchaseOrderItem]],
+    return_item_pairs: Sequence[tuple[PurchaseOrderReturnItem, PurchaseOrderItem]],
     workspace_id: int,
     user_id: int,
 ) -> int:

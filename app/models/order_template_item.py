@@ -1,6 +1,7 @@
 """Order template item model - line items for expense order templates"""
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Numeric
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

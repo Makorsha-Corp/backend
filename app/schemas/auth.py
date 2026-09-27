@@ -1,10 +1,8 @@
 """Authentication schemas"""
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Optional
-from datetime import datetime
 
 from app.utils.timezone_validate import is_valid_iana_timezone
-
 
 
 class Token(BaseModel):
@@ -50,7 +48,7 @@ class LogoutRequest(BaseModel):
     Setting `all_devices=True` revokes every active refresh token for the user,
     effectively logging them out everywhere.
     """
-    refresh_token: Optional[str] = Field(
+    refresh_token: str | None = Field(
         None,
         description=(
             "Refresh token to revoke. Required unless `all_devices=True` and "
@@ -70,9 +68,9 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
     position: str = Field(default="User", max_length=100)
-    workspace_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    invitation_token: Optional[str] = None
-    timezone: Optional[str] = None
+    workspace_name: str | None = Field(None, min_length=1, max_length=255)
+    invitation_token: str | None = None
+    timezone: str | None = None
 
     @field_validator("timezone")
     @classmethod
@@ -102,7 +100,7 @@ class RegisterResponse(BaseModel):
     expires_in: int
     refresh_expires_in: int
     user: dict
-    workspace: Optional[dict] = None
+    workspace: dict | None = None
     messages: list[dict] = []
 
 

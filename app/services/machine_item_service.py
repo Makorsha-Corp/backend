@@ -1,11 +1,11 @@
 """Machine item service - transaction orchestration"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
+from app.managers.machine_item_manager import machine_item_manager
 from app.models.machine_item import MachineItem
 from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate
-from app.managers.machine_item_manager import machine_item_manager
+from app.services.base_service import BaseService
 
 
 class MachineItemService(BaseService):
@@ -25,9 +25,9 @@ class MachineItemService(BaseService):
 
     def get_machine_items(
         self, db: Session, workspace_id: int,
-        machine_id: Optional[int] = None,
+        machine_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItem]:
+    ) -> list[MachineItem]:
         """List machine items"""
         return self.machine_item_manager.list_machine_items(
             db, workspace_id=workspace_id,

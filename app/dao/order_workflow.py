@@ -4,8 +4,9 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.order_workflow import OrderWorkflow
 from app.schemas.order_workflow import OrderWorkflowCreate, OrderWorkflowUpdate
@@ -16,7 +17,7 @@ class DAOOrderWorkflow(BaseDAO[OrderWorkflow, OrderWorkflowCreate, OrderWorkflow
 
     def get_by_type(
         self, db: Session, *, workflow_type: str, workspace_id: int
-    ) -> Optional[OrderWorkflow]:
+    ) -> OrderWorkflow | None:
         """
         Get workflow by type (SECURITY-CRITICAL: workspace-filtered)
 

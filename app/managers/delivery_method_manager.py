@@ -3,14 +3,14 @@ Delivery Method Manager
 
 Business logic for delivery method operations.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.delivery_method import delivery_method_dao
 from app.managers.base_manager import BaseManager
 from app.models.delivery_method import DeliveryMethod
 from app.schemas.delivery_method import DeliveryMethodCreate, DeliveryMethodUpdate
-from app.dao.delivery_method import delivery_method_dao
 
 
 class DeliveryMethodManager(BaseManager[DeliveryMethod]):
@@ -123,11 +123,11 @@ class DeliveryMethodManager(BaseManager[DeliveryMethod]):
         self,
         session: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
-    ) -> List[DeliveryMethod]:
+    ) -> list[DeliveryMethod]:
         """Search delivery methods in workspace."""
         delivery_methods = self.delivery_method_dao.get_by_workspace(
             session, workspace_id=workspace_id, skip=skip, limit=limit
@@ -183,7 +183,7 @@ class DeliveryMethodManager(BaseManager[DeliveryMethod]):
         session: Session,
         workspace_id: int,
         name: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """Check if delivery method with given name exists in workspace (excluding deleted)."""
         delivery_methods = self.delivery_method_dao.get_by_workspace(session, workspace_id=workspace_id)

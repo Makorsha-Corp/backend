@@ -1,5 +1,6 @@
 """App settings service for business orchestration"""
 from sqlalchemy.orm import Session
+
 from app.dao.app_settings import app_settings_dao
 from app.schemas.app_settings import AppSettingsCreate, AppSettingsUpdate
 

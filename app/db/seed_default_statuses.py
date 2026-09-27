@@ -5,8 +5,8 @@ This module provides functionality to create default system statuses
 when a new workspace is created.
 """
 from sqlalchemy.orm import Session
-from app.models.status import Status
 
+from app.models.status import Status
 
 DEFAULT_STATUSES = [
     {"name": "Pending", "comment": "Order is pending"},

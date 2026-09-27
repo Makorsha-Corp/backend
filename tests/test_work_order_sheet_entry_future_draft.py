@@ -43,7 +43,7 @@ def test_future_sheet_entry_creates_draft_work_order(
         work_order_type_id=10,
         planned_date=planned,
         description='Check belts',
-        items=[WorkOrderSheetItemLine(item_id=99, quantity=Decimal('2'))],
+        items=[WorkOrderSheetItemLine(item_id=99, quantity=Decimal(2))],
     )
 
     record = work_order_manager.sheet_entry(session, data=data, workspace_id=1, user_id=7)

@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import hashlib
-import httpx
-from typing import Optional
 
+import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -27,16 +26,16 @@ def normalize_waitlist_email(email: str) -> str:
     return email.strip().lower()
 
 
-def hash_client_ip(ip: Optional[str]) -> Optional[str]:
+def hash_client_ip(ip: str | None) -> str | None:
     if not ip:
         return None
     salt = settings.WAITLIST_IP_HASH_SALT or settings.SECRET_KEY
-    digest = hashlib.sha256(f"{salt}:{ip}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{salt}:{ip}".encode()).hexdigest()
     return digest
 
 
 class WaitlistService(BaseService):
-    async def verify_turnstile(self, token: str, remote_ip: Optional[str]) -> None:
+    async def verify_turnstile(self, token: str, remote_ip: str | None) -> None:
         secret = settings.TURNSTILE_SECRET_KEY
         if not secret:
             # Turnstile isn't configured yet (no keys set) — skip verification
@@ -70,7 +69,7 @@ class WaitlistService(BaseService):
         db: Session,
         *,
         payload: WaitlistSignupRequest,
-        remote_ip: Optional[str],
+        remote_ip: str | None,
         skip_turnstile: bool = False,
     ) -> WaitlistSignupResponse:
         if payload.website:
@@ -102,7 +101,7 @@ class WaitlistService(BaseService):
         return WaitlistSignupResponse(message=SUCCESS_MESSAGE)
 
     def update_status(self, db: Session, *, signup_id: int, status_value: str) -> WaitlistSignupItem:
-        signup: Optional[WaitlistSignup] = waitlist_dao.get(db, signup_id)
+        signup: WaitlistSignup | None = waitlist_dao.get(db, signup_id)
         if not signup:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -118,9 +117,9 @@ class WaitlistService(BaseService):
         *,
         skip: int,
         limit: int,
-        search: Optional[str],
-        wants_product_updates: Optional[bool],
-        status_value: Optional[str] = None,
+        search: str | None,
+        wants_product_updates: bool | None,
+        status_value: str | None = None,
     ) -> WaitlistSignupListResponse:
         items, total = waitlist_dao.list_signups(
             db,

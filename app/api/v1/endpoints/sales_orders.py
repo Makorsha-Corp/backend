@@ -4,34 +4,37 @@ Sales order endpoints
 Provides CRUD operations for sales orders (customer contracts with deliveries).
 Sales orders link to customer accounts and can have multiple deliveries over time.
 """
-from typing import List, Optional  # List used for response_model
-from fastapi import APIRouter, Depends, Query, Body, status
+
+from fastapi import APIRouter, Body, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+from app.schemas.response import ActionResponse
 from app.schemas.sales_order import (
-    SalesOrderCreate,
-    SalesOrderUpdate,
-    SalesOrderResponse,
+    SalesOrderApprovalSummaryResponse,
     SalesOrderApproverCreate,
     SalesOrderApproverResponse,
-    SalesOrderApprovalSummaryResponse,
     SalesOrderApproversList,
-    SalesOrderSectionConfirmRequest,
+    SalesOrderCreate,
     SalesOrderEventMetadata,
     SalesOrderEventResponse,
+    SalesOrderResponse,
+    SalesOrderSectionConfirmRequest,
+    SalesOrderUpdate,
 )
-from app.schemas.sales_order_item import SalesOrderItemInput, SalesOrderItemListResponse, SalesOrderItemFulfillRequest
-from app.schemas.response import ActionResponse
+from app.schemas.sales_order_item import (
+    SalesOrderItemFulfillRequest,
+    SalesOrderItemInput,
+    SalesOrderItemListResponse,
+)
 from app.schemas.sales_order_return import (
     SalesOrderReturnCreate,
     SalesOrderReturnResponse,
     SalesOrderReturnVoidRequest,
 )
 from app.services.sales_service import sales_service
-
 
 router = APIRouter()
 
@@ -54,7 +57,7 @@ def _approver_response(record, profile=None, position=None) -> SalesOrderApprove
 
 @router.get(
     "/",
-    response_model=List[SalesOrderResponse],
+    response_model=list[SalesOrderResponse],
     status_code=status.HTTP_200_OK,
     summary="List sales orders",
     description="Get all sales orders for workspace with pagination. Returns direct list (no wrapper)."
@@ -104,7 +107,7 @@ def get_sales_order(
 )
 def create_sales_order(
     order_in: SalesOrderCreate,
-    items: List[SalesOrderItemInput] = Body(..., description="List of items to sell"),
+    items: list[SalesOrderItemInput] = Body(..., description="List of items to sell"),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
@@ -121,7 +124,7 @@ def create_sales_order(
 
     # Convert items to dict and calculate line_total for each
     items_data = []
-    total_amount = Decimal('0')
+    total_amount = Decimal(0)
 
     for item in items:
         item_dict = item.model_dump()
@@ -347,7 +350,7 @@ def unapprove_sales_order(
 
 @router.get(
     "/{order_id}/events/",
-    response_model=List[SalesOrderEventResponse],
+    response_model=list[SalesOrderEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List sales order activity events",
 )
@@ -405,7 +408,7 @@ def fulfill_sales_order_item(
 
 @router.get(
     "/{order_id}/items/",
-    response_model=List[SalesOrderItemListResponse],
+    response_model=list[SalesOrderItemListResponse],
     status_code=status.HTTP_200_OK,
     summary="Get sales order items",
     description="Get all line items for a sales order."
@@ -464,7 +467,7 @@ def start_sales_order_return(
 
 @router.get(
     "/{order_id}/returns/",
-    response_model=List[SalesOrderReturnResponse],
+    response_model=list[SalesOrderReturnResponse],
     status_code=status.HTTP_200_OK,
     summary="List returns for a sales order",
 )

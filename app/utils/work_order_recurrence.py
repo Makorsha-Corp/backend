@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, timedelta
-from typing import Literal, Optional
+from typing import Literal
 
 WorkOrderGenerationMode = Literal['schedule', 'draft']
 
@@ -21,8 +21,8 @@ def validate_recurrence_span(start_date: date, end_date: date) -> None:
 def advance_next_generation_date(
     *,
     from_date: date,
-    recurrence_type: Optional[str],
-    recurrence_day: Optional[int],
+    recurrence_type: str | None,
+    recurrence_day: int | None,
 ) -> date:
     """Compute the next generation date after a successful run on from_date."""
     if recurrence_type == 'daily':

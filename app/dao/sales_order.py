@@ -1,7 +1,8 @@
 """Sales order DAO operations"""
-from typing import List, Optional
-from sqlalchemy.orm import Session
 from datetime import datetime
+
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.sales_order import SalesOrder
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
@@ -12,7 +13,7 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
 
     def get_by_invoice_id(
         self, db: Session, *, invoice_id: int, workspace_id: int
-    ) -> Optional[SalesOrder]:
+    ) -> SalesOrder | None:
         return (
             db.query(SalesOrder)
             .filter(
@@ -95,7 +96,7 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesOrder]:
+    ) -> list[SalesOrder]:
         """Get sales orders by factory"""
         return (
             db.query(SalesOrder)
@@ -116,7 +117,7 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesOrder]:
+    ) -> list[SalesOrder]:
         """Get sales orders by status"""
         return (
             db.query(SalesOrder)

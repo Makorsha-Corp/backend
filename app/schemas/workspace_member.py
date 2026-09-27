@@ -1,6 +1,7 @@
 """WorkspaceMember schemas"""
-from pydantic import BaseModel, ConfigDict, field_validator
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 VALID_MEMBER_ROLES = {'owner', 'manager', 'member', 'viewer', 'ground-team'}
 

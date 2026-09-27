@@ -1,7 +1,7 @@
 """Expense Order Manager - business logic for expense orders"""
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -163,8 +163,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         self,
         record: ExpenseOrder,
         update_dict: dict,
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         for field, label in ORDER_UPDATE_LOG_FIELDS.items():
             if field not in update_dict:
                 continue
@@ -229,7 +229,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         ))
         session.flush()
 
-        subtotal = Decimal('0')
+        subtotal = Decimal(0)
         for idx, item_data in enumerate(items_data, start=1):
             item_dict = self._prepare_item_dict(item_data.model_dump())
             item_dict['workspace_id'] = workspace_id
@@ -286,11 +286,11 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
 
     def list_expense_orders(
         self, session: Session, workspace_id: int,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[ExpenseOrder]:
+    ) -> list[ExpenseOrder]:
         return self.eo_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             expense_category=expense_category, account_id=account_id,
@@ -306,7 +306,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[ExpenseOrder]:
+    ) -> list[ExpenseOrder]:
         return self.eo_dao.list_for_hub(
             session,
             workspace_id=workspace_id,
@@ -435,13 +435,13 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             self.reset_approvals(session, eo.id, workspace_id, user_id, reason='Expense items edited')
         return record
 
-    def get_items(self, session: Session, eo_id: int, workspace_id: int) -> List[ExpenseOrderItem]:
+    def get_items(self, session: Session, eo_id: int, workspace_id: int) -> list[ExpenseOrderItem]:
         self.get_expense_order(session, eo_id, workspace_id)
         return self.item_dao.get_by_order(session, expense_order_id=eo_id, workspace_id=workspace_id)
 
     def _recalc_totals(self, session: Session, eo: ExpenseOrder):
         items = self.item_dao.get_by_order(session, expense_order_id=eo.id, workspace_id=eo.workspace_id)
-        subtotal = sum((i.line_subtotal or Decimal('0')) for i in items)
+        subtotal = sum((i.line_subtotal or Decimal(0)) for i in items)
         eo.subtotal = subtotal
         eo.total_amount = subtotal
         session.flush()
@@ -449,12 +449,12 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
     # ─── Approvers ───────────────────────────────────────────────
     def list_approvers(
         self, session: Session, eo_id: int, workspace_id: int
-    ) -> List[Tuple[ExpenseOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[ExpenseOrderApprover, Profile | None, str | None]]:
         self.get_expense_order(session, eo_id, workspace_id)
         approvers = self.approver_dao.get_by_order(
             session, expense_order_id=eo_id, workspace_id=workspace_id
         )
-        result: List[Tuple[ExpenseOrderApprover, Optional[Profile], Optional[str]]] = []
+        result: list[tuple[ExpenseOrderApprover, Profile | None, str | None]] = []
         for approver in approvers:
             profile = profile_dao.get(session, id=approver.user_id)
             member = workspace_member_dao.get_by_workspace_and_user(
@@ -463,7 +463,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             result.append((approver, profile, member.position if member else None))
         return result
 
-    def approval_summary(self, session: Session, eo: ExpenseOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, session: Session, eo: ExpenseOrder) -> tuple[int, int, bool]:
         approvers = self.approver_dao.get_by_order(
             session, expense_order_id=eo.id, workspace_id=eo.workspace_id
         )
@@ -520,7 +520,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
 
     def remove_approver(
         self, session: Session, eo_id: int, user_id: int, workspace_id: int,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
     ) -> None:
         rec = self.approver_dao.get_by_order_and_user(
             session, expense_order_id=eo_id, user_id=user_id, workspace_id=workspace_id
@@ -574,7 +574,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
     # ─── Events ──────────────────────────────────────────────────
     def log_event(
         self, session: Session, eo_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None,
+        event_type: str, description: str, performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> ExpenseOrderEvent:
         ev = ExpenseOrderEvent(
@@ -591,7 +591,7 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
 
     def list_events(
         self, session: Session, eo_id: int, workspace_id: int
-    ) -> List[Tuple[ExpenseOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[ExpenseOrderEvent, Profile | None]]:
         self.get_expense_order(session, eo_id, workspace_id)
         events = self.event_dao.get_by_order(
             session, expense_order_id=eo_id, workspace_id=workspace_id

@@ -3,13 +3,17 @@
 SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
-from app.models.machine_maintenance_log import MachineMaintenanceLog
 from app.models.enums import MaintenanceTypeEnum
-from app.schemas.machine_maintenance_log import MachineMaintenanceLogCreate, MachineMaintenanceLogUpdate
+from app.models.machine_maintenance_log import MachineMaintenanceLog
+from app.schemas.machine_maintenance_log import (
+    MachineMaintenanceLogCreate,
+    MachineMaintenanceLogUpdate,
+)
 
 
 class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenanceLogCreate, MachineMaintenanceLogUpdate]):
@@ -17,7 +21,7 @@ class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenance
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """Get all maintenance logs in workspace, newest first."""
         return db.query(MachineMaintenanceLog).filter(
             MachineMaintenanceLog.workspace_id == workspace_id,
@@ -26,7 +30,7 @@ class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenance
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[MachineMaintenanceLog]:
+    ) -> MachineMaintenanceLog | None:
         """Get maintenance log by ID with workspace isolation."""
         return db.query(MachineMaintenanceLog).filter(
             MachineMaintenanceLog.id == id,
@@ -35,7 +39,7 @@ class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenance
 
     def get_by_machine(
         self, db: Session, machine_id: int, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """Get all maintenance logs for a machine, newest first."""
         return db.query(MachineMaintenanceLog).filter(
             MachineMaintenanceLog.workspace_id == workspace_id,
@@ -45,7 +49,7 @@ class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenance
 
     def get_by_type(
         self, db: Session, maintenance_type: MaintenanceTypeEnum, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """Get maintenance logs by type, newest first."""
         return db.query(MachineMaintenanceLog).filter(
             MachineMaintenanceLog.workspace_id == workspace_id,
@@ -56,7 +60,7 @@ class MachineMaintenanceLogDAO(BaseDAO[MachineMaintenanceLog, MachineMaintenance
     def get_by_machine_and_type(
         self, db: Session, machine_id: int, maintenance_type: MaintenanceTypeEnum,
         *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """Get maintenance logs for a machine filtered by type."""
         return db.query(MachineMaintenanceLog).filter(
             MachineMaintenanceLog.workspace_id == workspace_id,

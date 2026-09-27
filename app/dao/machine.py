@@ -1,13 +1,13 @@
 """DAO operations for Machine model (workspace-scoped)"""
-from typing import List, Optional
-from datetime import datetime
+
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_, func
+
 from app.dao.base import BaseDAO
+from app.models.enums import MachineEventTypeEnum
 from app.models.machine import Machine
 from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_section_assignment import MachineSectionAssignment
-from app.models.enums import MachineEventTypeEnum
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.utils.time import utcnow
 
@@ -26,7 +26,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
     def get_by_factory(
         self, db: Session, *, factory_id: int, workspace_id: int,
         include_deleted: bool = False, skip: int = 0, limit: int = 100
-    ) -> List[Machine]:
+    ) -> list[Machine]:
         """Get machines by factory ID (SECURITY-CRITICAL: workspace-filtered)"""
         query = db.query(Machine).options(_SECTION_EAGER_LOAD).filter(
             Machine.workspace_id == workspace_id,
@@ -39,7 +39,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
     def get_by_section(
         self, db: Session, *, factory_section_id: int, workspace_id: int,
         include_deleted: bool = False, skip: int = 0, limit: int = 100
-    ) -> List[Machine]:
+    ) -> list[Machine]:
         """Get machines assigned to a factory section (SECURITY-CRITICAL: workspace-filtered)"""
         query = db.query(Machine).options(_SECTION_EAGER_LOAD).join(
             MachineSectionAssignment, MachineSectionAssignment.machine_id == Machine.id
@@ -53,7 +53,7 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
 
     def get_active_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Machine]:
+    ) -> list[Machine]:
         """Get all active (non-deleted) machines in workspace"""
         return (
             db.query(Machine)
@@ -94,18 +94,18 @@ class DAOMachine(BaseDAO[Machine, MachineCreate, MachineUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        factory_section_id: Optional[int] = None,
-        is_running: Optional[bool] = None,
-        search: Optional[str] = None,
-        has_model_number: Optional[bool] = None,
-        has_manufacturer: Optional[bool] = None,
-        latest_event_type: Optional[MachineEventTypeEnum] = None,
+        factory_id: int | None = None,
+        factory_section_id: int | None = None,
+        is_running: bool | None = None,
+        search: str | None = None,
+        has_model_number: bool | None = None,
+        has_manufacturer: bool | None = None,
+        latest_event_type: MachineEventTypeEnum | None = None,
         sort_by: str = "name",
         sort_dir: str = "asc",
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Machine]:
+    ) -> list[Machine]:
         """Advanced machine search with filters and sorting (workspace-scoped)."""
         query = db.query(Machine).options(_SECTION_EAGER_LOAD).filter(
             Machine.workspace_id == workspace_id,

@@ -1,9 +1,13 @@
 """Purchase order return DAO operations"""
 from datetime import datetime
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
-from app.models.purchase_order_return import PurchaseOrderReturn, PurchaseOrderReturnItem
+from app.models.purchase_order_return import (
+    PurchaseOrderReturn,
+    PurchaseOrderReturnItem,
+)
 from app.schemas.purchase_order_return import PurchaseOrderReturnCreate
 
 
@@ -25,7 +29,7 @@ class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCre
 
     def create_with_user(
         self, db: Session, *, workspace_id: int, purchase_order_id: int, user_id: int,
-        return_type: str, reason: Optional[str] = None, notes: Optional[str] = None,
+        return_type: str, reason: str | None = None, notes: str | None = None,
     ) -> PurchaseOrderReturn:
         return_number = self.generate_return_number(
             db, workspace_id=workspace_id, year=datetime.now().year
@@ -46,7 +50,7 @@ class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCre
 
     def get_by_purchase_order(
         self, db: Session, *, purchase_order_id: int, workspace_id: int
-    ) -> List[PurchaseOrderReturn]:
+    ) -> list[PurchaseOrderReturn]:
         return (
             db.query(PurchaseOrderReturn)
             .filter(
@@ -59,7 +63,7 @@ class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCre
 
     def get_open_by_purchase_order(
         self, db: Session, *, purchase_order_id: int, workspace_id: int
-    ) -> List[PurchaseOrderReturn]:
+    ) -> list[PurchaseOrderReturn]:
         return (
             db.query(PurchaseOrderReturn)
             .filter(
@@ -72,7 +76,7 @@ class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCre
 
     def get_by_invoice_id(
         self, db: Session, *, invoice_id: int, workspace_id: int
-    ) -> Optional[PurchaseOrderReturn]:
+    ) -> PurchaseOrderReturn | None:
         return (
             db.query(PurchaseOrderReturn)
             .filter(
@@ -88,7 +92,7 @@ class DAOPurchaseOrderReturnItem(BaseDAO[PurchaseOrderReturnItem, PurchaseOrderR
 
     def get_by_return(
         self, db: Session, *, return_id: int, workspace_id: int
-    ) -> List[PurchaseOrderReturnItem]:
+    ) -> list[PurchaseOrderReturnItem]:
         return (
             db.query(PurchaseOrderReturnItem)
             .filter(

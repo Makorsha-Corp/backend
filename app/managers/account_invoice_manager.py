@@ -5,20 +5,19 @@ Business logic for account invoice operations.
 Lifecycle: draft → confirmed → voided (terminal)
 receiving_started is a boolean flag on confirmed invoices, set when PO receiving is recorded.
 """
-from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.account import account_dao
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.invoice_event import invoice_event_dao
+from app.dao.invoice_item import invoice_item_dao
 from app.managers.base_manager import BaseManager
 from app.models.account_invoice import AccountInvoice
 from app.models.invoice_payment import InvoicePayment
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
-from app.dao.account_invoice import account_invoice_dao
-from app.dao.account import account_dao
-from app.dao.invoice_item import invoice_item_dao
-from app.dao.invoice_event import invoice_event_dao
 from app.utils.time import utcnow
 
 
@@ -50,8 +49,8 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         invoice: AccountInvoice,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
-        metadata: Optional[dict] = None,
+        performed_by: int | None = None,
+        metadata: dict | None = None,
     ) -> None:
         invoice_event_dao.create_event(
             session,
@@ -130,12 +129,12 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         self,
         session: Session,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -144,7 +143,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         amount_max=None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[AccountInvoice]:
+    ) -> list[AccountInvoice]:
         return self.account_invoice_dao.list_invoices(
             session,
             workspace_id=workspace_id,
@@ -170,10 +169,10 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         *,
         workspace_id: int,
         account_id: int,
-        prioritize_purchase_order_id: Optional[int] = None,
+        prioritize_purchase_order_id: int | None = None,
         skip: int = 0,
         limit: int = 10,
-    ) -> tuple[List[AccountInvoice], int]:
+    ) -> tuple[list[AccountInvoice], int]:
         return self.account_invoice_dao.list_invoices_page(
             session,
             workspace_id=workspace_id,
@@ -189,12 +188,12 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -202,10 +201,10 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         amount_min=None,
         amount_max=None,
         open_balance_only: bool = False,
-        prioritize_purchase_order_id: Optional[int] = None,
+        prioritize_purchase_order_id: int | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> tuple[List[AccountInvoice], int]:
+    ) -> tuple[list[AccountInvoice], int]:
         return self.account_invoice_dao.list_invoices_page_filtered(
             session,
             workspace_id=workspace_id,
@@ -246,7 +245,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         *,
         workspace_id: int,
         section: str = "overview",
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ):
@@ -263,12 +262,12 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         self,
         session: Session,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -523,7 +522,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         invoice_id: int,
         workspace_id: int,
-        performed_by: Optional[int],
+        performed_by: int | None,
         reason: str = "",
     ) -> AccountInvoice:
         """Flip receiving_started = True and log the event. No-op if already set."""
@@ -550,7 +549,7 @@ class AccountInvoiceManager(BaseManager[AccountInvoice]):
         session: Session,
         invoice: AccountInvoice,
         items: list[dict],
-        user_id: Optional[int],
+        user_id: int | None,
         is_manual: bool = False,
     ) -> None:
         """

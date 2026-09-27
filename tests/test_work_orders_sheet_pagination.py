@@ -3,10 +3,7 @@
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.dao.work_order import _apply_sheet_list_filters, _work_order_calendar_date_expr
-from app.models.enums import WorkOrderStatusEnum
 from app.schemas.work_order import WorkOrderSheetListResponse
 from app.services.work_order_service import WorkOrderService
 

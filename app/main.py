@@ -4,32 +4,31 @@ FastAPI application entry point
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
-
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.limiter import limiter
-from app.db.init_db import init_db
-from app.db.session import SessionLocal
 
 # Import exception handlers and middleware
 from app.core.exceptions import (
     APIException,
     api_exception_handler,
-    validation_exception_handler,
-    integrity_error_handler,
     database_error_handler,
+    generic_exception_handler,
+    integrity_error_handler,
     schema_error_handler,
-    generic_exception_handler
+    validation_exception_handler,
 )
+from app.core.limiter import limiter
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from app.core.utc_json_middleware import UtcJsonResponseMiddleware
+from app.db.init_db import init_db
+from app.db.session import SessionLocal
 
 
 @asynccontextmanager

@@ -3,23 +3,26 @@ Department API endpoints
 
 Provides operations for managing departments (organizational units).
 """
-from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse
+from app.schemas.department import (
+    DepartmentCreate,
+    DepartmentResponse,
+    DepartmentUpdate,
+)
 from app.services.department_service import department_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[DepartmentResponse],
+    response_model=list[DepartmentResponse],
     status_code=status.HTTP_200_OK,
     summary="List all departments",
     description="Get all departments in the workspace with optional search"
@@ -27,7 +30,7 @@ router = APIRouter()
 def get_departments(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    search: Optional[str] = Query(None, description="Search by name"),
+    search: str | None = Query(None, description="Search by name"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

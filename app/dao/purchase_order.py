@@ -1,7 +1,6 @@
 """Purchase order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, case, desc, func, or_
@@ -17,7 +16,12 @@ from app.models.project_component import ProjectComponent
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.status import Status
-from app.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderItemCreate, PurchaseOrderItemUpdate
+from app.schemas.purchase_order import (
+    PurchaseOrderCreate,
+    PurchaseOrderItemCreate,
+    PurchaseOrderItemUpdate,
+    PurchaseOrderUpdate,
+)
 
 
 def _purchase_order_is_fully_closed_clause():
@@ -29,15 +33,15 @@ def _apply_purchase_order_hub_filters(
     query: Query,
     *,
     workspace_id: int,
-    account_id: Optional[int] = None,
-    invoice_id: Optional[int] = None,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
-    status_ids: Optional[List[int]] = None,
-    factory_id: Optional[int] = None,
-    destination_type: Optional[str] = None,
-    invoice_filter: Optional[str] = None,
-    search: Optional[str] = None,
+    account_id: int | None = None,
+    invoice_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    status_ids: list[int] | None = None,
+    factory_id: int | None = None,
+    destination_type: str | None = None,
+    invoice_filter: str | None = None,
+    search: str | None = None,
     exclude_complete: bool = True,
     exclude_voided: bool = True,
 ) -> Query:
@@ -136,11 +140,11 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         db: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         query = (
             db.query(PurchaseOrder)
             .options(joinedload(PurchaseOrder.current_status))
@@ -160,7 +164,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(desc(PurchaseOrder.created_at), desc(PurchaseOrder.id))
@@ -185,7 +189,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         workspace_id: int,
         limit: int = 10,
         **filters,
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(desc(PurchaseOrder.updated_at), desc(PurchaseOrder.created_at))
@@ -242,7 +246,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
 
     def aggregate_hub_stats(
         self, db: Session, *, workspace_id: int, **filters
-    ) -> Tuple[int, Decimal, int, Decimal, int]:
+    ) -> tuple[int, Decimal, int, Decimal, int]:
         filtered_ids = (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .with_entities(PurchaseOrder.id)
@@ -288,7 +292,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         workspace_id: int,
         destination_type: str,
         destination_id: int,
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         return (
             db.query(PurchaseOrder)
             .options(joinedload(PurchaseOrder.current_status))
@@ -301,7 +305,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
             .all()
         )
 
-    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrder]:
+    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> PurchaseOrder | None:
         return (
             db.query(PurchaseOrder)
             .options(joinedload(PurchaseOrder.current_status))
@@ -311,7 +315,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
 
     def get_by_invoice_id(
         self, db: Session, *, invoice_id: int, workspace_id: int
-    ) -> Optional[PurchaseOrder]:
+    ) -> PurchaseOrder | None:
         return (
             db.query(PurchaseOrder)
             .filter(
@@ -369,7 +373,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
 
 
 class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, PurchaseOrderItemUpdate]):
-    def get_by_order(self, db: Session, *, purchase_order_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
+    def get_by_order(self, db: Session, *, purchase_order_id: int, workspace_id: int) -> list[PurchaseOrderItem]:
         return db.query(PurchaseOrderItem).filter(PurchaseOrderItem.purchase_order_id == purchase_order_id, PurchaseOrderItem.workspace_id == workspace_id).order_by(PurchaseOrderItem.line_number).all()
 
     def get_by_purchase_order_ids(
@@ -377,8 +381,8 @@ class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, P
         db: Session,
         *,
         workspace_id: int,
-        purchase_order_ids: List[int],
-    ) -> List[PurchaseOrderItem]:
+        purchase_order_ids: list[int],
+    ) -> list[PurchaseOrderItem]:
         if not purchase_order_ids:
             return []
         return (
@@ -391,7 +395,7 @@ class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, P
             .all()
         )
 
-    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[PurchaseOrderItem]:
+    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> PurchaseOrderItem | None:
         return db.query(PurchaseOrderItem).filter(PurchaseOrderItem.id == id, PurchaseOrderItem.workspace_id == workspace_id).first()
 
     def summarize_by_purchase_order_ids(
@@ -399,7 +403,7 @@ class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, P
         db: Session,
         *,
         workspace_id: int,
-        purchase_order_ids: List[int],
+        purchase_order_ids: list[int],
     ) -> dict[int, dict]:
         if not purchase_order_ids:
             return {}
@@ -431,7 +435,7 @@ class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, P
         db: Session,
         *,
         workspace_id: int,
-        purchase_order_ids: List[int],
+        purchase_order_ids: list[int],
         limit: int = 4,
     ) -> dict[int, list[str]]:
         if not purchase_order_ids or limit <= 0:

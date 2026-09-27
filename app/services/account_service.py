@@ -1,15 +1,16 @@
 """Account Service for orchestrating account workflows"""
 from decimal import Decimal
-from typing import List, Optional, Tuple
+
 from sqlalchemy.orm import Session
-from app.services.base_service import BaseService
-from app.managers.account_manager import account_manager
-from app.managers.account_invoice_manager import account_invoice_manager
-from app.models.account import Account
-from app.schemas.account import AccountCreate, AccountUpdate, AccountWithTagsResponse
-from app.core.exceptions import NotFoundError, BusinessRuleError
+
+from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.dao.account import account_dao
 from app.dao.account_tag import account_tag_dao
+from app.managers.account_invoice_manager import account_invoice_manager
+from app.managers.account_manager import account_manager
+from app.models.account import Account
+from app.schemas.account import AccountCreate, AccountUpdate
+from app.services.base_service import BaseService
 
 
 class AccountService(BaseService):
@@ -64,7 +65,7 @@ class AccountService(BaseService):
 
             return account
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -160,11 +161,11 @@ class AccountService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
-        tag_code: Optional[str] = None,
+        search: str | None = None,
+        tag_code: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Get all accounts with their tags included.
 
@@ -272,9 +273,9 @@ class AccountService(BaseService):
         }
 
     @staticmethod
-    def _rollup_from_subquery_row(row) -> Tuple[Decimal, int, bool]:
+    def _rollup_from_subquery_row(row) -> tuple[Decimal, int, bool]:
         if row is None:
-            return Decimal("0"), 0, False
+            return Decimal(0), 0, False
         outstanding = Decimal(getattr(row, "outstanding_total", 0) or 0)
         open_count = int(getattr(row, "open_count", 0) or 0)
         has_overdue = bool(getattr(row, "has_overdue", 0))
@@ -286,7 +287,7 @@ class AccountService(BaseService):
         *,
         workspace_id: int,
         section: str = "overview",
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ):
@@ -364,7 +365,7 @@ class AccountService(BaseService):
         except NotFoundError:
             self._rollback_transaction(db)
             raise
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -375,7 +376,7 @@ class AccountService(BaseService):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Get all accounts that have a specific tag assigned.
 
@@ -523,7 +524,7 @@ class AccountService(BaseService):
         except NotFoundError:
             self._rollback_transaction(db)
             raise
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

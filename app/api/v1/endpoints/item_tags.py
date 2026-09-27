@@ -3,23 +3,22 @@ Item Tag endpoints
 
 Provides operations for managing item tags (categories for items).
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
-from app.schemas.item_tag import ItemTagCreate, ItemTagUpdate, ItemTagResponse
+from app.models.workspace import Workspace
+from app.schemas.item_tag import ItemTagCreate, ItemTagResponse, ItemTagUpdate
 from app.services.item_tag_service import item_tag_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[ItemTagResponse],
+    response_model=list[ItemTagResponse],
     status_code=status.HTTP_200_OK,
     summary="List all tags",
     description="""
@@ -38,7 +37,7 @@ def get_tags(
 
 @router.get(
     "/system/",
-    response_model=List[ItemTagResponse],
+    response_model=list[ItemTagResponse],
     status_code=status.HTTP_200_OK,
     summary="List system tags",
     description="Get all system tags (default tags that cannot be deleted)"

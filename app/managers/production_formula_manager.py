@@ -1,19 +1,29 @@
 """Production Formula Manager for business logic"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.managers.base_manager import BaseManager
-from app.models.production_formula import ProductionFormula
-from app.models.production_formula_item import ProductionFormulaItem
+
+from app.dao.item import item_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
 from app.dao.production_formula_stage import production_formula_stage_dao
 from app.dao.production_line import production_line_dao
-from app.dao.item import item_dao
-from app.models.production_formula_stage import ProductionFormulaStage
+from app.managers.base_manager import BaseManager
 from app.models.machine import Machine
-from app.schemas.production_formula import ProductionFormulaCreate, ProductionFormulaUpdate
-from app.schemas.production_formula_item import ProductionFormulaItemCreate, ProductionFormulaItemUpdate
-from app.schemas.production_formula_stage import ProductionFormulaStageCreate, ProductionFormulaStageUpdate
+from app.models.production_formula import ProductionFormula
+from app.models.production_formula_item import ProductionFormulaItem
+from app.models.production_formula_stage import ProductionFormulaStage
+from app.schemas.production_formula import (
+    ProductionFormulaCreate,
+    ProductionFormulaUpdate,
+)
+from app.schemas.production_formula_item import (
+    ProductionFormulaItemCreate,
+    ProductionFormulaItemUpdate,
+)
+from app.schemas.production_formula_stage import (
+    ProductionFormulaStageCreate,
+    ProductionFormulaStageUpdate,
+)
 
 
 class ProductionFormulaManager(BaseManager[ProductionFormula]):
@@ -106,7 +116,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         session: Session,
         formula_id: int,
         workspace_id: int
-    ) -> Optional[ProductionFormula]:
+    ) -> ProductionFormula | None:
         """Get formula by ID within workspace."""
         return self.formula_dao.get_by_id_and_workspace(
             session, id=formula_id, workspace_id=workspace_id
@@ -119,7 +129,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         active_only: bool = False,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionFormula]:
+    ) -> list[ProductionFormula]:
         """Get formulas with optional filtering."""
         if active_only:
             return self.formula_dao.get_active_by_workspace(
@@ -239,8 +249,8 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         session: Session,
         formula_id: int,
         workspace_id: int,
-        item_role: Optional[str] = None
-    ) -> List[ProductionFormulaItem]:
+        item_role: str | None = None
+    ) -> list[ProductionFormulaItem]:
         """Get items for a formula with optional role filter."""
         # Validate formula exists in workspace
         formula = self.formula_dao.get_by_id_and_workspace(
@@ -268,9 +278,9 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         self,
         session: Session,
         workspace_id: int,
-        production_line_id: Optional[int],
-        machine_id: Optional[int],
-        expected_output_item_id: Optional[int],
+        production_line_id: int | None,
+        machine_id: int | None,
+        expected_output_item_id: int | None,
     ) -> None:
         if production_line_id is not None:
             line = production_line_dao.get_by_id_and_workspace(
@@ -297,7 +307,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
 
     def get_formula_stages(
         self, session: Session, formula_id: int, workspace_id: int
-    ) -> List[ProductionFormulaStage]:
+    ) -> list[ProductionFormulaStage]:
         formula = self.formula_dao.get_by_id_and_workspace(
             session, id=formula_id, workspace_id=workspace_id
         )
@@ -389,7 +399,7 @@ class ProductionFormulaManager(BaseManager[ProductionFormula]):
         self,
         session: Session,
         workspace_id: int,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> None:
         """Clear is_default flag on all other formulas in the workspace."""
         default_formulas = self.formula_dao.get_default_formulas(

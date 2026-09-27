@@ -1,35 +1,34 @@
 """Account invoice schemas"""
-from pydantic import BaseModel, Field, ConfigDict, computed_field
-from typing import List, Optional
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class AccountInvoiceBase(BaseModel):
     """Base account invoice schema"""
     account_id: int
-    order_id: Optional[int] = None
-    order_type: Optional[str] = Field(None, max_length=30)
+    order_id: int | None = None
+    order_type: str | None = Field(None, max_length=30)
 
     invoice_type: str = Field(..., pattern=r'^(payable|receivable)$')
     invoice_amount: Decimal = Field(..., ge=0)
 
-    invoice_number: Optional[str] = Field(None, max_length=100)
-    vendor_invoice_number: Optional[str] = Field(None, max_length=100)
+    invoice_number: str | None = Field(None, max_length=100)
+    vendor_invoice_number: str | None = Field(None, max_length=100)
 
     invoice_date: date
-    due_date: Optional[date] = None
+    due_date: date | None = None
 
-    description: Optional[str] = None
-    notes: Optional[str] = None
+    description: str | None = None
+    notes: str | None = None
 
     allow_payments: bool = True
-    payment_locked_reason: Optional[str] = None
+    payment_locked_reason: str | None = None
 
 
 class AccountInvoiceCreate(AccountInvoiceBase):
     """Schema for creating an account invoice (workspace_id injected by service)"""
-    pass
 
 
 class AccountInvoiceUpdate(BaseModel):
@@ -37,23 +36,23 @@ class AccountInvoiceUpdate(BaseModel):
 
     invoice_status is NOT updatable here — use /confirm and /void endpoints.
     """
-    account_id: Optional[int] = None
-    order_id: Optional[int] = None
+    account_id: int | None = None
+    order_id: int | None = None
 
-    invoice_type: Optional[str] = Field(None, pattern=r'^(payable|receivable)$')
-    invoice_amount: Optional[Decimal] = Field(None, ge=0)
+    invoice_type: str | None = Field(None, pattern=r'^(payable|receivable)$')
+    invoice_amount: Decimal | None = Field(None, ge=0)
 
-    invoice_number: Optional[str] = Field(None, max_length=100)
-    vendor_invoice_number: Optional[str] = Field(None, max_length=100)
+    invoice_number: str | None = Field(None, max_length=100)
+    vendor_invoice_number: str | None = Field(None, max_length=100)
 
-    invoice_date: Optional[date] = None
-    due_date: Optional[date] = None
+    invoice_date: date | None = None
+    due_date: date | None = None
 
-    description: Optional[str] = None
-    notes: Optional[str] = None
+    description: str | None = None
+    notes: str | None = None
 
-    allow_payments: Optional[bool] = None
-    payment_locked_reason: Optional[str] = None
+    allow_payments: bool | None = None
+    payment_locked_reason: str | None = None
 
 
 class VoidInvoiceRequest(BaseModel):
@@ -73,14 +72,14 @@ class AccountInvoiceInDB(AccountInvoiceBase):
     payment_status: str
 
     receiving_started: bool = False
-    last_synced_at: Optional[datetime] = None
+    last_synced_at: datetime | None = None
 
-    void_note: Optional[str] = None
+    void_note: str | None = None
 
     created_at: datetime
-    created_by: Optional[int] = None
-    updated_at: Optional[datetime] = None
-    updated_by: Optional[int] = None
+    created_by: int | None = None
+    updated_at: datetime | None = None
+    updated_by: int | None = None
 
     @computed_field
     @property
@@ -93,7 +92,6 @@ class AccountInvoiceInDB(AccountInvoiceBase):
 
 class AccountInvoiceResponse(AccountInvoiceInDB):
     """Account invoice response schema"""
-    pass
 
 
 class AccountInvoiceSummaryResponse(BaseModel):
@@ -106,7 +104,7 @@ class AccountInvoiceSummaryResponse(BaseModel):
 
 class AccountInvoiceListResponse(BaseModel):
     """Paginated account invoice list."""
-    items: List[AccountInvoiceResponse]
+    items: list[AccountInvoiceResponse]
     total: int
     skip: int
     limit: int
@@ -138,5 +136,5 @@ class InvoiceStatusEntryResponse(BaseModel):
     from_status: str
     to_status: str
     changed_at: datetime
-    changed_by: Optional[int] = None
-    changed_by_name: Optional[str] = None
+    changed_by: int | None = None
+    changed_by_name: str | None = None

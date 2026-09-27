@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -17,7 +16,7 @@ class MarkupPoint(BaseModel):
 class MarkupStroke(BaseModel):
     color: str = Field(min_length=1, max_length=32)
     width: float = Field(gt=0, le=1)
-    points: List[MarkupPoint] = Field(default_factory=list)
+    points: list[MarkupPoint] = Field(default_factory=list)
 
 
 class MarkupText(BaseModel):
@@ -38,18 +37,18 @@ class MarkupStamp(BaseModel):
 
 
 class PageMarks(BaseModel):
-    strokes: List[MarkupStroke] = Field(default_factory=list)
-    texts: List[MarkupText] = Field(default_factory=list)
-    scribbles: List[MarkupStroke] = Field(default_factory=list)
-    stamps: List[MarkupStamp] = Field(default_factory=list)
+    strokes: list[MarkupStroke] = Field(default_factory=list)
+    texts: list[MarkupText] = Field(default_factory=list)
+    scribbles: list[MarkupStroke] = Field(default_factory=list)
+    stamps: list[MarkupStamp] = Field(default_factory=list)
 
 
 class MarkupPayload(BaseModel):
-    pages: Dict[str, PageMarks] = Field(default_factory=dict)
+    pages: dict[str, PageMarks] = Field(default_factory=dict)
 
     @field_validator("pages")
     @classmethod
-    def validate_point_budget(cls, pages: Dict[str, PageMarks]) -> Dict[str, PageMarks]:
+    def validate_point_budget(cls, pages: dict[str, PageMarks]) -> dict[str, PageMarks]:
         total = 0
         for page in pages.values():
             for stroke in (*page.strokes, *page.scribbles):
@@ -90,7 +89,7 @@ class AttachmentMarkupEventResponse(BaseModel):
 
 
 class AttachmentMarkupEventListResponse(BaseModel):
-    items: List[AttachmentMarkupEventResponse]
+    items: list[AttachmentMarkupEventResponse]
 
 
 class AttachmentMarkupLayerResponse(BaseModel):
@@ -105,4 +104,4 @@ class AttachmentMarkupLayerResponse(BaseModel):
 
 
 class AttachmentMarkupListResponse(BaseModel):
-    items: List[AttachmentMarkupLayerResponse]
+    items: list[AttachmentMarkupLayerResponse]

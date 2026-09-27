@@ -1,11 +1,11 @@
 """Department Service for orchestrating department workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.department_manager import department_manager
 from app.models.department import Department
 from app.schemas.department import DepartmentCreate, DepartmentUpdate
+from app.services.base_service import BaseService
 
 
 class DepartmentService(BaseService):
@@ -59,7 +59,7 @@ class DepartmentService(BaseService):
 
             return department
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -89,10 +89,10 @@ class DepartmentService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Department]:
+    ) -> list[Department]:
         """
         Get departments in workspace.
 
@@ -154,7 +154,7 @@ class DepartmentService(BaseService):
 
             return department
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -195,7 +195,7 @@ class DepartmentService(BaseService):
 
             return department
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

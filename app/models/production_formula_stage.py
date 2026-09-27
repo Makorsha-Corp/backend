@@ -1,6 +1,7 @@
 """Production formula stage — ordered route template per formula."""
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

@@ -10,7 +10,6 @@ class StatusBase(BaseModel):
 
 class StatusCreate(StatusBase):
     """Status creation schema"""
-    pass
 
 
 class StatusUpdate(BaseModel):

@@ -1,13 +1,18 @@
 """Inventory Service - transaction orchestration for unified inventory"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.inventory_manager import inventory_manager
-from app.models.inventory import Inventory
 from app.models.enums import InventoryTypeEnum
-from app.schemas.inventory import InventoryCreate, InventoryUpdate, InventoryListResponse, InventoryStatsResponse
+from app.models.inventory import Inventory
+from app.schemas.inventory import (
+    InventoryCreate,
+    InventoryListResponse,
+    InventoryStatsResponse,
+    InventoryUpdate,
+)
 from app.schemas.inventory_incoming import ItemIncomingSummary
+from app.services.base_service import BaseService
 
 
 class InventoryService(BaseService):
@@ -48,10 +53,10 @@ class InventoryService(BaseService):
 
     def list_inventory(
         self, db: Session, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Inventory]:
+    ) -> list[Inventory]:
         return self.manager.list_inventory(
             db, workspace_id=workspace_id,
             inventory_type=inventory_type, factory_id=factory_id,
@@ -63,10 +68,10 @@ class InventoryService(BaseService):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
         skip: int = 0,
         limit: int = 50,
@@ -88,10 +93,10 @@ class InventoryService(BaseService):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
     ) -> InventoryStatsResponse:
         return self.manager.get_inventory_stats(
@@ -105,8 +110,8 @@ class InventoryService(BaseService):
         )
 
     def get_incoming_summary(
-        self, db: Session, *, workspace_id: int, factory_id: Optional[int] = None
-    ) -> List[ItemIncomingSummary]:
+        self, db: Session, *, workspace_id: int, factory_id: int | None = None
+    ) -> list[ItemIncomingSummary]:
         return self.manager.get_incoming_summary(
             session=db, workspace_id=workspace_id, factory_id=factory_id
         )

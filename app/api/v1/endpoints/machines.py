@@ -3,21 +3,20 @@ Machine API endpoints
 
 Provides operations for managing machines and machine events (status changes).
 """
-from typing import List, Optional
 from datetime import date
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
-from app.models.profile import Profile
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.enums import MachineEventTypeEnum
-from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse
-from app.schemas.machine_work import MachineUpcomingWorkRow
-from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
+from app.models.profile import Profile
+from app.models.workspace import Workspace
+from app.schemas.machine import MachineCreate, MachineResponse, MachineUpdate
 from app.schemas.machine_activity_event import MachineActivityEventResponse
+from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
+from app.schemas.machine_work import MachineUpcomingWorkRow
 from app.services.machine_service import machine_service
-
 
 router = APIRouter()
 
@@ -26,7 +25,7 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[MachineResponse],
+    response_model=list[MachineResponse],
     status_code=status.HTTP_200_OK,
     summary="List all machines",
     description="Get all machines in the workspace, optionally filtered"
@@ -34,17 +33,17 @@ router = APIRouter()
 def get_machines(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    factory_section_id: Optional[int] = Query(None, description="Filter by factory section ID"),
-    is_running: Optional[bool] = Query(None, description="Filter by running status"),
-    search: Optional[str] = Query(None, description="Search by name, model_number, or manufacturer"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    factory_section_id: int | None = Query(None, description="Filter by factory section ID"),
+    is_running: bool | None = Query(None, description="Filter by running status"),
+    search: str | None = Query(None, description="Search by name, model_number, or manufacturer"),
     maintenance_window: str = Query(
         "all",
         description="Maintenance filter: all | overdue | next_7_days | next_30_days | none_scheduled"
     ),
-    has_model_number: Optional[bool] = Query(None, description="Filter by model number presence"),
-    has_manufacturer: Optional[bool] = Query(None, description="Filter by manufacturer presence"),
-    latest_event_type: Optional[MachineEventTypeEnum] = Query(None, description="Filter by latest machine event type"),
+    has_model_number: bool | None = Query(None, description="Filter by model number presence"),
+    has_manufacturer: bool | None = Query(None, description="Filter by manufacturer presence"),
+    latest_event_type: MachineEventTypeEnum | None = Query(None, description="Filter by latest machine event type"),
     sort_by: str = Query("name", description="Sort field: name | created_at | maintenance_date"),
     sort_dir: str = Query("asc", description="Sort direction: asc | desc"),
     workspace: Workspace = Depends(get_current_workspace),
@@ -68,14 +67,14 @@ def get_machines(
 
 @router.get(
     "/upcoming-work/",
-    response_model=List[MachineUpcomingWorkRow],
+    response_model=list[MachineUpcomingWorkRow],
     status_code=status.HTTP_200_OK,
     summary="Upcoming machine work",
     description="Open work orders with planned dates per machine",
 )
 def get_upcoming_machine_work(
     within_days: int = Query(7, ge=1, le=365),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
     include_overdue: bool = Query(
         False, description="Include open work with date before today"
     ),
@@ -192,7 +191,7 @@ def create_machine_event(
 
 @router.get(
     "/{machine_id}/activity/",
-    response_model=List[MachineActivityEventResponse],
+    response_model=list[MachineActivityEventResponse],
     status_code=status.HTTP_200_OK,
     summary="Get machine activity log",
     description="Unified audit trail for all machine operations",
@@ -201,9 +200,9 @@ def get_machine_activity(
     machine_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    from_date: Optional[date] = Query(None),
-    to_date: Optional[date] = Query(None),
-    event_type: Optional[str] = Query(None),
+    from_date: date | None = Query(None),
+    to_date: date | None = Query(None),
+    event_type: str | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):

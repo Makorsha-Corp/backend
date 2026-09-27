@@ -1,6 +1,8 @@
 """Machine schemas"""
-from datetime import datetime, date
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import MachineEventTypeEnum
 
 

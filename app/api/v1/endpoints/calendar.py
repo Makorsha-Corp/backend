@@ -1,6 +1,5 @@
 """Calendar API — unified dated events feed."""
 from datetime import date
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -22,7 +21,7 @@ router = APIRouter()
 def list_calendar_events(
     start: date = Query(..., description="Range start (inclusive), YYYY-MM-DD"),
     end: date = Query(..., description="Range end (inclusive), YYYY-MM-DD"),
-    types: Optional[List[CalendarCategory]] = Query(
+    types: list[CalendarCategory] | None = Query(
         None,
         description="Optional category filter; omit for all categories",
     ),

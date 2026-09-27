@@ -1,17 +1,20 @@
 """Order template API endpoints - reusable expense order templates"""
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.order_template import (
-    OrderTemplateCreate, OrderTemplateUpdate, OrderTemplateResponse,
-    OrderTemplateItemCreate, OrderTemplateItemUpdate, OrderTemplateItemResponse,
+    OrderTemplateCreate,
+    OrderTemplateItemCreate,
+    OrderTemplateItemResponse,
+    OrderTemplateItemUpdate,
+    OrderTemplateResponse,
+    OrderTemplateUpdate,
 )
 from app.services.order_template_service import order_template_service
-
 
 router = APIRouter()
 
@@ -20,15 +23,15 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[OrderTemplateResponse],
+    response_model=list[OrderTemplateResponse],
     status_code=status.HTTP_200_OK,
     summary="List order templates"
 )
 def list_order_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    is_active: Optional[bool] = Query(True),
-    expense_category: Optional[str] = Query(None),
+    is_active: bool | None = Query(True),
+    expense_category: str | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -108,7 +111,7 @@ def delete_order_template(
 
 @router.get(
     "/{tpl_id}/items/",
-    response_model=List[OrderTemplateItemResponse],
+    response_model=list[OrderTemplateItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get template items"
 )

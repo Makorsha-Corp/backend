@@ -3,23 +3,22 @@ Factory API endpoints
 
 Provides operations for managing factory locations.
 """
-from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
-from app.schemas.factory import FactoryCreate, FactoryUpdate, FactoryResponse
+from app.models.workspace import Workspace
+from app.schemas.factory import FactoryCreate, FactoryResponse, FactoryUpdate
 from app.services.factory_service import factory_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[FactoryResponse],
+    response_model=list[FactoryResponse],
     status_code=status.HTTP_200_OK,
     summary="List all factories",
     description="Get all factories in the workspace with optional search"
@@ -27,7 +26,7 @@ router = APIRouter()
 def get_factories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    search: Optional[str] = Query(None, description="Search by name or abbreviation"),
+    search: str | None = Query(None, description="Search by name or abbreviation"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

@@ -1,6 +1,7 @@
 """Production Batch Item model - item-level tracking per batch"""
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Numeric
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

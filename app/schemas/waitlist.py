@@ -1,9 +1,8 @@
 """Waitlist request/response schemas."""
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
-
 
 WaitlistSource = Literal[
     "waitlist_section",
@@ -19,12 +18,12 @@ WaitlistStatus = Literal["PENDING", "CONTACTED", "ACCEPTED", "DECLINED"]
 class WaitlistSignupRequest(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    company_name: Optional[str] = Field(None, max_length=200)
+    company_name: str | None = Field(None, max_length=200)
     email: EmailStr
     wants_product_updates: bool = False
     turnstile_token: str = Field(..., min_length=1)
-    source: Optional[WaitlistSource] = "waitlist_section"
-    website: Optional[str] = Field(None, description="Honeypot field — must be empty")
+    source: WaitlistSource | None = "waitlist_section"
+    website: str | None = Field(None, description="Honeypot field — must be empty")
 
 
 class WaitlistSignupResponse(BaseModel):
@@ -34,12 +33,12 @@ class WaitlistSignupResponse(BaseModel):
 
 class WaitlistSignupItem(BaseModel):
     id: int
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
     email: str
     wants_product_updates: bool
-    source: Optional[str] = None
+    source: str | None = None
     status: WaitlistStatus
     created_at: datetime
 

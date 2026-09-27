@@ -3,23 +3,26 @@ Work order type API endpoints
 
 Provides operations for managing user-defined work order types.
 """
-from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate, WorkOrderTypeResponse
+from app.schemas.work_order_type import (
+    WorkOrderTypeCreate,
+    WorkOrderTypeResponse,
+    WorkOrderTypeUpdate,
+)
 from app.services.work_order_type_service import work_order_type_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[WorkOrderTypeResponse],
+    response_model=list[WorkOrderTypeResponse],
     status_code=status.HTTP_200_OK,
     summary="List all work order types",
     description="Get all work order types in the workspace with optional search"
@@ -27,7 +30,7 @@ router = APIRouter()
 def get_work_order_types(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    search: Optional[str] = Query(None, description="Search by name"),
+    search: str | None = Query(None, description="Search by name"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

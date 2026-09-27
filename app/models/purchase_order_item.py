@@ -1,7 +1,9 @@
 """Purchase order item model - items within a purchase order"""
 from decimal import Decimal
-from sqlalchemy import Column, Integer, ForeignKey, Text, Numeric
+
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 
@@ -53,7 +55,7 @@ class PurchaseOrderItem(Base):
         """Quantity reserved by returns that are started but not yet completed."""
         return sum(
             (Decimal(str(ri.quantity_returned)) for ri in self.return_items if ri.return_.status == 'pending'),
-            Decimal('0'),
+            Decimal(0),
         )
 
     @property
@@ -64,7 +66,7 @@ class PurchaseOrderItem(Base):
             - Decimal(str(self.quantity_returned or 0))
             - self.quantity_pending_returned
         )
-        return max(Decimal('0'), remaining)
+        return max(Decimal(0), remaining)
 
     @property
     def quantity_remaining(self) -> Decimal:
@@ -74,4 +76,4 @@ class PurchaseOrderItem(Base):
             - Decimal(str(self.quantity_received or 0))
             - Decimal(str(self.quantity_refunded or 0))
         )
-        return max(Decimal('0'), remaining)
+        return max(Decimal(0), remaining)

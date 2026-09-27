@@ -1,9 +1,10 @@
 """Account tag assignment DAO operations"""
+
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.dao.base import BaseDAO
-from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_tag import AccountTag
+from app.models.account_tag_assignment import AccountTagAssignment
 from app.schemas.account_tag_assignment import AccountTagAssignmentCreate
 
 # Forward declaration to avoid circular import
@@ -23,7 +24,7 @@ class AccountTagAssignmentDAO(BaseDAO[AccountTagAssignment, AccountTagAssignment
 
     def get_tags_for_account(
         self, db: Session, *, account_id: int, workspace_id: int
-    ) -> List[AccountTag]:
+    ) -> list[AccountTag]:
         """
         Get all tags for an account (SECURITY-CRITICAL)
 
@@ -47,7 +48,7 @@ class AccountTagAssignmentDAO(BaseDAO[AccountTagAssignment, AccountTagAssignment
 
     def get_assignment(
         self, db: Session, *, account_id: int, tag_id: int, workspace_id: int
-    ) -> Optional[AccountTagAssignment]:
+    ) -> AccountTagAssignment | None:
         """
         Get specific tag assignment (SECURITY-CRITICAL)
 

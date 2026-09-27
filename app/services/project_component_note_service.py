@@ -1,9 +1,13 @@
 """Project component note service for business orchestration"""
 from sqlalchemy.orm import Session
-from app.dao.project_component_task import project_component_task_dao
+
 from app.dao.project_component import project_component_dao
+from app.dao.project_component_task import project_component_task_dao
 from app.managers.project_manager import project_manager
-from app.schemas.project_component_note import ProjectComponentNoteCreate, ProjectComponentNoteUpdate
+from app.schemas.project_component_note import (
+    ProjectComponentNoteCreate,
+    ProjectComponentNoteUpdate,
+)
 
 
 class ProjectComponentNoteService:

@@ -1,5 +1,5 @@
 """Invoice event DAO"""
-from typing import List
+
 from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
@@ -32,7 +32,7 @@ class InvoiceEventDAO(BaseDAO[InvoiceEvent, dict, dict]):
         db.flush()
         return event
 
-    def get_by_invoice(self, db: Session, *, invoice_id: int, workspace_id: int) -> List[dict]:
+    def get_by_invoice(self, db: Session, *, invoice_id: int, workspace_id: int) -> list[dict]:
         rows = (
             db.query(InvoiceEvent, Profile.name.label("performed_by_name"))
             .outerjoin(Profile, InvoiceEvent.performed_by == Profile.id)

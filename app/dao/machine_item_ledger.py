@@ -1,11 +1,15 @@
 """Machine item ledger DAO operations"""
-from sqlalchemy.orm import Session
-from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
+
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.machine_item_ledger import MachineItemLedger
-from app.schemas.machine_item_ledger import MachineItemLedgerCreate, MachineItemLedgerUpdate
+from app.schemas.machine_item_ledger import (
+    MachineItemLedgerCreate,
+    MachineItemLedgerUpdate,
+)
 
 
 class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, MachineItemLedgerUpdate]):
@@ -13,7 +17,7 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_item(
         self, db: Session, *, item_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """Get ledger entries for a catalog item across all machines."""
         return (
             db.query(MachineItemLedger)
@@ -30,7 +34,7 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
     def get_by_machine_and_item(
         self, db: Session, *, machine_id: int, item_id: int, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get ledger entries for specific machine and item (SECURITY-CRITICAL)
 
@@ -60,10 +64,10 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_transaction_type(
         self, db: Session, *, transaction_type: str, workspace_id: int,
-        machine_id: Optional[int] = None,
-        item_id: Optional[int] = None,
+        machine_id: int | None = None,
+        item_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get ledger entries by transaction type (SECURITY-CRITICAL).
 
@@ -86,7 +90,7 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_order(
         self, db: Session, *, order_id: int, workspace_id: int
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get all ledger entries for an order (SECURITY-CRITICAL)
 
@@ -110,10 +114,10 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_by_date_range(
         self, db: Session, *, workspace_id: int, start_date: datetime, end_date: datetime,
-        machine_id: Optional[int] = None,
-        item_id: Optional[int] = None,
+        machine_id: int | None = None,
+        item_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get ledger entries within date range (SECURITY-CRITICAL).
 
@@ -138,7 +142,7 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
     def get_by_machine(
         self, db: Session, *, machine_id: int, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get all ledger entries for a machine (SECURITY-CRITICAL)
 
@@ -196,7 +200,7 @@ class MachineItemLedgerDAO(BaseDAO[MachineItemLedger, MachineItemLedgerCreate, M
 
     def get_latest_entry(
         self, db: Session, *, machine_id: int, item_id: int, workspace_id: int
-    ) -> Optional[MachineItemLedger]:
+    ) -> MachineItemLedger | None:
         """
         Get the most recent ledger entry for machine/item (SECURITY-CRITICAL)
 

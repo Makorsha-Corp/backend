@@ -1,6 +1,8 @@
 """Project component note schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ProjectComponentNoteBase(BaseModel):
     """Base project component note schema"""
@@ -11,7 +13,6 @@ class ProjectComponentNoteBase(BaseModel):
 
 class ProjectComponentNoteCreate(ProjectComponentNoteBase):
     """Project component note creation schema"""
-    pass
 
 
 class ProjectComponentNoteUpdate(BaseModel):

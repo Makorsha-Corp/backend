@@ -3,34 +3,33 @@ Account Invoice API endpoints
 
 Provides operations for managing account invoices (payables and receivables).
 """
-from typing import List, Optional
 from datetime import date
 from decimal import Decimal
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.account_invoice import (
     AccountInvoiceCreate,
-    AccountInvoiceUpdate,
     AccountInvoiceResponse,
-    VoidInvoiceRequest,
     AccountInvoicesHubSummaryResponse,
+    AccountInvoiceUpdate,
     InvoiceHubTypeSummary,
+    VoidInvoiceRequest,
 )
-from app.schemas.invoice_item import InvoiceItemResponse
 from app.schemas.invoice_event import InvoiceEventResponse
+from app.schemas.invoice_item import InvoiceItemResponse
 from app.services.account_invoice_service import account_invoice_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[AccountInvoiceResponse],
+    response_model=list[AccountInvoiceResponse],
     status_code=status.HTTP_200_OK,
     summary="List all invoices",
     description="Get all invoices in the workspace with optional filters"
@@ -38,21 +37,21 @@ router = APIRouter()
 def get_invoices(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    account_id: Optional[int] = Query(None, description="Filter by account ID"),
-    invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
-    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
-    invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
-    invoice_number_search: Optional[str] = Query(
+    account_id: int | None = Query(None, description="Filter by account ID"),
+    invoice_type: str | None = Query(None, description="Filter by type (payable/receivable)"),
+    payment_status: str | None = Query(None, description="Filter by payment status"),
+    invoice_status: str | None = Query(None, description="Filter by invoice lifecycle status"),
+    invoice_number_search: str | None = Query(
         None,
         description="Search invoice_number, vendor_invoice_number, linked order number (PO/EXP/SO/WO), or internal id when query is numeric",
     ),
-    account_name_search: Optional[str] = Query(None, description="Search by account name"),
-    invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
-    invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
-    due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
-    due_date_to: Optional[date] = Query(None, description="Due date range end (YYYY-MM-DD)"),
-    amount_min: Optional[Decimal] = Query(None, description="Minimum invoice amount"),
-    amount_max: Optional[Decimal] = Query(None, description="Maximum invoice amount"),
+    account_name_search: str | None = Query(None, description="Search by account name"),
+    invoice_date_from: date | None = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
+    invoice_date_to: date | None = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
+    due_date_from: date | None = Query(None, description="Due date range start (YYYY-MM-DD)"),
+    due_date_to: date | None = Query(None, description="Due date range end (YYYY-MM-DD)"),
+    amount_min: Decimal | None = Query(None, description="Minimum invoice amount"),
+    amount_max: Decimal | None = Query(None, description="Maximum invoice amount"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -177,7 +176,7 @@ def update_invoice(
 
 @router.get(
     "/{invoice_id}/events/",
-    response_model=List[InvoiceEventResponse],
+    response_model=list[InvoiceEventResponse],
     status_code=status.HTTP_200_OK,
     summary="Get invoice event log",
     description="Returns the full event history for an invoice, oldest first",
@@ -192,7 +191,7 @@ def get_invoice_events(
 
 @router.get(
     "/{invoice_id}/items/",
-    response_model=List[InvoiceItemResponse],
+    response_model=list[InvoiceItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get invoice items",
     description="Returns all line items for an invoice",

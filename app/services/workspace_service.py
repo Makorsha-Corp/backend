@@ -1,6 +1,5 @@
 """Workspace Service — owns transaction boundaries for all workspace operations."""
 import logging
-from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -73,7 +72,7 @@ class WorkspaceService(BaseService):
 
     def list_user_workspaces(
         self, db: Session, user_id: int
-    ) -> List[Tuple[Workspace, WorkspaceMember]]:
+    ) -> list[tuple[Workspace, WorkspaceMember]]:
         """Return all active (workspace, membership) pairs for a user."""
         memberships = self.member_dao.get_by_user(db, user_id=user_id)
         result = []
@@ -109,7 +108,7 @@ class WorkspaceService(BaseService):
 
     def get_workspace_with_plan(
         self, db: Session, workspace_id: int, requesting_user_id: int
-    ) -> Tuple[Workspace, Optional[object]]:
+    ) -> tuple[Workspace, object | None]:
         """Return (workspace, plan) for a member — plan may be None."""
         self._require_active_membership(db, workspace_id, requesting_user_id)
         workspace = self.workspace_dao.get(db, id=workspace_id)
@@ -150,7 +149,7 @@ class WorkspaceService(BaseService):
         workspace_id: int,
         requesting_user_id: int,
         include_inactive: bool = False,
-    ) -> List[Tuple[WorkspaceMember, Optional[Profile]]]:
+    ) -> list[tuple[WorkspaceMember, Profile | None]]:
         """Return enriched (member, user_profile) list."""
         self._require_active_membership(db, workspace_id, requesting_user_id)
         members = self.member_dao.get_by_workspace(db, workspace_id=workspace_id)
@@ -259,7 +258,7 @@ class WorkspaceService(BaseService):
         workspace_id: int,
         requesting_user_id: int,
         include_expired: bool = False,
-    ) -> List[Tuple[WorkspaceInvitation, Optional[Workspace], Optional[Profile]]]:
+    ) -> list[tuple[WorkspaceInvitation, Workspace | None, Profile | None]]:
         """Return enriched (invitation, workspace, inviter) list (owner only)."""
         self._require_owner(db, workspace_id, requesting_user_id)
         if include_expired:
@@ -343,7 +342,7 @@ class WorkspaceService(BaseService):
 
     def get_my_invitations(
         self, db: Session, user_email: str
-    ) -> List[Tuple[WorkspaceInvitation, Optional[Workspace], Optional[Profile]]]:
+    ) -> list[tuple[WorkspaceInvitation, Workspace | None, Profile | None]]:
         """Return enriched pending invitations for the current user's email."""
         invitations = self.invitation_dao.get_user_invitations(db, email=user_email)
         return [

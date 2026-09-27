@@ -1,40 +1,51 @@
 """Purchase Order Service - transaction orchestration"""
 import logging
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import List, Optional
+
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.services.base_service import BaseService
-from app.managers.purchase_order_manager import purchase_order_manager
-from app.managers.account_invoice_manager import account_invoice_manager
-from app.models.purchase_order import PurchaseOrder
-from app.models.purchase_order_item import PurchaseOrderItem
-from app.models.order_workflow import OrderWorkflow
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.factory import factory_dao
+from app.dao.machine import machine_dao
+from app.dao.project_component import project_component_dao
 from app.dao.purchase_order import purchase_order_dao
+from app.dao.purchase_order_return import (
+    purchase_order_return_dao,
+    purchase_order_return_item_dao,
+)
 from app.dao.transfer_order import transfer_order_dao
 from app.dao.work_order import work_order_dao
-from app.dao.machine import machine_dao
-from app.dao.factory import factory_dao
-from app.dao.project_component import project_component_dao
-from app.models.enums import WorkOrderStatusEnum
-from app.schemas.purchase_order import (
-    PurchaseOrderCreate, PurchaseOrderUpdate,
-    PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
-    PurchaseOrderItemSyncRequest,
-    ActiveOrderRow,
+from app.managers.account_invoice_manager import account_invoice_manager
+from app.managers.po_receive_inventory import (
+    post_receive_event_inventory,
+    reverse_po_receive_inventory,
 )
-from app.dao.account_invoice import account_invoice_dao
-from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
-from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
-from app.managers.po_receive_inventory import post_receive_event_inventory, reverse_po_receive_inventory
-from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse, PoReceiveEventItemResponse
-from app.models.purchase_order_return import PurchaseOrderReturn
-from app.dao.purchase_order_return import purchase_order_return_dao, purchase_order_return_item_dao
-from app.managers.purchase_order_return_manager import purchase_order_return_manager
 from app.managers.po_return_inventory import post_purchase_return_inventory
+from app.managers.purchase_order_manager import purchase_order_manager
+from app.managers.purchase_order_return_manager import purchase_order_return_manager
+from app.models.enums import WorkOrderStatusEnum
+from app.models.order_workflow import OrderWorkflow
+from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
+from app.models.purchase_order import PurchaseOrder
+from app.models.purchase_order_item import PurchaseOrderItem
+from app.models.purchase_order_return import PurchaseOrderReturn
+from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
+from app.schemas.po_receive_event import (
+    PoReceiveEventCreate,
+    PoReceiveEventItemResponse,
+    PoReceiveEventResponse,
+)
+from app.schemas.purchase_order import (
+    ActiveOrderRow,
+    PurchaseOrderCreate,
+    PurchaseOrderItemCreate,
+    PurchaseOrderItemSyncRequest,
+    PurchaseOrderItemUpdate,
+    PurchaseOrderUpdate,
+)
 from app.schemas.purchase_order_return import PurchaseOrderReturnCreate
 from app.services.approval_notification_service import (
     detect_section_unconfirmed,
@@ -43,6 +54,7 @@ from app.services.approval_notification_service import (
     notify_invoice_action,
     notify_section_confirm_needed,
 )
+from app.services.base_service import BaseService
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -447,8 +459,8 @@ class PurchaseOrderService(BaseService):
 
     def list_purchase_orders(
         self, db: Session, workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0, limit: int = 100,
         **hub_filters,
     ):
@@ -465,15 +477,15 @@ class PurchaseOrderService(BaseService):
     def _hub_filter_kwargs(
         self,
         *,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        destination_type: Optional[str] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        destination_type: str | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ) -> dict:
@@ -491,7 +503,7 @@ class PurchaseOrderService(BaseService):
             "exclude_voided": exclude_voided,
         }
 
-    def _prepare_listed_orders(self, db: Session, workspace_id: int, orders: List[PurchaseOrder]) -> List[PurchaseOrder]:
+    def _prepare_listed_orders(self, db: Session, workspace_id: int, orders: list[PurchaseOrder]) -> list[PurchaseOrder]:
         self._attach_invoice_payment_status(db, orders)
         self._attach_item_summaries(db, workspace_id, orders)
         stage_changed = any(
@@ -508,15 +520,15 @@ class PurchaseOrderService(BaseService):
         *,
         skip: int = 0,
         limit: int = 50,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        destination_type: Optional[str] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        destination_type: str | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ):
@@ -553,15 +565,15 @@ class PurchaseOrderService(BaseService):
         db: Session,
         workspace_id: int,
         *,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        destination_type: Optional[str] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        destination_type: str | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ):
@@ -615,7 +627,7 @@ class PurchaseOrderService(BaseService):
         )
 
     @staticmethod
-    def _attach_invoice_payment_status(db: Session, orders: List[PurchaseOrder]) -> None:
+    def _attach_invoice_payment_status(db: Session, orders: list[PurchaseOrder]) -> None:
         """Batch-fetch invoice payment_status and attach as a transient attribute."""
         from app.models.account_invoice import AccountInvoice
         invoice_ids = [o.invoice_id for o in orders if o.invoice_id is not None]
@@ -631,7 +643,7 @@ class PurchaseOrderService(BaseService):
             o.invoice_payment_status = status_map.get(o.invoice_id)
 
     @staticmethod
-    def _attach_item_summaries(db: Session, workspace_id: int, orders: List[PurchaseOrder]) -> None:
+    def _attach_item_summaries(db: Session, workspace_id: int, orders: list[PurchaseOrder]) -> None:
         from decimal import Decimal
 
         from app.dao.purchase_order import purchase_order_item_dao
@@ -643,7 +655,7 @@ class PurchaseOrderService(BaseService):
         name_previews = purchase_order_item_dao.preview_names_by_purchase_order_ids(
             db, workspace_id=workspace_id, purchase_order_ids=po_ids
         )
-        zero = Decimal("0")
+        zero = Decimal(0)
         for o in orders:
             summary = summaries.get(o.id)
             if summary is None:
@@ -787,7 +799,7 @@ class PurchaseOrderService(BaseService):
 
     def list_receive_events(
         self, db: Session, po_id: int, workspace_id: int
-    ) -> List[PoReceiveEventResponse]:
+    ) -> list[PoReceiveEventResponse]:
         self.manager.get_purchase_order(db, po_id, workspace_id)
         events = (
             db.query(PoReceiveEvent)
@@ -872,8 +884,8 @@ class PurchaseOrderService(BaseService):
                 'source_order_item_type': 'po_item',
                 'quantity': ri.quantity_returned,
                 'unit': ri.item_unit,
-                'unit_price': ri.unit_price or Decimal('0'),
-                'line_subtotal': (ri.unit_price or Decimal('0')) * Decimal(str(ri.quantity_returned)),
+                'unit_price': ri.unit_price or Decimal(0),
+                'line_subtotal': (ri.unit_price or Decimal(0)) * Decimal(str(ri.quantity_returned)),
             }
             for idx, ri in enumerate(return_items, start=1)
         ]
@@ -1041,7 +1053,7 @@ class PurchaseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def list_returns(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderReturn]:
+    def list_returns(self, db: Session, po_id: int, workspace_id: int) -> list[PurchaseOrderReturn]:
         self.manager.get_purchase_order(db, po_id, workspace_id)
         return purchase_order_return_manager.list_returns(db, po_id, workspace_id)
 
@@ -1054,10 +1066,10 @@ class PurchaseOrderService(BaseService):
         db: Session,
         *,
         workspace_id: int,
-        machine_id: Optional[int] = None,
-        factory_id: Optional[int] = None,
-        project_component_id: Optional[int] = None,
-    ) -> List[ActiveOrderRow]:
+        machine_id: int | None = None,
+        factory_id: int | None = None,
+        project_component_id: int | None = None,
+    ) -> list[ActiveOrderRow]:
         """
         Active (non-terminal) purchase orders for a destination plus incomplete transfer orders
         touching the same logical location. Exactly one scope id must be provided.
@@ -1116,7 +1128,7 @@ class PurchaseOrderService(BaseService):
                     if isinstance(last, int):
                         terminal_by_wf[wf.id] = last
 
-        rows: List[ActiveOrderRow] = []
+        rows: list[ActiveOrderRow] = []
 
         for po in pos:
             if po.order_workflow_id:
@@ -1192,7 +1204,7 @@ class PurchaseOrderService(BaseService):
     # ─── Items ─────────────────────────────────────────────────
     def add_item(
         self, db: Session, po_id: int, item_in: PurchaseOrderItemCreate,
-        workspace_id: int, user_id: Optional[int] = None
+        workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         try:
             record = self.manager.add_item(
@@ -1217,7 +1229,7 @@ class PurchaseOrderService(BaseService):
 
     def update_item(
         self, db: Session, item_id: int, item_in: PurchaseOrderItemUpdate,
-        workspace_id: int, user_id: Optional[int] = None
+        workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         try:
             record = self.manager.update_item(
@@ -1241,7 +1253,7 @@ class PurchaseOrderService(BaseService):
             raise
 
     def remove_item(
-        self, db: Session, item_id: int, workspace_id: int, user_id: Optional[int] = None
+        self, db: Session, item_id: int, workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         try:
             record = self.manager.remove_item(
@@ -1269,7 +1281,7 @@ class PurchaseOrderService(BaseService):
         po_id: int,
         sync_in: PurchaseOrderItemSyncRequest,
         workspace_id: int,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> PurchaseOrder:
         try:
             po = self.manager.sync_items(
@@ -1305,7 +1317,7 @@ class PurchaseOrderService(BaseService):
 
         return po
 
-    def get_items(self, db: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
+    def get_items(self, db: Session, po_id: int, workspace_id: int) -> list[PurchaseOrderItem]:
         return self.manager.get_items(db, po_id, workspace_id)
 
     # ─── Events ────────────────────────────────────────────────
@@ -1344,7 +1356,7 @@ class PurchaseOrderService(BaseService):
             raise
 
     def remove_approver(
-        self, db: Session, po_id: int, user_id: int, workspace_id: int, performed_by: Optional[int] = None
+        self, db: Session, po_id: int, user_id: int, workspace_id: int, performed_by: int | None = None
     ) -> None:
         try:
             self.manager.remove_approver(

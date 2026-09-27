@@ -1,21 +1,22 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PurchaseOrderReturnItemCreate(BaseModel):
     po_item_id: int
     quantity_returned: Decimal
-    unit_price: Optional[Decimal] = None
-    notes: Optional[str] = None
+    unit_price: Decimal | None = None
+    notes: str | None = None
 
 
 class PurchaseOrderReturnCreate(BaseModel):
     return_type: Literal['replace', 'refund']
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    items: List[PurchaseOrderReturnItemCreate]
+    reason: str | None = None
+    notes: str | None = None
+    items: list[PurchaseOrderReturnItemCreate]
 
     @model_validator(mode='after')
     def validate_return(self) -> 'PurchaseOrderReturnCreate':
@@ -36,11 +37,11 @@ class PurchaseOrderReturnItemResponse(BaseModel):
     return_id: int
     po_item_id: int
     item_id: int
-    item_name: Optional[str] = None
-    item_unit: Optional[str] = None
+    item_name: str | None = None
+    item_unit: str | None = None
     quantity_returned: Decimal
-    unit_price: Optional[Decimal] = None
-    notes: Optional[str] = None
+    unit_price: Decimal | None = None
+    notes: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,14 +53,14 @@ class PurchaseOrderReturnResponse(BaseModel):
     return_number: str
     status: str
     return_type: str
-    invoice_id: Optional[int] = None
+    invoice_id: int | None = None
     paid: bool
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    completed_at: Optional[datetime] = None
-    completed_by: Optional[int] = None
+    reason: str | None = None
+    notes: str | None = None
+    completed_at: datetime | None = None
+    completed_by: int | None = None
     created_by: int
     created_at: datetime
-    items: List[PurchaseOrderReturnItemResponse] = []
+    items: list[PurchaseOrderReturnItemResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

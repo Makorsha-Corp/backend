@@ -1,7 +1,7 @@
 """WorkspaceMember model"""
-from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

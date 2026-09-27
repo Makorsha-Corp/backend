@@ -2,7 +2,7 @@
 import calendar
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.orm import Query, Session
@@ -25,26 +25,26 @@ EO_STAGE_DRAFT = 1
 EO_STAGE_INVOICED = 2
 EO_STAGE_COMPLETE = 3
 
-EO_CATEGORY_LABELS: Dict[str, str] = {
+EO_CATEGORY_LABELS: dict[str, str] = {
     "factory": "Factory",
     "department": "Department",
     "other": "Other",
 }
 
-EO_STAGE_LABELS: Dict[str, str] = {
+EO_STAGE_LABELS: dict[str, str] = {
     "draft": "Draft",
     "invoiced": "Invoiced",
     "complete": "Complete",
 }
 
-EO_DUE_BUCKET_DEFS: Tuple[Tuple[str, str], ...] = (
+EO_DUE_BUCKET_DEFS: tuple[tuple[str, str], ...] = (
     ("overdue", "Overdue"),
     ("due_this_week", "Due this week"),
     ("due_later_this_month", "Due later this month"),
     ("no_due_date", "No due date"),
 )
 
-EO_UNPAID_BUCKET_DEFS: Tuple[Tuple[str, str], ...] = (
+EO_UNPAID_BUCKET_DEFS: tuple[tuple[str, str], ...] = (
     ("unpaid", "Unpaid"),
     ("partial", "Partial"),
     ("overdue", "Overdue"),
@@ -80,7 +80,7 @@ def _due_date_bucket(due: date | None, *, today: date, end_of_week: date, end_of
     return "beyond_scope"
 
 
-def _due_window_dates() -> Tuple[date, date, date]:
+def _due_window_dates() -> tuple[date, date, date]:
     today = utcnow().date()
     end_of_week = today + timedelta(days=(6 - today.weekday()))
     last_day = calendar.monthrange(today.year, today.month)[1]
@@ -88,7 +88,7 @@ def _due_window_dates() -> Tuple[date, date, date]:
     return today, end_of_week, end_of_month
 
 
-def _apply_expense_order_stage_filter(query: Query, status_ids: List[int]) -> Query:
+def _apply_expense_order_stage_filter(query: Query, status_ids: list[int]) -> Query:
     stage_clauses = []
     for stage_id in status_ids:
         if stage_id == EO_STAGE_DRAFT:
@@ -116,14 +116,14 @@ def _apply_expense_order_hub_filters(
     query: Query,
     *,
     workspace_id: int,
-    expense_category: Optional[str] = None,
-    account_id: Optional[int] = None,
-    invoice_id: Optional[int] = None,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
-    status_ids: Optional[List[int]] = None,
-    invoice_filter: Optional[str] = None,
-    search: Optional[str] = None,
+    expense_category: str | None = None,
+    account_id: int | None = None,
+    invoice_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    status_ids: list[int] | None = None,
+    invoice_filter: str | None = None,
+    search: str | None = None,
     exclude_complete: bool = True,
     exclude_voided: bool = True,
 ) -> Query:
@@ -187,12 +187,12 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         db: Session,
         *,
         workspace_id: int,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ExpenseOrder]:
+    ) -> list[ExpenseOrder]:
         query = db.query(ExpenseOrder).filter(ExpenseOrder.workspace_id == workspace_id)
         if expense_category:
             query = query.filter(ExpenseOrder.expense_category == expense_category)
@@ -210,7 +210,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[ExpenseOrder]:
+    ) -> list[ExpenseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(
@@ -239,7 +239,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         workspace_id: int,
         limit: int = 10,
         **filters,
-    ) -> List[ExpenseOrder]:
+    ) -> list[ExpenseOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(desc(ExpenseOrder.updated_at), desc(ExpenseOrder.created_at))
@@ -249,7 +249,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
 
     def aggregate_hub_stats(
         self, db: Session, *, workspace_id: int, **filters
-    ) -> Tuple[int, Decimal, int, Decimal, int]:
+    ) -> tuple[int, Decimal, int, Decimal, int]:
         filtered_ids = (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .with_entities(ExpenseOrder.id)
@@ -297,7 +297,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
 
     def aggregate_financial_snapshot_filtered(
         self, db: Session, *, workspace_id: int, **filters
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Category, stage, and open-by-account buckets for hub filter scope."""
         base = self._filtered_orders_query(db, workspace_id=workspace_id, **filters)
 
@@ -313,7 +313,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
         )
         category_breakdown = []
         other_count = 0
-        other_value = Decimal("0")
+        other_value = Decimal(0)
         for idx, (slug, count, total) in enumerate(category_rows):
             value = Decimal(str(total or 0))
             if idx < 6:
@@ -355,8 +355,8 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
             {
                 "key": key,
                 "label": EO_STAGE_LABELS[key],
-                "count": stage_map.get(key, (0, Decimal("0")))[0],
-                "total_value": stage_map.get(key, (0, Decimal("0")))[1],
+                "count": stage_map.get(key, (0, Decimal(0)))[0],
+                "total_value": stage_map.get(key, (0, Decimal(0)))[1],
             }
             for key in ("draft", "invoiced", "complete")
         ]
@@ -394,7 +394,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
 
     def aggregate_financial_snapshot_actionable(
         self, db: Session, *, workspace_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Due timeline and unpaid pipeline for all open non-voided workspace orders."""
         today, end_of_week, end_of_month = _due_window_dates()
 
@@ -409,8 +409,8 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
             .all()
         )
 
-        due_buckets: Dict[str, Dict[str, Any]] = {
-            key: {"key": key, "label": label, "count": 0, "total_value": Decimal("0"), "samples": []}
+        due_buckets: dict[str, dict[str, Any]] = {
+            key: {"key": key, "label": label, "count": 0, "total_value": Decimal(0), "samples": []}
             for key, label in EO_DUE_BUCKET_DEFS
         }
         for order in open_orders:
@@ -450,12 +450,12 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
             .all()
         )
 
-        unpaid_buckets: Dict[str, Dict[str, Any]] = {
+        unpaid_buckets: dict[str, dict[str, Any]] = {
             key: {
                 "key": key,
                 "label": label,
                 "count": 0,
-                "outstanding_value": Decimal("0"),
+                "outstanding_value": Decimal(0),
                 "samples": [],
             }
             for key, label in EO_UNPAID_BUCKET_DEFS
@@ -489,7 +489,7 @@ class ExpenseOrderDAO(BaseDAO[ExpenseOrder, ExpenseOrderCreate, ExpenseOrderUpda
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ExpenseOrder]:
+    ) -> ExpenseOrder | None:
         return (
             db.query(ExpenseOrder)
             .filter(ExpenseOrder.id == id, ExpenseOrder.workspace_id == workspace_id)
@@ -523,7 +523,7 @@ class ExpenseOrderItemDAO(
 ):
     def get_by_order(
         self, db: Session, *, expense_order_id: int, workspace_id: int
-    ) -> List[ExpenseOrderItem]:
+    ) -> list[ExpenseOrderItem]:
         return (
             db.query(ExpenseOrderItem)
             .filter(
@@ -536,7 +536,7 @@ class ExpenseOrderItemDAO(
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ExpenseOrderItem]:
+    ) -> ExpenseOrderItem | None:
         return (
             db.query(ExpenseOrderItem)
             .filter(ExpenseOrderItem.id == id, ExpenseOrderItem.workspace_id == workspace_id)

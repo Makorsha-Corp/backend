@@ -1,11 +1,10 @@
 """Orders overview aggregation endpoints"""
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace
+from app.core.deps import get_current_workspace, get_db
 from app.models.workspace import Workspace
 from app.schemas.orders_overview import OrdersOverviewStatsResponse
 from app.services.orders_overview_service import orders_overview_service
@@ -22,7 +21,7 @@ router = APIRouter()
 def get_orders_overview_stats(
     from_date: date = Query(..., alias='from_date'),
     to_date: date = Query(..., alias='to_date'),
-    factory_id: Optional[int] = Query(None),
+    factory_id: int | None = Query(None),
     limit: int = Query(5, ge=1, le=10),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),

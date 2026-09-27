@@ -1,16 +1,17 @@
 """DAO operations"""
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
+from app.core.security import get_password_hash
 from app.dao.base import BaseDAO
 from app.models.profile import Profile
 from app.schemas.profile import ProfileCreate, ProfileUpdate
-from app.core.security import get_password_hash
 
 
 class DAOProfile(BaseDAO[Profile, ProfileCreate, ProfileUpdate]):
     """DAO operations for Profile model"""
 
-    def get_by_email(self, db: Session, *, email: str) -> Optional[Profile]:
+    def get_by_email(self, db: Session, *, email: str) -> Profile | None:
         """
         Get profile by email
 
@@ -45,7 +46,7 @@ class DAOProfile(BaseDAO[Profile, ProfileCreate, ProfileUpdate]):
         db.flush()  # Flush but don't commit
         return db_obj
 
-    def authenticate(self, db: Session, *, email: str, password: str) -> Optional[Profile]:
+    def authenticate(self, db: Session, *, email: str, password: str) -> Profile | None:
         """
         Authenticate user by email and password
 

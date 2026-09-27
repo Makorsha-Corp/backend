@@ -1,6 +1,7 @@
 """Project member DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.project_member import ProjectMember
 from app.schemas.project import ProjectMemberCreate
@@ -9,7 +10,7 @@ from app.schemas.project import ProjectMemberCreate
 class ProjectMemberDAO(BaseDAO[ProjectMember, ProjectMemberCreate, ProjectMemberCreate]):
     def get_by_project(
         self, db: Session, *, project_id: int, workspace_id: int
-    ) -> List[ProjectMember]:
+    ) -> list[ProjectMember]:
         return (
             db.query(ProjectMember)
             .filter(
@@ -22,7 +23,7 @@ class ProjectMemberDAO(BaseDAO[ProjectMember, ProjectMemberCreate, ProjectMember
 
     def get_by_project_and_user(
         self, db: Session, *, project_id: int, user_id: int, workspace_id: int
-    ) -> Optional[ProjectMember]:
+    ) -> ProjectMember | None:
         return (
             db.query(ProjectMember)
             .filter(

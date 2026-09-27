@@ -1,29 +1,32 @@
 """Workspace Manager for workspace and member management"""
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import secrets
 import logging
+import secrets
+from datetime import timedelta
+
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+from app.dao.profile import profile_dao
+from app.dao.subscription_plan import subscription_plan_dao
+from app.dao.workspace import workspace_dao
+from app.dao.workspace_audit_log import workspace_audit_log_dao
+from app.dao.workspace_invitation import workspace_invitation_dao
+from app.dao.workspace_member import workspace_member_dao
+from app.db.seed_default_account_tags import seed_default_account_tags
+from app.db.seed_default_departments import seed_default_departments
+from app.db.seed_default_statuses import seed_default_statuses
+from app.db.seed_default_tags import seed_default_tags
+from app.db.seed_po_workflow import seed_po_workflow
 from app.managers.base_manager import BaseManager
 from app.models.workspace import Workspace
-from app.models.workspace_member import WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
-from app.dao.workspace import workspace_dao
-from app.dao.workspace_member import workspace_member_dao
-from app.dao.workspace_invitation import workspace_invitation_dao
-from app.dao.workspace_audit_log import workspace_audit_log_dao
-from app.dao.subscription_plan import subscription_plan_dao
-from app.dao.profile import profile_dao
+from app.models.workspace_member import WorkspaceMember
 from app.schemas.workspace import WorkspaceCreate
-from app.schemas.workspace_member import WorkspaceMemberCreate, VALID_MEMBER_ROLES
-from app.schemas.workspace_invitation import WorkspaceInvitationCreate, VALID_INVITE_ROLES
-from app.db.seed_default_statuses import seed_default_statuses
-from app.db.seed_po_workflow import seed_po_workflow
-from app.db.seed_default_departments import seed_default_departments
-from app.db.seed_default_tags import seed_default_tags
-from app.db.seed_default_account_tags import seed_default_account_tags
+from app.schemas.workspace_invitation import (
+    VALID_INVITE_ROLES,
+    WorkspaceInvitationCreate,
+)
+from app.schemas.workspace_member import VALID_MEMBER_ROLES, WorkspaceMemberCreate
 from app.utils.time import utcnow
 
 
@@ -56,8 +59,8 @@ class WorkspaceManager(BaseManager[Workspace]):
         session: Session,
         workspace_data: WorkspaceCreate,
         owner_user_id: int,
-        subscription_plan_id: Optional[int] = None,
-        owner_position: Optional[str] = None,
+        subscription_plan_id: int | None = None,
+        owner_position: str | None = None,
     ) -> Workspace:
         """
         Create workspace with owner as first member.
@@ -156,7 +159,7 @@ class WorkspaceManager(BaseManager[Workspace]):
         user_id: int,
         role: str,
         inviter_id: int,
-        position: Optional[str] = None,
+        position: str | None = None,
     ) -> WorkspaceMember:
         """
         Add member to workspace with validation.
@@ -300,7 +303,7 @@ class WorkspaceManager(BaseManager[Workspace]):
         email: str,
         role: str,
         inviter_id: int,
-        position: Optional[str] = None,
+        position: str | None = None,
     ) -> WorkspaceInvitation:
         """
         Create workspace invitation with validation.

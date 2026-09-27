@@ -1,14 +1,18 @@
 """Account Manager for account business logic"""
-from typing import List, Optional
-from datetime import datetime
+
 from sqlalchemy.orm import Session
-from app.managers.base_manager import BaseManager
-from app.models.account import Account
+
 from app.dao.account import account_dao
 from app.dao.account_tag import account_tag_dao
 from app.dao.account_tag_assignment import account_tag_assignment_dao
+from app.managers.base_manager import BaseManager
+from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountUpdate
-from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
+from app.utils.audit_logger import (
+    create_change_dict,
+    extract_relevant_fields,
+    log_financial_audit,
+)
 from app.utils.time import utcnow
 
 
@@ -203,7 +207,7 @@ class AccountManager(BaseManager[Account]):
         session: Session,
         account_id: int,
         workspace_id: int
-    ) -> Optional[Account]:
+    ) -> Account | None:
         """
         Get account by ID within workspace.
 
@@ -228,11 +232,11 @@ class AccountManager(BaseManager[Account]):
         self,
         session: Session,
         workspace_id: int,
-        name: Optional[str] = None,
-        tag_code: Optional[str] = None,
+        name: str | None = None,
+        tag_code: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Account]:
+    ) -> list[Account]:
         """
         Search accounts by name and/or tag within workspace.
 
@@ -303,7 +307,7 @@ class AccountManager(BaseManager[Account]):
         self,
         session: Session,
         account_id: int,
-        tag_ids: List[int],
+        tag_ids: list[int],
         workspace_id: int,
         user_id: int
     ) -> None:
@@ -412,7 +416,7 @@ class AccountManager(BaseManager[Account]):
         session: Session,
         account_id: int,
         workspace_id: int
-    ) -> List:
+    ) -> list:
         """
         Get all tags assigned to an account.
 

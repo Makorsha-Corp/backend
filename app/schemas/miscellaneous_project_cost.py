@@ -1,5 +1,6 @@
 """Miscellaneous project cost schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -14,7 +15,6 @@ class MiscellaneousProjectCostBase(BaseModel):
 
 class MiscellaneousProjectCostCreate(MiscellaneousProjectCostBase):
     """Miscellaneous project cost creation schema"""
-    pass
 
 
 class MiscellaneousProjectCostUpdate(BaseModel):

@@ -1,6 +1,7 @@
 """Account tag service for business orchestration"""
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.dao.account_tag import account_tag_dao
 from app.schemas.account_tag import AccountTagCreate, AccountTagUpdate
 

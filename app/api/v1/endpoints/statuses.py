@@ -1,18 +1,17 @@
 """Status endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user
+from app.core.deps import get_current_active_user, get_db
 from app.models.profile import Profile
-from app.schemas.status import StatusCreate, StatusUpdate, StatusResponse
+from app.schemas.status import StatusCreate, StatusResponse, StatusUpdate
 from app.services.status_service import status_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[StatusResponse])
+@router.get("/", response_model=list[StatusResponse])
 def get_statuses(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

@@ -1,7 +1,6 @@
 """Shared DTOs for purchase / expense / transfer order hub stats."""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -36,10 +35,10 @@ class OrderHubPendingHighlight(BaseModel):
 
 class PurchaseOrderHubPendingStats(BaseModel):
     pending_planning_count: int = 0
-    pending_planning: List[OrderHubPendingHighlight] = []
+    pending_planning: list[OrderHubPendingHighlight] = []
     missing_invoice_count: int = 0
-    missing_invoice: List[OrderHubPendingHighlight] = []
-    oldest_drafts: List[OrderHubPendingHighlight] = []
+    missing_invoice: list[OrderHubPendingHighlight] = []
+    oldest_drafts: list[OrderHubPendingHighlight] = []
 
 
 class ExpenseOrderFinancialBucket(BaseModel):
@@ -68,7 +67,7 @@ class ExpenseOrderDueTimelineBucket(BaseModel):
     label: str
     count: int
     total_value: Decimal
-    samples: List[ExpenseOrderFinancialSample] = []
+    samples: list[ExpenseOrderFinancialSample] = []
 
 
 class ExpenseOrderUnpaidPipelineBucket(BaseModel):
@@ -76,12 +75,12 @@ class ExpenseOrderUnpaidPipelineBucket(BaseModel):
     label: str
     count: int
     outstanding_value: Decimal
-    samples: List[ExpenseOrderFinancialSample] = []
+    samples: list[ExpenseOrderFinancialSample] = []
 
 
 class ExpenseOrderFinancialSnapshot(BaseModel):
-    category_breakdown: List[ExpenseOrderFinancialBucket] = []
-    stage_pipeline: List[ExpenseOrderFinancialBucket] = []
-    open_by_account: List[ExpenseOrderOpenByAccountBucket] = []
-    due_timeline: List[ExpenseOrderDueTimelineBucket] = []
-    unpaid_pipeline: List[ExpenseOrderUnpaidPipelineBucket] = []
+    category_breakdown: list[ExpenseOrderFinancialBucket] = []
+    stage_pipeline: list[ExpenseOrderFinancialBucket] = []
+    open_by_account: list[ExpenseOrderOpenByAccountBucket] = []
+    due_timeline: list[ExpenseOrderDueTimelineBucket] = []
+    unpaid_pipeline: list[ExpenseOrderUnpaidPipelineBucket] = []

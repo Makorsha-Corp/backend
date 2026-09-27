@@ -2,8 +2,9 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
@@ -14,10 +15,10 @@ class ProductDAO(BaseDAO[Product, ProductCreate, ProductUpdate]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        factory_id: Optional[int] = None,
-        is_available_for_sale: Optional[bool] = None,
+        factory_id: int | None = None,
+        is_available_for_sale: bool | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Product]:
+    ) -> list[Product]:
         """Get product records with optional filters."""
         query = db.query(Product).filter(
             Product.workspace_id == workspace_id,
@@ -31,7 +32,7 @@ class ProductDAO(BaseDAO[Product, ProductCreate, ProductUpdate]):
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Product]:
+    ) -> Product | None:
         """Get record by ID with workspace isolation."""
         return db.query(Product).filter(
             Product.id == id,
@@ -41,7 +42,7 @@ class ProductDAO(BaseDAO[Product, ProductCreate, ProductUpdate]):
     def get_by_factory_item_available(
         self, db: Session, *, factory_id: int, item_id: int,
         is_available_for_sale: bool, workspace_id: int
-    ) -> Optional[Product]:
+    ) -> Product | None:
         """Get specific record by factory/item/available combo (unique constraint lookup)."""
         return db.query(Product).filter(
             Product.workspace_id == workspace_id,
@@ -53,7 +54,7 @@ class ProductDAO(BaseDAO[Product, ProductCreate, ProductUpdate]):
 
     def get_by_item(
         self, db: Session, *, item_id: int, workspace_id: int
-    ) -> List[Product]:
+    ) -> list[Product]:
         """Get all product records for an item across factories."""
         return db.query(Product).filter(
             Product.workspace_id == workspace_id,

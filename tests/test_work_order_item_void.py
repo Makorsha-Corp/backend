@@ -1,5 +1,4 @@
 """Tests for work order item void (soft delete) and mixed action types."""
-from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -35,7 +34,7 @@ def _make_item(
     item.work_order_id = 10
     item.workspace_id = 1
     item.item_id = item_id
-    item.quantity = Decimal('2')
+    item.quantity = Decimal(2)
     item.uses_inventory = True
     item.source_location_type = 'storage'
     item.source_location_id = 1
@@ -43,8 +42,8 @@ def _make_item(
     item.replaced_item_id = None
     item.consumed_at = consumed_at
     item.consumed_by = 7 if consumed_at else None
-    item.unit_cost = Decimal('10') if consumed_at else None
-    item.total_cost = Decimal('20') if consumed_at else None
+    item.unit_cost = Decimal(10) if consumed_at else None
+    item.total_cost = Decimal(20) if consumed_at else None
     item.is_deleted = is_deleted
     return item
 
@@ -152,13 +151,13 @@ def test_add_item_persists_per_line_action_type(
     created = MagicMock()
     created.action_type = 'INSTALL'
     created.item_id = 1
-    created.quantity = Decimal('1')
+    created.quantity = Decimal(1)
     mock_create.return_value = created
 
     data = WorkOrderItemCreate(
         work_order_id=10,
         item_id=1,
-        quantity=Decimal('1'),
+        quantity=Decimal(1),
         uses_inventory=True,
         source_location_type='storage',
         source_location_id=1,
@@ -189,7 +188,7 @@ def test_update_consumed_item_decrease_returns_stock(
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.IN_PROGRESS.value)
     updated = _make_item(consumed_at=utcnow())
-    updated.quantity = Decimal('1')
+    updated.quantity = Decimal(1)
     mock_update.return_value = updated
 
     from app.schemas.work_order_item import WorkOrderItemUpdate
@@ -197,7 +196,7 @@ def test_update_consumed_item_decrease_returns_stock(
     work_order_manager.update_item(
         session,
         item_id=99,
-        data=WorkOrderItemUpdate(quantity=Decimal('1')),
+        data=WorkOrderItemUpdate(quantity=Decimal(1)),
         workspace_id=1,
         user_id=7,
     )
@@ -207,7 +206,7 @@ def test_update_consumed_item_decrease_returns_stock(
     assert mock_log.call_args[0][3] == 'item_quantity_adjusted'
 
 
-@patch('app.managers.work_order_manager.post_stock_out', return_value=Decimal('5'))
+@patch('app.managers.work_order_manager.post_stock_out', return_value=Decimal(5))
 @patch('app.managers.work_order_manager.item_name', return_value='Belt')
 @patch.object(work_order_manager, 'log_event')
 @patch.object(work_order_manager.item_dao, 'update')
@@ -226,7 +225,7 @@ def test_update_consumed_item_increase_deducts_stock(
     mock_get_item.return_value = item
     mock_get_wo.return_value = _make_wo(WorkOrderStatusEnum.IN_PROGRESS.value)
     updated = _make_item(consumed_at=utcnow())
-    updated.quantity = Decimal('3')
+    updated.quantity = Decimal(3)
     mock_update.return_value = updated
 
     from app.schemas.work_order_item import WorkOrderItemUpdate
@@ -234,7 +233,7 @@ def test_update_consumed_item_increase_deducts_stock(
     work_order_manager.update_item(
         session,
         item_id=99,
-        data=WorkOrderItemUpdate(quantity=Decimal('3')),
+        data=WorkOrderItemUpdate(quantity=Decimal(3)),
         workspace_id=1,
         user_id=7,
     )

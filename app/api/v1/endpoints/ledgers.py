@@ -8,22 +8,22 @@ Provides read-only access to ledger types:
 
 Also provides reconciliation and cross-ledger reporting endpoints.
 """
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, Query, status, Path
-from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import Any
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from fastapi import APIRouter, Depends, Path, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
+from app.models.enums import InventoryTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+from app.schemas.attachment_ledger import AttachmentLedgerResponse
+from app.schemas.inventory_ledger import InventoryLedgerResponse
 from app.schemas.machine_item_ledger import MachineItemLedgerResponse
 from app.schemas.project_component_item_ledger import ProjectComponentItemLedgerResponse
-from app.schemas.inventory_ledger import InventoryLedgerResponse
-from app.schemas.attachment_ledger import AttachmentLedgerResponse
 from app.schemas.response import ActionResponse
 from app.services.ledger_service import ledger_service
-from app.models.enums import InventoryTypeEnum
-
 
 router = APIRouter()
 
@@ -34,20 +34,20 @@ router = APIRouter()
 
 @router.get(
     "/machine/",
-    response_model=List[MachineItemLedgerResponse],
+    response_model=list[MachineItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get machine ledger entries",
     description="Query machine item ledger with filters"
 )
 def get_machine_ledger(
     machine_id: int = Query(..., description="Machine ID"),
-    item_id: Optional[int] = Query(
+    item_id: int | None = Query(
         None,
         description="Optional item filter — omit to list every entry for the machine",
     ),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
-    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    start_date: datetime | None = Query(None, description="Start date filter"),
+    end_date: datetime | None = Query(None, description="End date filter"),
+    transaction_type: str | None = Query(None, description="Transaction type filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),
@@ -71,7 +71,7 @@ def get_machine_ledger(
 
 @router.get(
     "/machine/balance/",
-    response_model=Dict[str, Any],
+    response_model=dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get machine balance",
     description="Calculate current machine balance from ledger"
@@ -95,7 +95,7 @@ def get_machine_balance(
 
 @router.post(
     "/machine/reconcile/",
-    response_model=ActionResponse[Dict[str, Any]],
+    response_model=ActionResponse[dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile machine inventory",
     description="Compare machine ledger vs snapshot and fix discrepancies"
@@ -125,14 +125,14 @@ def reconcile_machine_item(
 
 @router.get(
     "/project-component/",
-    response_model=List[ProjectComponentItemLedgerResponse],
+    response_model=list[ProjectComponentItemLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get project component ledger entries",
     description="Query project component item consumption ledger"
 )
 def get_project_component_ledger(
     project_component_id: int = Query(..., description="Project component ID"),
-    item_id: Optional[int] = Query(None, description="Optional item ID filter"),
+    item_id: int | None = Query(None, description="Optional item ID filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),
@@ -154,7 +154,7 @@ def get_project_component_ledger(
 
 @router.get(
     "/project-component/{project_component_id}/total-cost/",
-    response_model=Dict[str, Any],
+    response_model=dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get project component total cost",
     description="Calculate total cost of all items consumed by project component"
@@ -185,7 +185,7 @@ def get_project_component_total_cost(
 
 @router.get(
     "/inventory/",
-    response_model=List[InventoryLedgerResponse],
+    response_model=list[InventoryLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get inventory ledger entries",
     description=(
@@ -194,14 +194,14 @@ def get_project_component_total_cost(
     ),
 )
 def get_inventory_ledger(
-    inventory_type: Optional[InventoryTypeEnum] = Query(
+    inventory_type: InventoryTypeEnum | None = Query(
         None, description="Optional inventory_type filter (STORAGE/DAMAGED/WASTE/SCRAP)"
     ),
-    factory_id: Optional[int] = Query(None, description="Optional factory filter"),
-    item_id: Optional[int] = Query(None, description="Optional item filter"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
-    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    factory_id: int | None = Query(None, description="Optional factory filter"),
+    item_id: int | None = Query(None, description="Optional item filter"),
+    start_date: datetime | None = Query(None, description="Start date filter"),
+    end_date: datetime | None = Query(None, description="End date filter"),
+    transaction_type: str | None = Query(None, description="Transaction type filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),
@@ -230,17 +230,17 @@ def get_inventory_ledger(
 
 @router.get(
     "/attachments/",
-    response_model=List[AttachmentLedgerResponse],
+    response_model=list[AttachmentLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="Get attachment ledger entries",
     description="Immutable audit trail for attachment lifecycle (pending, ready, failed, deleted).",
 )
 def get_attachment_ledger(
-    attachment_id: Optional[int] = Query(None, description="Optional attachment filter"),
-    entity_type: Optional[str] = Query(None, description="Optional linked entity type filter"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
-    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    attachment_id: int | None = Query(None, description="Optional attachment filter"),
+    entity_type: str | None = Query(None, description="Optional linked entity type filter"),
+    start_date: datetime | None = Query(None, description="Start date filter"),
+    end_date: datetime | None = Query(None, description="End date filter"),
+    transaction_type: str | None = Query(None, description="Transaction type filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),
@@ -263,7 +263,7 @@ def get_attachment_ledger(
 
 @router.get(
     "/inventory/balance/",
-    response_model=Dict[str, Any],
+    response_model=dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Get inventory balance",
     description=(
@@ -294,7 +294,7 @@ def get_inventory_balance(
 
 @router.post(
     "/inventory/reconcile/",
-    response_model=ActionResponse[Dict[str, Any]],
+    response_model=ActionResponse[dict[str, Any]],
     status_code=status.HTTP_200_OK,
     summary="Reconcile inventory bucket",
     description=(
@@ -331,7 +331,7 @@ def reconcile_inventory(
 
 @router.get(
     "/reports/item-movement/{item_id}/",
-    response_model=Dict[str, List],
+    response_model=dict[str, list],
     status_code=status.HTTP_200_OK,
     summary="Get item movement summary",
     description="""
@@ -342,8 +342,8 @@ def reconcile_inventory(
 )
 def get_item_movement_summary(
     item_id: int = Path(..., description="Item ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
+    start_date: datetime | None = Query(None, description="Start date filter"),
+    end_date: datetime | None = Query(None, description="End date filter"),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
@@ -372,15 +372,15 @@ def get_item_movement_summary(
 
 @router.get(
     "/reports/user-transactions/{user_id}/",
-    response_model=Dict[str, List],
+    response_model=dict[str, list],
     status_code=status.HTTP_200_OK,
     summary="Get user transactions",
     description="Get all transactions performed by a user across all ledgers (audit trail)"
 )
 def get_transactions_by_user(
     user_id: int = Path(..., description="User ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter"),
-    end_date: Optional[datetime] = Query(None, description="End date filter"),
+    start_date: datetime | None = Query(None, description="Start date filter"),
+    end_date: datetime | None = Query(None, description="End date filter"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),
     db: Session = Depends(get_db),

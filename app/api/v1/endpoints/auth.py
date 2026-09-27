@@ -9,48 +9,45 @@ Provides comprehensive authentication:
 - Admin password reset
 - Invitation validation
 """
-from datetime import timedelta
-from typing import Optional, Tuple
 
-from fastapi import APIRouter, Depends, Request, status, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.limiter import limiter
-
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
-from app.core.config import settings
-from app.core.exceptions import ConflictError, AuthenticationError, NotFoundError
-from app.schemas.auth import (
-    RegisterRequest,
-    RegisterResponse,
-    LoginRequest,
-    LoginResponse,
-    SwitchWorkspaceRequest,
-    SwitchWorkspaceResponse,
-    ForgotPasswordRequest,
-    ForgotPasswordResponse,
-    ResetPasswordRequest,
-    ResetPasswordResponse,
-    AdminResetPasswordRequest,
-    AdminResetPasswordResponse,
-    ValidateInvitationRequest,
-    ValidateInvitationResponse,
-    RefreshTokenRequest,
-    TokenPair as TokenPairResponse,
-    LogoutRequest,
-)
-from app.schemas.profile import ProfileMeUpdate, MeResponse, ProfileResponse
-from app.schemas.saved_stamp import StampImageSignResponse
-from app.managers.profile_stamp_manager import profile_stamp_manager
 from app.core.cloudinary_client import CloudinaryNotConfiguredError
-from app.utils.profile_auth import profile_to_auth_dict
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
+from app.core.limiter import limiter
 from app.dao.workspace_member import workspace_member_dao
-from app.services.auth_service import auth_service
+from app.managers.profile_stamp_manager import profile_stamp_manager
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+from app.schemas.auth import (
+    AdminResetPasswordRequest,
+    AdminResetPasswordResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    LoginResponse,
+    LogoutRequest,
+    RefreshTokenRequest,
+    RegisterRequest,
+    RegisterResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
+    SwitchWorkspaceRequest,
+    SwitchWorkspaceResponse,
+    ValidateInvitationRequest,
+    ValidateInvitationResponse,
+)
+from app.schemas.auth import (
+    TokenPair as TokenPairResponse,
+)
+from app.schemas.profile import MeResponse, ProfileMeUpdate, ProfileResponse
+from app.schemas.saved_stamp import StampImageSignResponse
+from app.services.auth_service import auth_service
+from app.utils.profile_auth import profile_to_auth_dict
 
 
-def _client_context(request: Request) -> Tuple[Optional[str], Optional[str]]:
+def _client_context(request: Request) -> tuple[str | None, str | None]:
     """Best-effort extraction of (user_agent, ip_address) for diagnostics.
 
     Stored on the refresh_tokens row so we can build an "active sessions" UI
@@ -142,7 +139,7 @@ def register(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {e!s}")
 
 
 # ============================================================================
@@ -212,7 +209,7 @@ def login(
         # Invalid credentials or not member of workspace
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {e!s}")
 
 
 @router.post(
@@ -269,7 +266,7 @@ def switch_workspace(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Workspace switch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workspace switch failed: {e!s}")
 
 
 # ============================================================================
@@ -322,7 +319,7 @@ def forgot_password(
             message="If an account with that email exists, a password reset link has been sent."
         )
 
-    except Exception as e:
+    except Exception:
         # Don't reveal error details for security
         return ForgotPasswordResponse(
             message="If an account with that email exists, a password reset link has been sent."
@@ -372,7 +369,7 @@ def reset_password(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Password reset failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Password reset failed: {e!s}")
 
 
 @router.post(
@@ -422,7 +419,7 @@ def admin_reset_password(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Admin password reset failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Admin password reset failed: {e!s}")
 
 
 # ============================================================================
@@ -475,7 +472,7 @@ def validate_invitation(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Invitation validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Invitation validation failed: {e!s}")
 
 
 # ============================================================================
@@ -552,7 +549,7 @@ def update_current_user_info(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Profile update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {e!s}")
 
 
 @router.post(
@@ -599,7 +596,7 @@ def refresh(
         # the network. Server logs have the detail; client just gets 401.
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Token refresh failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Token refresh failed: {e!s}")
 
 
 @router.post(
@@ -662,4 +659,4 @@ def logout(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Logout failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Logout failed: {e!s}")

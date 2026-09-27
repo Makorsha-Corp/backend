@@ -1,7 +1,8 @@
 """Payment transaction DAO operations"""
 from datetime import datetime
-from typing import List, Optional, Tuple
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.payment_transaction import PaymentTransaction
 from app.models.profile import Profile
@@ -17,10 +18,10 @@ class PaymentTransactionDAO(BaseDAO[PaymentTransaction, InitiatePaymentRequest, 
     tran_id itself, which is what the caller then uses for authorization checks.
     """
 
-    def get_by_tran_id(self, db: Session, *, tran_id: str) -> Optional[PaymentTransaction]:
+    def get_by_tran_id(self, db: Session, *, tran_id: str) -> PaymentTransaction | None:
         return db.query(PaymentTransaction).filter(PaymentTransaction.tran_id == tran_id).first()
 
-    def get_by_tran_id_for_update(self, db: Session, *, tran_id: str) -> Optional[PaymentTransaction]:
+    def get_by_tran_id_for_update(self, db: Session, *, tran_id: str) -> PaymentTransaction | None:
         """Row-locks the transaction for the idempotency wall. Caller must be
         inside a transaction; lock is released on commit/rollback."""
         return (
@@ -32,7 +33,7 @@ class PaymentTransactionDAO(BaseDAO[PaymentTransaction, InitiatePaymentRequest, 
 
     def get_by_id_and_workspace_with_initiator(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Tuple[PaymentTransaction, Optional[str]]]:
+    ) -> tuple[PaymentTransaction, str | None] | None:
         row = (
             db.query(PaymentTransaction, Profile.name.label("initiated_by_name"))
             .outerjoin(Profile, PaymentTransaction.initiated_by == Profile.id)
@@ -45,7 +46,7 @@ class PaymentTransactionDAO(BaseDAO[PaymentTransaction, InitiatePaymentRequest, 
 
     def get_by_tran_id_and_workspace_with_initiator(
         self, db: Session, *, tran_id: str, workspace_id: int
-    ) -> Optional[Tuple[PaymentTransaction, Optional[str]]]:
+    ) -> tuple[PaymentTransaction, str | None] | None:
         row = (
             db.query(PaymentTransaction, Profile.name.label("initiated_by_name"))
             .outerjoin(Profile, PaymentTransaction.initiated_by == Profile.id)
@@ -58,7 +59,7 @@ class PaymentTransactionDAO(BaseDAO[PaymentTransaction, InitiatePaymentRequest, 
 
     def list_by_workspace_with_initiator(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Tuple[PaymentTransaction, Optional[str]]]:
+    ) -> list[tuple[PaymentTransaction, str | None]]:
         rows = (
             db.query(PaymentTransaction, Profile.name.label("initiated_by_name"))
             .outerjoin(Profile, PaymentTransaction.initiated_by == Profile.id)
@@ -70,7 +71,7 @@ class PaymentTransactionDAO(BaseDAO[PaymentTransaction, InitiatePaymentRequest, 
         )
         return [(txn, name) for txn, name in rows]
 
-    def get_stuck_initiated(self, db: Session, *, older_than: datetime, limit: int = 200) -> List[PaymentTransaction]:
+    def get_stuck_initiated(self, db: Session, *, older_than: datetime, limit: int = 200) -> list[PaymentTransaction]:
         """For the reconciliation sweep — INITIATED rows past the timeout window,
         across all workspaces."""
         return (

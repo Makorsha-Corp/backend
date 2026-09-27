@@ -1,15 +1,19 @@
 """Invoice items CRUD endpoints — draft invoices only."""
-from typing import List
 from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
-from app.managers.account_invoice_manager import account_invoice_manager
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.invoice_item import invoice_item_dao
-from app.schemas.invoice_item import InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemResponse
+from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+from app.schemas.invoice_item import (
+    InvoiceItemCreate,
+    InvoiceItemResponse,
+    InvoiceItemUpdate,
+)
 
 router = APIRouter(tags=["invoice-items"])
 
@@ -24,7 +28,7 @@ def _get_draft_invoice(db: Session, invoice_id: int, workspace_id: int):
     return invoice
 
 
-@router.get("/", response_model=List[InvoiceItemResponse])
+@router.get("/", response_model=list[InvoiceItemResponse])
 def list_invoice_items(
     invoice_id: int,
     workspace: Workspace = Depends(get_current_workspace),

@@ -1,10 +1,11 @@
 """Account DAO operations"""
+
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.dao.base import BaseDAO
 from app.models.account import Account
-from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_tag import AccountTag
+from app.models.account_tag_assignment import AccountTagAssignment
 from app.schemas.account import AccountCreate, AccountUpdate
 
 
@@ -13,7 +14,7 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
 
     def search_by_name_in_workspace(
         self, db: Session, *, workspace_id: int, name: str, skip: int = 0, limit: int = 100
-    ) -> List[Account]:
+    ) -> list[Account]:
         """
         Search accounts by name within a workspace (SECURITY-CRITICAL)
 
@@ -45,11 +46,11 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        name: Optional[str] = None,
-        tag_code: Optional[str] = None,
+        name: str | None = None,
+        tag_code: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Account]:
+    ) -> list[Account]:
         """
         Get accounts in workspace with optional name search and tag filter.
 
@@ -104,7 +105,7 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
         tag_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Account]:
+    ) -> list[Account]:
         """
         Get all active accounts that have a specific tag assigned (SECURITY-CRITICAL)
 

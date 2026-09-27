@@ -4,22 +4,21 @@ Product API endpoints (finished goods)
 Provides operations for managing product records and querying ledger.
 """
 from datetime import datetime
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.product_ledger import product_ledger_dao
 from app.models.production_batch import ProductionBatch as ProductionBatchModel
-from app.models.workspace import Workspace
 from app.models.profile import Profile
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.models.workspace import Workspace
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.schemas.product_ledger import ProductLedgerResponse
 from app.schemas.production_batch import ProductionBatchResponse
 from app.services.product_service import product_service
 from app.services.production_batch_service import production_batch_service
-
 
 router = APIRouter()
 
@@ -44,7 +43,7 @@ def _production_batch_response_with_fg(
 
 @router.get(
     "/",
-    response_model=List[ProductResponse],
+    response_model=list[ProductResponse],
     status_code=status.HTTP_200_OK,
     summary="List product records",
     description="Get all product records, optionally filtered by factory or availability"
@@ -52,8 +51,8 @@ def _production_batch_response_with_fg(
 def list_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    is_available_for_sale: Optional[bool] = Query(None, description="Filter by sale availability"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    is_available_for_sale: bool | None = Query(None, description="Filter by sale availability"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -67,7 +66,7 @@ def list_products(
 
 @router.get(
     "/ledger/",
-    response_model=List[ProductLedgerResponse],
+    response_model=list[ProductLedgerResponse],
     status_code=status.HTTP_200_OK,
     summary="List product ledger entries",
     description=(
@@ -78,11 +77,11 @@ def list_products(
 def list_ledger(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    item_id: Optional[int] = Query(None, description="Filter by item ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date filter (inclusive)"),
-    end_date: Optional[datetime] = Query(None, description="End date filter (inclusive)"),
-    transaction_type: Optional[str] = Query(
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    item_id: int | None = Query(None, description="Filter by item ID"),
+    start_date: datetime | None = Query(None, description="Start date filter (inclusive)"),
+    end_date: datetime | None = Query(None, description="End date filter (inclusive)"),
+    transaction_type: str | None = Query(
         None, description="Filter by transaction_type (e.g. 'production', 'manual_add', 'inventory_adjustment')"
     ),
     workspace: Workspace = Depends(get_current_workspace),

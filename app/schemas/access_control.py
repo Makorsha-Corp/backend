@@ -1,5 +1,6 @@
 """Access control schemas"""
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import AccessControlTypeEnum, RoleEnum
 
 
@@ -12,7 +13,6 @@ class AccessControlBase(BaseModel):
 
 class AccessControlCreate(AccessControlBase):
     """Access control creation schema"""
-    pass
 
 
 class AccessControlUpdate(BaseModel):

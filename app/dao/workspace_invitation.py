@@ -1,7 +1,7 @@
 """WorkspaceInvitation DAO"""
-from typing import Optional, List
-from datetime import datetime
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.schemas.workspace_invitation import WorkspaceInvitationCreate
@@ -11,13 +11,13 @@ from app.utils.time import utcnow
 class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCreate, dict]):
     """DAO for workspace invitation operations"""
 
-    def get_by_token(self, db: Session, *, token: str) -> Optional[WorkspaceInvitation]:
+    def get_by_token(self, db: Session, *, token: str) -> WorkspaceInvitation | None:
         """Get invitation by token"""
         return db.query(WorkspaceInvitation).filter(WorkspaceInvitation.token == token).first()
 
     def get_pending_invitations(
         self, db: Session, *, workspace_id: int
-    ) -> List[WorkspaceInvitation]:
+    ) -> list[WorkspaceInvitation]:
         """Get all pending invitations for workspace"""
         return (
             db.query(WorkspaceInvitation)
@@ -29,7 +29,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             .all()
         )
 
-    def get_user_invitations(self, db: Session, *, email: str) -> List[WorkspaceInvitation]:
+    def get_user_invitations(self, db: Session, *, email: str) -> list[WorkspaceInvitation]:
         """Get all pending invitations for user email"""
         return (
             db.query(WorkspaceInvitation)
@@ -55,7 +55,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
 
     def get_all_invitations(
         self, db: Session, *, workspace_id: int
-    ) -> List[WorkspaceInvitation]:
+    ) -> list[WorkspaceInvitation]:
         """Get all invitations for workspace regardless of status"""
         return (
             db.query(WorkspaceInvitation)

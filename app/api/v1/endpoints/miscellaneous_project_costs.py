@@ -1,19 +1,24 @@
 """Miscellaneous project cost endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.miscellaneous_project_cost import MiscellaneousProjectCostCreate, MiscellaneousProjectCostUpdate, MiscellaneousProjectCostResponse
-from app.services.miscellaneous_project_cost_service import miscellaneous_project_cost_service
-
+from app.schemas.miscellaneous_project_cost import (
+    MiscellaneousProjectCostCreate,
+    MiscellaneousProjectCostResponse,
+    MiscellaneousProjectCostUpdate,
+)
+from app.services.miscellaneous_project_cost_service import (
+    miscellaneous_project_cost_service,
+)
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[MiscellaneousProjectCostResponse])
+@router.get("/", response_model=list[MiscellaneousProjectCostResponse])
 def get_miscellaneous_project_costs(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

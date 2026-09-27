@@ -3,12 +3,13 @@
 SECURITY: All queries MUST filter by workspace_id.
 """
 from datetime import date
-from typing import Dict, List, Optional, Tuple
-from sqlalchemy.orm import Session, Query
+
 from sqlalchemy import Date, cast, desc, func, or_
+from sqlalchemy.orm import Query, Session
+
 from app.dao.base import BaseDAO
-from app.models.work_order import WorkOrder
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
+from app.models.work_order import WorkOrder
 from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
 
 
@@ -21,16 +22,16 @@ def _apply_sheet_list_filters(
     query: Query,
     *,
     calendar_date,
-    factory_id: Optional[int] = None,
-    machine_id: Optional[int] = None,
-    planned_date_from: Optional[date] = None,
-    planned_date_to: Optional[date] = None,
-    status: Optional[WorkOrderStatusEnum] = None,
-    status_scope: Optional[str] = None,
-    work_order_type_id: Optional[int] = None,
-    priority: Optional[WorkOrderPriorityEnum] = None,
+    factory_id: int | None = None,
+    machine_id: int | None = None,
+    planned_date_from: date | None = None,
+    planned_date_to: date | None = None,
+    status: WorkOrderStatusEnum | None = None,
+    status_scope: str | None = None,
+    work_order_type_id: int | None = None,
+    priority: WorkOrderPriorityEnum | None = None,
     exclude_completed: bool = False,
-    search: Optional[str] = None,
+    search: str | None = None,
 ) -> Query:
     if factory_id:
         query = query.filter(WorkOrder.factory_id == factory_id)
@@ -71,17 +72,17 @@ def _sheet_base_query(
     db: Session,
     *,
     workspace_id: int,
-    factory_id: Optional[int] = None,
-    machine_id: Optional[int] = None,
-    planned_date_from: Optional[date] = None,
-    planned_date_to: Optional[date] = None,
-    status: Optional[WorkOrderStatusEnum] = None,
-    status_scope: Optional[str] = None,
-    work_order_type_id: Optional[int] = None,
-    priority: Optional[WorkOrderPriorityEnum] = None,
+    factory_id: int | None = None,
+    machine_id: int | None = None,
+    planned_date_from: date | None = None,
+    planned_date_to: date | None = None,
+    status: WorkOrderStatusEnum | None = None,
+    status_scope: str | None = None,
+    work_order_type_id: int | None = None,
+    priority: WorkOrderPriorityEnum | None = None,
     exclude_completed: bool = False,
-    search: Optional[str] = None,
-) -> Tuple[Query, object]:
+    search: str | None = None,
+) -> tuple[Query, object]:
     calendar_date = _work_order_calendar_date_expr()
     query = db.query(WorkOrder).filter(
         WorkOrder.workspace_id == workspace_id,
@@ -110,16 +111,16 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        work_order_type_id: Optional[int] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        work_order_template_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
+        work_order_type_id: int | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        work_order_template_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         """Get work orders with optional filters."""
         query = db.query(WorkOrder).filter(
             WorkOrder.workspace_id == workspace_id,
@@ -153,7 +154,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         work_order_template_id: int,
         machine_id: int,
         after_date: date,
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         """Draft work orders for a recurring program with planned_date strictly after after_date."""
         return (
             db.query(WorkOrder)
@@ -179,7 +180,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         machine_id: int,
         range_start: date,
         range_end: date,
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         """Draft work orders for a recurring program with planned_date outside [range_start, range_end]."""
         return (
             db.query(WorkOrder)
@@ -207,7 +208,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         machine_id: int,
         planned_date: date,
         work_order_type_id: int,
-    ) -> Optional[WorkOrder]:
+    ) -> WorkOrder | None:
         """Find an open work order for the same machine + day + work type (sheet merge)."""
         return (
             db.query(WorkOrder)
@@ -228,19 +229,19 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        status_scope: Optional[str] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        status_scope: str | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
         exclude_completed: bool = False,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         query, calendar_date = _sheet_base_query(
             db,
             workspace_id=workspace_id,
@@ -267,16 +268,16 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        status_scope: Optional[str] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        status_scope: str | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
         exclude_completed: bool = False,
-        search: Optional[str] = None,
+        search: str | None = None,
     ) -> int:
         query, _calendar_date = _sheet_base_query(
             db,
@@ -299,14 +300,14 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
-    ) -> Dict[date, int]:
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
+    ) -> dict[date, int]:
         """Count work orders per calendar date for calendar dots (no row limit)."""
         calendar_date = _work_order_calendar_date_expr()
         query = db.query(
@@ -333,7 +334,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[WorkOrder]:
+    ) -> WorkOrder | None:
         """Get work order by ID with workspace isolation."""
         return db.query(WorkOrder).filter(
             WorkOrder.id == id,

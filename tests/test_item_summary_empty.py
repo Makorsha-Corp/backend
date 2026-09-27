@@ -71,7 +71,7 @@ def test_summary_for_new_item_in_empty_workspace_serializes() -> None:
     assert payload.machine_placements == []
     assert payload.recent_activity == []
     assert payload.order_stats.all_time.line_count == 0
-    assert payload.order_stats.all_time.total_spend == Decimal("0")
+    assert payload.order_stats.all_time.total_spend == Decimal(0)
     assert payload.pricing.last_unit_price is None
     assert payload.supplier_stats.period.all_time.suppliers == []
     assert payload.usage_counts.formula_count == 0

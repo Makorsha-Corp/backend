@@ -4,9 +4,8 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All inherited BaseDAO methods automatically
 filter by workspace_id via get_by_workspace() and get_by_id_and_workspace().
 """
-from typing import List
-from datetime import datetime
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.work_order_type import WorkOrderType
 from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate

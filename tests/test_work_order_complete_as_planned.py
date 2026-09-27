@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.managers.work_order_manager import work_order_manager
-from app.models.enums import WorkOrderStatusEnum, MachineEventTypeEnum
+from app.models.enums import MachineEventTypeEnum, WorkOrderStatusEnum
 
 
 def _past_date() -> date:

@@ -1,11 +1,11 @@
 """Work Order Type Service for orchestrating work order type workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.work_order_type_manager import work_order_type_manager
 from app.models.work_order_type import WorkOrderType
 from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate
+from app.services.base_service import BaseService
 
 
 class WorkOrderTypeService(BaseService):
@@ -34,8 +34,8 @@ class WorkOrderTypeService(BaseService):
 
     def get_work_order_types(
         self, db: Session, workspace_id: int,
-        search: Optional[str] = None, skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderType]:
+        search: str | None = None, skip: int = 0, limit: int = 100
+    ) -> list[WorkOrderType]:
         return self.manager.search_work_order_types(
             session=db, workspace_id=workspace_id, search=search, skip=skip, limit=limit
         )

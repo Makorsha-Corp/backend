@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, FrozenSet
+from typing import Any
 
 from app.schemas.attachment import AttachmentSignRequest
 
@@ -27,10 +27,10 @@ class AttachmentConfirmError(ValueError):
 
 @dataclass(frozen=True)
 class AttachmentTypeSpec:
-    extensions: FrozenSet[str]
-    mime_types: FrozenSet[str]
+    extensions: frozenset[str]
+    mime_types: frozenset[str]
     resource_type: str
-    confirm_formats: FrozenSet[str]
+    confirm_formats: frozenset[str]
 
 
 ATTACHMENT_TYPE_SPECS: tuple[AttachmentTypeSpec, ...] = (

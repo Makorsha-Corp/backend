@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Sequence
 
 from sqlalchemy.orm import Session
 
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
-
 
 _NAME_SPLIT = re.compile(r"[,;]+")
 

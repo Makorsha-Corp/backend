@@ -1,11 +1,12 @@
 """Item Manager for item business logic"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.managers.base_manager import BaseManager
-from app.models.item import Item
+
 from app.dao.item import item_dao
 from app.dao.item_tag import item_tag_dao
 from app.dao.item_tag_assignment import item_tag_assignment_dao
+from app.managers.base_manager import BaseManager
+from app.models.item import Item
 from app.schemas.item import ItemCreate, ItemUpdate
 from app.utils.item_name_normalize import normalize_item_name
 
@@ -149,7 +150,7 @@ class ItemManager(BaseManager[Item]):
         session: Session,
         item_id: int,
         workspace_id: int
-    ) -> Optional[Item]:
+    ) -> Item | None:
         """
         Get item by ID within workspace.
 
@@ -174,10 +175,10 @@ class ItemManager(BaseManager[Item]):
         self,
         session: Session,
         workspace_id: int,
-        name: Optional[str] = None,
+        name: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Item]:
+    ) -> list[Item]:
         """
         Search items by name or get all items within workspace.
 
@@ -214,10 +215,10 @@ class ItemManager(BaseManager[Item]):
         *,
         skip: int = 0,
         limit: int = 100,
-        search: Optional[str] = None,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
-    ) -> List[Item]:
+        search: str | None = None,
+        unit: str | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> list[Item]:
         return self.item_dao.list_active_items_filtered(
             session,
             workspace_id=workspace_id,
@@ -233,9 +234,9 @@ class ItemManager(BaseManager[Item]):
         session: Session,
         workspace_id: int,
         *,
-        search: Optional[str] = None,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
+        search: str | None = None,
+        unit: str | None = None,
+        tag_ids: list[int] | None = None,
     ) -> int:
         return self.item_dao.count_active_items_filtered(
             session,
@@ -245,7 +246,7 @@ class ItemManager(BaseManager[Item]):
             tag_ids=tag_ids,
         )
 
-    def distinct_units(self, session: Session, workspace_id: int) -> List[str]:
+    def distinct_units(self, session: Session, workspace_id: int) -> list[str]:
         return self.item_dao.distinct_units_in_workspace(session, workspace_id=workspace_id)
 
     def find_similar_items(
@@ -254,7 +255,7 @@ class ItemManager(BaseManager[Item]):
         workspace_id: int,
         name: str,
         limit: int = 5,
-        exclude_item_id: Optional[int] = None,
+        exclude_item_id: int | None = None,
     ) -> list[dict]:
         """Return catalog items similar to the proposed name."""
         normalized_query = normalize_item_name(name)
@@ -325,7 +326,7 @@ class ItemManager(BaseManager[Item]):
         self,
         session: Session,
         item_id: int,
-        tag_ids: List[int],
+        tag_ids: list[int],
         workspace_id: int,
         user_id: int
     ) -> None:
@@ -371,7 +372,7 @@ class ItemManager(BaseManager[Item]):
         session: Session,
         item_id: int,
         workspace_id: int
-    ) -> List:
+    ) -> list:
         """
         Get all tags assigned to an item.
 
@@ -390,7 +391,7 @@ class ItemManager(BaseManager[Item]):
     def get_tags_for_items(
         self,
         session: Session,
-        item_ids: List[int],
+        item_ids: list[int],
         workspace_id: int,
     ) -> dict:
         """Get tags for multiple items in one query."""

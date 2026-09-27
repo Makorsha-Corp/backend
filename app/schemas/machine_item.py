@@ -13,7 +13,6 @@ class MachineItemBase(BaseModel):
 
 class MachineItemCreate(MachineItemBase):
     """Machine item creation schema"""
-    pass
 
 
 class MachineItemUpdate(BaseModel):

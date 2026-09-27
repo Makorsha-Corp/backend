@@ -3,9 +3,10 @@
 SECURITY: All queries MUST filter by workspace_id.
 """
 from datetime import datetime
-from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.product_ledger import ProductLedger
 from app.schemas.product_ledger import ProductLedgerCreate, ProductLedgerUpdate
@@ -16,13 +17,13 @@ class ProductLedgerDAO(BaseDAO[ProductLedger, ProductLedgerCreate, ProductLedger
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0, limit: int = 100,
-    ) -> List[ProductLedger]:
+    ) -> list[ProductLedger]:
         """Get ledger entries with optional filters, newest first.
 
         All filters are AND-combined and all are optional except workspace_id.
@@ -59,7 +60,7 @@ class ProductLedgerDAO(BaseDAO[ProductLedger, ProductLedgerCreate, ProductLedger
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ProductLedger]:
+    ) -> ProductLedger | None:
         """Get ledger entry by ID with workspace isolation."""
         return db.query(ProductLedger).filter(
             ProductLedger.id == id,

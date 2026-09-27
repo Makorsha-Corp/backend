@@ -1,6 +1,6 @@
 """Error response schemas (RFC 7807 Problem Details)"""
+
 from pydantic import BaseModel, Field
-from typing import Optional, List, Any
 
 
 class ErrorDetail(BaseModel):
@@ -49,7 +49,7 @@ class ProblemDetail(BaseModel):
         description="Unique request identifier for debugging and support",
         example="req_abc123xyz789"
     )
-    errors: Optional[List[ErrorDetail]] = Field(
+    errors: list[ErrorDetail] | None = Field(
         None,
         description="Detailed field-level validation errors (for 400 responses)"
     )

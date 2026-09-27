@@ -1,19 +1,22 @@
 """Order workflow endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.order_workflow import OrderWorkflowCreate, OrderWorkflowUpdate, OrderWorkflowResponse
+from app.schemas.order_workflow import (
+    OrderWorkflowCreate,
+    OrderWorkflowResponse,
+    OrderWorkflowUpdate,
+)
 from app.services.order_workflow_service import order_workflow_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[OrderWorkflowResponse])
+@router.get("/", response_model=list[OrderWorkflowResponse])
 def get_order_workflows(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

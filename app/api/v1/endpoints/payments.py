@@ -12,10 +12,17 @@ Route groups:
     gateway would call them, for local dev and the billing trial page.
 """
 import asyncio
-from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -24,7 +31,6 @@ from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.core.limiter import limiter
 from app.dao.payment_transaction import payment_transaction_dao
 from app.dao.workspace_member import workspace_member_dao
-from app.db.session import SessionLocal
 from app.integrations.sslcommerz import get_sslcommerz_client
 from app.integrations.sslcommerz.mock_client import MockSSLCommerzClient
 from app.models.profile import Profile
@@ -62,7 +68,7 @@ def initiate_payment(
 
 @router.get(
     "/",
-    response_model=List[PaymentTransactionResponse],
+    response_model=list[PaymentTransactionResponse],
     summary="List payment transactions (ledger)",
 )
 def list_payments(

@@ -5,9 +5,9 @@ event_type values:
     validated_success, validated_failed, risk_hold, risk_resolved, expired,
     duplicate_ignored
 """
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import backref, relationship
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

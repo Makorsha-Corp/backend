@@ -1,8 +1,8 @@
 """Project component item ledger schemas"""
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProjectComponentItemLedgerBase(BaseModel):
@@ -17,35 +17,34 @@ class ProjectComponentItemLedgerBase(BaseModel):
     # State tracking
     qty_before: int
     qty_after: int
-    value_before: Optional[Decimal] = None
-    value_after: Optional[Decimal] = None
-    avg_price_before: Optional[Decimal] = None
-    avg_price_after: Optional[Decimal] = None
+    value_before: Decimal | None = None
+    value_after: Decimal | None = None
+    avg_price_before: Decimal | None = None
+    avg_price_after: Decimal | None = None
 
     # Attribution
     source_type: str
-    source_id: Optional[int] = None
-    order_id: Optional[int] = None
-    invoice_id: Optional[int] = None
+    source_id: int | None = None
+    order_id: int | None = None
+    invoice_id: int | None = None
 
     # Transfer context
-    transfer_source_type: Optional[str] = None
-    transfer_source_id: Optional[int] = None
-    transfer_destination_type: Optional[str] = None
-    transfer_destination_id: Optional[int] = None
+    transfer_source_type: str | None = None
+    transfer_source_id: int | None = None
+    transfer_destination_type: str | None = None
+    transfer_destination_id: int | None = None
 
     # Notes
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class ProjectComponentItemLedgerCreate(ProjectComponentItemLedgerBase):
     """Schema for creating a project component item ledger entry (workspace_id and performed_by injected by service)"""
-    pass
 
 
 class ProjectComponentItemLedgerUpdate(BaseModel):
     """Schema for updating a project component item ledger entry (generally should be immutable)"""
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class ProjectComponentItemLedgerInDB(ProjectComponentItemLedgerBase):
@@ -60,4 +59,3 @@ class ProjectComponentItemLedgerInDB(ProjectComponentItemLedgerBase):
 
 class ProjectComponentItemLedgerResponse(ProjectComponentItemLedgerInDB):
     """Project component item ledger response schema"""
-    pass

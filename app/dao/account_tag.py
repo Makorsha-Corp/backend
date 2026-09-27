@@ -1,6 +1,7 @@
 """Account tag DAO operations"""
+
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.dao.base import BaseDAO
 from app.models.account_tag import AccountTag
 from app.schemas.account_tag import AccountTagCreate, AccountTagUpdate
@@ -11,7 +12,7 @@ class AccountTagDAO(BaseDAO[AccountTag, AccountTagCreate, AccountTagUpdate]):
 
     def get_by_tag_code_in_workspace(
         self, db: Session, *, workspace_id: int, tag_code: str
-    ) -> Optional[AccountTag]:
+    ) -> AccountTag | None:
         """
         Get tag by tag_code within workspace (SECURITY-CRITICAL)
 
@@ -34,7 +35,7 @@ class AccountTagDAO(BaseDAO[AccountTag, AccountTagCreate, AccountTagUpdate]):
 
     def get_active_tags_in_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccountTag]:
+    ) -> list[AccountTag]:
         """
         Get only active tags within workspace
 
@@ -60,7 +61,7 @@ class AccountTagDAO(BaseDAO[AccountTag, AccountTagCreate, AccountTagUpdate]):
 
     def get_system_tags_in_workspace(
         self, db: Session, *, workspace_id: int
-    ) -> List[AccountTag]:
+    ) -> list[AccountTag]:
         """
         Get system tags within workspace
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import re
-from typing import List, Set, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +31,7 @@ def humanize_mention_preview(db: Session, message: str, max_len: int = 200) -> s
     return _MENTION_RE.sub(repl, text)
 
 
-def _active_workspace_member_ids(db: Session, workspace_id: int) -> Set[int]:
+def _active_workspace_member_ids(db: Session, workspace_id: int) -> set[int]:
     members = workspace_member_dao.get_workspace_members(
         db, workspace_id=workspace_id, status="active"
     )
@@ -48,7 +47,7 @@ class NotificationService:
         unread_only: bool = False,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[Notification], int, int]:
+    ) -> tuple[list[Notification], int, int]:
         return notification_dao.get_for_user(
             db, workspace_id, user_id, unread_only, skip, limit
         )
@@ -69,7 +68,7 @@ class NotificationService:
         db: Session,
         workspace_id: int,
         actor_user_id: int,
-        mentioned_user_ids: List[int],
+        mentioned_user_ids: list[int],
         entity_type: str,
         entity_id: int,
         source_id: int,

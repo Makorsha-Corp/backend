@@ -1,10 +1,10 @@
 """Financial audit log API endpoints"""
-from typing import List
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.financial_audit_log import FinancialAuditLogResponse
@@ -13,7 +13,7 @@ from app.services.financial_audit_log_service import financial_audit_log_service
 router = APIRouter()
 
 
-@router.get("/", response_model=List[FinancialAuditLogResponse])
+@router.get("/", response_model=list[FinancialAuditLogResponse])
 def get_recent_audit_logs(
     limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
     workspace: Workspace = Depends(get_current_workspace),
@@ -28,7 +28,7 @@ def get_recent_audit_logs(
     return financial_audit_log_service.get_recent_logs(db, workspace_id=workspace.id, limit=limit)
 
 
-@router.get("/entity/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
+@router.get("/entity/{entity_type}/{entity_id}/", response_model=list[FinancialAuditLogResponse])
 def get_entity_audit_logs(
     entity_type: str,
     entity_id: int,
@@ -53,7 +53,7 @@ def get_entity_audit_logs(
     return financial_audit_log_service.get_by_entity(db, entity_type=entity_type, entity_id=entity_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
-@router.get("/related/{entity_type}/{entity_id}/", response_model=List[FinancialAuditLogResponse])
+@router.get("/related/{entity_type}/{entity_id}/", response_model=list[FinancialAuditLogResponse])
 def get_related_audit_logs(
     entity_type: str,
     entity_id: int,
@@ -83,7 +83,7 @@ def get_related_audit_logs(
     return financial_audit_log_service.get_related_logs(db, entity_type=entity_type, entity_id=entity_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
-@router.get("/action/{action_type}/", response_model=List[FinancialAuditLogResponse])
+@router.get("/action/{action_type}/", response_model=list[FinancialAuditLogResponse])
 def get_audit_logs_by_action(
     action_type: str,
     skip: int = Query(default=0, ge=0),
@@ -106,7 +106,7 @@ def get_audit_logs_by_action(
     return financial_audit_log_service.get_by_action_type(db, action_type=action_type, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
-@router.get("/user/{user_id}/", response_model=List[FinancialAuditLogResponse])
+@router.get("/user/{user_id}/", response_model=list[FinancialAuditLogResponse])
 def get_user_audit_logs(
     user_id: int,
     skip: int = Query(default=0, ge=0),
@@ -129,7 +129,7 @@ def get_user_audit_logs(
     return financial_audit_log_service.get_by_user(db, user_id=user_id, workspace_id=workspace.id, skip=skip, limit=limit)
 
 
-@router.get("/date-range/", response_model=List[FinancialAuditLogResponse])
+@router.get("/date-range/", response_model=list[FinancialAuditLogResponse])
 def get_audit_logs_by_date_range(
     start_date: datetime = Query(..., description="Start datetime (inclusive)"),
     end_date: datetime = Query(..., description="End datetime (inclusive)"),

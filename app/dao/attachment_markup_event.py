@@ -1,5 +1,4 @@
 """DAO for attachment markup event audit log."""
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +16,7 @@ class AttachmentMarkupEventDAO(BaseDAO[AttachmentMarkupEvent, object, object]):
         workspace_id: int,
         attachment_id: int,
         limit: int = 200,
-    ) -> List[AttachmentMarkupEvent]:
+    ) -> list[AttachmentMarkupEvent]:
         return (
             db.query(AttachmentMarkupEvent)
             .filter(
@@ -38,8 +37,8 @@ class AttachmentMarkupEventDAO(BaseDAO[AttachmentMarkupEvent, object, object]):
         user_id: int,
         event_type: str,
         description: str,
-        session_id: Optional[str] = None,
-        metadata_json: Optional[dict] = None,
+        session_id: str | None = None,
+        metadata_json: dict | None = None,
     ) -> AttachmentMarkupEvent:
         row = AttachmentMarkupEvent(
             workspace_id=workspace_id,

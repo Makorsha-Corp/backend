@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from app.managers import purchase_order_manager as po_manager_module
+from app.managers import purchase_order_return_manager as po_return_manager_module
 from app.managers.po_receive_inventory import (
     PO_RECEIVE_EVENT_ITEM_SOURCE,
     post_receive_event_inventory,
     reverse_po_receive_inventory,
 )
-from app.managers import purchase_order_manager as po_manager_module
-from app.managers import purchase_order_return_manager as po_return_manager_module
 
 
 def _make_po(*, destination_type: str = 'storage', destination_id: int = 1) -> MagicMock:

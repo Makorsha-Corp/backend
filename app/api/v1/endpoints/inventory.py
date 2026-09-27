@@ -4,24 +4,23 @@ Unified inventory API endpoints (STORAGE, DAMAGED, WASTE, SCRAP).
 Inventory ledger queries live at `/api/v1/ledgers/inventory/*` — this module
 only handles inventory snapshot CRUD.
 """
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
-from app.models.profile import Profile
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.enums import InventoryTypeEnum
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.inventory import (
     InventoryCreate,
-    InventoryUpdate,
-    InventoryResponse,
     InventoryListResponse,
+    InventoryResponse,
     InventoryStatsResponse,
+    InventoryUpdate,
 )
 from app.schemas.inventory_incoming import ItemIncomingSummary
 from app.services.inventory_service import inventory_service
-
 
 router = APIRouter()
 
@@ -39,10 +38,10 @@ router = APIRouter()
 def list_inventory(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=1000),
-    inventory_type: Optional[InventoryTypeEnum] = Query(None, description="Filter by inventory type"),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    search: Optional[str] = Query(None, description="Search item name or unit"),
-    item_id: Optional[int] = Query(None, description="Filter by catalog item ID"),
+    inventory_type: InventoryTypeEnum | None = Query(None, description="Filter by inventory type"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    search: str | None = Query(None, description="Search item name or unit"),
+    item_id: int | None = Query(None, description="Filter by catalog item ID"),
     include_zero_qty: bool = Query(False, description="Include rows with zero quantity"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
@@ -68,10 +67,10 @@ def list_inventory(
     description="Aggregate counts and values for the current inventory filter set.",
 )
 def get_inventory_stats(
-    inventory_type: Optional[InventoryTypeEnum] = Query(None, description="Filter by inventory type"),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    search: Optional[str] = Query(None, description="Search item name or unit"),
-    item_id: Optional[int] = Query(None, description="Filter by catalog item ID"),
+    inventory_type: InventoryTypeEnum | None = Query(None, description="Filter by inventory type"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    search: str | None = Query(None, description="Search item name or unit"),
+    item_id: int | None = Query(None, description="Filter by catalog item ID"),
     include_zero_qty: bool = Query(False, description="Include rows with zero quantity"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
@@ -89,7 +88,7 @@ def get_inventory_stats(
 
 @router.get(
     "/incoming-summary/",
-    response_model=List[ItemIncomingSummary],
+    response_model=list[ItemIncomingSummary],
     status_code=status.HTTP_200_OK,
     summary="Incoming order summary by item",
     description=(
@@ -99,7 +98,7 @@ def get_inventory_stats(
     tags=["inventory"],
 )
 def get_incoming_summary(
-    factory_id: Optional[int] = Query(None, description="Factory ID; omit for all factories"),
+    factory_id: int | None = Query(None, description="Factory ID; omit for all factories"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):

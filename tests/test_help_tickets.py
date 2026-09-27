@@ -7,8 +7,8 @@ import pytest
 from app.managers.attachment_manager import AttachmentManager
 from app.managers.help_ticket_manager import HelpTicketManager, HelpTicketNotFoundError
 from app.models.enums import AttachmentEntityTypeEnum, HelpTicketStatusEnum
-from app.models.profile import Profile
 from app.models.help_ticket import HelpTicket
+from app.models.profile import Profile
 from app.schemas.attachment import AttachmentSignRequest
 from app.schemas.help_ticket import HelpTicketUpdate
 

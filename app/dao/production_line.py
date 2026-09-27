@@ -1,6 +1,7 @@
 """Production Line DAO operations"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.production_line import ProductionLine
 from app.schemas.production_line import ProductionLineCreate, ProductionLineUpdate
@@ -14,7 +15,7 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get all production lines for a workspace (SECURITY-CRITICAL)
 
@@ -37,7 +38,7 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
 
     def get_by_factory(
         self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get production lines by factory (SECURITY-CRITICAL)
 
@@ -64,7 +65,7 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
 
     def get_by_machine(
         self, db: Session, *, machine_id: int, workspace_id: int
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get production lines attached to a machine (SECURITY-CRITICAL)
 
@@ -87,7 +88,7 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
 
     def get_active_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get active production lines for a workspace (SECURITY-CRITICAL)
 
@@ -113,7 +114,7 @@ class ProductionLineDAO(BaseDAO[ProductionLine, ProductionLineCreate, Production
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ProductionLine]:
+    ) -> ProductionLine | None:
         """
         Get production line by ID with workspace validation (SECURITY-CRITICAL)
 

@@ -3,28 +3,27 @@ Machine maintenance log API endpoints
 
 Provides operations for managing machine maintenance logs.
 """
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
-from app.models.profile import Profile
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.enums import MaintenanceTypeEnum
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.machine_maintenance_log import (
     MachineMaintenanceLogCreate,
-    MachineMaintenanceLogUpdate,
     MachineMaintenanceLogResponse,
+    MachineMaintenanceLogUpdate,
 )
 from app.services.machine_maintenance_log_service import machine_maintenance_log_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[MachineMaintenanceLogResponse],
+    response_model=list[MachineMaintenanceLogResponse],
     status_code=status.HTTP_200_OK,
     summary="List maintenance logs",
     description="Get all maintenance logs, optionally filtered by machine or type"
@@ -32,8 +31,8 @@ router = APIRouter()
 def list_maintenance_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    machine_id: Optional[int] = Query(None, description="Filter by machine ID"),
-    maintenance_type: Optional[MaintenanceTypeEnum] = Query(None, description="Filter by maintenance type"),
+    machine_id: int | None = Query(None, description="Filter by machine ID"),
+    maintenance_type: MaintenanceTypeEnum | None = Query(None, description="Filter by maintenance type"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

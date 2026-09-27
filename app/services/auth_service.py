@@ -3,18 +3,16 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Tuple, Dict, Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import NotFoundError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     get_password_hash,
     hash_refresh_token,
-    verify_password,
 )
 from app.dao.profile import profile_dao
 from app.dao.refresh_token import refresh_token_dao
@@ -23,15 +21,12 @@ from app.dao.workspace import workspace_dao
 from app.dao.workspace_invitation import workspace_invitation_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.managers.workspace_manager import workspace_manager
-from app.services.base_service import BaseService
 from app.models.profile import Profile
-from app.models.refresh_token import RefreshToken
 from app.models.workspace import Workspace
-from app.models.workspace_member import WorkspaceMember
-from app.schemas.profile import ProfileCreate
-from app.schemas.response import ActionMessage, success_message, error_message, info_message
+from app.schemas.profile import ProfileCreate, ProfileMeUpdate
+from app.schemas.response import ActionMessage, info_message, success_message
 from app.schemas.workspace import WorkspaceCreate
-from app.schemas.profile import ProfileMeUpdate
+from app.services.base_service import BaseService
 from app.utils.time import utcnow
 
 
@@ -80,10 +75,10 @@ class AuthService(BaseService):
         db: Session,
         *,
         user: Profile,
-        workspace_id: Optional[int],
-        family_id: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        workspace_id: int | None,
+        family_id: str | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
     ) -> TokenPair:
         """Mint an (access_token, refresh_token) pair and persist the refresh row.
 
@@ -100,7 +95,7 @@ class AuthService(BaseService):
 
         Does NOT commit. Caller is responsible.
         """
-        access_claims: Dict[str, Any] = {
+        access_claims: dict[str, Any] = {
             "sub": str(user.id),
             "email": user.email,
         }
@@ -142,12 +137,12 @@ class AuthService(BaseService):
         name: str,
         email: str,
         password: str,
-        workspace_name: Optional[str] = None,
-        invitation_token: Optional[str] = None,
-        timezone: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
+        workspace_name: str | None = None,
+        invitation_token: str | None = None,
+        timezone: str | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register new user with workspace creation OR invitation acceptance.
 
@@ -241,7 +236,7 @@ class AuthService(BaseService):
 
             return user, workspace, token_pair, messages
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -251,10 +246,10 @@ class AuthService(BaseService):
         name: str,
         email: str,
         password: str,
-        timezone: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Profile, None, TokenPair, list[ActionMessage]]:
+        timezone: str | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Profile, None, TokenPair, list[ActionMessage]]:
         """Register user with no workspace — workspace selected/created on next step."""
         messages = []
 
@@ -286,10 +281,10 @@ class AuthService(BaseService):
         email: str,
         password: str,
         invitation_token: str,
-        timezone: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
+        timezone: str | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register user by accepting workspace invitation.
 
@@ -360,10 +355,10 @@ class AuthService(BaseService):
         email: str,
         password: str,
         workspace_name: str,
-        timezone: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
+        timezone: str | None = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Profile, Workspace, TokenPair, list[ActionMessage]]:
         """
         Register user and create new workspace.
 
@@ -437,9 +432,9 @@ class AuthService(BaseService):
         db: Session,
         email: str,
         password: str,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Profile, TokenPair, list[ActionMessage]]:
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Profile, TokenPair, list[ActionMessage]]:
         """
         Authenticate user and issue an access + refresh token pair (no workspace
         claim — user picks workspace next via `/auth/switch-workspace/`).
@@ -476,9 +471,9 @@ class AuthService(BaseService):
         db: Session,
         user_id: int,
         workspace_id: int,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[Workspace, TokenPair, list[ActionMessage]]:
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[Workspace, TokenPair, list[ActionMessage]]:
         """
         Switch user to a different workspace.
 
@@ -532,9 +527,9 @@ class AuthService(BaseService):
         self,
         db: Session,
         raw_refresh_token: str,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[TokenPair, list[ActionMessage]]:
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[TokenPair, list[ActionMessage]]:
         """Exchange a refresh token for a fresh access + refresh pair.
 
         Rotation + reuse-detection rules:
@@ -614,8 +609,8 @@ class AuthService(BaseService):
     def logout_session(
         self,
         db: Session,
-        raw_refresh_token: Optional[str],
-        user_id: Optional[int] = None,
+        raw_refresh_token: str | None,
+        user_id: int | None = None,
         all_devices: bool = False,
     ) -> list[ActionMessage]:
         """Revoke either the presented refresh token, or every active refresh
@@ -664,7 +659,7 @@ class AuthService(BaseService):
         self,
         db: Session,
         email: str
-    ) -> Tuple[str, datetime, list[ActionMessage]]:
+    ) -> tuple[str, datetime, list[ActionMessage]]:
         """
         Generate password reset token for user.
 
@@ -735,7 +730,7 @@ class AuthService(BaseService):
         db: Session,
         reset_token: str,
         new_password: str
-    ) -> Tuple[Profile, list[ActionMessage]]:
+    ) -> tuple[Profile, list[ActionMessage]]:
         """
         Reset user password using reset token.
 
@@ -792,7 +787,7 @@ class AuthService(BaseService):
         target_user_id: int,
         new_password: str,
         workspace_id: int
-    ) -> Tuple[Profile, list[ActionMessage]]:
+    ) -> tuple[Profile, list[ActionMessage]]:
         """
         Admin resets another user's password.
 
@@ -869,7 +864,7 @@ class AuthService(BaseService):
 
             return target_user, messages
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -881,7 +876,7 @@ class AuthService(BaseService):
         self,
         db: Session,
         invitation_token: str
-    ) -> Tuple[Dict[str, Any], list[ActionMessage]]:
+    ) -> tuple[dict[str, Any], list[ActionMessage]]:
         """
         Validate invitation token without accepting it.
 

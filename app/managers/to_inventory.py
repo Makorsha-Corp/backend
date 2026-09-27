@@ -4,7 +4,6 @@ Thin transfer-order-specific wrapper around the generic stock movement helpers i
 `app.managers.inventory_movements`.
 """
 from decimal import Decimal
-from typing import List
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -144,7 +143,7 @@ def _post_location_in(
 def post_transfer_order_inventory(
     session: Session,
     to: TransferOrder,
-    items: List[TransferOrderItem],
+    items: list[TransferOrderItem],
     workspace_id: int,
     user_id: int,
 ) -> int:

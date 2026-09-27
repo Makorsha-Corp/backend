@@ -4,13 +4,16 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.project_component_attachment import ProjectComponentAttachment
-from app.models.attachment import Attachment
-from app.schemas.project_component_attachment import ProjectComponentAttachmentCreate, ProjectComponentAttachmentResponse
+from app.schemas.project_component_attachment import (
+    ProjectComponentAttachmentCreate,
+    ProjectComponentAttachmentResponse,
+)
 
 
 class ProjectComponentAttachmentDAO(BaseDAO[ProjectComponentAttachment, ProjectComponentAttachmentCreate, ProjectComponentAttachmentResponse]):
@@ -18,7 +21,7 @@ class ProjectComponentAttachmentDAO(BaseDAO[ProjectComponentAttachment, ProjectC
 
     def get_link(
         self, db: Session, project_component_id: int, attachment_id: int, *, workspace_id: int
-    ) -> Optional[ProjectComponentAttachment]:
+    ) -> ProjectComponentAttachment | None:
         """
         Get a specific project component-attachment link (SECURITY-CRITICAL: workspace-filtered)
 

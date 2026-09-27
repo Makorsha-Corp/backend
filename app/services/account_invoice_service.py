@@ -1,16 +1,16 @@
 """Account Invoice Service for orchestrating invoice workflows"""
 from decimal import Decimal
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.services.base_service import BaseService
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.expense_order import expense_order_dao
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.managers.purchase_order_manager import purchase_order_manager
 from app.models.account_invoice import AccountInvoice
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
-from app.dao.expense_order import expense_order_dao
 from app.services.approval_notification_service import notify_invoice_action
+from app.services.base_service import BaseService
 
 
 class AccountInvoiceService(BaseService):
@@ -64,7 +64,7 @@ class AccountInvoiceService(BaseService):
 
             return invoice
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -94,12 +94,12 @@ class AccountInvoiceService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -108,7 +108,7 @@ class AccountInvoiceService(BaseService):
         amount_max=None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[AccountInvoice]:
+    ) -> list[AccountInvoice]:
         """List invoices with all filters. Excludes invoices from soft-deleted accounts."""
         return self.account_invoice_manager.list_invoices(
             session=db,
@@ -134,7 +134,7 @@ class AccountInvoiceService(BaseService):
         db: Session,
         workspace_id: int,
         account_id: int,
-        prioritize_purchase_order_id: Optional[int] = None,
+        prioritize_purchase_order_id: int | None = None,
         skip: int = 0,
         limit: int = 10,
     ):
@@ -153,10 +153,10 @@ class AccountInvoiceService(BaseService):
         db: Session,
         workspace_id: int,
         account_id: int,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -191,7 +191,7 @@ class AccountInvoiceService(BaseService):
         db: Session,
         workspace_id: int,
         section: str = "overview",
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ):
@@ -208,12 +208,12 @@ class AccountInvoiceService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
         invoice_date_from=None,
         invoice_date_to=None,
         due_date_from=None,
@@ -279,7 +279,7 @@ class AccountInvoiceService(BaseService):
 
             return invoice
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -325,7 +325,7 @@ class AccountInvoiceService(BaseService):
 
             return invoice
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -357,13 +357,15 @@ class AccountInvoiceService(BaseService):
         try:
             invoice = self.account_invoice_manager.get_invoice(db, invoice_id, workspace_id)
             if invoice.invoice_status != 'draft':
-                from fastapi import HTTPException, status as http_status
+                from fastapi import HTTPException
+                from fastapi import status as http_status
                 raise HTTPException(
                     status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail="Can only resync items on draft invoices.",
                 )
             if not invoice.order_id or not invoice.order_type:
-                from fastapi import HTTPException, status as http_status
+                from fastapi import HTTPException
+                from fastapi import status as http_status
                 raise HTTPException(
                     status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail="This invoice is not linked to an order — resync is not applicable.",
@@ -384,10 +386,10 @@ class AccountInvoiceService(BaseService):
                         "item_id": None,
                         "source_order_item_id": item.id,
                         "source_order_item_type": "eo_item",
-                        "quantity": item.quantity or D("1"),
+                        "quantity": item.quantity or D(1),
                         "unit": item.unit,
-                        "unit_price": item.unit_price or D("0"),
-                        "line_subtotal": item.line_subtotal or D("0"),
+                        "unit_price": item.unit_price or D(0),
+                        "line_subtotal": item.line_subtotal or D(0),
                     }
                     for i, item in enumerate(eo_items)
                 ]

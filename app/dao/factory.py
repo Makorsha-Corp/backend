@@ -1,8 +1,7 @@
 """DAO operations"""
-from typing import List, Optional
-from datetime import datetime
+
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+
 from app.dao.base import BaseDAO
 from app.models.factory import Factory
 from app.schemas.factory import FactoryCreate, FactoryUpdate
@@ -19,7 +18,7 @@ class DAOFactory(BaseDAO[Factory, FactoryCreate, FactoryUpdate]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Factory]:
+    ) -> list[Factory]:
         """
         Get all factories for a workspace (SECURITY-CRITICAL: workspace-filtered)
 
@@ -42,7 +41,7 @@ class DAOFactory(BaseDAO[Factory, FactoryCreate, FactoryUpdate]):
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Factory]:
+    ) -> Factory | None:
         """
         Get factory by ID and workspace (SECURITY-CRITICAL: workspace-filtered)
 
@@ -65,7 +64,7 @@ class DAOFactory(BaseDAO[Factory, FactoryCreate, FactoryUpdate]):
 
     def get_active_factories(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Factory]:
+    ) -> list[Factory]:
         """
         Get all active, non-deleted factories for a workspace (SECURITY-CRITICAL: workspace-filtered)
 

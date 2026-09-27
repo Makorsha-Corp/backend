@@ -1,7 +1,19 @@
 """Sales order model - contracts with customers for selling goods"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Date, Boolean
+from datetime import date
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
-from datetime import datetime, date
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

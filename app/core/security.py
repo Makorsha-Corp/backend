@@ -3,20 +3,21 @@ Security utilities for authentication and authorization
 """
 import hashlib
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, Tuple
-import jwt
+from datetime import timedelta
+from typing import Any
+
 import bcrypt
+import jwt
+
 from app.core.config import settings
 from app.utils.time import utcnow
-
 
 # Length (in url-safe base64 characters) of the raw refresh token returned to
 # clients. 64 bytes of entropy ≈ 86 characters; ample for a non-JWT credential.
 REFRESH_TOKEN_BYTES = 64
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """
     Create JWT access token
 
@@ -88,7 +89,7 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
-def create_refresh_token() -> Tuple[str, str]:
+def create_refresh_token() -> tuple[str, str]:
     """Generate a refresh token pair (raw value, sha256 hex digest).
 
     The raw token is the credential returned to the client and is never
@@ -116,7 +117,7 @@ def hash_refresh_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def decode_token(token: str) -> Optional[Dict[str, Any]]:
+def decode_token(token: str) -> dict[str, Any] | None:
     """
     Decode and verify JWT token
 

@@ -8,7 +8,11 @@ from app.dao.attachment_ledger import attachment_ledger_dao
 from app.managers.attachment_manager import AttachmentConfirmError, AttachmentManager
 from app.models.attachment import Attachment
 from app.models.attachment_ledger import AttachmentLedger
-from app.models.enums import AttachmentEntityTypeEnum, AttachmentLedgerTransactionTypeEnum, UploadStatusEnum
+from app.models.enums import (
+    AttachmentEntityTypeEnum,
+    AttachmentLedgerTransactionTypeEnum,
+    UploadStatusEnum,
+)
 from app.schemas.attachment import AttachmentSignRequest
 from app.utils.attachment_allowlist import NormalizedUploadRequest
 

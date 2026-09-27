@@ -1,9 +1,13 @@
 """DAO operations"""
-from typing import List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.project_component_item import ProjectComponentItem
-from app.schemas.project_component_item import ProjectComponentItemCreate, ProjectComponentItemUpdate
+from app.schemas.project_component_item import (
+    ProjectComponentItemCreate,
+    ProjectComponentItemUpdate,
+)
 
 
 class DAOProjectComponentItem(BaseDAO[ProjectComponentItem, ProjectComponentItemCreate, ProjectComponentItemUpdate]):
@@ -11,7 +15,7 @@ class DAOProjectComponentItem(BaseDAO[ProjectComponentItem, ProjectComponentItem
 
     def get_by_component(
         self, db: Session, *, project_component_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProjectComponentItem]:
+    ) -> list[ProjectComponentItem]:
         """
         Get component items by project component ID (SECURITY-CRITICAL: workspace-filtered)
 

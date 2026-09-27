@@ -1,7 +1,8 @@
 """Expense order event DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.expense_order_event import ExpenseOrderEvent
 
@@ -9,7 +10,7 @@ from app.models.expense_order_event import ExpenseOrderEvent
 class ExpenseOrderEventDAO(BaseDAO[ExpenseOrderEvent, object, object]):
     def get_by_order(
         self, db: Session, *, expense_order_id: int, workspace_id: int
-    ) -> List[ExpenseOrderEvent]:
+    ) -> list[ExpenseOrderEvent]:
         return (
             db.query(ExpenseOrderEvent)
             .filter(

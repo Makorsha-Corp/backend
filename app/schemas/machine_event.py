@@ -1,6 +1,8 @@
 """Machine event schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import MachineEventTypeEnum
 
 
@@ -13,7 +15,6 @@ class MachineEventBase(BaseModel):
 
 class MachineEventCreate(MachineEventBase):
     """Machine event creation schema"""
-    pass
 
 
 class MachineEventUpdate(BaseModel):

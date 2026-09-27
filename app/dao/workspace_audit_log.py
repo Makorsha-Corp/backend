@@ -1,11 +1,9 @@
 """WorkspaceAuditLog DAO"""
-from typing import List
-from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.workspace_audit_log import WorkspaceAuditLog
 from app.schemas.workspace_audit_log import WorkspaceAuditLogCreate
-from app.utils.time import utcnow
 
 
 class WorkspaceAuditLogDAO(BaseDAO[WorkspaceAuditLog, WorkspaceAuditLogCreate, dict]):

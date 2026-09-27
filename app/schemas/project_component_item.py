@@ -11,7 +11,6 @@ class ProjectComponentItemBase(BaseModel):
 
 class ProjectComponentItemCreate(ProjectComponentItemBase):
     """Project component item creation schema"""
-    pass
 
 
 class ProjectComponentItemUpdate(BaseModel):

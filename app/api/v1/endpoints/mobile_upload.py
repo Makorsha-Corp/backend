@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.cloudinary_client import CloudinaryNotConfiguredError
 from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.core.limiter import limiter
+from app.managers.attachment_manager import AttachmentLimitError
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.attachment import AttachmentResponse
@@ -18,7 +19,6 @@ from app.schemas.mobile_upload import (
     MobileUploadSessionCreateResponse,
     MobileUploadSessionResponse,
 )
-from app.managers.attachment_manager import AttachmentLimitError
 from app.services.mobile_upload_service import (
     AttachmentConfirmError,
     AttachmentValidationError,

@@ -1,18 +1,11 @@
 """Seed purchase-order stage statuses and workflow for a workspace."""
 
 from sqlalchemy.exc import IntegrityError
-
 from sqlalchemy.orm import Session
 
-
-
-from app.models.status import Status
-
-from app.models.order_workflow import OrderWorkflow
-
 from app.dao.order_workflow import order_workflow_dao
-
-
+from app.models.order_workflow import OrderWorkflow
+from app.models.status import Status
 
 PO_WORKFLOW_TYPE = 'purchase'
 

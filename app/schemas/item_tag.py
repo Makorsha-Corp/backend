@@ -1,6 +1,7 @@
 """Item tag schemas"""
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ItemTagBase(BaseModel):

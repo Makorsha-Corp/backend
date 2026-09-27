@@ -1,6 +1,5 @@
 """DAO for mobile upload sessions."""
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +18,7 @@ def _naive_utc(value: datetime) -> datetime:
 class MobileUploadSessionDAO(BaseDAO[MobileUploadSession, dict, dict]):
     """Database access for mobile upload sessions."""
 
-    def get_by_token_hash(self, db: Session, *, token_hash: str) -> Optional[MobileUploadSession]:
+    def get_by_token_hash(self, db: Session, *, token_hash: str) -> MobileUploadSession | None:
         return db.query(self.model).filter(self.model.token_hash == token_hash).first()
 
     def get_for_creator(
@@ -29,7 +28,7 @@ class MobileUploadSessionDAO(BaseDAO[MobileUploadSession, dict, dict]):
         session_id: int,
         workspace_id: int,
         created_by: int,
-    ) -> Optional[MobileUploadSession]:
+    ) -> MobileUploadSession | None:
         return (
             db.query(self.model)
             .filter(

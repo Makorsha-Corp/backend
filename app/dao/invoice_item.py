@@ -1,5 +1,5 @@
 """Invoice item DAO"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
@@ -9,7 +9,7 @@ from app.schemas.invoice_item import InvoiceItemCreate, InvoiceItemUpdate
 
 class InvoiceItemDAO(BaseDAO[InvoiceItem, InvoiceItemCreate, InvoiceItemUpdate]):
 
-    def get_by_invoice(self, db: Session, *, invoice_id: int, workspace_id: int) -> List[InvoiceItem]:
+    def get_by_invoice(self, db: Session, *, invoice_id: int, workspace_id: int) -> list[InvoiceItem]:
         return (
             db.query(InvoiceItem)
             .filter(InvoiceItem.invoice_id == invoice_id, InvoiceItem.workspace_id == workspace_id)
@@ -17,7 +17,7 @@ class InvoiceItemDAO(BaseDAO[InvoiceItem, InvoiceItemCreate, InvoiceItemUpdate])
             .all()
         )
 
-    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[InvoiceItem]:
+    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> InvoiceItem | None:
         return (
             db.query(InvoiceItem)
             .filter(InvoiceItem.id == id, InvoiceItem.workspace_id == workspace_id)

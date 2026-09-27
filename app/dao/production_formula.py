@@ -1,9 +1,13 @@
 """Production Formula DAO operations"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.production_formula import ProductionFormula
-from app.schemas.production_formula import ProductionFormulaCreate, ProductionFormulaUpdate
+from app.schemas.production_formula import (
+    ProductionFormulaCreate,
+    ProductionFormulaUpdate,
+)
 
 
 class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, ProductionFormulaUpdate]):
@@ -14,7 +18,7 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionFormula]:
+    ) -> list[ProductionFormula]:
         """
         Get all production formulas for a workspace (SECURITY-CRITICAL)
 
@@ -37,7 +41,7 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
 
     def get_by_formula_code(
         self, db: Session, *, formula_code: str, workspace_id: int
-    ) -> Optional[ProductionFormula]:
+    ) -> ProductionFormula | None:
         """
         Get production formula by formula code (SECURITY-CRITICAL)
 
@@ -60,7 +64,7 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
 
     def get_active_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionFormula]:
+    ) -> list[ProductionFormula]:
         """
         Get active production formulas for a workspace (SECURITY-CRITICAL)
 
@@ -86,7 +90,7 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
 
     def get_default_formulas(
         self, db: Session, *, workspace_id: int
-    ) -> List[ProductionFormula]:
+    ) -> list[ProductionFormula]:
         """
         Get all default formulas in a workspace (SECURITY-CRITICAL)
 
@@ -109,7 +113,7 @@ class ProductionFormulaDAO(BaseDAO[ProductionFormula, ProductionFormulaCreate, P
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ProductionFormula]:
+    ) -> ProductionFormula | None:
         """
         Get production formula by ID with workspace validation (SECURITY-CRITICAL)
 

@@ -2,8 +2,9 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.work_order_item import WorkOrderItem
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
@@ -19,7 +20,7 @@ class WorkOrderItemDAO(BaseDAO[WorkOrderItem, WorkOrderItemCreate, WorkOrderItem
         work_order_id: int,
         workspace_id: int,
         include_deleted: bool = False,
-    ) -> List[WorkOrderItem]:
+    ) -> list[WorkOrderItem]:
         """Get all items for a work order."""
         query = db.query(WorkOrderItem).filter(
             WorkOrderItem.work_order_id == work_order_id,
@@ -31,7 +32,7 @@ class WorkOrderItemDAO(BaseDAO[WorkOrderItem, WorkOrderItemCreate, WorkOrderItem
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[WorkOrderItem]:
+    ) -> WorkOrderItem | None:
         """Get item by ID with workspace isolation."""
         return db.query(WorkOrderItem).filter(
             WorkOrderItem.id == id,

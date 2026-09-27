@@ -1,22 +1,30 @@
 """Inventory Manager - business logic for unified inventory"""
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Tuple
 
-from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
-from app.managers.base_manager import BaseManager
-from app.models.inventory import Inventory
-from app.models.enums import InventoryTypeEnum
-from app.schemas.inventory import InventoryCreate, InventoryUpdate, InventoryListResponse, InventoryStatsResponse, InventoryStatsByTypeRow
-from app.schemas.inventory_incoming import IncomingOrderLine, ItemIncomingSummary
+from app.dao.factory import factory_dao
 from app.dao.inventory import inventory_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
-from app.dao.factory import factory_dao
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
 from app.dao.transfer_order import transfer_order_dao, transfer_order_item_dao
-from app.utils.order_workflow_terminal import is_order_terminal, terminal_status_ids_by_workflow
+from app.managers.base_manager import BaseManager
+from app.models.enums import InventoryTypeEnum
+from app.models.inventory import Inventory
+from app.schemas.inventory import (
+    InventoryCreate,
+    InventoryListResponse,
+    InventoryStatsByTypeRow,
+    InventoryStatsResponse,
+    InventoryUpdate,
+)
+from app.schemas.inventory_incoming import IncomingOrderLine, ItemIncomingSummary
+from app.utils.order_workflow_terminal import (
+    is_order_terminal,
+    terminal_status_ids_by_workflow,
+)
 
 
 class InventoryManager(BaseManager[Inventory]):
@@ -142,10 +150,10 @@ class InventoryManager(BaseManager[Inventory]):
 
     def list_inventory(
         self, session: Session, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Inventory]:
+    ) -> list[Inventory]:
         """List inventory records with optional filters (includes zero-qty rows)."""
         return self.inv_dao.get_by_workspace(
             session, workspace_id=workspace_id,
@@ -158,10 +166,10 @@ class InventoryManager(BaseManager[Inventory]):
         session: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
         skip: int = 0,
         limit: int = 50,
@@ -199,10 +207,10 @@ class InventoryManager(BaseManager[Inventory]):
         session: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
     ) -> InventoryStatsResponse:
         records, total_qty, estimated_value, by_type_rows = self.inv_dao.stats_filtered(
@@ -217,7 +225,7 @@ class InventoryManager(BaseManager[Inventory]):
         return InventoryStatsResponse(
             records=records,
             total_qty=total_qty,
-            estimated_value=estimated_value or Decimal("0"),
+            estimated_value=estimated_value or Decimal(0),
             by_type=[
                 InventoryStatsByTypeRow(
                     inventory_type=row_type,
@@ -271,7 +279,7 @@ class InventoryManager(BaseManager[Inventory]):
         *,
         workspace_id: int,
         factory_id: int,
-    ) -> List[ItemIncomingSummary]:
+    ) -> list[ItemIncomingSummary]:
         """Pending qty per item from open POs and inbound transfers to factory storage."""
         factory = factory_dao.get_by_id_and_workspace(
             session, id=factory_id, workspace_id=workspace_id
@@ -283,9 +291,9 @@ class InventoryManager(BaseManager[Inventory]):
             )
 
         # item_id -> (total_qty, order_key -> IncomingOrderLine)
-        OrderKey = Tuple[str, int]
-        totals: DefaultDict[int, Decimal] = defaultdict(lambda: Decimal("0"))
-        lines_by_item: DefaultDict[int, Dict[OrderKey, IncomingOrderLine]] = defaultdict(dict)
+        OrderKey = tuple[str, int]
+        totals: defaultdict[int, Decimal] = defaultdict(lambda: Decimal(0))
+        lines_by_item: defaultdict[int, dict[OrderKey, IncomingOrderLine]] = defaultdict(dict)
 
         pos = purchase_order_dao.list_for_destination(
             session,
@@ -297,7 +305,7 @@ class InventoryManager(BaseManager[Inventory]):
         po_terminal = terminal_status_ids_by_workflow(
             session, workspace_id=workspace_id, workflow_ids=po_wf_ids
         )
-        open_po_ids: List[int] = []
+        open_po_ids: list[int] = []
         open_po_by_id = {}
         for po in pos:
             if is_order_terminal(
@@ -322,7 +330,7 @@ class InventoryManager(BaseManager[Inventory]):
                 po = open_po_by_id[line.purchase_order_id]
                 key: OrderKey = ("purchase", po.id)
                 existing = lines_by_item[line.item_id].get(key)
-                new_qty = (existing.pending_qty if existing else Decimal("0")) + pending
+                new_qty = (existing.pending_qty if existing else Decimal(0)) + pending
                 lines_by_item[line.item_id][key] = IncomingOrderLine(
                     order_kind="purchase",
                     order_id=po.id,
@@ -348,7 +356,7 @@ class InventoryManager(BaseManager[Inventory]):
                 tr = tr_by_id[line.transfer_order_id]
                 key = ("transfer", tr.id)
                 existing = lines_by_item[line.item_id].get(key)
-                new_qty = (existing.pending_qty if existing else Decimal("0")) + qty
+                new_qty = (existing.pending_qty if existing else Decimal(0)) + qty
                 lines_by_item[line.item_id][key] = IncomingOrderLine(
                     order_kind="transfer",
                     order_id=tr.id,
@@ -358,7 +366,7 @@ class InventoryManager(BaseManager[Inventory]):
                 )
                 totals[line.item_id] += qty
 
-        summaries: List[ItemIncomingSummary] = []
+        summaries: list[ItemIncomingSummary] = []
         for item_id in sorted(totals.keys()):
             order_lines = list(lines_by_item[item_id].values())
             summaries.append(
@@ -377,8 +385,8 @@ class InventoryManager(BaseManager[Inventory]):
         session: Session,
         *,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-    ) -> List[ItemIncomingSummary]:
+        factory_id: int | None = None,
+    ) -> list[ItemIncomingSummary]:
         """Pending qty per item; one factory or all active factories in workspace."""
         if factory_id is not None:
             return self.get_incoming_summary_for_factory(
@@ -388,7 +396,7 @@ class InventoryManager(BaseManager[Inventory]):
         factories = factory_dao.get_active_factories(
             session, workspace_id=workspace_id, skip=0, limit=500
         )
-        summaries: List[ItemIncomingSummary] = []
+        summaries: list[ItemIncomingSummary] = []
         for factory in factories:
             summaries.extend(
                 self.get_incoming_summary_for_factory(

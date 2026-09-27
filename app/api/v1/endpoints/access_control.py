@@ -1,20 +1,23 @@
 """Access control endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
+from app.models.enums import AccessControlTypeEnum, RoleEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.models.enums import RoleEnum, AccessControlTypeEnum
-from app.schemas.access_control import AccessControlCreate, AccessControlUpdate, AccessControlResponse
+from app.schemas.access_control import (
+    AccessControlCreate,
+    AccessControlResponse,
+    AccessControlUpdate,
+)
 from app.services.access_control_service import access_control_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AccessControlResponse])
+@router.get("/", response_model=list[AccessControlResponse])
 def get_access_controls(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

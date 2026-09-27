@@ -3,14 +3,14 @@ Work Order Type Manager
 
 Business logic for work order type operations.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.work_order_type import work_order_type_dao
 from app.managers.base_manager import BaseManager
 from app.models.work_order_type import WorkOrderType
 from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate
-from app.dao.work_order_type import work_order_type_dao
 
 
 class WorkOrderTypeManager(BaseManager[WorkOrderType]):
@@ -102,11 +102,11 @@ class WorkOrderTypeManager(BaseManager[WorkOrderType]):
         self,
         session: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
-    ) -> List[WorkOrderType]:
+    ) -> list[WorkOrderType]:
         """Search work order types in workspace."""
         types = self.work_order_type_dao.get_by_workspace(
             session, workspace_id=workspace_id, skip=skip, limit=limit
@@ -144,7 +144,7 @@ class WorkOrderTypeManager(BaseManager[WorkOrderType]):
         session: Session,
         workspace_id: int,
         name: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """Check if work order type with given name exists in workspace (excluding deleted)."""
         types = self.work_order_type_dao.get_by_workspace(session, workspace_id=workspace_id)

@@ -6,34 +6,33 @@ Batches track actual production runs with expected vs actual variance analysis.
 Supports both formula-driven (with auto-calculated expected values) and
 simple mode (manual tracking).
 """
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
+from app.dao.product_ledger import product_ledger_dao
+from app.models.production_batch import ProductionBatch as ProductionBatchModel
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.production_batch import (
     ProductionBatchCreate,
-    ProductionBatchUpdate,
     ProductionBatchResponse,
     ProductionBatchStatsResponse,
+    ProductionBatchUpdate,
 )
 from app.schemas.production_batch_item import (
     ProductionBatchItemCreate,
-    ProductionBatchItemUpdate,
     ProductionBatchItemResponse,
+    ProductionBatchItemUpdate,
 )
 from app.schemas.production_batch_stage_log import (
     ProductionBatchStageLogCreate,
-    ProductionBatchStageLogUpdate,
     ProductionBatchStageLogResponse,
+    ProductionBatchStageLogUpdate,
 )
 from app.services.production_batch_service import production_batch_service
-from app.dao.product_ledger import product_ledger_dao
-from app.models.production_batch import ProductionBatch as ProductionBatchModel
-
 
 router = APIRouter()
 
@@ -51,7 +50,7 @@ def _batch_response(db: Session, workspace_id: int, batch: ProductionBatchModel)
 
 class StartBatchRequest(BaseModel):
     """Request body for starting a batch"""
-    target_output_quantity: Optional[int] = Field(
+    target_output_quantity: int | None = Field(
         None, gt=0,
         description="Target output quantity. If omitted, uses sum of formula's product items."
     )
@@ -59,9 +58,9 @@ class StartBatchRequest(BaseModel):
 
 class CompleteBatchRequest(BaseModel):
     """Request body for completing a batch"""
-    actual_output_quantity: Optional[int] = Field(None, gt=0, description="Actual output produced")
-    actual_duration_minutes: Optional[int] = Field(None, ge=0, description="Actual time taken in minutes")
-    notes: Optional[str] = Field(None, description="Completion notes")
+    actual_output_quantity: int | None = Field(None, gt=0, description="Actual output produced")
+    actual_duration_minutes: int | None = Field(None, ge=0, description="Actual time taken in minutes")
+    notes: str | None = Field(None, description="Completion notes")
 
 
 class PostFinishedGoodsRequest(BaseModel):
@@ -75,7 +74,7 @@ class PostFinishedGoodsRequest(BaseModel):
 
 class CancelBatchRequest(BaseModel):
     """Request body for cancelling a batch"""
-    notes: Optional[str] = Field(None, description="Cancellation reason")
+    notes: str | None = Field(None, description="Cancellation reason")
 
 
 # ─── Batch Endpoints ────────────────────────────────────────────────
@@ -83,7 +82,7 @@ class CancelBatchRequest(BaseModel):
 
 @router.get(
     "/",
-    response_model=List[ProductionBatchResponse],
+    response_model=list[ProductionBatchResponse],
     status_code=status.HTTP_200_OK,
     summary="List production batches",
     description="""
@@ -94,9 +93,9 @@ class CancelBatchRequest(BaseModel):
 def get_batches(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
-    production_line_id: Optional[int] = Query(None, description="Filter by production line ID"),
-    formula_id: Optional[int] = Query(None, description="Filter by formula ID"),
-    batch_status: Optional[str] = Query(
+    production_line_id: int | None = Query(None, description="Filter by production line ID"),
+    formula_id: int | None = Query(None, description="Filter by formula ID"),
+    batch_status: str | None = Query(
         None, alias="status",
         description="Filter by status: draft, in_progress, completed, cancelled"
     ),
@@ -123,7 +122,7 @@ def get_batches(
     description="Aggregate batch counts for dashboard KPIs.",
 )
 def get_batch_stats(
-    factory_id: Optional[int] = Query(None, description="Filter in-progress batches by factory"),
+    factory_id: int | None = Query(None, description="Filter in-progress batches by factory"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -287,7 +286,7 @@ def cancel_batch(
 
 @router.get(
     "/{batch_id}/items/",
-    response_model=List[ProductionBatchItemResponse],
+    response_model=list[ProductionBatchItemResponse],
     status_code=status.HTTP_200_OK,
     summary="List batch items",
     description="""
@@ -297,7 +296,7 @@ def cancel_batch(
 )
 def get_batch_items(
     batch_id: int,
-    item_role: Optional[str] = Query(
+    item_role: str | None = Query(
         None,
         description="Filter by item role: input, output, waste, byproduct",
         pattern=r'^(input|output|waste|byproduct)$'
@@ -384,7 +383,7 @@ def remove_batch_item(
 
 @router.get(
     "/{batch_id}/stage-logs/",
-    response_model=List[ProductionBatchStageLogResponse],
+    response_model=list[ProductionBatchStageLogResponse],
     status_code=status.HTTP_200_OK,
     summary="List batch stage logs",
 )

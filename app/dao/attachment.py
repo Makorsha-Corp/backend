@@ -4,10 +4,10 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import List, Optional
-from datetime import datetime
-from sqlalchemy.orm import Session
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.attachment import Attachment
 from app.schemas.attachment import AttachmentCreateInternal, AttachmentUpdateInternal
@@ -19,7 +19,7 @@ class AttachmentDAO(BaseDAO[Attachment, AttachmentCreateInternal, AttachmentUpda
 
     def get_active(
         self, db: Session, id: int, workspace_id: int
-    ) -> Optional[Attachment]:
+    ) -> Attachment | None:
         """
         Get a single non-deleted attachment by ID (SECURITY-CRITICAL: workspace-filtered)
 
@@ -41,7 +41,7 @@ class AttachmentDAO(BaseDAO[Attachment, AttachmentCreateInternal, AttachmentUpda
 
     def soft_delete(
         self, db: Session, *, id: int, workspace_id: int, deleted_by: int
-    ) -> Optional[Attachment]:
+    ) -> Attachment | None:
         """
         Soft delete an attachment (does NOT commit) (SECURITY-CRITICAL: workspace-filtered)
 
@@ -75,7 +75,7 @@ class AttachmentDAO(BaseDAO[Attachment, AttachmentCreateInternal, AttachmentUpda
 
     def restore(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Attachment]:
+    ) -> Attachment | None:
         """
         Restore a soft-deleted attachment (does NOT commit) (SECURITY-CRITICAL: workspace-filtered)
 

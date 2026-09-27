@@ -1,5 +1,5 @@
 """Helpers for order workflow terminal status resolution."""
-from typing import Dict, Iterable, List, Set
+from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
 
@@ -11,9 +11,9 @@ def terminal_status_ids_by_workflow(
     *,
     workspace_id: int,
     workflow_ids: Iterable[int],
-) -> Dict[int, int]:
+) -> dict[int, int]:
     """Map workflow_id -> last status_id in status_sequence (terminal status)."""
-    wf_ids: Set[int] = {wid for wid in workflow_ids if wid is not None}
+    wf_ids: set[int] = {wid for wid in workflow_ids if wid is not None}
     if not wf_ids:
         return {}
 
@@ -25,7 +25,7 @@ def terminal_status_ids_by_workflow(
         )
         .all()
     )
-    terminal_by_wf: Dict[int, int] = {}
+    terminal_by_wf: dict[int, int] = {}
     for wf in wfs:
         seq = wf.status_sequence or []
         if isinstance(seq, list) and len(seq) > 0:
@@ -39,7 +39,7 @@ def is_order_terminal(
     *,
     workflow_id: int | None,
     current_status_id: int | None,
-    terminal_by_wf: Dict[int, int],
+    terminal_by_wf: dict[int, int],
 ) -> bool:
     if workflow_id is None or current_status_id is None:
         return False

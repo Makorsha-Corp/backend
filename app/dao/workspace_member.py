@@ -1,6 +1,7 @@
 """WorkspaceMember DAO"""
-from typing import Optional, List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.workspace_member import WorkspaceMember
 from app.schemas.workspace_member import WorkspaceMemberCreate, WorkspaceMemberUpdate
@@ -11,7 +12,7 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
 
     def get_by_workspace_and_user(
         self, db: Session, *, workspace_id: int, user_id: int
-    ) -> Optional[WorkspaceMember]:
+    ) -> WorkspaceMember | None:
         """Get membership record for user in workspace"""
         return (
             db.query(WorkspaceMember)
@@ -22,7 +23,7 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
             .first()
         )
 
-    def get_by_user(self, db: Session, *, user_id: int) -> List[WorkspaceMember]:
+    def get_by_user(self, db: Session, *, user_id: int) -> list[WorkspaceMember]:
         """Get all workspace memberships for a user (alias for get_user_workspaces)"""
         return (
             db.query(WorkspaceMember)
@@ -31,8 +32,8 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
         )
 
     def get_workspace_members(
-        self, db: Session, *, workspace_id: int, status: Optional[str] = 'active'
-    ) -> List[WorkspaceMember]:
+        self, db: Session, *, workspace_id: int, status: str | None = 'active'
+    ) -> list[WorkspaceMember]:
         """Get all members in workspace"""
         query = db.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == workspace_id)
 
@@ -41,7 +42,7 @@ class WorkspaceMemberDAO(BaseDAO[WorkspaceMember, WorkspaceMemberCreate, Workspa
 
         return query.all()
 
-    def get_by_workspace(self, db: Session, *, workspace_id: int) -> List[WorkspaceMember]:
+    def get_by_workspace(self, db: Session, *, workspace_id: int) -> list[WorkspaceMember]:
         """Get all members in workspace (alias for get_workspace_members)"""
         return self.get_workspace_members(db, workspace_id=workspace_id, status=None)
 

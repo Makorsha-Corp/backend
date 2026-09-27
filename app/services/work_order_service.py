@@ -2,43 +2,58 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.services.base_service import BaseService
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.dao.account_invoice import account_invoice_dao
 from app.dao.work_order_assignee import work_order_assignee_dao
 from app.dao.work_order_completer import work_order_completer_dao
-from app.managers.work_order_manager import work_order_manager
 from app.managers.account_invoice_manager import account_invoice_manager
+from app.managers.work_order_manager import work_order_manager
+from app.models.enums import (
+    MachineEventTypeEnum,
+    WorkOrderPriorityEnum,
+    WorkOrderStatusEnum,
+)
+from app.models.profile import Profile
 from app.models.work_order import WorkOrder
 from app.models.work_order_approver import WorkOrderApprover
 from app.models.work_order_event import WorkOrderEvent
 from app.models.work_order_item import WorkOrderItem
-from app.models.profile import Profile
-from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, MachineEventTypeEnum
-from app.schemas.work_order import (
-    WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse,
-    WorkOrderApproversList, ApprovalSummaryResponse, WorkOrderApproverResponse,
-    WorkOrderSheetEntryCreate, WorkOrderSheetBundle, WorkOrderSheetListResponse, WorkOrderSheetDailyCountsResponse,
-    BulkDeleteFutureRecurrenceDraftsResponse,
-)
-from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
-from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.account_invoice import AccountInvoiceCreate
+from app.schemas.work_order import (
+    ApprovalSummaryResponse,
+    BulkDeleteFutureRecurrenceDraftsResponse,
+    WorkOrderApproverResponse,
+    WorkOrderApproversList,
+    WorkOrderCreate,
+    WorkOrderResponse,
+    WorkOrderSheetBundle,
+    WorkOrderSheetDailyCountsResponse,
+    WorkOrderSheetEntryCreate,
+    WorkOrderSheetListResponse,
+    WorkOrderUpdate,
+)
+from app.schemas.work_order_item import (
+    WorkOrderItemCreate,
+    WorkOrderItemResponse,
+    WorkOrderItemUpdate,
+)
+from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.services.approval_notification_service import (
     handle_add_approver,
     notify_invoice_action,
     notify_section_confirm_needed,
 )
+from app.services.base_service import BaseService
 
 
 @dataclass(frozen=True)
 class _WorkOrderEnrichment:
-    assignee_map: Dict[int, List[int]]
-    completer_map: Dict[int, List[int]]
-    profile_names: Dict[int, Optional[str]]
+    assignee_map: dict[int, list[int]]
+    completer_map: dict[int, list[int]]
+    profile_names: dict[int, str | None]
 
 
 class WorkOrderService(BaseService):
@@ -50,16 +65,16 @@ class WorkOrderService(BaseService):
         self.account_invoice_manager = account_invoice_manager
 
     def _load_work_order_enrichment(
-        self, db: Session, orders: List[WorkOrder],
+        self, db: Session, orders: list[WorkOrder],
     ) -> _WorkOrderEnrichment:
         if not orders:
             return _WorkOrderEnrichment({}, {}, {})
 
         wo_ids = [wo.id for wo in orders]
-        assignee_map: Dict[int, List[int]] = {wo_id: [] for wo_id in wo_ids}
-        completer_map: Dict[int, List[int]] = {wo_id: [] for wo_id in wo_ids}
+        assignee_map: dict[int, list[int]] = {wo_id: [] for wo_id in wo_ids}
+        completer_map: dict[int, list[int]] = {wo_id: [] for wo_id in wo_ids}
 
-        by_workspace: Dict[int, List[int]] = {}
+        by_workspace: dict[int, list[int]] = {}
         for wo in orders:
             by_workspace.setdefault(wo.workspace_id, []).append(wo.id)
 
@@ -80,7 +95,7 @@ class WorkOrderService(BaseService):
             if wo.completed_by is not None and not wo.completed_by_names:
                 profile_ids.add(wo.completed_by)
 
-        profile_names: Dict[int, Optional[str]] = {}
+        profile_names: dict[int, str | None] = {}
         if profile_ids:
             rows = db.query(Profile).filter(Profile.id.in_(profile_ids)).all()
             profile_names = {p.id: p.name for p in rows}
@@ -96,7 +111,7 @@ class WorkOrderService(BaseService):
         db: Session,
         wo: WorkOrder,
         *,
-        enrichment: Optional[_WorkOrderEnrichment] = None,
+        enrichment: _WorkOrderEnrichment | None = None,
     ) -> WorkOrderResponse:
         if enrichment is None:
             enrichment = self._load_work_order_enrichment(db, [wo])
@@ -115,8 +130,8 @@ class WorkOrderService(BaseService):
         return base.model_copy(update=updates)
 
     def _to_work_order_responses(
-        self, db: Session, orders: List[WorkOrder],
-    ) -> List[WorkOrderResponse]:
+        self, db: Session, orders: list[WorkOrder],
+    ) -> list[WorkOrderResponse]:
         if not orders:
             return []
         enrichment = self._load_work_order_enrichment(db, orders)
@@ -177,16 +192,16 @@ class WorkOrderService(BaseService):
 
     def list_work_orders(
         self, db: Session, workspace_id: int,
-        work_order_type_id: Optional[int] = None,
-        wo_status: Optional[WorkOrderStatusEnum] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        work_order_template_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
+        work_order_type_id: int | None = None,
+        wo_status: WorkOrderStatusEnum | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        work_order_template_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         return self.manager.list_work_orders(
             db, workspace_id=workspace_id,
             work_order_type_id=work_order_type_id, wo_status=wo_status, priority=priority,
@@ -204,7 +219,7 @@ class WorkOrderService(BaseService):
         user_id: int,
         work_order_template_id: int,
         machine_id: int,
-        after_date: Optional[date] = None,
+        after_date: date | None = None,
     ) -> BulkDeleteFutureRecurrenceDraftsResponse:
         try:
             deleted_ids = self.manager.bulk_delete_future_recurrence_drafts(
@@ -239,16 +254,16 @@ class WorkOrderService(BaseService):
 
     def list_sheet_bundles(
         self, db: Session, workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        status_scope: Optional[str] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        status_scope: str | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
         exclude_completed: bool = False,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> WorkOrderSheetListResponse:
@@ -282,7 +297,7 @@ class WorkOrderService(BaseService):
             response.id: response
             for response in self._to_work_order_responses(db, orders)
         }
-        bundles: List[WorkOrderSheetBundle] = []
+        bundles: list[WorkOrderSheetBundle] = []
         for wo in orders:
             items = self.manager.get_items(db, wo.id, workspace_id)
             approver_rows = self.manager.list_approvers(db, wo.id, workspace_id)
@@ -323,13 +338,13 @@ class WorkOrderService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
     ) -> WorkOrderSheetDailyCountsResponse:
         counts = self.manager.sheet_daily_counts(
             db,
@@ -367,11 +382,11 @@ class WorkOrderService(BaseService):
 
     def complete_work_order(
         self, db: Session, wo_id: int, workspace_id: int, user_id: int,
-        completion_notes: Optional[str] = None,
-        machine_status: Optional[str] = None,
-        completed_by: Optional[int] = None,
-        completed_by_names: Optional[str] = None,
-        completed_by_user_ids: Optional[list[int]] = None,
+        completion_notes: str | None = None,
+        machine_status: str | None = None,
+        completed_by: int | None = None,
+        completed_by_names: str | None = None,
+        completed_by_user_ids: list[int] | None = None,
     ) -> WorkOrder:
         try:
             wo = self.manager.get_work_order(db, wo_id, workspace_id)
@@ -417,11 +432,11 @@ class WorkOrderService(BaseService):
 
     def complete_work_order_as_planned(
         self, db: Session, wo_id: int, workspace_id: int, user_id: int,
-        completion_notes: Optional[str] = None,
-        machine_status: Optional[str] = None,
-        completed_by: Optional[int] = None,
-        completed_by_names: Optional[str] = None,
-        completed_by_user_ids: Optional[list[int]] = None,
+        completion_notes: str | None = None,
+        machine_status: str | None = None,
+        completed_by: int | None = None,
+        completed_by_names: str | None = None,
+        completed_by_user_ids: list[int] | None = None,
     ) -> WorkOrder:
         try:
             wo = self.manager.get_work_order(db, wo_id, workspace_id)
@@ -533,10 +548,10 @@ class WorkOrderService(BaseService):
                     "item_id": None,
                     "source_order_item_id": None,
                     "source_order_item_type": "wo_labor",
-                    "quantity": Decimal("1"),
+                    "quantity": Decimal(1),
                     "unit": None,
-                    "unit_price": wo.cost or Decimal("0"),
-                    "line_subtotal": wo.cost or Decimal("0"),
+                    "unit_price": wo.cost or Decimal(0),
+                    "line_subtotal": wo.cost or Decimal(0),
                 }],
                 user_id,
             )
@@ -560,10 +575,10 @@ class WorkOrderService(BaseService):
     # ─── Approvers ───────────────────────────────────────────────
     def list_approvers(
         self, db: Session, wo_id: int, workspace_id: int
-    ) -> List[Tuple[WorkOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[WorkOrderApprover, Profile | None, str | None]]:
         return self.manager.list_approvers(db, wo_id, workspace_id)
 
-    def approval_summary_for(self, db: Session, wo_id: int, workspace_id: int) -> Tuple[int, int, bool]:
+    def approval_summary_for(self, db: Session, wo_id: int, workspace_id: int) -> tuple[int, int, bool]:
         wo = self.manager.get_work_order(db, wo_id, workspace_id)
         return self.manager.approval_summary(db, wo)
 
@@ -617,7 +632,7 @@ class WorkOrderService(BaseService):
             raise
 
     # ─── Events ──────────────────────────────────────────────────
-    def list_events(self, db: Session, wo_id: int, workspace_id: int) -> List[Tuple[WorkOrderEvent, Optional[Profile]]]:
+    def list_events(self, db: Session, wo_id: int, workspace_id: int) -> list[tuple[WorkOrderEvent, Profile | None]]:
         return self.manager.list_events(db, wo_id, workspace_id)
 
     # ─── Work Order Items ───────────────────────────────────────
@@ -650,7 +665,7 @@ class WorkOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def get_items(self, db: Session, wo_id: int, workspace_id: int) -> List[WorkOrderItem]:
+    def get_items(self, db: Session, wo_id: int, workspace_id: int) -> list[WorkOrderItem]:
         return self.manager.get_items(db, wo_id, workspace_id)
 
 

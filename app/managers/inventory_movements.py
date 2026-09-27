@@ -4,7 +4,6 @@ consumers other than Transfer Orders (e.g. Work Order item consumption) can reus
 same validated, cost-tracked ledger-writing mechanics without duplicating them.
 """
 from decimal import Decimal
-from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -12,10 +11,10 @@ from sqlalchemy.orm import Session
 from app.dao.factory import factory_dao
 from app.dao.inventory import inventory_dao
 from app.dao.inventory_ledger import inventory_ledger_dao
+from app.dao.item import item_dao
 from app.dao.machine import machine_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.machine_item_ledger import machine_item_ledger_dao
-from app.dao.item import item_dao
 from app.managers.machine_activity_manager import machine_activity_manager
 from app.models.enums import InventoryTypeEnum
 
@@ -27,12 +26,12 @@ def item_name(session: Session, item_id: int, workspace_id: int) -> str:
 
 def weighted_avg_price(
     old_qty: int,
-    old_avg: Optional[Decimal],
+    old_avg: Decimal | None,
     add_qty: int,
     unit_cost: Decimal,
 ) -> Decimal:
     if add_qty <= 0:
-        return old_avg or Decimal('0')
+        return old_avg or Decimal(0)
     if old_qty > 0 and old_avg is not None:
         numer = Decimal(old_qty) * old_avg + Decimal(add_qty) * unit_cost
         return (numer / Decimal(old_qty + add_qty)).quantize(Decimal('0.01'))
@@ -58,8 +57,8 @@ def _storage_out(
     notes: str,
     workspace_id: int,
     user_id: int,
-    dest_type: Optional[str],
-    dest_id: Optional[int],
+    dest_type: str | None,
+    dest_id: int | None,
 ) -> Decimal:
     factory = factory_dao.get_by_id_and_workspace(session, id=factory_id, workspace_id=workspace_id)
     if not factory:
@@ -79,7 +78,7 @@ def _storage_out(
             detail=f'Insufficient stock ({inv.qty} available, {qty} requested)',
         )
 
-    unit_cost = inv.avg_price or Decimal('0')
+    unit_cost = inv.avg_price or Decimal(0)
     old_qty = inv.qty
     old_avg = inv.avg_price
     new_qty = old_qty - qty
@@ -127,8 +126,8 @@ def _storage_in(
     notes: str,
     workspace_id: int,
     user_id: int,
-    source_loc_type: Optional[str],
-    source_loc_id: Optional[int],
+    source_loc_type: str | None,
+    source_loc_id: int | None,
 ) -> None:
     factory = factory_dao.get_by_id_and_workspace(session, id=factory_id, workspace_id=workspace_id)
     if not factory:
@@ -199,7 +198,7 @@ def get_machine_unit_cost(session: Session, *, machine_id: int, item_id: int, wo
     )
     if latest and latest.avg_price_after is not None:
         return Decimal(str(latest.avg_price_after))
-    return Decimal('0')
+    return Decimal(0)
 
 
 def _machine_out(
@@ -214,10 +213,10 @@ def _machine_out(
     notes: str,
     workspace_id: int,
     user_id: int,
-    dest_type: Optional[str],
-    dest_id: Optional[int],
+    dest_type: str | None,
+    dest_id: int | None,
     activity_event_type: str,
-    activity_description: Optional[str] = None,
+    activity_description: str | None = None,
 ) -> Decimal:
     machine = machine_dao.get_by_id_and_workspace(session, id=machine_id, workspace_id=workspace_id)
     if not machine:
@@ -292,10 +291,10 @@ def _machine_in(
     notes: str,
     workspace_id: int,
     user_id: int,
-    source_loc_type: Optional[str],
-    source_loc_id: Optional[int],
+    source_loc_type: str | None,
+    source_loc_id: int | None,
     activity_event_type: str,
-    activity_description: Optional[str] = None,
+    activity_description: str | None = None,
 ) -> None:
     machine = machine_dao.get_by_id_and_workspace(session, id=machine_id, workspace_id=workspace_id)
     if not machine:
@@ -364,10 +363,10 @@ def post_stock_out(
     notes: str,
     workspace_id: int,
     user_id: int,
-    dest_type: Optional[str] = None,
-    dest_id: Optional[int] = None,
-    activity_event_type: Optional[str] = None,
-    activity_description: Optional[str] = None,
+    dest_type: str | None = None,
+    dest_id: int | None = None,
+    activity_event_type: str | None = None,
+    activity_description: str | None = None,
 ) -> Decimal:
     """Deduct stock from a storage/damaged factory bucket or a machine's on-hand stock."""
     if location_type in ('storage', 'damaged'):
@@ -423,10 +422,10 @@ def post_stock_in(
     notes: str,
     workspace_id: int,
     user_id: int,
-    source_loc_type: Optional[str] = None,
-    source_loc_id: Optional[int] = None,
-    activity_event_type: Optional[str] = None,
-    activity_description: Optional[str] = None,
+    source_loc_type: str | None = None,
+    source_loc_id: int | None = None,
+    activity_event_type: str | None = None,
+    activity_description: str | None = None,
 ) -> None:
     """Restore/add stock to a storage/damaged factory bucket or a machine's on-hand stock."""
     if location_type in ('storage', 'damaged'):

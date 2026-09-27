@@ -220,7 +220,10 @@ def test_confirm_staging_rejects_oversized(
     mock_get: MagicMock,
     mock_destroy: MagicMock,
 ) -> None:
-    from app.utils.attachment_allowlist import AttachmentConfirmError, MAX_FILE_SIZE_BYTES
+    from app.utils.attachment_allowlist import (
+        MAX_FILE_SIZE_BYTES,
+        AttachmentConfirmError,
+    )
 
     session = _session(
         public_id="staging-id",

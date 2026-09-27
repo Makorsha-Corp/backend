@@ -1,29 +1,32 @@
 """Expense Order Service - transaction orchestration"""
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Tuple
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.services.base_service import BaseService
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.dao.account_invoice import account_invoice_dao
+from app.managers.account_invoice_manager import account_invoice_manager
 from app.managers.expense_order_manager import expense_order_manager
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_approver import ExpenseOrderApprover
 from app.models.expense_order_event import ExpenseOrderEvent
 from app.models.expense_order_item import ExpenseOrderItem
 from app.models.profile import Profile
-from app.schemas.expense_order import (
-    ExpenseOrderCreate, ExpenseOrderUpdate, ExpenseOrderFromTemplateCreate,
-    ExpenseOrderItemCreate, ExpenseOrderItemUpdate,
-)
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
-from app.managers.account_invoice_manager import account_invoice_manager
+from app.schemas.expense_order import (
+    ExpenseOrderCreate,
+    ExpenseOrderFromTemplateCreate,
+    ExpenseOrderItemCreate,
+    ExpenseOrderItemUpdate,
+    ExpenseOrderUpdate,
+)
 from app.services.approval_notification_service import (
     handle_add_approver,
     notify_invoice_action,
     notify_section_confirm_needed,
 )
+from app.services.base_service import BaseService
 from app.utils.time import utcnow
 
 
@@ -80,9 +83,9 @@ class ExpenseOrderService(BaseService):
 
     def list_expense_orders(
         self, db: Session, workspace_id: int,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0, limit: int = 100,
         **hub_filters,
     ):
@@ -100,14 +103,14 @@ class ExpenseOrderService(BaseService):
     def _hub_filter_kwargs(
         self,
         *,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ) -> dict:
@@ -131,14 +134,14 @@ class ExpenseOrderService(BaseService):
         *,
         skip: int = 0,
         limit: int = 50,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ):
@@ -173,14 +176,14 @@ class ExpenseOrderService(BaseService):
         db: Session,
         workspace_id: int,
         *,
-        expense_category: Optional[str] = None,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        invoice_filter: Optional[str] = None,
-        search: Optional[str] = None,
+        expense_category: str | None = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        invoice_filter: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
         exclude_voided: bool = False,
     ):
@@ -411,10 +414,10 @@ class ExpenseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def get_items(self, db: Session, eo_id: int, workspace_id: int) -> List[ExpenseOrderItem]:
+    def get_items(self, db: Session, eo_id: int, workspace_id: int) -> list[ExpenseOrderItem]:
         return self.manager.get_items(db, eo_id, workspace_id)
 
-    def _invoice_item_dicts(self, eo_items: List[ExpenseOrderItem]) -> list[dict]:
+    def _invoice_item_dicts(self, eo_items: list[ExpenseOrderItem]) -> list[dict]:
         return [
             {
                 "line_number": i + 1,
@@ -422,10 +425,10 @@ class ExpenseOrderService(BaseService):
                 "item_id": None,
                 "source_order_item_id": item.id,
                 "source_order_item_type": "eo_item",
-                "quantity": item.quantity or Decimal("1"),
+                "quantity": item.quantity or Decimal(1),
                 "unit": item.unit,
-                "unit_price": item.unit_price or Decimal("0"),
-                "line_subtotal": item.line_subtotal or Decimal("0"),
+                "unit_price": item.unit_price or Decimal(0),
+                "line_subtotal": item.line_subtotal or Decimal(0),
             }
             for i, item in enumerate(eo_items)
         ]
@@ -573,12 +576,12 @@ class ExpenseOrderService(BaseService):
     # ─── Approvers ─────────────────────────────────────────────
     def list_approvers(
         self, db: Session, eo_id: int, workspace_id: int
-    ) -> List[Tuple[ExpenseOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[ExpenseOrderApprover, Profile | None, str | None]]:
         return self.manager.list_approvers(db, eo_id, workspace_id)
 
     def approval_summary_for(
         self, db: Session, eo_id: int, workspace_id: int
-    ) -> Tuple[int, int, bool]:
+    ) -> tuple[int, int, bool]:
         eo = self.manager.get_expense_order(db, eo_id, workspace_id)
         return self.manager.approval_summary(db, eo)
 
@@ -651,7 +654,7 @@ class ExpenseOrderService(BaseService):
     # ─── Events ────────────────────────────────────────────────
     def list_events(
         self, db: Session, eo_id: int, workspace_id: int
-    ) -> List[Tuple[ExpenseOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[ExpenseOrderEvent, Profile | None]]:
         return self.manager.list_events(db, eo_id, workspace_id)
 
     # ─── Templates ─────────────────────────────────────────────

@@ -5,30 +5,29 @@ Provides CRUD operations for production formulas and their items.
 Formulas define the recipe/BOM (Bill of Materials) for production,
 specifying inputs, outputs, waste, and byproducts.
 """
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.production_formula import (
     ProductionFormulaCreate,
-    ProductionFormulaUpdate,
     ProductionFormulaResponse,
+    ProductionFormulaUpdate,
 )
 from app.schemas.production_formula_item import (
     ProductionFormulaItemCreate,
-    ProductionFormulaItemUpdate,
     ProductionFormulaItemResponse,
+    ProductionFormulaItemUpdate,
 )
 from app.schemas.production_formula_stage import (
     ProductionFormulaStageCreate,
-    ProductionFormulaStageUpdate,
     ProductionFormulaStageResponse,
+    ProductionFormulaStageUpdate,
 )
 from app.services.production_formula_service import production_formula_service
-
 
 router = APIRouter()
 
@@ -38,7 +37,7 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[ProductionFormulaResponse],
+    response_model=list[ProductionFormulaResponse],
     status_code=status.HTTP_200_OK,
     summary="List production formulas",
     description="""
@@ -146,7 +145,7 @@ def delete_formula(
 
 @router.get(
     "/{formula_id}/items/",
-    response_model=List[ProductionFormulaItemResponse],
+    response_model=list[ProductionFormulaItemResponse],
     status_code=status.HTTP_200_OK,
     summary="List formula items",
     description="""
@@ -156,7 +155,7 @@ def delete_formula(
 )
 def get_formula_items(
     formula_id: int,
-    item_role: Optional[str] = Query(
+    item_role: str | None = Query(
         None,
         description="Filter by item role: input, output, waste, byproduct",
         pattern=r'^(input|output|waste|byproduct)$'
@@ -241,7 +240,7 @@ def remove_formula_item(
 
 @router.get(
     "/{formula_id}/stages/",
-    response_model=List[ProductionFormulaStageResponse],
+    response_model=list[ProductionFormulaStageResponse],
     status_code=status.HTTP_200_OK,
     summary="List formula production stages",
 )

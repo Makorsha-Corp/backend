@@ -1,7 +1,8 @@
 """Transfer order event DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.transfer_order_event import TransferOrderEvent
 
@@ -9,7 +10,7 @@ from app.models.transfer_order_event import TransferOrderEvent
 class TransferOrderEventDAO(BaseDAO[TransferOrderEvent, object, object]):
     def get_by_order(
         self, db: Session, *, transfer_order_id: int, workspace_id: int
-    ) -> List[TransferOrderEvent]:
+    ) -> list[TransferOrderEvent]:
         return (
             db.query(TransferOrderEvent)
             .filter(

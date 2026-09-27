@@ -1,19 +1,22 @@
 """App settings endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.app_settings import AppSettingsCreate, AppSettingsUpdate, AppSettingsResponse
+from app.schemas.app_settings import (
+    AppSettingsCreate,
+    AppSettingsResponse,
+    AppSettingsUpdate,
+)
 from app.services.app_settings_service import app_settings_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AppSettingsResponse])
+@router.get("/", response_model=list[AppSettingsResponse])
 def get_app_settings(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

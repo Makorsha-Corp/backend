@@ -1,5 +1,4 @@
 """Work order assignee DAO."""
-from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
@@ -12,12 +11,12 @@ class WorkOrderAssigneeDAO(BaseDAO[WorkOrderAssignee, object, object]):
         self,
         db: Session,
         *,
-        work_order_ids: List[int],
+        work_order_ids: list[int],
         workspace_id: int,
-    ) -> Dict[int, List[int]]:
+    ) -> dict[int, list[int]]:
         if not work_order_ids:
             return {}
-        result: Dict[int, List[int]] = {wo_id: [] for wo_id in work_order_ids}
+        result: dict[int, list[int]] = {wo_id: [] for wo_id in work_order_ids}
         rows = (
             db.query(WorkOrderAssignee)
             .filter(
@@ -33,7 +32,7 @@ class WorkOrderAssigneeDAO(BaseDAO[WorkOrderAssignee, object, object]):
 
     def get_user_ids_by_order(
         self, db: Session, *, work_order_id: int, workspace_id: int,
-    ) -> List[int]:
+    ) -> list[int]:
         rows = (
             db.query(WorkOrderAssignee)
             .filter(
@@ -46,7 +45,7 @@ class WorkOrderAssigneeDAO(BaseDAO[WorkOrderAssignee, object, object]):
         return [row.user_id for row in rows]
 
     def replace_for_order(
-        self, db: Session, *, work_order_id: int, workspace_id: int, user_ids: List[int],
+        self, db: Session, *, work_order_id: int, workspace_id: int, user_ids: list[int],
     ) -> None:
         (
             db.query(WorkOrderAssignee)

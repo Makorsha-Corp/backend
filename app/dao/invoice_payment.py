@@ -1,9 +1,10 @@
 """Invoice payment DAO operations"""
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import List, Optional, Tuple
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.invoice_payment import InvoicePayment
 from app.models.profile import Profile
@@ -15,7 +16,7 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
 
     def get_by_invoice(
         self, db: Session, *, invoice_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Tuple[InvoicePayment, Optional[str]]]:
+    ) -> list[tuple[InvoicePayment, str | None]]:
         """
         Get all payments for an invoice with creator display name (SECURITY-CRITICAL)
 
@@ -38,7 +39,7 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
 
     def get_by_id_and_workspace_with_creator(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Tuple[InvoicePayment, Optional[str]]]:
+    ) -> tuple[InvoicePayment, str | None] | None:
         """Get payment by ID with creator display name (SECURITY-CRITICAL)"""
         row = (
             db.query(InvoicePayment, Profile.name.label("created_by_name"))
@@ -57,7 +58,7 @@ class InvoicePaymentDAO(BaseDAO[InvoicePayment, InvoicePaymentCreate, InvoicePay
     def get_by_date_range(
         self, db: Session, *, workspace_id: int, start_date: date, end_date: date,
         skip: int = 0, limit: int = 100
-    ) -> List[InvoicePayment]:
+    ) -> list[InvoicePayment]:
         """
         Get payments within a date range (SECURITY-CRITICAL)
 

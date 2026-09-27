@@ -7,14 +7,15 @@ The unified inventory_ledger table holds transactions for ALL inventory types
 (`calculate_balance`, `get_latest_entry`) require `inventory_type` because each
 (factory_id, item_id, inventory_type) tuple is an independent balance bucket.
 """
-from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
-from app.models.inventory_ledger import InventoryLedger
 from app.models.enums import InventoryTypeEnum
+from app.models.inventory_ledger import InventoryLedger
 from app.schemas.inventory_ledger import InventoryLedgerCreate, InventoryLedgerUpdate
 
 
@@ -23,11 +24,11 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get ledger entries with optional filters, newest first."""
         query = db.query(InventoryLedger).filter(
             InventoryLedger.workspace_id == workspace_id,
@@ -42,7 +43,7 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[InventoryLedger]:
+    ) -> InventoryLedger | None:
         """Get ledger entry by ID with workspace isolation."""
         return db.query(InventoryLedger).filter(
             InventoryLedger.id == id,
@@ -51,11 +52,11 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
 
     def get_by_transaction_type(
         self, db: Session, *, transaction_type: str, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get ledger entries by transaction type, with optional filters."""
         query = db.query(InventoryLedger).filter(
             InventoryLedger.workspace_id == workspace_id,
@@ -77,11 +78,11 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
     def get_by_date_range(
         self, db: Session, *, workspace_id: int,
         start_date: datetime, end_date: datetime,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get ledger entries within date range, with optional filters."""
         query = db.query(InventoryLedger).filter(
             InventoryLedger.workspace_id == workspace_id,
@@ -103,7 +104,7 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
 
     def get_by_order(
         self, db: Session, *, order_id: int, workspace_id: int
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get all ledger entries linked to a specific order."""
         return (
             db.query(InventoryLedger)
@@ -118,7 +119,7 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
     def get_by_performer(
         self, db: Session, *, performed_by: int, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get ledger entries performed by a specific user."""
         return (
             db.query(InventoryLedger)
@@ -159,7 +160,7 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
     def get_latest_entry(
         self, db: Session, *, factory_id: int, item_id: int,
         inventory_type: InventoryTypeEnum, workspace_id: int
-    ) -> Optional[InventoryLedger]:
+    ) -> InventoryLedger | None:
         """Get the most recent ledger entry for one (factory, item, inventory_type) bucket."""
         return (
             db.query(InventoryLedger)

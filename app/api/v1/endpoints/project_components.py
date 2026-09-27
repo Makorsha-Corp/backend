@@ -1,19 +1,22 @@
 """Project component endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.project_component import ProjectComponentCreate, ProjectComponentUpdate, ProjectComponentResponse
+from app.schemas.project_component import (
+    ProjectComponentCreate,
+    ProjectComponentResponse,
+    ProjectComponentUpdate,
+)
 from app.services.project_component_service import project_component_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectComponentResponse])
+@router.get("/", response_model=list[ProjectComponentResponse])
 def get_project_components(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

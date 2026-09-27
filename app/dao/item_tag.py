@@ -1,6 +1,7 @@
 """Item tag DAO operations"""
+
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.dao.base import BaseDAO
 from app.models.item_tag import ItemTag
 from app.schemas.item_tag import ItemTagCreate, ItemTagUpdate
@@ -11,7 +12,7 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
 
     def get_by_code_in_workspace(
         self, db: Session, *, workspace_id: int, tag_code: str
-    ) -> Optional[ItemTag]:
+    ) -> ItemTag | None:
         """
         Get tag by code within workspace (SECURITY-CRITICAL)
 
@@ -34,7 +35,7 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
 
     def get_system_tags_in_workspace(
         self, db: Session, *, workspace_id: int
-    ) -> List[ItemTag]:
+    ) -> list[ItemTag]:
         """
         Get all system tags within workspace
 
@@ -57,7 +58,7 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
 
     def get_active_tags_in_workspace(
         self, db: Session, *, workspace_id: int
-    ) -> List[ItemTag]:
+    ) -> list[ItemTag]:
         """
         Get all active tags within workspace
 

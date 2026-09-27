@@ -1,6 +1,7 @@
 """Machine item model (renamed from MachinePart)"""
-from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

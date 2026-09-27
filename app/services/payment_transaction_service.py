@@ -1,5 +1,4 @@
 """Payment Transaction Service — transaction boundaries around the SSLCommerz checkout flow."""
-from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ from app.schemas.payment_transaction import (
 from app.services.base_service import BaseService
 
 
-def _to_response(txn: PaymentTransaction, initiated_by_name: Optional[str] = None) -> PaymentTransactionResponse:
+def _to_response(txn: PaymentTransaction, initiated_by_name: str | None = None) -> PaymentTransactionResponse:
     return PaymentTransactionResponse.model_validate(txn).model_copy(update={"initiated_by_name": initiated_by_name})
 
 
@@ -99,7 +98,7 @@ class PaymentTransactionService(BaseService):
 
     def list_transactions(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[PaymentTransactionResponse]:
+    ) -> list[PaymentTransactionResponse]:
         rows = payment_transaction_dao.list_by_workspace_with_initiator(
             db, workspace_id=workspace_id, skip=skip, limit=limit
         )

@@ -1,8 +1,7 @@
 """Notification DAO. SECURITY: All queries MUST filter by workspace_id."""
 from __future__ import annotations
+
 import json
-from datetime import datetime
-from typing import List, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
@@ -21,7 +20,7 @@ class NotificationDAO:
         unread_only: bool = False,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[Notification], int, int]:
+    ) -> tuple[list[Notification], int, int]:
         base = db.query(Notification).filter(
             Notification.workspace_id == workspace_id,
             Notification.recipient_user_id == user_id,
@@ -89,7 +88,7 @@ class NotificationDAO:
         db: Session,
         workspace_id: int,
         user_id: int,
-        ids: List[int] | None = None,
+        ids: list[int] | None = None,
     ) -> int:
         q = db.query(Notification).filter(
             Notification.workspace_id == workspace_id,

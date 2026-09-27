@@ -3,25 +3,25 @@ Project Manager
 
 Business logic for project operations.
 """
-from typing import List, Optional, Tuple
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 from datetime import datetime
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory import factory_dao
+from app.dao.profile import profile_dao
+from app.dao.project import project_dao
+from app.dao.project_event import project_event_dao
+from app.dao.project_member import project_member_dao
+from app.dao.workspace import workspace_dao
+from app.dao.workspace_member import workspace_member_dao
 from app.managers.base_manager import BaseManager
+from app.models.enums import ProjectVisibilityEnum
+from app.models.profile import Profile
 from app.models.project import Project
 from app.models.project_event import ProjectEvent
 from app.models.project_member import ProjectMember
-from app.models.enums import ProjectVisibilityEnum
 from app.schemas.project import ProjectCreate, ProjectUpdate
-from app.dao.project import project_dao
-from app.dao.factory import factory_dao
-from app.dao.project_event import project_event_dao
-from app.dao.project_member import project_member_dao
-from app.dao.workspace_member import workspace_member_dao
-from app.dao.workspace import workspace_dao
-from app.dao.profile import profile_dao
-from app.models.profile import Profile
 from app.utils.time import utcnow
 
 PRIVILEGED_ROLES = frozenset({'owner', 'ground-team-manager'})
@@ -159,8 +159,8 @@ class ProjectManager(BaseManager[Project]):
         record: Project,
         update_dict: dict,
         fields: dict[str, str],
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         for field, label in fields.items():
             if field not in update_dict:
                 continue
@@ -183,9 +183,9 @@ class ProjectManager(BaseManager[Project]):
         workspace_id: int,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
         metadata: dict | None = None,
-    ) -> Optional[ProjectEvent]:
+    ) -> ProjectEvent | None:
         from app.dao.project_component import project_component_dao
 
         component = project_component_dao.get_by_id_and_workspace(
@@ -213,7 +213,7 @@ class ProjectManager(BaseManager[Project]):
         workspace_id: int,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> ProjectEvent:
         ev = ProjectEvent(
@@ -234,7 +234,7 @@ class ProjectManager(BaseManager[Project]):
         project_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> List[Tuple[ProjectEvent, Optional[Profile]]]:
+    ) -> list[tuple[ProjectEvent, Profile | None]]:
         self.require_project_access(session, project_id, workspace_id, user_id)
         events = self.event_dao.get_by_project(
             session, project_id=project_id, workspace_id=workspace_id
@@ -250,7 +250,7 @@ class ProjectManager(BaseManager[Project]):
         project_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> List[ProjectMember]:
+    ) -> list[ProjectMember]:
         self.require_project_access(session, project_id, workspace_id, user_id)
         return self.member_dao.get_by_project(
             session, project_id=project_id, workspace_id=workspace_id
@@ -447,11 +447,11 @@ class ProjectManager(BaseManager[Project]):
         session: Session,
         workspace_id: int,
         user_id: int,
-        factory_id: Optional[int] = None,
-        status: Optional[str] = None,
+        factory_id: int | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Project]:
+    ) -> list[Project]:
         if factory_id:
             projects = self.project_dao.get_by_factory(
                 session,

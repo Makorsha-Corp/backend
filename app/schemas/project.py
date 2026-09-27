@@ -1,9 +1,14 @@
 """Project schemas"""
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict, field_validator
-from app.models.enums import ProjectStatusEnum, ProjectPriorityEnum, ProjectVisibilityEnum
+
+from app.models.enums import (
+    ProjectPriorityEnum,
+    ProjectStatusEnum,
+    ProjectVisibilityEnum,
+)
 
 
 class ProjectBase(BaseModel):
@@ -19,7 +24,6 @@ class ProjectBase(BaseModel):
 
 class ProjectCreate(ProjectBase):
     """Project creation schema"""
-    pass
 
 
 class ProjectUpdate(BaseModel):
@@ -79,7 +83,7 @@ class ProjectMemberResponse(BaseModel):
 
 
 class ProjectMembersListResponse(BaseModel):
-    members: List[ProjectMemberResponse]
+    members: list[ProjectMemberResponse]
 
 
 class ProjectVisibilityUpdate(BaseModel):

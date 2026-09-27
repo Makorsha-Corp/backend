@@ -5,8 +5,8 @@ This module provides functionality to create default system departments
 when a new workspace is created.
 """
 from sqlalchemy.orm import Session
-from app.models.department import Department
 
+from app.models.department import Department
 
 DEFAULT_DEPARTMENTS = [
     {"name": "Production"},

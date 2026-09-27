@@ -1,7 +1,7 @@
 """Transfer order schemas"""
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.order_hub import OrderHubPendingHighlight, OrderHubRecentSummary
@@ -47,7 +47,7 @@ class TransferOrderCreate(BaseModel):
     destination_location_id: int
     description: str | None = None
     current_status_id: int = 1
-    items: List[TransferOrderItemCreate] | None = None
+    items: list[TransferOrderItemCreate] | None = None
 
 
 class TransferOrderUpdate(BaseModel):
@@ -88,16 +88,16 @@ class TransferOrderHubStatsResponse(BaseModel):
     open_count: int
     completed_count: int
     machine_involved_count: int = 0
-    recent_orders: List[OrderHubRecentSummary] = []
+    recent_orders: list[OrderHubRecentSummary] = []
     pending_planned_count: int = 0
-    pending_planned: List[OrderHubPendingHighlight] = []
+    pending_planned: list[OrderHubPendingHighlight] = []
     awaiting_setup_count: int = 0
-    awaiting_setup: List[OrderHubPendingHighlight] = []
-    oldest_drafts: List[OrderHubPendingHighlight] = []
+    awaiting_setup: list[OrderHubPendingHighlight] = []
+    oldest_drafts: list[OrderHubPendingHighlight] = []
 
 
 class TransferOrderListResponse(BaseModel):
-    items: List[TransferOrderResponse]
+    items: list[TransferOrderResponse]
     total: int
     skip: int
     limit: int
@@ -131,7 +131,7 @@ class ApprovalSummaryResponse(BaseModel):
 
 
 class TransferOrderApproversList(BaseModel):
-    approvers: List[TransferOrderApproverResponse]
+    approvers: list[TransferOrderApproverResponse]
     summary: ApprovalSummaryResponse
 
 

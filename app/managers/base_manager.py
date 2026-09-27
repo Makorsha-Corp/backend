@@ -1,8 +1,7 @@
 """Base Manager class for business logic"""
-from typing import Generic, TypeVar, Type
-from sqlalchemy.orm import Session
-from app.db.base_class import Base
+from typing import Generic, TypeVar
 
+from app.db.base_class import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
 
@@ -15,7 +14,7 @@ class BaseManager(Generic[ModelType]):
     They receive a session from the service layer and do NOT commit.
     """
 
-    def __init__(self, model: Type[ModelType]):
+    def __init__(self, model: type[ModelType]):
         """
         Initialize manager with model
 

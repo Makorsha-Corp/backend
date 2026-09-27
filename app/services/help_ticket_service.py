@@ -1,12 +1,9 @@
 """Help ticket service — transaction orchestration."""
-from typing import List
 
 from sqlalchemy.orm import Session
 
 from app.managers.help_ticket_manager import (
-    HelpTicketForbiddenError,
     HelpTicketManager,
-    HelpTicketNotFoundError,
     help_ticket_manager,
 )
 from app.models.enums import HelpTicketStatusEnum
@@ -63,7 +60,7 @@ class HelpTicketService(BaseService):
         status: HelpTicketStatusEnum | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[HelpTicketResponse]:
+    ) -> list[HelpTicketResponse]:
         tickets = self.manager.list_tickets(
             db,
             workspace_id=workspace_id,
@@ -132,7 +129,7 @@ class HelpTicketService(BaseService):
         search: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[PlatformHelpTicketListItem]:
+    ) -> list[PlatformHelpTicketListItem]:
         return self.manager.list_platform_tickets(
             db,
             status=status,

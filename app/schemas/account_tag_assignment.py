@@ -1,7 +1,7 @@
 """Account tag assignment schemas"""
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class AccountTagAssignmentBase(BaseModel):
@@ -12,7 +12,6 @@ class AccountTagAssignmentBase(BaseModel):
 
 class AccountTagAssignmentCreate(AccountTagAssignmentBase):
     """Schema for creating an account tag assignment (workspace_id injected by service)"""
-    pass
 
 
 class AccountTagAssignmentInDB(AccountTagAssignmentBase):
@@ -22,9 +21,8 @@ class AccountTagAssignmentInDB(AccountTagAssignmentBase):
     id: int
     workspace_id: int
     assigned_at: datetime
-    assigned_by: Optional[int]
+    assigned_by: int | None
 
 
 class AccountTagAssignmentResponse(AccountTagAssignmentInDB):
     """Account tag assignment response schema"""
-    pass

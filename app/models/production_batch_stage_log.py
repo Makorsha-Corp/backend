@@ -1,7 +1,7 @@
 """Production batch stage log — manual per-stage production record."""
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

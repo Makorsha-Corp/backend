@@ -5,10 +5,9 @@ This module provides functionality to create default system tags
 when a new workspace is created.
 """
 from sqlalchemy.orm import Session
-from app.models.account_tag import AccountTag
-from datetime import datetime
-from app.utils.time import utcnow
 
+from app.models.account_tag import AccountTag
+from app.utils.time import utcnow
 
 DEFAULT_ACCOUNT_TAGS = [
     {

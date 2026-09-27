@@ -1,7 +1,8 @@
 """Invoice event schemas"""
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 
 class InvoiceEventResponse(BaseModel):
@@ -12,7 +13,7 @@ class InvoiceEventResponse(BaseModel):
     invoice_id: int
     event_type: str
     description: str
-    metadata_json: Optional[Any] = None
-    performed_by: Optional[int] = None
-    performed_by_name: Optional[str] = None
+    metadata_json: Any | None = None
+    performed_by: int | None = None
+    performed_by_name: str | None = None
     created_at: datetime

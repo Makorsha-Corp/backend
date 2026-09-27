@@ -1,15 +1,17 @@
 """Order Template Service - transaction orchestration"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.order_template_manager import order_template_manager
 from app.models.order_template import OrderTemplate
 from app.models.order_template_item import OrderTemplateItem
 from app.schemas.order_template import (
-    OrderTemplateCreate, OrderTemplateUpdate,
-    OrderTemplateItemCreate, OrderTemplateItemUpdate,
+    OrderTemplateCreate,
+    OrderTemplateItemCreate,
+    OrderTemplateItemUpdate,
+    OrderTemplateUpdate,
 )
+from app.services.base_service import BaseService
 
 
 class OrderTemplateService(BaseService):
@@ -50,10 +52,10 @@ class OrderTemplateService(BaseService):
 
     def list_templates(
         self, db: Session, workspace_id: int,
-        is_active: Optional[bool] = None,
-        expense_category: Optional[str] = None,
+        is_active: bool | None = None,
+        expense_category: str | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[OrderTemplate]:
+    ) -> list[OrderTemplate]:
         return self.manager.list_templates(
             db, workspace_id=workspace_id,
             is_active=is_active, expense_category=expense_category,
@@ -104,7 +106,7 @@ class OrderTemplateService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def get_items(self, db: Session, tpl_id: int, workspace_id: int) -> List[OrderTemplateItem]:
+    def get_items(self, db: Session, tpl_id: int, workspace_id: int) -> list[OrderTemplateItem]:
         return self.manager.get_items(db, tpl_id, workspace_id)
 
 

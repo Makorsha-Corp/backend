@@ -1,6 +1,8 @@
 """Project component task schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import TaskPriorityEnum
 
 
@@ -15,7 +17,6 @@ class ProjectComponentTaskBase(BaseModel):
 
 class ProjectComponentTaskCreate(ProjectComponentTaskBase):
     """Project component task creation schema"""
-    pass
 
 
 class ProjectComponentTaskUpdate(BaseModel):

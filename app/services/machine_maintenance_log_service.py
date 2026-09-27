@@ -1,12 +1,15 @@
 """Machine Maintenance Log Service for orchestrating maintenance log workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.machine_maintenance_log_manager import machine_maintenance_log_manager
-from app.models.machine_maintenance_log import MachineMaintenanceLog
 from app.models.enums import MaintenanceTypeEnum
-from app.schemas.machine_maintenance_log import MachineMaintenanceLogCreate, MachineMaintenanceLogUpdate
+from app.models.machine_maintenance_log import MachineMaintenanceLog
+from app.schemas.machine_maintenance_log import (
+    MachineMaintenanceLogCreate,
+    MachineMaintenanceLogUpdate,
+)
+from app.services.base_service import BaseService
 
 
 class MachineMaintenanceLogService(BaseService):
@@ -58,10 +61,10 @@ class MachineMaintenanceLogService(BaseService):
 
     def list_logs(
         self, db: Session, workspace_id: int,
-        machine_id: Optional[int] = None,
-        maintenance_type: Optional[MaintenanceTypeEnum] = None,
+        machine_id: int | None = None,
+        maintenance_type: MaintenanceTypeEnum | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """List maintenance logs with optional filters."""
         return self.manager.list_logs(
             session=db, workspace_id=workspace_id,

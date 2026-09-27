@@ -1,6 +1,6 @@
 """Tests for expense order hub financial snapshot."""
 
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from app.dao.expense_order import _due_date_bucket, _due_window_dates
@@ -22,7 +22,7 @@ def test_expense_order_hub_stats_includes_financial_snapshot() -> None:
                 key="utilities",
                 label="Utilities",
                 count=2,
-                total_value=Decimal("1500"),
+                total_value=Decimal(1500),
             )
         ],
         stage_pipeline=[
@@ -30,7 +30,7 @@ def test_expense_order_hub_stats_includes_financial_snapshot() -> None:
                 key="draft",
                 label="Draft",
                 count=1,
-                total_value=Decimal("500"),
+                total_value=Decimal(500),
             )
         ],
         open_by_account=[
@@ -38,7 +38,7 @@ def test_expense_order_hub_stats_includes_financial_snapshot() -> None:
                 account_id=1,
                 account_name="Acme",
                 count=1,
-                total_value=Decimal("500"),
+                total_value=Decimal(500),
             )
         ],
         due_timeline=[
@@ -46,12 +46,12 @@ def test_expense_order_hub_stats_includes_financial_snapshot() -> None:
                 key="overdue",
                 label="Overdue",
                 count=1,
-                total_value=Decimal("100"),
+                total_value=Decimal(100),
                 samples=[
                     ExpenseOrderFinancialSample(
                         id=10,
                         order_number="EXP-2026-001",
-                        total_value=Decimal("100"),
+                        total_value=Decimal(100),
                         sublabel="2026-01-01",
                     )
                 ],
@@ -62,22 +62,22 @@ def test_expense_order_hub_stats_includes_financial_snapshot() -> None:
                 key="unpaid",
                 label="Unpaid",
                 count=1,
-                outstanding_value=Decimal("250"),
+                outstanding_value=Decimal(250),
                 samples=[],
             )
         ],
     )
     result = ExpenseOrderHubStatsResponse(
         total_count=2,
-        total_value=Decimal("1500"),
+        total_value=Decimal(1500),
         open_count=1,
-        open_value=Decimal("500"),
+        open_value=Decimal(500),
         not_invoiced_count=1,
         recent_orders=[],
         financial_snapshot=snapshot,
     )
     assert result.financial_snapshot.category_breakdown[0].key == "utilities"
-    assert result.financial_snapshot.unpaid_pipeline[0].outstanding_value == Decimal("250")
+    assert result.financial_snapshot.unpaid_pipeline[0].outstanding_value == Decimal(250)
 
 
 def test_due_date_bucket_overdue_and_no_due_date() -> None:

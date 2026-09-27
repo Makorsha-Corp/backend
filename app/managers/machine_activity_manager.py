@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -52,8 +52,8 @@ class MachineActivityManager:
         record: Any,
         update_dict: dict,
         fields: dict[str, str],
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         for field, label in fields.items():
             if field not in update_dict:
                 continue
@@ -78,7 +78,7 @@ class MachineActivityManager:
         workspace_id: int,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> MachineActivityEvent:
         ev = MachineActivityEvent(
@@ -100,10 +100,10 @@ class MachineActivityManager:
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-        from_date: Optional[date] = None,
-        to_date: Optional[date] = None,
-        event_type: Optional[str] = None,
-    ) -> List[Tuple[MachineActivityEvent, Optional[Any]]]:
+        from_date: date | None = None,
+        to_date: date | None = None,
+        event_type: str | None = None,
+    ) -> list[tuple[MachineActivityEvent, Any | None]]:
         machine = self.machine_dao.get_by_id_and_workspace(
             session, id=machine_id, workspace_id=workspace_id
         )
@@ -132,7 +132,7 @@ class MachineActivityManager:
         session: Session,
         machine_id: int,
         workspace_id: int,
-    ) -> Optional[MachineActivityEvent]:
+    ) -> MachineActivityEvent | None:
         self.machine_dao.get_by_id_and_workspace(
             session, id=machine_id, workspace_id=workspace_id
         )  # 404 if missing
@@ -144,14 +144,14 @@ class MachineActivityManager:
         self,
         session: Session,
         workspace_id: int,
-        machine_ids: List[int],
+        machine_ids: list[int],
     ) -> dict[int, MachineActivityEvent]:
         return self.event_dao.get_latest_status_map(
             session, workspace_id=workspace_id, machine_ids=machine_ids
         )
 
     @staticmethod
-    def status_from_activity(event: Optional[MachineActivityEvent]) -> Optional[str]:
+    def status_from_activity(event: MachineActivityEvent | None) -> str | None:
         if not event or not event.metadata_json:
             return None
         return event.metadata_json.get("status")

@@ -1,5 +1,4 @@
 """Public waitlist signup and platform-admin listing."""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
@@ -46,9 +45,9 @@ async def join_waitlist(
 def list_waitlist_signups(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
-    search: Optional[str] = Query(None, max_length=320),
-    wants_product_updates: Optional[bool] = Query(None),
-    status: Optional[WaitlistStatus] = Query(None),
+    search: str | None = Query(None, max_length=320),
+    wants_product_updates: bool | None = Query(None),
+    status: WaitlistStatus | None = Query(None),
     db: Session = Depends(get_db),
     _: Profile = Depends(get_waitlist_admin),
 ) -> WaitlistSignupListResponse:

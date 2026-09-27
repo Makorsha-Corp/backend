@@ -1,10 +1,11 @@
 """DAO operations for Project model (workspace-scoped)"""
-from typing import List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
+from app.models.enums import ProjectStatusEnum
 from app.models.project import Project
 from app.schemas.project import ProjectCreate, ProjectUpdate
-from app.models.enums import ProjectStatusEnum
 
 
 class DAOProject(BaseDAO[Project, ProjectCreate, ProjectUpdate]):
@@ -16,7 +17,7 @@ class DAOProject(BaseDAO[Project, ProjectCreate, ProjectUpdate]):
 
     def get_by_factory(
         self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Project]:
+    ) -> list[Project]:
         """
         Get projects by factory ID (SECURITY-CRITICAL: workspace-filtered)
 
@@ -43,7 +44,7 @@ class DAOProject(BaseDAO[Project, ProjectCreate, ProjectUpdate]):
 
     def get_by_status(
         self, db: Session, *, status: ProjectStatusEnum, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Project]:
+    ) -> list[Project]:
         """
         Get projects by status (SECURITY-CRITICAL: workspace-filtered)
 

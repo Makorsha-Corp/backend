@@ -1,6 +1,7 @@
 """Profile model"""
 from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
+
 from app.db.base_class import Base
 
 

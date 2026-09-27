@@ -6,13 +6,13 @@ HYBRID PATTERN:
 - Standalone Managers: Simple entities (Part catalog)
 """
 from app.managers.base_manager import BaseManager
-from app.managers.inventory_manager import inventory_manager, InventoryManager
-from app.managers.item_manager import item_manager, ItemManager
+from app.managers.inventory_manager import InventoryManager, inventory_manager
+from app.managers.item_manager import ItemManager, item_manager
 
 __all__ = [
     "BaseManager",
     "InventoryManager",
-    "inventory_manager",
     "ItemManager",
+    "inventory_manager",
     "item_manager",
 ]

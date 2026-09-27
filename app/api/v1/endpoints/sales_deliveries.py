@@ -4,32 +4,30 @@ Sales delivery endpoints
 Provides CRUD operations for sales deliveries and complex delivery completion workflow.
 Each delivery is a partial fulfillment of a sales order contract.
 """
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, Body, status
+
+from fastapi import APIRouter, Body, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.sales_delivery import (
-    SalesDeliveryCreate,
-    SalesDeliveryUpdate,
-    SalesDeliveryEditRequest,
-    SalesDeliveryCompleteRequest,
-    SalesDeliveryResponse
-)
-from app.schemas.sales_delivery_item import SalesDeliveryItemCreate, SalesDeliveryItemInput
-from app.schemas.sales_order import SalesOrderResponse
 from app.schemas.response import ActionResponse
+from app.schemas.sales_delivery import (
+    SalesDeliveryCompleteRequest,
+    SalesDeliveryCreate,
+    SalesDeliveryEditRequest,
+    SalesDeliveryResponse,
+)
+from app.schemas.sales_delivery_item import SalesDeliveryItemInput
+from app.schemas.sales_order import SalesOrderResponse
 from app.services.sales_service import sales_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[SalesDeliveryResponse],
+    response_model=list[SalesDeliveryResponse],
     status_code=status.HTTP_200_OK,
     summary="List deliveries",
     description="Get all deliveries for workspace with pagination and optional status filter."
@@ -37,7 +35,7 @@ router = APIRouter()
 def get_deliveries(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, le=100, description="Maximum number of records to return"),
-    delivery_status: Optional[str] = Query(None, description="Filter by delivery status (planned, delivered, cancelled)"),
+    delivery_status: str | None = Query(None, description="Filter by delivery status (planned, delivered, cancelled)"),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)
@@ -80,7 +78,7 @@ def get_delivery(
 )
 def create_delivery(
     delivery_in: SalesDeliveryCreate,
-    items: List[SalesDeliveryItemInput] = Body(..., description="List of items in this delivery"),
+    items: list[SalesDeliveryItemInput] = Body(..., description="List of items in this delivery"),
     db: Session = Depends(get_db),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user)

@@ -1,19 +1,22 @@
 """Project component task endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.project_component_task import ProjectComponentTaskCreate, ProjectComponentTaskUpdate, ProjectComponentTaskResponse
+from app.schemas.project_component_task import (
+    ProjectComponentTaskCreate,
+    ProjectComponentTaskResponse,
+    ProjectComponentTaskUpdate,
+)
 from app.services.project_component_task_service import project_component_task_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectComponentTaskResponse])
+@router.get("/", response_model=list[ProjectComponentTaskResponse])
 def get_project_component_tasks(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

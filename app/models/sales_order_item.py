@@ -1,7 +1,18 @@
 """Sales order item model - line items in sales orders"""
 from decimal import Decimal
-from sqlalchemy import Column, Integer, ForeignKey, Text, Numeric, String, CheckConstraint, Boolean
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 
@@ -83,7 +94,7 @@ class SalesOrderItem(Base):
             - Decimal(str(self.quantity_delivered or 0))
             - Decimal(str(self.quantity_refunded or 0))
         )
-        return max(Decimal('0'), remaining)
+        return max(Decimal(0), remaining)
 
     @property
     def quantity_planned(self) -> Decimal:
@@ -94,7 +105,7 @@ class SalesOrderItem(Base):
                 for di in self.delivery_items
                 if di.delivery is not None and di.delivery.delivery_status == "planned"
             ),
-            Decimal('0'),
+            Decimal(0),
         )
 
     @property
@@ -106,14 +117,14 @@ class SalesOrderItem(Base):
             - Decimal(str(self.quantity_refunded or 0))
             - self.quantity_planned
         )
-        return max(Decimal('0'), available)
+        return max(Decimal(0), available)
 
     @property
     def quantity_pending_returned(self) -> Decimal:
         """Quantity reserved by returns that are started but not yet completed."""
         return sum(
             (Decimal(str(ri.quantity_returned)) for ri in self.return_items if ri.return_.status == 'pending'),
-            Decimal('0'),
+            Decimal(0),
         )
 
     @property
@@ -124,6 +135,6 @@ class SalesOrderItem(Base):
             - Decimal(str(self.quantity_returned or 0))
             - self.quantity_pending_returned
         )
-        return max(Decimal('0'), remaining)
+        return max(Decimal(0), remaining)
 
     workspace = relationship("Workspace", backref="sales_order_items")

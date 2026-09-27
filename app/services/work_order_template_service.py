@@ -1,18 +1,20 @@
 """Work Order Template Service - transaction orchestration"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.work_order_template_manager import work_order_template_manager
-from app.models.work_order_template import WorkOrderTemplate
-from app.models.work_order_template_item import WorkOrderTemplateItem
-from app.models.work_order_template_approver import WorkOrderTemplateApprover
 from app.models.work_order import WorkOrder
+from app.models.work_order_template import WorkOrderTemplate
+from app.models.work_order_template_approver import WorkOrderTemplateApprover
+from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.schemas.work_order_template import (
-    WorkOrderTemplateCreate, WorkOrderTemplateUpdate,
-    WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate,
     GenerateWorkOrderDraftsRequest,
+    WorkOrderTemplateCreate,
+    WorkOrderTemplateItemCreate,
+    WorkOrderTemplateItemUpdate,
+    WorkOrderTemplateUpdate,
 )
+from app.services.base_service import BaseService
 
 
 class WorkOrderTemplateService(BaseService):
@@ -53,10 +55,10 @@ class WorkOrderTemplateService(BaseService):
 
     def list_templates(
         self, db: Session, workspace_id: int,
-        is_active: Optional[bool] = None,
-        work_order_type_id: Optional[int] = None,
+        is_active: bool | None = None,
+        work_order_type_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderTemplate]:
+    ) -> list[WorkOrderTemplate]:
         return self.manager.list_templates(
             db, workspace_id=workspace_id,
             is_active=is_active, work_order_type_id=work_order_type_id,
@@ -115,16 +117,16 @@ class WorkOrderTemplateService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def get_items(self, db: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateItem]:
+    def get_items(self, db: Session, tpl_id: int, workspace_id: int) -> list[WorkOrderTemplateItem]:
         return self.manager.get_items(db, tpl_id, workspace_id)
 
-    def get_approvers(self, db: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
+    def get_approvers(self, db: Session, tpl_id: int, workspace_id: int) -> list[WorkOrderTemplateApprover]:
         return self.manager.get_approvers(db, tpl_id, workspace_id)
 
     def generate_drafts(
         self, db: Session, body: GenerateWorkOrderDraftsRequest,
         workspace_id: int, user_id: int,
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         try:
             records = self.manager.generate_drafts(
                 db, workspace_id=workspace_id, user_id=user_id,
