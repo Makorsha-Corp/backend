@@ -19,6 +19,8 @@ class Profile(Base):
     # IANA timezone for datetime display (e.g. Asia/Dhaka, America/New_York)
     timezone = Column(String(64), nullable=True)
     use_24_hour_time = Column(Boolean, nullable=False, default=True, server_default="true")
+    # UI copy language: en | bn
+    ui_language = Column(String(2), nullable=False, default="en", server_default="en")
     # Makorsha vendor staff — cross-workspace platform shell (/platform)
     is_platform_admin = Column(Boolean, nullable=False, default=False, server_default="false")
     # Drawn vector or uploaded PNG stamp for attachment markup placement

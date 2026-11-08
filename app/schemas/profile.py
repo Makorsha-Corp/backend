@@ -37,11 +37,15 @@ class ProfileUpdate(BaseModel):
     password: str | None = None
 
 
+_UI_LANGUAGES = frozenset({"en", "bn"})
+
+
 class ProfileMeUpdate(BaseModel):
     """Self-service profile update (auth/me)."""
     name: str | None = None
     timezone: str | None = None
     use_24_hour_time: bool | None = None
+    ui_language: str | None = None
     saved_stamp: dict[str, Any] | None = None
 
     @field_validator("timezone")
@@ -56,6 +60,16 @@ class ProfileMeUpdate(BaseModel):
             raise ValueError("Invalid IANA timezone identifier")
         return trimmed
 
+    @field_validator("ui_language")
+    @classmethod
+    def validate_ui_language(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = value.strip().lower()
+        if trimmed not in _UI_LANGUAGES:
+            raise ValueError("ui_language must be en or bn")
+        return trimmed
+
 
 class ProfileResponse(ProfileBase):
     """Profile response schema"""
@@ -63,6 +77,7 @@ class ProfileResponse(ProfileBase):
     user_id: str
     timezone: str | None = None
     use_24_hour_time: bool = True
+    ui_language: str = "en"
     is_platform_admin: bool = False
     saved_stamp: dict[str, Any] | None = None
     help_guides_seen: dict[str, Any] | None = None
