@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.dao.base import BaseDAO
 from app.models.purchase_order_return import PurchaseOrderReturn, PurchaseOrderReturnItem
 from app.schemas.purchase_order_return import PurchaseOrderReturnCreate
+from app.utils.document_numbers import next_document_number
 
 
 class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCreate, PurchaseOrderReturnCreate]):
@@ -13,15 +14,15 @@ class DAOPurchaseOrderReturn(BaseDAO[PurchaseOrderReturn, PurchaseOrderReturnCre
     def generate_return_number(self, db: Session, *, workspace_id: int, year: int) -> str:
         """Format: PR-{year}-{sequence}"""
         prefix = f"PR-{year}-"
-        count = (
-            db.query(PurchaseOrderReturn)
+        rows = (
+            db.query(PurchaseOrderReturn.return_number)
             .filter(
                 PurchaseOrderReturn.workspace_id == workspace_id,
                 PurchaseOrderReturn.return_number.like(f"{prefix}%"),
             )
-            .count()
+            .all()
         )
-        return f"{prefix}{count + 1:03d}"
+        return next_document_number((num for (num,) in rows), prefix)
 
     def create_with_user(
         self, db: Session, *, workspace_id: int, purchase_order_id: int, user_id: int,

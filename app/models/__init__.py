@@ -6,6 +6,7 @@ Alembic discovers models via app/db/base.py — keep imports there in sync with 
 # Workspace multi-tenancy models
 from app.models.subscription_plan import SubscriptionPlan
 from app.models.workspace import Workspace
+from app.models.workspace_shift import WorkspaceShift
 from app.models.workspace_member import WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.models.workspace_audit_log import WorkspaceAuditLog
@@ -33,12 +34,17 @@ from app.models.project_component_item_ledger import ProjectComponentItemLedger
 
 # Production Module
 from app.models.production_line import ProductionLine
+from app.models.production_line_machine import ProductionLineMachine
 from app.models.production_formula import ProductionFormula
-from app.models.production_formula_item import ProductionFormulaItem
+from app.models.production_route import ProductionRoute, ProductionRouteStep
 from app.models.production_formula_stage import ProductionFormulaStage
+from app.models.production_formula_stage_item import ProductionFormulaStageItem
 from app.models.production_batch import ProductionBatch
+from app.models.production_batch_program import ProductionBatchProgram
 from app.models.production_batch_item import ProductionBatchItem
 from app.models.production_batch_stage_log import ProductionBatchStageLog
+from app.models.production_batch_stage_item import ProductionBatchStageItem
+from app.models.production_batch_event import ProductionBatchEvent
 
 # Order System (New Split Architecture)
 from app.models.order_template import OrderTemplate
@@ -117,6 +123,7 @@ from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.models.work_order_template_approver import WorkOrderTemplateApprover
 from app.models.work_order_assignee import WorkOrderAssignee
 from app.models.work_order_completer import WorkOrderCompleter
+from app.models.work_order_program import WorkOrderProgram
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 from app.models.work_order_approver import WorkOrderApprover
@@ -131,6 +138,7 @@ __all__ = [
     # Workspace models
     "SubscriptionPlan",
     "Workspace",
+    "WorkspaceShift",
     "WorkspaceMember",
     "WorkspaceInvitation",
     "WorkspaceAuditLog",
@@ -153,9 +161,14 @@ __all__ = [
     "ProjectComponentItemLedger",
     # Production Module
     "ProductionLine",
+    "ProductionLineMachine",
     "ProductionFormula",
-    "ProductionFormulaItem",
+    "ProductionRoute",
+    "ProductionRouteStep",
+    "ProductionFormulaStage",
+    "ProductionFormulaStageItem",
     "ProductionBatch",
+    "ProductionBatchProgram",
     "ProductionBatchItem",
     # Order System (New Split Architecture)
     "OrderTemplate",

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.managers.base_manager import BaseManager
+from app.managers.production_batch_manager import require_linkable_production_batch
 from app.models.purchase_order import PurchaseOrder
 from app.models.status import Status
 from app.models.purchase_order_item import PurchaseOrderItem
@@ -17,6 +18,13 @@ from app.schemas.purchase_order import (
     PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
     PurchaseOrderItemSyncRequest,
 )
+def _require_batch_link(session: Session, batch_id: int, workspace_id: int) -> None:
+    try:
+        require_linkable_production_batch(session, batch_id, workspace_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
 from app.dao.purchase_order_approver import purchase_order_approver_dao
 from app.dao.purchase_order_event import purchase_order_event_dao
@@ -469,6 +477,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         """Create purchase order with auto-generated number and nested items."""
+        if data.production_batch_id is not None:
+            _require_batch_link(session, data.production_batch_id, workspace_id)
         po_number = self.po_dao.allocate_po_number(session, workspace_id=workspace_id)
 
         items_data = data.items or []
@@ -542,6 +552,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Purchase order with ID {po_id} not found")
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        if update_dict.get("production_batch_id") is not None:
+            _require_batch_link(session, update_dict["production_batch_id"], workspace_id)
         update_dict.pop('current_status_id', None)
         update_dict['updated_by'] = user_id
 

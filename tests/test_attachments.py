@@ -161,12 +161,12 @@ def test_build_asset_folder_non_production(mock_settings: MagicMock) -> None:
 
     manager = AttachmentManager()
     folder = manager.build_asset_folder(
-        workspace_name="Akbar Cotton Mill",
+        workspace_name="Acme Workspace",
         entity_type=AttachmentEntityTypeEnum.PURCHASE_ORDER,
         entity_label="PO-2026-001",
     )
 
-    assert folder == "Dev/Akbar Cotton Mill/Purchase Orders/PO-2026-001"
+    assert folder == "Dev/Acme Workspace/Purchase Orders/PO-2026-001"
 
 
 @patch("app.managers.attachment_manager.settings")
@@ -175,12 +175,12 @@ def test_build_asset_folder_production(mock_settings: MagicMock) -> None:
 
     manager = AttachmentManager()
     folder = manager.build_asset_folder(
-        workspace_name="Akbar Cotton Mill",
+        workspace_name="Acme Workspace",
         entity_type=AttachmentEntityTypeEnum.SALES_ORDER,
         entity_label="SO-2026-001",
     )
 
-    assert folder == "Akbar Cotton Mill/Sales Orders/SO-2026-001"
+    assert folder == "Acme Workspace/Sales Orders/SO-2026-001"
 
 
 def test_build_display_name_strips_slashes() -> None:
@@ -236,7 +236,7 @@ def test_build_sign_response_image(mock_sign: MagicMock, mock_settings: MagicMoc
     response = manager.build_sign_response(
         attachment=attachment,
         public_id="development/ws-1/deadbeef",
-        asset_folder="Dev/Akbar Cotton Mill/Scratch/scratch-1",
+        asset_folder="Dev/Acme Workspace/Scratch/scratch-1",
         display_name="invoice.pdf",
     )
 
@@ -259,7 +259,7 @@ def test_build_sign_response_raw(mock_sign: MagicMock, mock_settings: MagicMock)
     response = manager.build_sign_response(
         attachment=attachment,
         public_id="development/ws-1/deadbeef",
-        asset_folder="Dev/Akbar Cotton Mill/Scratch/scratch-1",
+        asset_folder="Dev/Acme Workspace/Scratch/scratch-1",
         display_name="notes.txt",
     )
 

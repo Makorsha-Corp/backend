@@ -32,5 +32,10 @@ class ProductionLine(Base):
     workspace = relationship("Workspace", backref="production_lines")
     factory = relationship("Factory", backref="production_lines")
     machine = relationship("Machine", backref="production_lines")
+    line_machines = relationship(
+        "ProductionLineMachine",
+        back_populates="production_line",
+        cascade="all, delete-orphan",
+    )
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_production_lines")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_production_lines")

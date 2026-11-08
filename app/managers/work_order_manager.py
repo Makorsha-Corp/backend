@@ -20,12 +20,20 @@ from app.models.work_order_approver import WorkOrderApprover
 from app.models.work_order_event import WorkOrderEvent
 from app.models.work_order_item import WorkOrderItem
 from app.models.profile import Profile
-from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, MachineEventTypeEnum
+from app.models.enums import (
+    MachineEventTypeEnum,
+    WORK_ORDER_PRE_START_STATUSES,
+    WorkOrderPriorityEnum,
+    WorkOrderStatusEnum,
+)
 from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderSheetEntryCreate
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.schemas.machine_event import MachineEventCreate
-from app.utils.work_order_recurrence import reseed_recurrence_program, seed_recurrence_from_planned_date
+from app.utils.work_order_recurrence import list_recurrence_planned_dates
+from app.dao.work_order_program import work_order_program_dao
+from app.models.work_order_program import WorkOrderProgram
+from app.schemas.work_order_program import WorkOrderProgramCreate
 from app.dao.work_order import work_order_dao
 from app.dao.work_order_item import work_order_item_dao
 from app.dao.work_order_approver import work_order_approver_dao
@@ -35,6 +43,9 @@ from app.dao.work_order_completer import work_order_completer_dao
 from app.dao.work_order_type import work_order_type_dao
 from app.dao.factory import factory_dao
 from app.dao.account import account_dao
+from app.dao.workspace import workspace_dao
+from app.dao.workspace_shift import workspace_shift_dao
+from app.utils.work_order_window import move_window_to_date, resolve_work_order_window
 from app.dao.item import item_dao
 from app.dao.machine import machine_dao
 from app.dao.machine_item import machine_item_dao
@@ -81,6 +92,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     # ─── Helpers ─────────────────────────────────────────────────
     def _is_locked(self, record: WorkOrder) -> bool:
         return record.status in (WorkOrderStatusEnum.COMPLETED.value, WorkOrderStatusEnum.VOIDED.value)
+
+    @staticmethod
+    def _is_pre_start(status: str) -> bool:
+        return status in WORK_ORDER_PRE_START_STATUSES
 
     def _has_recorded_approvals(self, session: Session, wo_id: int, workspace_id: int) -> bool:
         approvers = self.approver_dao.get_by_order(session, work_order_id=wo_id, workspace_id=workspace_id)
@@ -223,9 +238,50 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         return type_name
 
     # ─── CRUD ────────────────────────────────────────────────────
+    def _workspace_timezone_name(self, session: Session, workspace_id: int) -> str | None:
+        workspace = workspace_dao.get(session, id=workspace_id)
+        settings = workspace.settings if workspace is not None else None
+        tz_name = settings.get("timezone") if isinstance(settings, dict) else None
+        return str(tz_name) if tz_name else None
+
+    def _timing_columns(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        planned_date: date | None,
+        shift_id: int | None,
+        planned_start_time,
+        expected_duration_minutes: int | None,
+    ) -> dict:
+        shift = None
+        if shift_id is not None:
+            shift = workspace_shift_dao.get_by_id_and_workspace(
+                session, shift_id=shift_id, workspace_id=workspace_id,
+            )
+            if shift is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shift not found")
+        try:
+            start, end = resolve_work_order_window(
+                planned_date=planned_date,
+                shift=shift,
+                planned_start_time=planned_start_time,
+                expected_duration_minutes=expected_duration_minutes,
+                tz_name=self._workspace_timezone_name(session, workspace_id),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        return {
+            "shift_id": shift.id if shift is not None else None,
+            "planned_start_at": start,
+            "planned_end_at": end,
+        }
+
     def create_work_order(
         self, session: Session, data: WorkOrderCreate,
-        workspace_id: int, user_id: int
+        workspace_id: int, user_id: int,
+        *,
+        initial_status: WorkOrderStatusEnum | None = None,
     ) -> WorkOrder:
         """Create work order with auto-generated number."""
         factory = factory_dao.get_by_id_and_workspace(
@@ -252,6 +308,17 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         wo_number = self.wo_dao.get_next_number(session, workspace_id=workspace_id)
 
         wo_dict = data.model_dump()
+        shift_id = wo_dict.pop('shift_id', None)
+        planned_start_time = wo_dict.pop('planned_start_time', None)
+        expected_duration_minutes = wo_dict.pop('expected_duration_minutes', None)
+        wo_dict.update(self._timing_columns(
+            session,
+            workspace_id=workspace_id,
+            planned_date=data.planned_date,
+            shift_id=shift_id,
+            planned_start_time=planned_start_time,
+            expected_duration_minutes=expected_duration_minutes,
+        ))
         title = (wo_dict.get('title') or '').strip()
         if not title:
             wo_dict['title'] = self._derive_default_title(
@@ -268,7 +335,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         wo_dict['workspace_id'] = workspace_id
         wo_dict['work_order_number'] = wo_number
         wo_dict['created_by'] = user_id
-        wo_dict['status'] = WorkOrderStatusEnum.DRAFT.value
+        wo_dict['status'] = (
+            initial_status.value if initial_status is not None else WorkOrderStatusEnum.DRAFT.value
+        )
 
         wo = self.wo_dao.create(session, obj_in=wo_dict)
         created_metadata: dict[str, Any] | None = None
@@ -313,6 +382,15 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         factory_id = machine.factory_id
 
         type_name = template.work_order_type_name or 'Maintenance'
+        shift_id = template.shift_id
+        planned_start_time = template.planned_start_time
+        expected_duration_minutes = template.expected_duration_minutes
+        if shift_id is not None and workspace_shift_dao.get_by_id_and_workspace(
+            session, shift_id=shift_id, workspace_id=workspace_id,
+        ) is None:
+            shift_id = None
+            planned_start_time = None
+            expected_duration_minutes = None
         wo = self.create_work_order(
             session,
             data=WorkOrderCreate(
@@ -323,6 +401,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 factory_id=factory_id,
                 machine_id=machine.id,
                 planned_date=overrides.planned_date,
+                shift_id=shift_id,
+                planned_start_time=planned_start_time,
+                expected_duration_minutes=expected_duration_minutes,
                 uses_inventory=template.uses_inventory,
                 account_id=template.account_id,
                 cost=template.cost,
@@ -392,6 +473,36 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             update_dict['account_id'] = data.account_id
         if 'required_approvals' in explicit_fields:
             update_dict['required_approvals'] = data.required_approvals
+        timing_keys = {'shift_id', 'planned_start_time', 'expected_duration_minutes'}
+        timing_sent = timing_keys.intersection(explicit_fields)
+        for key in timing_keys:
+            update_dict.pop(key, None)
+        if timing_sent:
+            planned = data.planned_date if 'planned_date' in explicit_fields else record.planned_date
+            shift_id = data.shift_id if 'shift_id' in explicit_fields else record.shift_id
+            update_dict.update(self._timing_columns(
+                session,
+                workspace_id=workspace_id,
+                planned_date=planned,
+                shift_id=shift_id,
+                planned_start_time=data.planned_start_time if 'planned_start_time' in explicit_fields else None,
+                expected_duration_minutes=(
+                    data.expected_duration_minutes if 'expected_duration_minutes' in explicit_fields else None
+                ),
+            ))
+        elif 'planned_date' in explicit_fields and data.planned_date is not None and record.planned_start_at and record.planned_end_at:
+            start, end = move_window_to_date(
+                record.planned_start_at,
+                record.planned_end_at,
+                data.planned_date,
+                self._workspace_timezone_name(session, workspace_id),
+            )
+            update_dict['planned_start_at'] = start
+            update_dict['planned_end_at'] = end
+        elif 'planned_date' in explicit_fields and data.planned_date is None:
+            update_dict['shift_id'] = None
+            update_dict['planned_start_at'] = None
+            update_dict['planned_end_at'] = None
         update_dict.pop('title', None)
         if not update_dict:
             record._approvals_reset = False
@@ -423,7 +534,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         approvals_reset = False
         if (
             DETAILS_FIELDS.intersection(update_dict)
-            and record.status == WorkOrderStatusEnum.DRAFT.value
+            and self._is_pre_start(record.status)
             and self._has_recorded_approvals(session, wo_id, workspace_id)
         ):
             self.reset_approvals(session, wo_id, workspace_id, user_id, reason='Order details edited')
@@ -468,7 +579,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         structural_target_change = {'work_order_type_id', 'machine_id', 'project_component_id'}.intersection(
             update_dict
         )
-        if structural_target_change and record.status == WorkOrderStatusEnum.DRAFT.value:
+        if structural_target_change and self._is_pre_start(record.status):
             next_type_id = update_dict.get('work_order_type_id', record.work_order_type_id)
             next_machine_id = update_dict['machine_id'] if 'machine_id' in update_dict else record.machine_id
             next_component_id = (
@@ -554,10 +665,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         allow_dev_delete = (
             settings.ENVIRONMENT != "production" or settings.WORK_ORDER_ALLOW_DEV_DELETE
         )
-        if record.status != WorkOrderStatusEnum.DRAFT.value and not allow_dev_delete:
+        if not self._is_pre_start(record.status) and not allow_dev_delete:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only a draft work order can be deleted — void it instead",
+                detail="Only a draft or recurring work order can be deleted — void it instead",
             )
         return self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
 
@@ -613,7 +724,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         (see `approvals_met`). This just stamps `approved_by`/`approved_at` informationally,
         the first time the order clears its approval requirement, and clears them if it stops
         being met (e.g. an edit reset recorded approvals)."""
-        if wo.status != WorkOrderStatusEnum.DRAFT.value:
+        if not self._is_pre_start(wo.status):
             return
         _approved_count, required, met = self.approval_summary(session, wo)
 
@@ -1004,10 +1115,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def start_work_order(self, session: Session, wo_id: int, workspace_id: int, user_id: int) -> WorkOrder:
         wo = self.get_work_order(session, wo_id, workspace_id)
-        if wo.status != WorkOrderStatusEnum.DRAFT.value:
+        if not self._is_pre_start(wo.status):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Work order must be in draft to be started',
+                detail='Work order must be in draft or recurring to be started',
             )
         if not self.approvals_met(session, wo):
             raise HTTPException(
@@ -1139,10 +1250,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         completed_by_names: Optional[str] = None,
     ) -> WorkOrder:
         wo = self.get_work_order(session, wo_id, workspace_id)
-        if wo.status != WorkOrderStatusEnum.DRAFT.value:
+        if not self._is_pre_start(wo.status):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Work order must be in draft to complete as planned',
+                detail='Work order must be in draft or recurring to complete as planned',
             )
         if wo.planned_date is None:
             raise HTTPException(
@@ -1378,7 +1489,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             session, wo.id, workspace_id, 'item_added', f'Added {item.quantity} {name}', user_id,
             metadata={'item_id': item.item_id, 'item_name': name},
         )
-        if wo.status == WorkOrderStatusEnum.DRAFT.value:
+        if self._is_pre_start(wo.status):
             if self._has_recorded_approvals(session, wo.id, workspace_id):
                 self.reset_approvals(session, wo.id, workspace_id, user_id, reason='Items edited')
         elif wo.status == WorkOrderStatusEnum.IN_PROGRESS.value:
@@ -1435,7 +1546,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         result = self.item_dao.update(session, db_obj=record, obj_in=update_dict)
 
         self.log_event(session, wo.id, workspace_id, 'item_updated', f'Item line {result.id} updated', user_id)
-        if wo.status == WorkOrderStatusEnum.DRAFT.value:
+        if self._is_pre_start(wo.status):
             if self._has_recorded_approvals(session, wo.id, workspace_id):
                 self.reset_approvals(session, wo.id, workspace_id, user_id, reason='Items edited')
         elif wo.status == WorkOrderStatusEnum.IN_PROGRESS.value:
@@ -1470,7 +1581,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         event_msg = f'Voided {name}' if was_consumed else f'Removed {name}'
         self.log_event(session, wo.id, workspace_id, event_type, event_msg, user_id)
 
-        if wo.status == WorkOrderStatusEnum.DRAFT.value and self._has_recorded_approvals(session, wo.id, workspace_id):
+        if self._is_pre_start(wo.status) and self._has_recorded_approvals(session, wo.id, workspace_id):
             self.reset_approvals(session, wo.id, workspace_id, user_id, reason='Items edited')
         return record
 
@@ -1526,15 +1637,27 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 if exc.status_code != status.HTTP_409_CONFLICT:
                     raise
 
-    def sheet_entry(
-        self, session: Session, data: WorkOrderSheetEntryCreate,
-        workspace_id: int, user_id: int,
+    def _create_sheet_draft(
+        self,
+        session: Session,
+        data: WorkOrderSheetEntryCreate,
+        *,
+        workspace_id: int,
+        user_id: int,
+        planned_date: date,
+        program_id: int | None = None,
+        title_override: str | None = None,
     ) -> WorkOrder:
-        """Create a new draft WO for machine+date+type; apply lines and approvers."""
+        """One draft work order for a sheet row (single date)."""
         has_items = bool(data.items)
-        machine = machine_dao.get_by_id_and_workspace(session, id=data.machine_id, workspace_id=workspace_id)
+        machine = machine_dao.get_by_id_and_workspace(
+            session, id=data.machine_id, workspace_id=workspace_id
+        )
         if not machine:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Machine with ID {data.machine_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Machine with ID {data.machine_id} not found",
+            )
         factory_id = machine.factory_id
 
         wo_type = work_order_type_dao.get_by_id_and_workspace(
@@ -1543,16 +1666,20 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         if not wo_type:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Work order type not found')
 
+        title = title_override or f'{wo_type.name} — {machine.name}'
         wo = self.create_work_order(
             session,
             data=WorkOrderCreate(
                 work_order_type_id=data.work_order_type_id,
-                title=f'{wo_type.name} — {machine.name}',
+                title=title,
                 description=data.description,
                 priority=data.priority,
                 factory_id=factory_id,
                 machine_id=machine.id,
-                planned_date=data.planned_date,
+                planned_date=planned_date,
+                shift_id=data.shift_id,
+                planned_start_time=data.planned_start_time,
+                expected_duration_minutes=data.expected_duration_minutes,
                 uses_inventory=has_items,
                 assigned_to=data.assigned_to,
                 account_id=data.account_id,
@@ -1560,10 +1687,13 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             ),
             workspace_id=workspace_id,
             user_id=user_id,
+            initial_status=WorkOrderStatusEnum.RECURRING if program_id is not None else None,
         )
         if data.template_id:
             wo.work_order_template_id = data.template_id
-            session.flush()
+        if program_id is not None:
+            wo.program_id = program_id
+        session.flush()
 
         if has_items:
             self._apply_sheet_entry_lines(
@@ -1591,107 +1721,172 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 if exc.status_code != status.HTTP_409_CONFLICT:
                     raise
 
-        if data.template_id:
-            self._maybe_seed_template_recurrence(
-                session,
-                template_id=data.template_id,
-                workspace_id=workspace_id,
-                user_id=user_id,
-                machine_id=data.machine_id,
-                planned_date=data.planned_date,
-                recurrence_end_date=data.recurrence_end_date,
-            )
-
         return wo
 
-    def sync_recurrence_drafts_for_machine(
-        self,
-        session: Session,
-        *,
-        workspace_id: int,
-        user_id: int,
-        template,
-        machine_id: int,
-        range_start: date,
-        range_end: date,
-    ) -> None:
-        """Remove draft orders outside the new program range and fill missing dates inside it."""
-        orphans = self.wo_dao.list_drafts_outside_range_for_template_machine(
+    def sheet_entry(
+        self, session: Session, data: WorkOrderSheetEntryCreate,
+        workspace_id: int, user_id: int,
+    ) -> WorkOrder:
+        """Create a new draft WO for machine+date+type; apply lines and approvers."""
+        if data.recurrence_end_date is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Use work order programs for recurring series',
+            )
+        return self._create_sheet_draft(
             session,
-            workspace_id=workspace_id,
-            work_order_template_id=template.id,
-            machine_id=machine_id,
-            range_start=range_start,
-            range_end=range_end,
-        )
-        for record in orphans:
-            self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
-        session.flush()
-        work_order_template_manager.generate_drafts_for_anchored_range(
-            session,
-            template=template,
-            machine_id=machine_id,
+            data,
             workspace_id=workspace_id,
             user_id=user_id,
+            planned_date=data.planned_date,
         )
 
-    def _maybe_seed_template_recurrence(
+    def create_work_order_program(
         self,
         session: Session,
-        *,
-        template_id: int,
+        data: WorkOrderProgramCreate,
         workspace_id: int,
         user_id: int,
-        machine_id: int,
-        planned_date: date,
-        recurrence_end_date: date | None,
-    ) -> None:
-        template = work_order_template_manager.get_template(session, template_id, workspace_id)
-        if not template.is_recurring:
-            return
-
-        if recurrence_end_date is None:
-            if template.next_generation_date is None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='recurrence_end_date is required when placing an unanchored recurring template',
-                )
-            return
-
-        if template.next_generation_date is None:
-            try:
-                seed_recurrence_from_planned_date(template, planned_date, recurrence_end_date)
-            except ValueError as exc:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-            session.flush()
-            work_order_template_manager.generate_drafts_for_anchored_range(
-                session,
-                template=template,
-                machine_id=machine_id,
-                workspace_id=workspace_id,
-                user_id=user_id,
+    ) -> WorkOrderProgram:
+        """Create program row and one draft work order per planned date."""
+        machine = machine_dao.get_by_id_and_workspace(
+            session, id=data.machine_id, workspace_id=workspace_id
+        )
+        if not machine:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Machine with ID {data.machine_id} not found",
             )
-            return
 
-        if (
-            template.recurrence_start_date == planned_date
-            and template.recurrence_end_date == recurrence_end_date
-        ):
-            return
+        wo_type = work_order_type_dao.get_by_id_and_workspace(
+            session, id=data.work_order_type_id, workspace_id=workspace_id
+        )
+        if not wo_type:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Work order type not found')
 
         try:
-            reseed_recurrence_program(template, planned_date, recurrence_end_date)
+            planned_dates = list_recurrence_planned_dates(
+                data.planned_date,
+                data.end_date,
+                data.cadence,
+                interval_days=data.interval_days,
+            )
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        session.flush()
-        self.sync_recurrence_drafts_for_machine(
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+        title = data.title or f'{wo_type.name} — {machine.name}'
+        shift_id = data.shift_id
+        planned_start_time = data.planned_start_time
+        expected_duration_minutes = data.expected_duration_minutes
+        if shift_id is None and data.template_id is not None and 'shift_id' not in data.model_fields_set:
+            template = work_order_template_manager.get_template(session, data.template_id, workspace_id)
+            shift_id = template.shift_id
+            planned_start_time = template.planned_start_time
+            expected_duration_minutes = template.expected_duration_minutes
+        if shift_id is not None and workspace_shift_dao.get_by_id_and_workspace(
+            session, shift_id=shift_id, workspace_id=workspace_id,
+        ) is None:
+            shift_id = None
+            planned_start_time = None
+            expected_duration_minutes = None
+        sheet_data = WorkOrderSheetEntryCreate(
+            machine_id=data.machine_id,
+            work_order_type_id=data.work_order_type_id,
+            planned_date=data.planned_date,
+            assigned_to=data.assigned_to,
+            description=data.description,
+            priority=data.priority,
+            account_id=data.account_id,
+            cost=data.cost,
+            template_id=data.template_id,
+            shift_id=shift_id,
+            planned_start_time=planned_start_time,
+            expected_duration_minutes=expected_duration_minutes,
+            items=data.items,
+            approvers=data.approvers,
+        )
+
+        program = work_order_program_dao.create(
+            session,
+            obj_in={
+                'workspace_id': workspace_id,
+                'factory_id': machine.factory_id,
+                'machine_id': machine.id,
+                'work_order_type_id': data.work_order_type_id,
+                'title': title,
+                'work_order_template_id': data.template_id,
+                'cadence': data.cadence,
+                'interval_days': data.interval_days,
+                'start_date': data.planned_date,
+                'end_date': data.end_date,
+                'shift_id': shift_id,
+                'planned_start_time': planned_start_time,
+                'expected_duration_minutes': expected_duration_minutes,
+                'status': 'active',
+                'created_by': user_id,
+            },
+        )
+
+        for planned in planned_dates:
+            self._create_sheet_draft(
+                session,
+                sheet_data,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                planned_date=planned,
+                program_id=program.id,
+                title_override=title,
+            )
+
+        return program
+
+    def stop_work_order_program(
+        self,
+        session: Session,
+        program_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> WorkOrderProgram:
+        program = work_order_program_dao.get_by_id_and_workspace(
+            session, id=program_id, workspace_id=workspace_id
+        )
+        if program is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Work order program {program_id} not found",
+            )
+        program.status = 'stopped'
+        cutoff = date.today()
+        drafts = self.wo_dao.list_future_drafts_for_program(
             session,
             workspace_id=workspace_id,
-            user_id=user_id,
-            template=template,
-            machine_id=machine_id,
-            range_start=planned_date,
-            range_end=recurrence_end_date,
+            program_id=program_id,
+            after_date=cutoff,
+        )
+        for record in drafts:
+            self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
+        session.flush()
+        return program
+
+    def get_work_order_programs(
+        self, session: Session, *, workspace_id: int, factory_id: int
+    ) -> List[WorkOrderProgram]:
+        return work_order_program_dao.get_by_factory(
+            session, factory_id=factory_id, workspace_id=workspace_id
+        )
+
+    def work_orders_for_programs(
+        self, session: Session, *, program_ids: List[int], workspace_id: int
+    ) -> List[WorkOrder]:
+        return self.wo_dao.get_by_program_ids(
+            session, program_ids=program_ids, workspace_id=workspace_id
+        )
+
+    def count_work_orders_for_programs(
+        self, session: Session, *, program_ids: List[int], workspace_id: int
+    ) -> dict[int, int]:
+        return self.wo_dao.count_by_program_ids(
+            session, program_ids=program_ids, workspace_id=workspace_id
         )
 
     def list_sheet_orders(

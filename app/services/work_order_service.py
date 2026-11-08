@@ -26,6 +26,8 @@ from app.schemas.work_order import (
 )
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
+from app.schemas.work_order_program import WorkOrderProgramCreate
+from app.models.work_order_program import WorkOrderProgram
 from app.schemas.account_invoice import AccountInvoiceCreate
 from app.services.approval_notification_service import (
     handle_add_approver,
@@ -236,6 +238,65 @@ class WorkOrderService(BaseService):
         except Exception:
             self._rollback_transaction(db)
             raise
+
+    def create_work_order_program(
+        self,
+        db: Session,
+        *,
+        data: WorkOrderProgramCreate,
+        workspace_id: int,
+        user_id: int,
+    ) -> WorkOrderProgram:
+        try:
+            program = self.manager.create_work_order_program(
+                db, data=data, workspace_id=workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(program)
+            return program
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def stop_work_order_program(
+        self,
+        db: Session,
+        *,
+        program_id: int,
+        workspace_id: int,
+        user_id: int,
+    ) -> WorkOrderProgram:
+        try:
+            program = self.manager.stop_work_order_program(
+                db, program_id, workspace_id, user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(program)
+            return program
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def get_work_order_programs(
+        self, db: Session, *, workspace_id: int, factory_id: int
+    ) -> List[WorkOrderProgram]:
+        return self.manager.get_work_order_programs(
+            db, workspace_id=workspace_id, factory_id=factory_id
+        )
+
+    def program_work_order_counts(
+        self, db: Session, *, program_ids: List[int], workspace_id: int
+    ) -> dict[int, int]:
+        return self.manager.count_work_orders_for_programs(
+            db, program_ids=program_ids, workspace_id=workspace_id
+        )
+
+    def program_work_orders(
+        self, db: Session, *, program_ids: List[int], workspace_id: int
+    ) -> List[WorkOrder]:
+        return self.manager.work_orders_for_programs(
+            db, program_ids=program_ids, workspace_id=workspace_id
+        )
 
     def list_sheet_bundles(
         self, db: Session, workspace_id: int,

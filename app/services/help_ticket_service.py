@@ -15,6 +15,7 @@ from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.help_ticket import (
     HelpTicketCreate,
+    HelpTicketEventResponse,
     HelpTicketResponse,
     HelpTicketUpdate,
     PlatformHelpTicketListItem,
@@ -180,6 +181,42 @@ class HelpTicketService(BaseService):
         ticket_id: int,
     ) -> PlatformHelpTicketListItem:
         return self.manager.get_platform_ticket(db, ticket_id=ticket_id)
+
+    def list_ticket_events(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        ticket_id: int,
+        user: Profile,
+        role: str | None,
+    ) -> List[HelpTicketEventResponse]:
+        self.manager.get_by_id_and_workspace(
+            db,
+            ticket_id=ticket_id,
+            workspace_id=workspace_id,
+            user=user,
+            role=role,
+        )
+        rows = self.manager.list_events(
+            db,
+            ticket_id=ticket_id,
+            workspace_id=workspace_id,
+        )
+        return [
+            HelpTicketEventResponse(
+                id=event.id,
+                workspace_id=event.workspace_id,
+                help_ticket_id=event.help_ticket_id,
+                event_type=event.event_type,
+                description=event.description,
+                metadata=event.metadata_json,
+                performed_by=event.performed_by,
+                user_name=performer.name if performer else None,
+                created_at=event.created_at,
+            )
+            for event, performer in rows
+        ]
 
 
 help_ticket_service = HelpTicketService()

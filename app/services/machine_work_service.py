@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.enums import WorkOrderStatusEnum
+from app.models.enums import WORK_ORDER_PRE_START_STATUSES, WorkOrderStatusEnum
 from app.models.machine import Machine
 from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.work_order import WorkOrder
@@ -19,7 +19,7 @@ from app.schemas.machine_work import (
 from app.services.base_service import BaseService
 
 _OPEN_WO_STATUSES = (
-    WorkOrderStatusEnum.DRAFT.value,
+    *WORK_ORDER_PRE_START_STATUSES,
     WorkOrderStatusEnum.IN_PROGRESS.value,
 )
 

@@ -83,6 +83,7 @@ class PurchaseOrderCreate(BaseModel):
     current_status_id: int | None = None
     order_workflow_id: int | None = None
     required_approvals: int | None = None
+    production_batch_id: int | None = None
     items: List[PurchaseOrderItemCreate] | None = None
 
 
@@ -105,6 +106,7 @@ class PurchaseOrderUpdate(BaseModel):
     details_confirmed: bool | None = None
     items_confirmed: bool | None = None
     invoice_confirmed: bool | None = None
+    production_batch_id: int | None = None
 
 
 class PurchaseOrderVoidRequest(BaseModel):
@@ -115,6 +117,7 @@ class PurchaseOrderResponse(BaseModel):
     id: int
     workspace_id: int
     po_number: str
+    is_tour_sample: bool = False
     account_id: int | None = None
     destination_type: str
     destination_id: int
@@ -140,6 +143,7 @@ class PurchaseOrderResponse(BaseModel):
     void_note: str | None = None
     voided_at: datetime | None = None
     voided_by: int | None = None
+    production_batch_id: int | None = None
     created_by: int
     created_at: datetime
     updated_by: int | None = None

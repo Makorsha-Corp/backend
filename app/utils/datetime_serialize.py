@@ -26,7 +26,9 @@ def serialize_utc_datetime(dt: datetime) -> str:
 
 
 def ensure_utc_z_in_json(value: Any) -> Any:
-    """Walk JSON-serializable structures and append Z to naive ISO datetimes."""
+    """Walk JSON-serializable structures; emit UTC ISO strings with Z suffix."""
+    if isinstance(value, datetime):
+        return serialize_utc_datetime(value)
     if isinstance(value, dict):
         return {key: ensure_utc_z_in_json(item) for key, item in value.items()}
     if isinstance(value, list):

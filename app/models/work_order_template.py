@@ -1,5 +1,5 @@
 """Work order template model - reusable "things that happen all the time" presets"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean, Enum, Date
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean, Enum, Date, Time
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -51,6 +51,9 @@ class WorkOrderTemplate(Base):
     # === SHEET DEFAULTS ===
     default_factory_section_id = Column(Integer, ForeignKey("factory_sections.id", ondelete="SET NULL"), nullable=True, index=True)
     default_machine_id = Column(Integer, ForeignKey("machines.id", ondelete="SET NULL"), nullable=True, index=True)
+    shift_id = Column(Integer, ForeignKey("workspace_shifts.id", ondelete="SET NULL"), nullable=True, index=True)
+    planned_start_time = Column(Time, nullable=True)
+    expected_duration_minutes = Column(Integer, nullable=True)
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)

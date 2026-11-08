@@ -23,6 +23,7 @@ class PurchaseOrder(Base):
     # === REFERENCE ===
     po_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: PO-2025-001
+    is_tour_sample = Column(Boolean, nullable=False, default=False, server_default="false")
 
     # === SUPPLIER (ACCOUNT) ===
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=True, index=True)
@@ -68,6 +69,9 @@ class PurchaseOrder(Base):
     void_note = Column(Text, nullable=True)
     voided_at = Column(DateTime, nullable=True)
     voided_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    production_batch_id = Column(
+        Integer, ForeignKey("production_batches.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # === AUDIT ===
     created_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=False, index=True)

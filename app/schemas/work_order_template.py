@@ -1,8 +1,8 @@
 """Work order template schemas"""
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.enums import WorkOrderPriorityEnum
 from app.schemas.work_order_item import WorkOrderItemActionType
 
@@ -59,6 +59,9 @@ class WorkOrderTemplateCreate(BaseModel):
     auto_generate: bool = False
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = Field(default=None, gt=0)
 
 
 class WorkOrderTemplateUpdate(BaseModel):
@@ -83,6 +86,9 @@ class WorkOrderTemplateUpdate(BaseModel):
     auto_generate: bool | None = None
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = Field(default=None, gt=0)
 
 
 class WorkOrderTemplateResponse(BaseModel):
@@ -109,6 +115,9 @@ class WorkOrderTemplateResponse(BaseModel):
     auto_generate: bool = False
     default_factory_section_id: int | None = None
     default_machine_id: int | None = None
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = None
     created_by: int | None = None
     created_at: datetime
     updated_by: int | None = None

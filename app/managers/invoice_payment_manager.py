@@ -145,12 +145,24 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
             metadata={
                 "payment_id": payment.id,
                 "payment_amount": str(payment_data.payment_amount),
+                "payment_date": str(payment_data.payment_date) if payment_data.payment_date else None,
                 "payment_method": payment_data.payment_method,
+                "payment_reference": payment_data.payment_reference,
                 "payment_status_before": old_status,
                 "payment_status_after": new_status,
             },
         )
 
+        self._log_linked_order_payment(
+            session,
+            updated_invoice,
+            user_id,
+            payment_id=payment.id,
+            amount=payment_data.payment_amount,
+            method=payment_data.payment_method,
+            reference=payment_data.payment_reference,
+            status_after=new_status,
+        )
         self._sync_linked_order(session, updated_invoice, user_id)
 
         return payment
@@ -451,6 +463,87 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         self._sync_linked_order(session, invoice, user_id)
         return payment
 
+
+    def _log_linked_order_payment(
+        self,
+        session: Session,
+        invoice: AccountInvoice,
+        user_id: int | None,
+        *,
+        payment_id: int,
+        amount,
+        method: str | None,
+        reference: str | None,
+        status_after: str | None,
+    ) -> None:
+        """Copy a payment onto the linked PO/SO event log.
+
+        Invoice events are a different feed. The order log previously wrote a row
+        only when the denormalized paid flag flipped, so a payment never showed
+        until the invoice was fully paid — and partial payments never showed.
+        """
+        if invoice.order_type not in ("purchase_order", "sales_order"):
+            return
+
+        description = f"Payment of {amount} recorded"
+        if method:
+            description += f" via {method}"
+        if reference:
+            description += f" (ref {reference})"
+        metadata = {
+            "payment_id": payment_id,
+            "payment_amount": str(amount),
+            "payment_method": method,
+            "payment_reference": reference,
+            "payment_status_after": status_after,
+            "invoice_id": invoice.id,
+        }
+
+        if invoice.order_type == "purchase_order":
+            from app.dao.purchase_order_return import purchase_order_return_dao
+            from app.managers.purchase_order_manager import purchase_order_manager
+
+            if purchase_order_return_dao.get_by_invoice_id(
+                session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+            ):
+                return
+            po = purchase_order_manager.get_po_by_invoice_id(
+                session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+            )
+            if po is None:
+                return
+            purchase_order_manager.log_event(
+                session,
+                po.id,
+                invoice.workspace_id,
+                "payment_recorded",
+                description,
+                user_id,
+                metadata=metadata,
+            )
+            return
+
+        from app.dao.sales_order_return import sales_order_return_dao
+        from app.managers.sales_manager import sales_manager
+
+        if sales_order_return_dao.get_by_invoice_id(
+            session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+        ):
+            return
+        order = sales_manager.sales_order_dao.get_by_invoice_id(
+            session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
+        )
+        if order is None:
+            return
+        sales_manager.log_event(
+            session,
+            order.id,
+            invoice.workspace_id,
+            "payment_recorded",
+            description,
+            user_id,
+            metadata=metadata,
+        )
 
     def _sync_linked_order(
         self,

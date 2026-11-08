@@ -3,11 +3,11 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from fastapi import HTTPException, status
 from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.orm import Query, Session, joinedload
 
 from app.dao.base import BaseDAO
+from app.utils.document_numbers import next_document_number
 from app.models.account import Account
 from app.models.account_invoice import AccountInvoice
 from app.models.item import Item
@@ -41,7 +41,10 @@ def _apply_purchase_order_hub_filters(
     exclude_complete: bool = True,
     exclude_voided: bool = True,
 ) -> Query:
-    query = query.filter(PurchaseOrder.workspace_id == workspace_id)
+    query = query.filter(
+        PurchaseOrder.workspace_id == workspace_id,
+        PurchaseOrder.is_tour_sample.is_(False),
+    )
 
     if account_id is not None:
         query = query.filter(PurchaseOrder.account_id == account_id)
@@ -144,7 +147,10 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         query = (
             db.query(PurchaseOrder)
             .options(joinedload(PurchaseOrder.current_status))
-            .filter(PurchaseOrder.workspace_id == workspace_id)
+            .filter(
+                PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.is_tour_sample.is_(False),
+            )
         )
         if account_id:
             query = query.filter(PurchaseOrder.account_id == account_id)
@@ -294,6 +300,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
             .options(joinedload(PurchaseOrder.current_status))
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.is_tour_sample.is_(False),
                 PurchaseOrder.destination_type == destination_type,
                 PurchaseOrder.destination_id == destination_id,
             )
@@ -326,15 +333,11 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
         return self.allocate_po_number(db, workspace_id=workspace_id)
 
     def allocate_po_number(self, db: Session, *, workspace_id: int) -> str:
-        """
-        Next PO number for this workspace/year, skipping any po_number already
-        taken globally (handles legacy global-unique constraint on po_number).
-        """
+        """Next PO number for this workspace and year. Other workspaces may reuse it."""
         from datetime import datetime
 
         year = datetime.now().year
         prefix = f"PO-{year}-"
-
         rows = (
             db.query(PurchaseOrder.po_number)
             .filter(
@@ -343,29 +346,7 @@ class PurchaseOrderDAO(BaseDAO[PurchaseOrder, PurchaseOrderCreate, PurchaseOrder
             )
             .all()
         )
-        max_seq = 0
-        for (num,) in rows:
-            try:
-                max_seq = max(max_seq, int(str(num).rsplit("-", 1)[-1]))
-            except ValueError:
-                continue
-
-        seq = max_seq + 1 if max_seq else 1
-        for _ in range(1000):
-            candidate = f"{prefix}{seq:03d}"
-            taken = (
-                db.query(PurchaseOrder.id)
-                .filter(PurchaseOrder.po_number == candidate)
-                .first()
-            )
-            if not taken:
-                return candidate
-            seq += 1
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not allocate a unique purchase order number",
-        )
+        return next_document_number((num for (num,) in rows), prefix)
 
 
 class PurchaseOrderItemDAO(BaseDAO[PurchaseOrderItem, PurchaseOrderItemCreate, PurchaseOrderItemUpdate]):

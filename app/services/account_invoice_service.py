@@ -429,12 +429,13 @@ class AccountInvoiceService(BaseService):
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail='Confirm supplier, order details, and items before finalizing',
                     )
-                approved_count, required, met = purchase_order_manager.approval_summary(db, po)
-                if not met:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Requires {required} approval(s); {approved_count} so far",
-                    )
+                if not po.is_tour_sample:
+                    approved_count, required, met = purchase_order_manager.approval_summary(db, po)
+                    if not met:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Requires {required} approval(s); {approved_count} so far",
+                        )
                 invoice_pre = self.account_invoice_manager.get_invoice(
                     db, invoice_id, workspace_id
                 )

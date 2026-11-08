@@ -70,6 +70,7 @@ def test_profile_to_auth_dict_includes_timezone() -> None:
     )
     auth_dict = profile_to_auth_dict(user)
     assert auth_dict["timezone"] == "Asia/Dhaka"
+    assert auth_dict["use_24_hour_time"] is True
 
 
 def test_create_workspace_with_owner_seeds_timezone_from_owner() -> None:
@@ -89,8 +90,8 @@ def test_create_workspace_with_owner_seeds_timezone_from_owner() -> None:
     plan.is_active = True
 
     workspace_data = WorkspaceCreate(
-        name="Acme Mill",
-        slug="acme-mill",
+        name="Acme Workspace",
+        slug="acme-workspace",
         billing_email="owner@example.com",
     )
 

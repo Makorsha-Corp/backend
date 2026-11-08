@@ -137,6 +137,9 @@ class WorkspaceManager(BaseManager[Workspace]):
         seed_default_departments(session, workspace_id=workspace.id)
         seed_default_tags(session, workspace_id=workspace.id, created_by_user_id=owner_user_id)
         seed_default_account_tags(session, workspace_id=workspace.id, created_by_user_id=owner_user_id)
+        from app.services.purchase_tour_sample import ensure_purchase_tour_sample
+
+        ensure_purchase_tour_sample(session, workspace_id=workspace.id, user_id=owner_user_id)
 
         # Log workspace creation
         self.audit_dao.log_action(

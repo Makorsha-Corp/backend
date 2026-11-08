@@ -9,6 +9,7 @@ from app.db.base_class import Base
 # Import all models here to ensure they are discovered by Alembic
 from app.models.profile import Profile
 from app.models.workspace import Workspace
+from app.models.workspace_shift import WorkspaceShift
 from app.models.workspace_member import WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.models.workspace_audit_log import WorkspaceAuditLog
@@ -64,6 +65,7 @@ from app.models.product_ledger import ProductLedger
 # Work Orders
 from app.models.work_order_assignee import WorkOrderAssignee
 from app.models.work_order_completer import WorkOrderCompleter
+from app.models.work_order_program import WorkOrderProgram
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 # Purchase Orders
@@ -98,12 +100,20 @@ from app.models.delivery_method import DeliveryMethod
 from app.models.sales_order_return import SalesOrderReturn, SalesOrderReturnItem
 # Production
 from app.models.production_line import ProductionLine
+from app.models.production_line_machine import ProductionLineMachine
 from app.models.production_formula import ProductionFormula
-from app.models.production_formula_item import ProductionFormulaItem
 from app.models.production_batch import ProductionBatch
+from app.models.production_batch_program import ProductionBatchProgram
 from app.models.production_batch_item import ProductionBatchItem
+from app.models.production_route import ProductionRoute, ProductionRouteStep
 from app.models.production_formula_stage import ProductionFormulaStage
+from app.models.production_formula_stage_item import ProductionFormulaStageItem
+from app.models.production_formula_stage_parameter import ProductionFormulaStageParameter
 from app.models.production_batch_stage_log import ProductionBatchStageLog
+from app.models.production_batch_stage_item import ProductionBatchStageItem
+from app.models.production_batch_stage_parameter import ProductionBatchStageParameter
+from app.models.production_batch_event import ProductionBatchEvent
 from app.models.waitlist_signup import WaitlistSignup
 from app.models.landing_perf_report import LandingPerfReport
 from app.models.help_ticket import HelpTicket
+from app.models.help_ticket_event import HelpTicketEvent

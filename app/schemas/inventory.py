@@ -11,14 +11,14 @@ class InventoryCreate(BaseModel):
     item_id: int
     inventory_type: InventoryTypeEnum
     factory_id: int
-    qty: int = 0
+    qty: Decimal = 0
     avg_price: Decimal | None = None
     note: str | None = None
 
 
 class InventoryUpdate(BaseModel):
     """Update inventory record"""
-    qty: int | None = None
+    qty: Decimal | None = None
     avg_price: Decimal | None = None
     note: str | None = None
 
@@ -32,7 +32,7 @@ class InventoryResponse(BaseModel):
     item_unit: str | None = None
     inventory_type: InventoryTypeEnum
     factory_id: int
-    qty: int
+    qty: Decimal
     avg_price: Decimal | None = None
     note: str | None = None
 
@@ -61,11 +61,11 @@ class InventoryListResponse(BaseModel):
 class InventoryStatsByTypeRow(BaseModel):
     inventory_type: InventoryTypeEnum
     unique_item_count: int = 0
-    total_qty: int = 0
+    total_qty: Decimal = 0
 
 
 class InventoryStatsResponse(BaseModel):
     records: int = 0
-    total_qty: int = 0
+    total_qty: Decimal = 0
     estimated_value: Decimal = Decimal("0")
     by_type: List[InventoryStatsByTypeRow] = Field(default_factory=list)

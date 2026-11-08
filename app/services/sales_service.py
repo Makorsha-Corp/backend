@@ -82,7 +82,7 @@ class SalesService(BaseService):
             invoice_amount=Decimal("0.00"),  # recalculated after items sync
             invoice_number=None,
             vendor_invoice_number=None,
-            invoice_date=date.today(),
+            invoice_date=order.order_date,
             due_date=None,
             description=f"Auto-created from sales order {order.sales_order_number}",
             notes=order.description,

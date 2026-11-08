@@ -32,3 +32,13 @@ class SalesDeliveryItem(Base):
     sales_order_item = relationship("SalesOrderItem", backref="delivery_items")
     item = relationship("Item", backref="sales_delivery_items")
     workspace = relationship("Workspace", backref="sales_delivery_items")
+
+    @property
+    def item_name(self) -> str | None:
+        if self.sales_order_item is not None:
+            name = self.sales_order_item.item_name
+            if name:
+                return name
+        if self.item is not None:
+            return self.item.name
+        return None

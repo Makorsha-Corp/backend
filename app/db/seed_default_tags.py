@@ -59,6 +59,22 @@ DEFAULT_SYSTEM_TAGS = [
         "description": "Products manufactured/produced by us",
         "is_system_tag": True,
     },
+    {
+        "name": "Production Waste",
+        "tag_code": "waste",
+        "color": "#D97706",
+        "icon": "trash",
+        "description": "Scrap, dust, and waste streams from production (posts to damaged inventory)",
+        "is_system_tag": True,
+    },
+    {
+        "name": "Byproduct",
+        "tag_code": "byproduct",
+        "color": "#7C3AED",
+        "icon": "layers",
+        "description": "Secondary outputs from production that can be reused or sold",
+        "is_system_tag": True,
+    },
 ]
 
 

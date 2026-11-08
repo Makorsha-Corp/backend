@@ -69,6 +69,59 @@ def test_get_by_id_and_workspace_not_found(mock_dao: MagicMock) -> None:
 
 
 @patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_create_ticket_logs_created_event(mock_dao: MagicMock) -> None:
+    ticket = _ticket()
+    mock_dao.create_with_user.return_value = ticket
+    session = MagicMock()
+    manager = HelpTicketManager()
+    manager.create_ticket(
+        session,
+        workspace_id=10,
+        user_id=5,
+        payload=HelpTicketCreate(title="T", description="D"),
+    )
+    session.add.assert_called_once()
+    event = session.add.call_args.args[0]
+    assert event.event_type == "created"
+    assert event.description == "Ticket created"
+
+
+@patch("app.managers.help_ticket_manager.utcnow_aware")
+def test_log_event_sets_aware_created_at(mock_utcnow_aware: MagicMock) -> None:
+    fixed = datetime(2026, 9, 27, 10, 30, 0, tzinfo=timezone.utc)
+    mock_utcnow_aware.return_value = fixed
+    session = MagicMock()
+    manager = HelpTicketManager()
+    manager.log_event(
+        session,
+        ticket_id=1,
+        workspace_id=10,
+        event_type="created",
+        description="Ticket created",
+        performed_by=5,
+    )
+    event = session.add.call_args.args[0]
+    assert event.created_at == fixed
+    assert event.created_at.tzinfo is not None
+
+
+def test_help_ticket_event_response_serializes_aware_created_at() -> None:
+    from app.schemas.help_ticket import HelpTicketEventResponse
+
+    aware = datetime(2026, 9, 27, 10, 30, 0, tzinfo=timezone.utc)
+    dumped = HelpTicketEventResponse(
+        id=1,
+        workspace_id=10,
+        help_ticket_id=1,
+        event_type="created",
+        description="Ticket created",
+        created_at=aware,
+    ).model_dump(mode="json")
+    created_str = dumped["created_at"]
+    assert created_str.endswith("Z") or "+00:00" in created_str
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
 @patch("app.managers.help_ticket_manager.utcnow")
 def test_open_ticket_from_pending(mock_utcnow: MagicMock, mock_dao: MagicMock) -> None:
     ticket = _ticket(status=HelpTicketStatusEnum.PENDING.value)
@@ -132,7 +185,7 @@ def test_reopen_ticket_clears_closed_fields(mock_dao: MagicMock) -> None:
 
 
 @patch("app.managers.help_ticket_manager.help_ticket_dao")
-def test_mill_user_cannot_change_status(mock_dao: MagicMock) -> None:
+def test_workspace_user_cannot_change_status(mock_dao: MagicMock) -> None:
     ticket = _ticket(status=HelpTicketStatusEnum.PENDING.value)
     manager = HelpTicketManager()
     with pytest.raises(HelpTicketStatusChangeForbiddenError):
@@ -346,14 +399,14 @@ def test_list_tickets_passes_status_filter(mock_dao: MagicMock) -> None:
     assert mock_dao.list_by_workspace.call_args.kwargs["status"] == "opened"
 
 
-def test_help_tickets_endpoint_rejects_mill_user_status_patch() -> None:
+def test_help_tickets_endpoint_rejects_workspace_user_status_patch() -> None:
     from fastapi.testclient import TestClient
 
     from app.core.deps import get_current_active_user, get_current_workspace, get_db
     from app.main import app
     from app.models.workspace import Workspace
 
-    user = Profile(id=5, name="Mill User", email="m@t.com", user_id="u5", hashed_password="x")
+    user = Profile(id=5, name="Workspace User", email="m@t.com", user_id="u5", hashed_password="x")
     user.is_platform_admin = False
     workspace = Workspace(id=10, name="Acme", slug="acme")
 

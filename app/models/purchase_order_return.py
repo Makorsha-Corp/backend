@@ -1,5 +1,5 @@
 """Purchase order return model - returning received goods back to a supplier"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from app.utils.time import utcnow
@@ -25,12 +25,15 @@ class PurchaseOrderReturn(Base):
     """
 
     __tablename__ = "purchase_order_returns"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "return_number", name="uq_po_returns_workspace_number"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     purchase_order_id = Column(Integer, ForeignKey("purchase_orders.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    return_number = Column(String(100), nullable=False, unique=True, index=True)
+    return_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: PR-2026-001
 
     status = Column(String(20), nullable=False, default='pending', index=True)

@@ -48,6 +48,7 @@ class ExpenseOrderCreate(BaseModel):
     due_date: date | None = None
     description: str | None = None
     order_template_id: int | None = None
+    production_batch_id: int | None = None
     items: List[ExpenseOrderItemCreate] | None = None
 
 
@@ -66,6 +67,7 @@ class ExpenseOrderUpdate(BaseModel):
     invoice_id: int | None = None
     required_approvals: int | None = None
     description: str | None = None
+    production_batch_id: int | None = None
 
 
 class ExpenseOrderResponse(BaseModel):
@@ -97,6 +99,7 @@ class ExpenseOrderResponse(BaseModel):
     void_note: str | None = None
     voided_at: datetime | None = None
     voided_by: int | None = None
+    production_batch_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -25,7 +25,8 @@ from app.models.machine_section_assignment import MachineSectionAssignment
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
 from app.models.production_formula import ProductionFormula
-from app.models.production_formula_item import ProductionFormulaItem
+from app.models.production_formula_stage import ProductionFormulaStage
+from app.models.production_formula_stage_item import ProductionFormulaStageItem
 from app.models.project import Project
 from app.models.project_component import ProjectComponent
 from app.models.project_component_item import ProjectComponentItem
@@ -659,10 +660,19 @@ class ItemSummaryService:
         self, db: Session, *, workspace_id: int, item_id: int
     ) -> Tuple[ItemSummaryUsageCounts, ItemSummaryUsageDetails]:
         formula_count = (
-            db.query(func.count(ProductionFormulaItem.id))
+            db.query(func.count(func.distinct(ProductionFormula.id)))
+            .select_from(ProductionFormulaStageItem)
+            .join(
+                ProductionFormulaStage,
+                ProductionFormulaStageItem.formula_stage_id == ProductionFormulaStage.id,
+            )
+            .join(
+                ProductionFormula,
+                ProductionFormulaStage.formula_id == ProductionFormula.id,
+            )
             .filter(
-                ProductionFormulaItem.workspace_id == workspace_id,
-                ProductionFormulaItem.item_id == item_id,
+                ProductionFormulaStageItem.workspace_id == workspace_id,
+                ProductionFormulaStageItem.item_id == item_id,
             )
             .scalar()
             or 0
@@ -700,17 +710,22 @@ class ItemSummaryService:
                 ProductionFormula.id,
                 ProductionFormula.formula_code,
                 ProductionFormula.name,
-                ProductionFormulaItem.item_role,
+                ProductionFormulaStageItem.item_role,
+            )
+            .select_from(ProductionFormulaStageItem)
+            .join(
+                ProductionFormulaStage,
+                ProductionFormulaStageItem.formula_stage_id == ProductionFormulaStage.id,
             )
             .join(
-                ProductionFormulaItem,
-                ProductionFormulaItem.formula_id == ProductionFormula.id,
+                ProductionFormula,
+                ProductionFormulaStage.formula_id == ProductionFormula.id,
             )
             .filter(
-                ProductionFormulaItem.workspace_id == workspace_id,
-                ProductionFormulaItem.item_id == item_id,
+                ProductionFormulaStageItem.workspace_id == workspace_id,
+                ProductionFormulaStageItem.item_id == item_id,
             )
-            .order_by(ProductionFormula.name, ProductionFormulaItem.item_role)
+            .order_by(ProductionFormula.name, ProductionFormulaStageItem.item_role)
             .limit(USAGE_PREVIEW_LIMIT)
             .all()
         )

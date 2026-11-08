@@ -15,7 +15,12 @@ from app.managers.help_ticket_manager import (
 from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.help_ticket import HelpTicketCreate, HelpTicketResponse, HelpTicketUpdate
+from app.schemas.help_ticket import (
+    HelpTicketCreate,
+    HelpTicketEventResponse,
+    HelpTicketResponse,
+    HelpTicketUpdate,
+)
 from app.services.help_ticket_service import help_ticket_service
 
 router = APIRouter()
@@ -128,3 +133,29 @@ def update_help_ticket(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except HelpTicketInvalidTransitionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get(
+    "/tickets/{ticket_id}/events",
+    response_model=List[HelpTicketEventResponse],
+    summary="List help ticket activity events",
+)
+def list_help_ticket_events(
+    ticket_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    role = _workspace_role(db, workspace_id=workspace.id, user_id=current_user.id)
+    try:
+        return help_ticket_service.list_ticket_events(
+            db,
+            workspace_id=workspace.id,
+            ticket_id=ticket_id,
+            user=current_user,
+            role=role,
+        )
+    except HelpTicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except HelpTicketForbiddenError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc

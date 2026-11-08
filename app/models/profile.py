@@ -18,7 +18,10 @@ class Profile(Base):
     hashed_password = Column(String, nullable=False)
     # IANA timezone for datetime display (e.g. Asia/Dhaka, America/New_York)
     timezone = Column(String(64), nullable=True)
+    use_24_hour_time = Column(Boolean, nullable=False, default=True, server_default="true")
     # Makorsha vendor staff — cross-workspace platform shell (/platform)
     is_platform_admin = Column(Boolean, nullable=False, default=False, server_default="false")
     # Drawn vector or uploaded PNG stamp for attachment markup placement
     saved_stamp = Column(JSONB, nullable=True)
+    # First-visit help tours seen per workspace: { "by_workspace": { "10": ["tour-id", ...] } }
+    help_guides_seen = Column(JSONB, nullable=True)

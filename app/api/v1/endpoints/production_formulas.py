@@ -14,18 +14,27 @@ from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.production_formula import (
     ProductionFormulaCreate,
+    ProductionFormulaCopy,
     ProductionFormulaUpdate,
     ProductionFormulaResponse,
 )
-from app.schemas.production_formula_item import (
-    ProductionFormulaItemCreate,
-    ProductionFormulaItemUpdate,
-    ProductionFormulaItemResponse,
-)
 from app.schemas.production_formula_stage import (
+    RecipeRouteStepAdd,
     ProductionFormulaStageCreate,
     ProductionFormulaStageUpdate,
     ProductionFormulaStageResponse,
+)
+from app.schemas.production_formula_stage_item import (
+    ProductionFormulaStageItemAddBody,
+    ProductionFormulaStageItemCreate,
+    ProductionFormulaStageItemUpdate,
+    ProductionFormulaStageItemResponse,
+)
+from app.schemas.production_formula_stage_parameter import (
+    ProductionFormulaStageParameterAddBody,
+    ProductionFormulaStageParameterCreate,
+    ProductionFormulaStageParameterUpdate,
+    ProductionFormulaStageParameterResponse,
 )
 from app.services.production_formula_service import production_formula_service
 
@@ -105,6 +114,25 @@ def create_formula(
     )
 
 
+@router.post(
+    "/{formula_id}/copy/",
+    response_model=ProductionFormulaResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Copy a recipe",
+    description="Duplicate private path, stages, and stage materials into a new recipe.",
+)
+def copy_formula(
+    formula_id: int,
+    copy_in: ProductionFormulaCopy,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.duplicate_formula(
+        db, formula_id, copy_in, workspace.id, current_user.id
+    )
+
+
 @router.put(
     "/{formula_id}/",
     response_model=ProductionFormulaResponse,
@@ -141,102 +169,31 @@ def delete_formula(
     production_formula_service.delete_formula(db, formula_id, workspace.id, current_user.id)
 
 
-# ─── Formula Item Endpoints ─────────────────────────────────────────
-
-
-@router.get(
-    "/{formula_id}/items/",
-    response_model=List[ProductionFormulaItemResponse],
-    status_code=status.HTTP_200_OK,
-    summary="List formula items",
-    description="""
-    Get all items for a production formula.
-    Optionally filter by item_role (input, output, waste, byproduct).
-    """,
-)
-def get_formula_items(
-    formula_id: int,
-    item_role: Optional[str] = Query(
-        None,
-        description="Filter by item role: input, output, waste, byproduct",
-        pattern=r'^(input|output|waste|byproduct)$'
-    ),
-    workspace: Workspace = Depends(get_current_workspace),
-    db: Session = Depends(get_db),
-):
-    """Get all items for a formula"""
-    return production_formula_service.get_formula_items(
-        db, formula_id, workspace_id=workspace.id, item_role=item_role
-    )
+# ─── Formula Stage Endpoints ────────────────────────────────────────
 
 
 @router.post(
-    "/{formula_id}/items/",
-    response_model=ProductionFormulaItemResponse,
+    "/{formula_id}/route-steps/",
+    response_model=ProductionFormulaStageResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Add item to formula",
-    description="""
-    Add an item to a production formula.
-    item_role must be one of: input, output, waste, byproduct.
-    The item must exist and belong to the same workspace.
-    """,
+    summary="Add a line step on this recipe's route",
 )
-def add_formula_item(
+def add_recipe_route_step(
     formula_id: int,
-    item_in: ProductionFormulaItemCreate,
+    body: RecipeRouteStepAdd,
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Add an item to a formula"""
-    # Ensure the formula_id in the path matches the body
-    if item_in.formula_id != formula_id:
-        from app.core.exceptions import BusinessRuleError
-        raise BusinessRuleError(
-            f"Path formula_id ({formula_id}) does not match body formula_id ({item_in.formula_id})"
-        )
-    return production_formula_service.add_formula_item(
-        db, item_in, workspace.id
+    return production_formula_service.append_line_step(
+        db,
+        formula_id,
+        body.production_line_id,
+        workspace.id,
+        current_user.id,
+        name=body.name,
+        factory_id=body.factory_id,
     )
-
-
-@router.put(
-    "/items/{formula_item_id}/",
-    response_model=ProductionFormulaItemResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Update formula item",
-    description="Update a formula item (quantity, role, tolerance, etc.).",
-)
-def update_formula_item(
-    formula_item_id: int,
-    item_in: ProductionFormulaItemUpdate,
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Update a formula item"""
-    return production_formula_service.update_formula_item(
-        db, formula_item_id, item_in, workspace.id
-    )
-
-
-@router.delete(
-    "/items/{formula_item_id}/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove item from formula",
-    description="Remove an item from a formula (hard delete). Returns 204 on success.",
-)
-def remove_formula_item(
-    formula_item_id: int,
-    workspace: Workspace = Depends(get_current_workspace),
-    current_user: Profile = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Remove an item from a formula"""
-    production_formula_service.remove_formula_item(db, formula_item_id, workspace.id)
-
-
-# ─── Formula Stage Endpoints ────────────────────────────────────────
 
 
 @router.get(
@@ -299,3 +256,203 @@ def remove_formula_stage(
     db: Session = Depends(get_db),
 ):
     production_formula_service.remove_formula_stage(db, stage_id, workspace.id)
+
+
+# ─── Formula stage item endpoints ───────────────────────────────────
+
+
+@router.get(
+    "/{formula_id}/stage-items/",
+    response_model=List[ProductionFormulaStageItemResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all stage items for a formula",
+)
+def get_all_formula_stage_items(
+    formula_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.get_all_formula_stage_items(db, formula_id, workspace.id)
+
+
+@router.get(
+    "/{formula_id}/stages/{stage_id}/items/",
+    response_model=List[ProductionFormulaStageItemResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List items for a formula stage",
+)
+def get_formula_stage_items(
+    formula_id: int,
+    stage_id: int,
+    item_role: Optional[str] = Query(
+        None,
+        pattern=r"^(input|output|waste|byproduct)$",
+    ),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.get_formula_stage_items(
+        db, formula_id, stage_id, workspace.id, item_role=item_role
+    )
+
+
+@router.post(
+    "/{formula_id}/stages/{stage_id}/items/",
+    response_model=ProductionFormulaStageItemResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add item to formula stage",
+)
+def add_formula_stage_item(
+    formula_id: int,
+    stage_id: int,
+    item_in: ProductionFormulaStageItemAddBody,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    create_in = ProductionFormulaStageItemCreate(
+        formula_stage_id=stage_id,
+        **item_in.model_dump(),
+    )
+    return production_formula_service.add_formula_stage_item(
+        db, formula_id, stage_id, create_in, workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/{formula_id}/stages/{stage_id}/ensure-input-handoff/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Copy previous step outputs into this step's inputs when missing",
+)
+def ensure_input_handoff_from_previous_stage(
+    formula_id: int,
+    stage_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    production_formula_service.ensure_input_handoff_from_previous_stage(
+        db, formula_id, stage_id, workspace.id
+    )
+
+
+@router.put(
+    "/stage-items/{stage_item_id}/",
+    response_model=ProductionFormulaStageItemResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update formula stage item",
+)
+def update_formula_stage_item(
+    stage_item_id: int,
+    item_in: ProductionFormulaStageItemUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.update_formula_stage_item(
+        db, stage_item_id, item_in, workspace.id
+    )
+
+
+@router.delete(
+    "/stage-items/{stage_item_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove formula stage item",
+)
+def remove_formula_stage_item(
+    stage_item_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    production_formula_service.remove_formula_stage_item(db, stage_item_id, workspace.id)
+
+
+# ─── Formula stage parameter endpoints ──────────────────────────────
+
+
+@router.get(
+    "/{formula_id}/stage-parameters/",
+    response_model=List[ProductionFormulaStageParameterResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all stage parameters for a formula",
+)
+def get_all_formula_stage_parameters(
+    formula_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.get_all_formula_stage_parameters(
+        db, formula_id, workspace.id
+    )
+
+
+@router.get(
+    "/{formula_id}/stages/{stage_id}/parameters/",
+    response_model=List[ProductionFormulaStageParameterResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List conditions for a formula stage",
+)
+def get_formula_stage_parameters(
+    formula_id: int,
+    stage_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.get_formula_stage_parameters(
+        db, formula_id, stage_id, workspace.id
+    )
+
+
+@router.post(
+    "/{formula_id}/stages/{stage_id}/parameters/",
+    response_model=ProductionFormulaStageParameterResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add condition to formula stage",
+)
+def add_formula_stage_parameter(
+    formula_id: int,
+    stage_id: int,
+    param_in: ProductionFormulaStageParameterAddBody,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    create_in = ProductionFormulaStageParameterCreate(
+        formula_stage_id=stage_id,
+        **param_in.model_dump(),
+    )
+    return production_formula_service.add_formula_stage_parameter(
+        db, formula_id, stage_id, create_in, workspace.id
+    )
+
+
+@router.put(
+    "/stage-parameters/{parameter_id}/",
+    response_model=ProductionFormulaStageParameterResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update formula stage condition",
+)
+def update_formula_stage_parameter(
+    parameter_id: int,
+    param_in: ProductionFormulaStageParameterUpdate,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return production_formula_service.update_formula_stage_parameter(
+        db, parameter_id, param_in, workspace.id
+    )
+
+
+@router.delete(
+    "/stage-parameters/{parameter_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove formula stage condition",
+)
+def remove_formula_stage_parameter(
+    parameter_id: int,
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    production_formula_service.remove_formula_stage_parameter(
+        db, parameter_id, workspace.id
+    )

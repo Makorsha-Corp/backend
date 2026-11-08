@@ -1,6 +1,6 @@
 """Production Formula model - production recipes/BOM"""
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from datetime import datetime
 from app.db.base_class import Base
 from app.utils.time import utcnow
@@ -10,13 +10,7 @@ class ProductionFormula(Base):
     """
     Production Formula model - defines the recipe for producing items.
 
-    Inputs and outputs are defined via ProductionFormulaItem with item_role:
-    - 'input' - raw materials consumed
-    - 'output' - finished goods produced
-    - 'waste' - waste/scrap generated during production
-    - 'byproduct' - secondary products that can be sold/reused
-
-    Example: To produce 1000 kg Cotton Yarn, need 1100 kg Raw Cotton + 50 L Dye.
+    Materials and outputs are defined per path step via ProductionFormulaStageItem.
     """
 
     __tablename__ = "production_formulas"
@@ -30,8 +24,7 @@ class ProductionFormula(Base):
     description = Column(Text, nullable=True)
     version = Column(Integer, default=1, nullable=False)  # Track formula revisions
 
-    # Estimated timing
-    estimated_duration_minutes = Column(Integer, nullable=True)  # Expected production time
+    route_id = Column(Integer, ForeignKey("production_routes.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Status
     is_active = Column(Boolean, default=True, nullable=False)
@@ -47,3 +40,8 @@ class ProductionFormula(Base):
     workspace = relationship("Workspace", backref="production_formulas")
     creator = relationship("Profile", foreign_keys=[created_by], backref="created_production_formulas")
     updater = relationship("Profile", foreign_keys=[updated_by], backref="updated_production_formulas")
+    route = relationship(
+        "ProductionRoute",
+        foreign_keys=[route_id],
+        backref=backref("formulas", foreign_keys="ProductionFormula.route_id"),
+    )

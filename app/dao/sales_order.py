@@ -5,6 +5,7 @@ from datetime import datetime
 from app.dao.base import BaseDAO
 from app.models.sales_order import SalesOrder
 from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
+from app.utils.document_numbers import next_document_number
 
 
 class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
@@ -39,16 +40,15 @@ class DAOSalesOrder(BaseDAO[SalesOrder, SalesOrderCreate, SalesOrderUpdate]):
         """
         # Get count of orders in this workspace for this year
         prefix = f"SO-{year}-"
-        count = (
-            db.query(SalesOrder)
+        rows = (
+            db.query(SalesOrder.sales_order_number)
             .filter(
                 SalesOrder.workspace_id == workspace_id,
-                SalesOrder.sales_order_number.like(f"{prefix}%")
+                SalesOrder.sales_order_number.like(f"{prefix}%"),
             )
-            .count()
+            .all()
         )
-        next_sequence = count + 1
-        return f"{prefix}{next_sequence:03d}"
+        return next_document_number((num for (num,) in rows), prefix)
 
     def create_with_user(
         self,

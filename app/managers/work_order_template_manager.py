@@ -86,6 +86,9 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Work order type with ID {data.work_order_type_id} not found")
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True, exclude={'approver_user_ids'})
+        for key in ('shift_id', 'planned_start_time', 'expected_duration_minutes'):
+            if key in data.model_fields_set:
+                update_dict[key] = getattr(data, key)
         update_dict['updated_by'] = user_id
         result = self.tpl_dao.update(session, db_obj=record, obj_in=update_dict)
 
@@ -173,49 +176,63 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         workspace_id: int,
         user_id: int,
     ) -> List:
-        """Create draft WOs for every remaining date in an anchored recurring range."""
+        """Legacy no-op — recurring series are work order programs now."""
+        return []
+
+    def _template_window_overlaps_open_order(
+        self,
+        session: Session,
+        *,
+        template: WorkOrderTemplate,
+        workspace_id: int,
+        machine_id: int,
+        target_date: date,
+    ) -> bool:
         from app.managers.work_order_manager import work_order_manager
-        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
+        from app.models.enums import WorkOrderStatusEnum
         from app.models.work_order import WorkOrder
-        from app.utils.work_order_recurrence import advance_next_generation_date
+        from app.utils.work_order_window import (
+            resolve_work_order_window,
+            untimed_day_bounds,
+            windows_intersect,
+        )
 
-        if not template.is_recurring or template.recurrence_end_date is None:
-            return []
+        tz_name = work_order_manager._workspace_timezone_name(session, workspace_id)
+        candidate = resolve_work_order_window(
+            planned_date=target_date,
+            planned_start_time=template.planned_start_time,
+            expected_duration_minutes=template.expected_duration_minutes,
+            tz_name=tz_name,
+        )
+        if candidate[0] is None or candidate[1] is None:
+            candidate = untimed_day_bounds(target_date, tz_name)
 
-        created: List[WorkOrder] = []
-        while (
-            template.next_generation_date is not None
-            and template.next_generation_date <= template.recurrence_end_date
-        ):
-            planned = template.next_generation_date
-            existing = work_order_manager.wo_dao.get_by_machine_date_type(
-                session,
-                workspace_id=workspace_id,
-                machine_id=machine_id,
-                planned_date=planned,
-                work_order_type_id=template.work_order_type_id,
+        open_orders = (
+            session.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.is_deleted == False,
+                WorkOrder.machine_id == machine_id,
+                WorkOrder.planned_date == target_date,
+                WorkOrder.work_order_type_id == template.work_order_type_id,
+                WorkOrder.status.in_([
+                    WorkOrderStatusEnum.DRAFT.value,
+                    WorkOrderStatusEnum.RECURRING.value,
+                    WorkOrderStatusEnum.IN_PROGRESS.value,
+                ]),
             )
-            if not existing:
-                wo = work_order_manager.create_work_order_from_template(
-                    session,
-                    template_id=template.id,
-                    workspace_id=workspace_id,
-                    user_id=user_id,
-                    overrides=WorkOrderFromTemplateCreate(
-                        machine_id=machine_id,
-                        planned_date=planned,
-                    ),
-                )
-                created.append(wo)
-
-            template.next_generation_date = advance_next_generation_date(
-                from_date=planned,
-                recurrence_type=template.recurrence_type,
-                recurrence_day=template.recurrence_day,
-            )
-
-        session.flush()
-        return created
+            .all()
+        )
+        for order in open_orders:
+            if order.planned_start_at is not None and order.planned_end_at is not None:
+                bounds = (order.planned_start_at, order.planned_end_at)
+            elif order.planned_date is not None:
+                bounds = untimed_day_bounds(order.planned_date, tz_name)
+            else:
+                continue
+            if windows_intersect(candidate[0], candidate[1], bounds[0], bounds[1]):
+                return True
+        return False
 
     def generate_drafts(
         self,
@@ -257,11 +274,7 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
 
         created: List[WorkOrder] = []
         for tpl in templates:
-            if (
-                tpl.is_recurring
-                and tpl.recurrence_end_date is not None
-                and target_date > tpl.recurrence_end_date
-            ):
+            if tpl.is_recurring:
                 continue
 
             machine_ids = resolve_template_machine_ids(
@@ -273,14 +286,13 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
             )
 
             for mid in machine_ids:
-                existing = work_order_manager.wo_dao.get_by_machine_date_type(
+                if self._template_window_overlaps_open_order(
                     session,
+                    template=tpl,
                     workspace_id=workspace_id,
                     machine_id=mid,
-                    planned_date=target_date,
-                    work_order_type_id=tpl.work_order_type_id,
-                )
-                if existing:
+                    target_date=target_date,
+                ):
                     continue
                 wo = work_order_manager.create_work_order_from_template(
                     session,
@@ -293,14 +305,6 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
                     ),
                 )
                 created.append(wo)
-
-            if should_advance_template(tpl, target_date):
-                tpl.next_generation_date = advance_next_generation_date(
-                    from_date=target_date,
-                    recurrence_type=tpl.recurrence_type,
-                    recurrence_day=tpl.recurrence_day,
-                )
-                session.flush()
 
         return created
 

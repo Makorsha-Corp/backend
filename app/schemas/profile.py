@@ -41,6 +41,7 @@ class ProfileMeUpdate(BaseModel):
     """Self-service profile update (auth/me)."""
     name: str | None = None
     timezone: str | None = None
+    use_24_hour_time: bool | None = None
     saved_stamp: dict[str, Any] | None = None
 
     @field_validator("timezone")
@@ -61,8 +62,10 @@ class ProfileResponse(ProfileBase):
     id: int
     user_id: str
     timezone: str | None = None
+    use_24_hour_time: bool = True
     is_platform_admin: bool = False
     saved_stamp: dict[str, Any] | None = None
+    help_guides_seen: dict[str, Any] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

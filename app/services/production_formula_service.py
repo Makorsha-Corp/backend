@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from app.services.base_service import BaseService
 from app.managers.production_formula_manager import production_formula_manager
 from app.models.production_formula import ProductionFormula
-from app.models.production_formula_item import ProductionFormulaItem
+from app.schemas.production_formula import ProductionFormulaCopy
+from app.models.production_formula_stage_item import ProductionFormulaStageItem
+from app.models.production_formula_stage_parameter import ProductionFormulaStageParameter
 from app.core.exceptions import NotFoundError, BusinessRuleError
 
 
@@ -14,7 +16,7 @@ class ProductionFormulaService(BaseService):
 
     Handles:
     - Transaction boundaries (commit/rollback)
-    - Formula and formula item CRUD
+    - Formula and path-stage CRUD
     - Error handling and exception translation
     """
 
@@ -131,104 +133,6 @@ class ProductionFormulaService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    # ─── Formula Item Operations ────────────────────────────────────
-
-    def add_formula_item(
-        self,
-        db: Session,
-        item_in: "ProductionFormulaItemCreate",
-        workspace_id: int
-    ) -> ProductionFormulaItem:
-        """Add an item to a formula."""
-        try:
-            formula_item = self.formula_manager.add_formula_item(
-                session=db,
-                item_data=item_in,
-                workspace_id=workspace_id
-            )
-            self._commit_transaction(db)
-            db.refresh(formula_item)
-            return formula_item
-        except ValueError as e:
-            self._rollback_transaction(db)
-            error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
-            raise BusinessRuleError(error_msg)
-        except Exception:
-            self._rollback_transaction(db)
-            raise
-
-    def update_formula_item(
-        self,
-        db: Session,
-        formula_item_id: int,
-        item_in: "ProductionFormulaItemUpdate",
-        workspace_id: int
-    ) -> ProductionFormulaItem:
-        """Update a formula item."""
-        try:
-            formula_item = self.formula_manager.update_formula_item(
-                session=db,
-                formula_item_id=formula_item_id,
-                item_data=item_in,
-                workspace_id=workspace_id
-            )
-            self._commit_transaction(db)
-            db.refresh(formula_item)
-            return formula_item
-        except ValueError as e:
-            self._rollback_transaction(db)
-            error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
-            raise BusinessRuleError(error_msg)
-        except Exception:
-            self._rollback_transaction(db)
-            raise
-
-    def remove_formula_item(
-        self,
-        db: Session,
-        formula_item_id: int,
-        workspace_id: int
-    ) -> None:
-        """Remove an item from a formula (hard delete)."""
-        try:
-            self.formula_manager.remove_formula_item(
-                session=db,
-                formula_item_id=formula_item_id,
-                workspace_id=workspace_id
-            )
-            self._commit_transaction(db)
-        except ValueError as e:
-            self._rollback_transaction(db)
-            raise NotFoundError(str(e))
-        except Exception:
-            self._rollback_transaction(db)
-            raise
-
-    def get_formula_items(
-        self,
-        db: Session,
-        formula_id: int,
-        workspace_id: int,
-        item_role: Optional[str] = None
-    ) -> List[ProductionFormulaItem]:
-        """Get items for a formula with optional role filter."""
-        try:
-            return self.formula_manager.get_formula_items(
-                session=db,
-                formula_id=formula_id,
-                workspace_id=workspace_id,
-                item_role=item_role
-            )
-        except ValueError as e:
-            error_msg = str(e)
-            if "not found" in error_msg:
-                raise NotFoundError(error_msg)
-            raise BusinessRuleError(error_msg)
-
     # ─── Formula Stage Operations ───────────────────────────────────
 
     def get_formula_stages(
@@ -238,6 +142,72 @@ class ProductionFormulaService(BaseService):
             return self.formula_manager.get_formula_stages(db, formula_id, workspace_id)
         except ValueError as e:
             raise NotFoundError(str(e))
+
+    def duplicate_formula(
+        self,
+        db: Session,
+        source_formula_id: int,
+        copy_in: "ProductionFormulaCopy",
+        workspace_id: int,
+        user_id: int,
+    ) -> ProductionFormula:
+        try:
+            formula = self.formula_manager.duplicate_formula(
+                session=db,
+                source_formula_id=source_formula_id,
+                formula_code=copy_in.formula_code,
+                name=copy_in.name,
+                description=copy_in.description,
+                factory_id=copy_in.factory_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                steps=copy_in.steps,
+            )
+            self._commit_transaction(db)
+            db.refresh(formula)
+            return formula
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def append_line_step(
+        self,
+        db: Session,
+        formula_id: int,
+        production_line_id: int,
+        workspace_id: int,
+        user_id: int,
+        name: Optional[str] = None,
+        factory_id: Optional[int] = None,
+    ):
+        try:
+            stage = self.formula_manager.append_line_step(
+                db,
+                formula_id,
+                production_line_id,
+                workspace_id,
+                user_id,
+                name=name,
+                factory_id=factory_id,
+            )
+            self._commit_transaction(db)
+            db.refresh(stage)
+            return stage
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
     def add_formula_stage(
         self, db: Session, stage_in: "ProductionFormulaStageCreate", workspace_id: int
@@ -282,6 +252,208 @@ class ProductionFormulaService(BaseService):
     def remove_formula_stage(self, db: Session, stage_id: int, workspace_id: int) -> None:
         try:
             self.formula_manager.remove_formula_stage(db, stage_id, workspace_id)
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+
+    # ─── Formula stage item operations ───────────────────────────────
+
+    def get_formula_stage_items(
+        self,
+        db: Session,
+        formula_id: int,
+        stage_id: int,
+        workspace_id: int,
+        item_role: Optional[str] = None,
+    ) -> List[ProductionFormulaStageItem]:
+        try:
+            return self.formula_manager.get_formula_stage_items(
+                db, formula_id, stage_id, workspace_id, item_role=item_role
+            )
+        except ValueError as e:
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+
+    def get_all_formula_stage_items(
+        self, db: Session, formula_id: int, workspace_id: int
+    ) -> List[ProductionFormulaStageItem]:
+        try:
+            return self.formula_manager.get_all_formula_stage_items(db, formula_id, workspace_id)
+        except ValueError as e:
+            raise NotFoundError(str(e))
+
+    def ensure_input_handoff_from_previous_stage(
+        self, db: Session, formula_id: int, stage_id: int, workspace_id: int
+    ) -> None:
+        try:
+            self.formula_manager.ensure_input_handoff_from_previous_stage(
+                db, formula_id, stage_id, workspace_id
+            )
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def add_formula_stage_item(
+        self,
+        db: Session,
+        formula_id: int,
+        stage_id: int,
+        item_in: "ProductionFormulaStageItemCreate",
+        workspace_id: int,
+        user_id: int | None = None,
+    ) -> ProductionFormulaStageItem:
+        try:
+            item = self.formula_manager.add_formula_stage_item(
+                db, formula_id, stage_id, item_in, workspace_id, user_id=user_id
+            )
+            self._commit_transaction(db)
+            db.refresh(item)
+            return item
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def update_formula_stage_item(
+        self,
+        db: Session,
+        stage_item_id: int,
+        item_in: "ProductionFormulaStageItemUpdate",
+        workspace_id: int,
+    ) -> ProductionFormulaStageItem:
+        try:
+            item = self.formula_manager.update_formula_stage_item(
+                db, stage_item_id, item_in, workspace_id
+            )
+            self._commit_transaction(db)
+            db.refresh(item)
+            return item
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_formula_stage_item(
+        self, db: Session, stage_item_id: int, workspace_id: int
+    ) -> None:
+        try:
+            self.formula_manager.remove_formula_stage_item(db, stage_item_id, workspace_id)
+            self._commit_transaction(db)
+        except ValueError as e:
+            self._rollback_transaction(db)
+            raise NotFoundError(str(e))
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    # ─── Formula stage parameter operations ──────────────────────────
+
+    def get_formula_stage_parameters(
+        self, db: Session, formula_id: int, stage_id: int, workspace_id: int
+    ) -> List[ProductionFormulaStageParameter]:
+        try:
+            return self.formula_manager.get_formula_stage_parameters(
+                db, formula_id, stage_id, workspace_id
+            )
+        except ValueError as e:
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+
+    def get_all_formula_stage_parameters(
+        self, db: Session, formula_id: int, workspace_id: int
+    ) -> List[ProductionFormulaStageParameter]:
+        try:
+            return self.formula_manager.get_all_formula_stage_parameters(
+                db, formula_id, workspace_id
+            )
+        except ValueError as e:
+            raise NotFoundError(str(e))
+
+    def add_formula_stage_parameter(
+        self,
+        db: Session,
+        formula_id: int,
+        stage_id: int,
+        param_in: "ProductionFormulaStageParameterCreate",
+        workspace_id: int,
+    ) -> ProductionFormulaStageParameter:
+        try:
+            param = self.formula_manager.add_formula_stage_parameter(
+                db, formula_id, stage_id, param_in, workspace_id
+            )
+            self._commit_transaction(db)
+            db.refresh(param)
+            return param
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def update_formula_stage_parameter(
+        self,
+        db: Session,
+        parameter_id: int,
+        param_in: "ProductionFormulaStageParameterUpdate",
+        workspace_id: int,
+    ) -> ProductionFormulaStageParameter:
+        try:
+            param = self.formula_manager.update_formula_stage_parameter(
+                db, parameter_id, param_in, workspace_id
+            )
+            self._commit_transaction(db)
+            db.refresh(param)
+            return param
+        except ValueError as e:
+            self._rollback_transaction(db)
+            error_msg = str(e)
+            if "not found" in error_msg:
+                raise NotFoundError(error_msg)
+            raise BusinessRuleError(error_msg)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def remove_formula_stage_parameter(
+        self, db: Session, parameter_id: int, workspace_id: int
+    ) -> None:
+        try:
+            self.formula_manager.remove_formula_stage_parameter(
+                db, parameter_id, workspace_id
+            )
             self._commit_transaction(db)
         except ValueError as e:
             self._rollback_transaction(db)

@@ -46,6 +46,12 @@ from app.core.cloudinary_client import CloudinaryNotConfiguredError
 from app.utils.profile_auth import profile_to_auth_dict
 from app.dao.workspace_member import workspace_member_dao
 from app.services.auth_service import auth_service
+from app.services.help_guide_service import help_guide_service
+from app.schemas.help_guide import (
+    HelpGuideMarkSeenRequest,
+    HelpGuideResetRequest,
+    HelpGuideUnmarkSeenRequest,
+)
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 
@@ -515,6 +521,81 @@ def get_current_user_info(
             "settings": workspace.settings or {},
         },
     )
+
+
+@router.post(
+    "/me/help-guides/mark-seen",
+    response_model=ProfileResponse,
+    summary="Mark a help tour as seen for the current workspace",
+)
+def mark_help_guide_seen(
+    body: HelpGuideMarkSeenRequest,
+    current_user: Profile = Depends(get_current_active_user),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = help_guide_service.mark_seen(
+            db,
+            user=current_user,
+            workspace_id=workspace.id,
+            body=body,
+        )
+        return ProfileResponse.model_validate(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Help guide update failed: {str(e)}")
+
+
+@router.post(
+    "/me/help-guides/unmark-seen",
+    response_model=ProfileResponse,
+    summary="Remove help tours from seen list for the current workspace",
+)
+def unmark_help_guides_seen(
+    body: HelpGuideUnmarkSeenRequest,
+    current_user: Profile = Depends(get_current_active_user),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = help_guide_service.unmark_seen(
+            db,
+            user=current_user,
+            workspace_id=workspace.id,
+            body=body,
+        )
+        return ProfileResponse.model_validate(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Help guide update failed: {str(e)}")
+
+
+@router.post(
+    "/me/help-guides/reset",
+    response_model=ProfileResponse,
+    summary="Reset help tour seen state",
+)
+def reset_help_guides_seen(
+    body: HelpGuideResetRequest,
+    current_user: Profile = Depends(get_current_active_user),
+    workspace: Workspace = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = help_guide_service.reset_seen(
+            db,
+            user=current_user,
+            workspace_id=workspace.id,
+            body=body,
+        )
+        return ProfileResponse.model_validate(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Help guide reset failed: {str(e)}")
 
 
 @router.post(

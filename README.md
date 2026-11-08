@@ -294,4 +294,4 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
 
 ## License
 
-Proprietary – Akbar Cotton Mill
+Proprietary – Makorsha

@@ -45,3 +45,17 @@ class HelpTicketResponse(BaseModel):
 class PlatformHelpTicketListItem(HelpTicketResponse):
     """Cross-workspace ticket row for platform support inbox."""
     workspace_name: str
+
+
+class HelpTicketEventResponse(BaseModel):
+    id: int
+    workspace_id: int
+    help_ticket_id: int
+    event_type: str
+    description: str
+    metadata: dict | None = None
+    performed_by: int | None = None
+    user_name: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

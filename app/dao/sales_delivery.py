@@ -5,6 +5,7 @@ from datetime import datetime, date
 from app.dao.base import BaseDAO
 from app.models.sales_delivery import SalesDelivery
 from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
+from app.utils.document_numbers import next_document_number
 
 
 class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDeliveryUpdate]):
@@ -26,16 +27,15 @@ class DAOSalesDelivery(BaseDAO[SalesDelivery, SalesDeliveryCreate, SalesDelivery
             Generated delivery number (e.g., "DEL-2025-001")
         """
         prefix = f"DEL-{year}-"
-        count = (
-            db.query(SalesDelivery)
+        rows = (
+            db.query(SalesDelivery.delivery_number)
             .filter(
                 SalesDelivery.workspace_id == workspace_id,
-                SalesDelivery.delivery_number.like(f"{prefix}%")
+                SalesDelivery.delivery_number.like(f"{prefix}%"),
             )
-            .count()
+            .all()
         )
-        next_sequence = count + 1
-        return f"{prefix}{next_sequence:03d}"
+        return next_document_number((num for (num,) in rows), prefix)
 
     def create_with_user(
         self,

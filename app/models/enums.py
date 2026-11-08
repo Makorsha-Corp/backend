@@ -84,11 +84,18 @@ class WorkOrderPriorityEnum(str, enum.Enum):
 
 class WorkOrderStatusEnum(str, enum.Enum):
     """Work order status. Approval (if any approvers are assigned) gates the
-    DRAFT -> IN_PROGRESS transition rather than being its own visible status."""
+    pre-start -> IN_PROGRESS transition rather than being its own visible status."""
     DRAFT = "DRAFT"
+    RECURRING = "RECURRING"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     VOIDED = "VOIDED"
+
+
+WORK_ORDER_PRE_START_STATUSES = frozenset({
+    WorkOrderStatusEnum.DRAFT.value,
+    WorkOrderStatusEnum.RECURRING.value,
+})
 
 
 class InventoryTypeEnum(str, enum.Enum):

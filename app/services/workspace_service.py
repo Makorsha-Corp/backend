@@ -132,7 +132,11 @@ class WorkspaceService(BaseService):
         if workspace.owner_user_id != current_user_id:
             raise PermissionDeniedError("Only workspace owner can update workspace")
         try:
-            updated = self.workspace_dao.update(db, db_obj=workspace, obj_in=workspace_update)
+            update_in = workspace_update
+            if workspace_update.settings is not None:
+                merged_settings = {**(workspace.settings or {}), **workspace_update.settings}
+                update_in = workspace_update.model_copy(update={"settings": merged_settings})
+            updated = self.workspace_dao.update(db, db_obj=workspace, obj_in=update_in)
             self._commit_transaction(db)
             db.refresh(updated)
             return updated

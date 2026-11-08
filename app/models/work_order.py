@@ -35,10 +35,19 @@ class WorkOrder(Base):
 
     # Set when this order was generated from a template — traceability only.
     work_order_template_id = Column(Integer, ForeignKey("work_order_templates.id", ondelete="SET NULL"), nullable=True, index=True)
+    program_id = Column(
+        Integer,
+        ForeignKey("work_order_programs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Scheduling
     planned_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
+    shift_id = Column(Integer, ForeignKey("workspace_shifts.id", ondelete="SET NULL"), nullable=True, index=True)
+    planned_start_at = Column(DateTime(timezone=True), nullable=True)
+    planned_end_at = Column(DateTime(timezone=True), nullable=True)
 
     # Decided at creation time (the Maintenance wizard's "parts?" question) — when False,
     # items can never be added, matching the user's stated intent for this order.

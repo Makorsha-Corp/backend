@@ -8,6 +8,11 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.services.base_service import BaseService
+from app.services.purchase_tour_sample import (
+    apply_purchase_tour_template,
+    ensure_purchase_tour_sample,
+    reject_tour_sample_action,
+)
 from app.managers.purchase_order_manager import purchase_order_manager
 from app.managers.account_invoice_manager import account_invoice_manager
 from app.models.purchase_order import PurchaseOrder
@@ -184,6 +189,20 @@ class PurchaseOrderService(BaseService):
             event_type='invoice_draft_deleted',
         )
 
+    def sync_draft_invoice_for_tour_sample(
+        self,
+        db: Session,
+        po: PurchaseOrder,
+        workspace_id: int,
+        user_id: int,
+    ) -> int | None:
+        """Create/update the tour sample's mock draft invoice (help guide only)."""
+        if not po.is_tour_sample:
+            return None
+        return self._sync_draft_invoice_for_po(
+            db, po, workspace_id, user_id, force_create=True, allow_tour_sample=True
+        )
+
     def _sync_draft_invoice_for_po(
         self,
         db: Session,
@@ -191,12 +210,17 @@ class PurchaseOrderService(BaseService):
         workspace_id: int,
         user_id: int,
         force_create: bool = False,
+        allow_tour_sample: bool = False,
     ) -> int | None:
         """Ensure a draft payable invoice exists and mirrors PO supplier, totals, and items.
 
         When base sections are unconfirmed, deletes the linked auto-draft instead of
         leaving a stale invoice. Returns new invoice id when a draft was created, else None.
         """
+        # Tour sample: skip draft until user confirms all base sections (interactive guide).
+        if po.is_tour_sample and not allow_tour_sample:
+            if not self.manager._base_sections_confirmed(po):
+                return None
         if self.manager.is_po_financially_locked(db, po):
             return None
         if not force_create and not self.manager._base_sections_confirmed(po):
@@ -222,7 +246,7 @@ class PurchaseOrderService(BaseService):
                 invoice_amount=Decimal("0.00"),  # recalculated after items sync
                 invoice_number=None,
                 vendor_invoice_number=None,
-                invoice_date=date.today(),
+                invoice_date=po.order_date or date.today(),
                 due_date=None,
                 description=description,
                 notes=notes,
@@ -420,6 +444,29 @@ class PurchaseOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
+    def get_tour_sample(self, db: Session, workspace_id: int, user_id: int) -> PurchaseOrder:
+        try:
+            po = ensure_purchase_tour_sample(db, workspace_id=workspace_id, user_id=user_id)
+            self._commit_transaction(db)
+            db.refresh(po)
+            self._attach_invoice_payment_status(db, [po])
+            return po
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
+    def reset_tour_sample(self, db: Session, workspace_id: int, user_id: int) -> PurchaseOrder:
+        try:
+            po = ensure_purchase_tour_sample(db, workspace_id=workspace_id, user_id=user_id)
+            apply_purchase_tour_template(db, po, user_id=user_id)
+            self._commit_transaction(db)
+            db.refresh(po)
+            self._attach_invoice_payment_status(db, [po])
+            return po
+        except Exception:
+            self._rollback_transaction(db)
+            raise
+
     def get_purchase_order(self, db: Session, po_id: int, workspace_id: int) -> PurchaseOrder:
         po = self.manager.get_purchase_order(db, po_id, workspace_id)
         self._attach_invoice_payment_status(db, [po])
@@ -432,6 +479,7 @@ class PurchaseOrderService(BaseService):
         self, db: Session, po_id: int, workspace_id: int, user_id: int
     ) -> PurchaseOrder:
         try:
+            existing = self.manager.get_purchase_order(db, po_id, workspace_id)
             record = self.manager.mark_order_complete(
                 db, po_id=po_id, workspace_id=workspace_id, user_id=user_id
             )
@@ -695,6 +743,10 @@ class PurchaseOrderService(BaseService):
                 received_by=data.received_by.strip() if data.received_by else None,
                 correction_note=data.correction_note.strip() if data.correction_note else None,
                 performed_by=user_id,
+                # Column default is Postgres now(), which follows the DB session
+                # timezone. Naive values are later labeled UTC, so a Dhaka server
+                # clock shows six hours ahead. Stamp UTC here instead.
+                created_at=utcnow(),
             )
             db.add(event)
             db.flush()
@@ -713,9 +765,11 @@ class PurchaseOrderService(BaseService):
 
             db.flush()
 
-            lines_posted = post_receive_event_inventory(
-                db, po, event_item_pairs, workspace_id, user_id
-            )
+            lines_posted = 0
+            if not po.is_tour_sample:
+                lines_posted = post_receive_event_inventory(
+                    db, po, event_item_pairs, workspace_id, user_id
+                )
             if lines_posted > 0:
                 dest_label = (
                     'factory storage'
@@ -1183,6 +1237,8 @@ class PurchaseOrderService(BaseService):
 
     def delete_purchase_order(self, db: Session, po_id: int, workspace_id: int) -> None:
         try:
+            existing = self.manager.get_purchase_order(db, po_id, workspace_id)
+            reject_tour_sample_action(existing, "Sample order cannot be deleted.")
             self.manager.delete_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
             self._commit_transaction(db)
         except Exception:
@@ -1373,6 +1429,7 @@ class PurchaseOrderService(BaseService):
         """Permanently void a PO and its linked invoice (bypasses receiving guard)."""
         try:
             po = self.manager.get_purchase_order(db, po_id, workspace_id)
+            reject_tour_sample_action(po, "Sample order cannot be voided.")
 
             if po.voided:
                 raise HTTPException(
@@ -1455,6 +1512,7 @@ class PurchaseOrderService(BaseService):
         """Manually create or re-create a draft invoice for this PO (bypasses auto-draft guard)."""
         try:
             po = self.manager.get_purchase_order(db, po_id=po_id, workspace_id=workspace_id)
+            reject_tour_sample_action(po, "Sample order cannot create an invoice.")
             self._sync_draft_invoice_for_po(db, po, workspace_id, user_id, force_create=True)
             db.refresh(po)
             if po.invoice_id is None:

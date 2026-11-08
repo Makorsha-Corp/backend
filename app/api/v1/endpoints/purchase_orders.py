@@ -81,6 +81,36 @@ def _read_purchase_order_hub_filters(
 
 
 @router.get(
+    "/tour-sample/",
+    response_model=PurchaseOrderResponse,
+    summary="Hidden purchase order used by the help tour",
+)
+def get_purchase_tour_sample(
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.get_tour_sample(
+        db, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.post(
+    "/tour-sample/reset/",
+    response_model=PurchaseOrderResponse,
+    summary="Restore the purchase tour sample from its template",
+)
+def reset_purchase_tour_sample(
+    workspace: Workspace = Depends(get_current_workspace),
+    current_user: Profile = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return purchase_order_service.reset_tour_sample(
+        db, workspace_id=workspace.id, user_id=current_user.id
+    )
+
+
+@router.get(
     "/stats/",
     response_model=PurchaseOrderHubStatsResponse,
     status_code=status.HTTP_200_OK,

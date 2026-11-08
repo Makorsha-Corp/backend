@@ -1,6 +1,19 @@
 """Production Line schemas"""
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import List, Optional
+
+
+class ProductionLineMachineBrief(BaseModel):
+    id: int
+    name: str
+    is_running: bool
+    latest_status_type: Optional[str] = None
+
+
+class ProductionLineMachineStatusSummary(BaseModel):
+    total: int = 0
+    running: int = 0
+    idle: int = 0
 
 
 class ProductionLineBase(BaseModel):
@@ -14,12 +27,13 @@ class ProductionLineBase(BaseModel):
 
 class ProductionLineCreate(ProductionLineBase):
     """Production line creation schema (workspace_id and created_by injected by service)"""
-    pass
+    machine_ids: Optional[List[int]] = None
 
 
 class ProductionLineUpdate(BaseModel):
     """Production line update schema"""
     machine_id: Optional[int] = None
+    machine_ids: Optional[List[int]] = None
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -37,4 +51,8 @@ class ProductionLineInDB(ProductionLineBase):
 
 class ProductionLineResponse(ProductionLineInDB):
     """Production line response schema"""
-    pass
+    machine_ids: List[int] = Field(default_factory=list)
+    machines: List[ProductionLineMachineBrief] = Field(default_factory=list)
+    machine_status_summary: ProductionLineMachineStatusSummary = Field(
+        default_factory=ProductionLineMachineStatusSummary
+    )

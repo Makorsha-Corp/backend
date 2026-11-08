@@ -61,6 +61,9 @@ class ExpenseOrder(Base):
     void_note = Column(Text, nullable=True)
     voided_at = Column(DateTime, nullable=True)
     voided_by = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    production_batch_id = Column(
+        Integer, ForeignKey("production_batches.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # === DESCRIPTION & NOTES ===
     description = Column(Text, nullable=True)

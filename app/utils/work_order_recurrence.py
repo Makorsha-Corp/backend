@@ -8,6 +8,54 @@ from typing import Literal, Optional
 WorkOrderGenerationMode = Literal['schedule', 'draft']
 
 RECURRENCE_MAX_SPAN_DAYS = 183  # ~6 months
+MAX_PROGRAM_OCCURRENCES = 366
+
+
+def list_recurrence_planned_dates(
+    start_date: date,
+    end_date: date,
+    recurrence_type: str | None,
+    interval_days: int | None = None,
+) -> list[date]:
+    """All planned dates from start through end inclusive."""
+    validate_recurrence_span(start_date, end_date)
+    cadence = recurrence_type or "weekly"
+    if cadence not in {"daily", "weekly", "monthly", "custom"}:
+        raise ValueError("Cadence must be daily, weekly, monthly, or custom")
+    if cadence == "custom":
+        step = interval_days or 0
+        if step < 1:
+            raise ValueError("Custom cadence requires interval_days of at least 1")
+        dates: list[date] = [start_date]
+        cursor = start_date
+        while cursor < end_date:
+            cursor = cursor + timedelta(days=step)
+            if cursor > end_date:
+                break
+            dates.append(cursor)
+            if len(dates) > MAX_PROGRAM_OCCURRENCES:
+                raise ValueError(
+                    f"Recurrence cannot exceed {MAX_PROGRAM_OCCURRENCES} occurrences"
+                )
+        return dates
+
+    recurrence_day = start_date.day if cadence == "monthly" else None
+    dates = [start_date]
+    cursor = start_date
+    while cursor < end_date:
+        cursor = advance_next_generation_date(
+            from_date=cursor,
+            recurrence_type=cadence,
+            recurrence_day=recurrence_day,
+        )
+        if cursor > end_date:
+            break
+        dates.append(cursor)
+        if len(dates) > MAX_PROGRAM_OCCURRENCES:
+            raise ValueError(
+                f"Recurrence cannot exceed {MAX_PROGRAM_OCCURRENCES} occurrences"
+            )
+    return dates
 
 
 def validate_recurrence_span(start_date: date, end_date: date) -> None:

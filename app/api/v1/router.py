@@ -29,6 +29,7 @@ from app.api.v1.endpoints import (
     work_orders,
     work_order_types,
     work_order_templates,
+    work_order_programs,
     purchase_orders,
     transfer_orders,
     expense_orders,
@@ -38,10 +39,13 @@ from app.api.v1.endpoints import (
     sales_orders,
     sales_deliveries,
     delivery_methods,
+    workspace_shifts,
     # Production
     production_lines,
     production_formulas,
+    production_routes,
     production_batches,
+    production_batch_programs,
     # Projects
     projects,
     project_components,
@@ -113,6 +117,7 @@ api_router.include_router(order_workflows.router, prefix="/order-workflows", tag
 api_router.include_router(work_orders.router, prefix="/work-orders", tags=["orders"])
 api_router.include_router(work_order_types.router, prefix="/work-order-types", tags=["orders"])
 api_router.include_router(work_order_templates.router, prefix="/work-order-templates", tags=["orders"])
+api_router.include_router(work_order_programs.router, prefix="/work-order-programs", tags=["orders"])
 
 # Purchase Orders
 api_router.include_router(purchase_orders.router, prefix="/purchase-orders", tags=["orders"])
@@ -130,11 +135,18 @@ api_router.include_router(order_templates.router, prefix="/order-templates", tag
 api_router.include_router(sales_orders.router, prefix="/sales-orders", tags=["sales"])
 api_router.include_router(sales_deliveries.router, prefix="/sales-deliveries", tags=["sales"])
 api_router.include_router(delivery_methods.router, prefix="/delivery-methods", tags=["sales"])
+api_router.include_router(workspace_shifts.router, prefix="/workspace-shifts", tags=["settings"])
 
 # Production
 api_router.include_router(production_lines.router, prefix="/production-lines", tags=["production"])
 api_router.include_router(production_formulas.router, prefix="/production-formulas", tags=["production"])
+api_router.include_router(production_routes.router, prefix="/production-routes", tags=["production"])
 api_router.include_router(production_batches.router, prefix="/production-batches", tags=["production"])
+api_router.include_router(
+    production_batch_programs.router,
+    prefix="/production-batch-programs",
+    tags=["production"],
+)
 
 # Projects
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])

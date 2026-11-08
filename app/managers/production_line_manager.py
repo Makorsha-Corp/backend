@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 from app.managers.base_manager import BaseManager
 from app.models.production_line import ProductionLine
 from app.dao.production_line import production_line_dao
+from app.dao.production_line_machine import production_line_machine_dao
 from app.dao.factory import factory_dao
 from app.dao.machine import machine_dao
 from app.schemas.production_line import ProductionLineCreate, ProductionLineUpdate
+from app.utils.production_line_response import mirror_machine_id_column
 
 
 class ProductionLineManager(BaseManager[ProductionLine]):
@@ -23,6 +25,61 @@ class ProductionLineManager(BaseManager[ProductionLine]):
     def __init__(self):
         super().__init__(ProductionLine)
         self.production_line_dao = production_line_dao
+        self.line_machine_dao = production_line_machine_dao
+
+    def _resolve_machine_ids(
+        self,
+        *,
+        machine_ids: Optional[List[int]],
+        machine_id: Optional[int],
+    ) -> Optional[List[int]]:
+        if machine_ids is not None:
+            return list(dict.fromkeys(machine_ids))
+        if machine_id is not None:
+            return [machine_id]
+        return None
+
+    def _validate_machines_for_factory(
+        self,
+        session: Session,
+        *,
+        machine_ids: List[int],
+        factory_id: int,
+        workspace_id: int,
+    ) -> None:
+        for mid in machine_ids:
+            machine = machine_dao.get(session, id=mid)
+            if not machine:
+                raise ValueError(f"Machine {mid} not found")
+            if machine.workspace_id != workspace_id:
+                raise ValueError(f"Machine {mid} does not belong to workspace {workspace_id}")
+            if getattr(machine, "is_deleted", False):
+                raise ValueError(f"Machine {mid} not found")
+            if machine.factory_id != factory_id:
+                raise ValueError(f"Machine {mid} does not belong to factory {factory_id}")
+
+    def _sync_line_machines(
+        self,
+        session: Session,
+        *,
+        line: ProductionLine,
+        machine_ids: List[int],
+        workspace_id: int,
+    ) -> None:
+        self._validate_machines_for_factory(
+            session,
+            machine_ids=machine_ids,
+            factory_id=line.factory_id,
+            workspace_id=workspace_id,
+        )
+        self.line_machine_dao.replace_for_line(
+            session,
+            production_line_id=line.id,
+            workspace_id=workspace_id,
+            machine_ids=machine_ids,
+        )
+        line.machine_id = mirror_machine_id_column(machine_ids)
+        session.flush()
 
     def create_production_line(
         self,
@@ -56,26 +113,35 @@ class ProductionLineManager(BaseManager[ProductionLine]):
         if factory.workspace_id != workspace_id:
             raise ValueError(f"Factory {line_data.factory_id} does not belong to workspace {workspace_id}")
 
-        # Validate machine if provided
-        if line_data.machine_id is not None:
-            machine = machine_dao.get(session, id=line_data.machine_id)
-            if not machine:
-                raise ValueError(f"Machine {line_data.machine_id} not found")
-            if machine.workspace_id != workspace_id:
-                raise ValueError(f"Machine {line_data.machine_id} does not belong to workspace {workspace_id}")
-            # Ensure machine belongs to the specified factory
-            if machine.factory_id != line_data.factory_id:
-                raise ValueError(
-                    f"Machine {line_data.machine_id} does not belong to factory {line_data.factory_id}"
-                )
+        resolved_ids = self._resolve_machine_ids(
+            machine_ids=line_data.machine_ids,
+            machine_id=line_data.machine_id,
+        )
+        if resolved_ids:
+            self._validate_machines_for_factory(
+                session,
+                machine_ids=resolved_ids,
+                factory_id=line_data.factory_id,
+                workspace_id=workspace_id,
+            )
 
         # Convert Pydantic model to dict and inject workspace/audit fields
-        line_dict = line_data.model_dump()
+        line_dict = line_data.model_dump(exclude={"machine_ids"})
+        if resolved_ids is not None:
+            line_dict["machine_id"] = mirror_machine_id_column(resolved_ids)
         line_dict['workspace_id'] = workspace_id
         line_dict['created_by'] = user_id
 
         # Create the production line
         production_line = self.production_line_dao.create(session, obj_in=line_dict)
+
+        if resolved_ids is not None:
+            self.line_machine_dao.replace_for_line(
+                session,
+                production_line_id=production_line.id,
+                workspace_id=workspace_id,
+                machine_ids=resolved_ids,
+            )
 
         return production_line
 
@@ -115,25 +181,24 @@ class ProductionLineManager(BaseManager[ProductionLine]):
         if production_line.workspace_id != workspace_id:
             raise ValueError(f"Production line {line_id} does not belong to workspace {workspace_id}")
 
-        # Validate machine if provided in update
-        if line_data.machine_id is not None:
-            machine = machine_dao.get(session, id=line_data.machine_id)
-            if not machine:
-                raise ValueError(f"Machine {line_data.machine_id} not found")
-            if machine.workspace_id != workspace_id:
-                raise ValueError(f"Machine {line_data.machine_id} does not belong to workspace {workspace_id}")
-            # Ensure machine belongs to the production line's factory
-            if machine.factory_id != production_line.factory_id:
-                raise ValueError(
-                    f"Machine {line_data.machine_id} does not belong to factory {production_line.factory_id}"
-                )
+        dump = line_data.model_dump(exclude_unset=True)
+        machine_ids_to_sync: Optional[List[int]] = None
+        if "machine_ids" in dump:
+            machine_ids_to_sync = list(dict.fromkeys(dump.pop("machine_ids") or []))
+        elif "machine_id" in dump:
+            mid = dump.pop("machine_id")
+            machine_ids_to_sync = [mid] if mid is not None else []
 
-        # Inject updated_by for audit
-        line_dict = line_data.model_dump(exclude_unset=True, exclude_none=True)
-        line_dict['updated_by'] = user_id
+        if machine_ids_to_sync is not None:
+            self._sync_line_machines(
+                session,
+                line=production_line,
+                machine_ids=machine_ids_to_sync,
+                workspace_id=workspace_id,
+            )
 
-        # Update the production line
-        updated_line = self.production_line_dao.update(session, db_obj=production_line, obj_in=line_dict)
+        dump['updated_by'] = user_id
+        updated_line = self.production_line_dao.update(session, db_obj=production_line, obj_in=dump)
 
         return updated_line
 
@@ -231,6 +296,13 @@ class ProductionLineManager(BaseManager[ProductionLine]):
         # Soft delete (set is_active = False)
         return self.production_line_dao.update(
             session, db_obj=production_line, obj_in={'is_active': False}
+        )
+
+    def get_machine_ids_for_line(
+        self, session: Session, *, production_line_id: int, workspace_id: int
+    ) -> List[int]:
+        return self.line_machine_dao.get_machine_ids_for_line(
+            session, production_line_id=production_line_id, workspace_id=workspace_id
         )
 
 

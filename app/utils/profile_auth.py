@@ -10,5 +10,7 @@ def profile_to_auth_dict(user: Profile) -> dict:
         "name": user.name,
         "email": user.email,
         "timezone": user.timezone,
+        "use_24_hour_time": bool(getattr(user, "use_24_hour_time", True)),
         "is_platform_admin": bool(getattr(user, "is_platform_admin", False)),
+        "help_guides_seen": getattr(user, "help_guides_seen", None),
     }

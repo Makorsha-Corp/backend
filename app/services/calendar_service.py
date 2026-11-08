@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Callable, Iterable, List, Optional, Sequence, Set, Tuple
+from urllib.parse import urlencode
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.account_invoice import AccountInvoice
@@ -20,6 +21,58 @@ from app.schemas.calendar import CalendarCategory, CalendarEventResponse
 from app.services.base_service import BaseService
 
 DateFieldSpec = Tuple[str, str]  # (column_attr, human label)
+DateChipSpec = Tuple[str, str, date]  # (event field key, label, calendar day)
+
+
+def work_order_date_chip_specs(
+    planned_date: Optional[date],
+    end_date: Optional[date],
+) -> List[DateChipSpec]:
+    """One chip per distinct calendar day; same-day planned+end → planned only."""
+    specs: List[DateChipSpec] = []
+    if planned_date is not None:
+        specs.append(("planned_date", "Planned date", planned_date))
+    if end_date is not None and end_date != planned_date:
+        specs.append(("end_date", "End date", end_date))
+    elif planned_date is None and end_date is not None:
+        specs.append(("end_date", "End date", end_date))
+    return specs
+
+
+def build_work_order_calendar_link(
+    work_order_id: int,
+    *,
+    factory_id: Optional[int] = None,
+    machine_id: Optional[int] = None,
+) -> str:
+    params: dict[str, str] = {"tab": "workOrders", "orderId": str(work_order_id)}
+    if machine_id is not None:
+        params["woMachine"] = str(machine_id)
+    if factory_id is not None:
+        params["factoryId"] = str(factory_id)
+    return f"/machines?{urlencode(params)}"
+
+
+def build_production_batch_calendar_link(batch_id: int) -> str:
+    return f"/production?batchId={batch_id}"
+
+
+def production_batch_date_chip_specs(
+    batch_date: date,
+    planned_start_at: Optional[datetime],
+    actual_start_time: Optional[datetime],
+) -> List[DateChipSpec]:
+    specs: List[DateChipSpec] = []
+    if planned_start_at is not None:
+        primary_day = planned_start_at.date()
+        specs.append(("planned_start", "Planned start", primary_day))
+    else:
+        specs.append(("batch_date", "Batch date", batch_date))
+    actual_day = actual_start_time.date() if actual_start_time else None
+    primary_day = specs[0][2]
+    if actual_day is not None and actual_day != primary_day:
+        specs.append(("actual_start", "Actual start", actual_day))
+    return specs
 
 
 def _event_id(source_type: str, record_id: int, date_field: str) -> str:
@@ -141,23 +194,36 @@ class CalendarService(BaseService):
 
         events: List[CalendarEventResponse] = []
         for row in rows:
-            events.extend(
-                self._expand_date_fields(
-                    record=row,
-                    source_type="work_order",
-                    category=CalendarCategory.WORK_ORDERS,
-                    date_fields=[
-                        ("planned_date", "Planned date"),
-                        ("end_date", "End date"),
-                    ],
-                    title=row.work_order_number,
-                    subtitle=row.title,
-                    link="/orders/work",
-                    start=start,
-                    end=end,
-                    meta={"status": row.status, "priority": row.priority.value if row.priority else None},
-                )
+            meta = {
+                "status": row.status,
+                "priority": row.priority.value if row.priority else None,
+                "factory_id": row.factory_id,
+                "machine_id": row.machine_id,
+                "planned_start_at": row.planned_start_at.isoformat() if row.planned_start_at else None,
+                "planned_end_at": row.planned_end_at.isoformat() if row.planned_end_at else None,
+            }
+            link = build_work_order_calendar_link(
+                row.id,
+                factory_id=row.factory_id,
+                machine_id=row.machine_id,
             )
+            for field_key, label, day in work_order_date_chip_specs(row.planned_date, row.end_date):
+                if not _date_in_range(day, start, end):
+                    continue
+                events.append(
+                    CalendarEventResponse(
+                        id=_event_id("work_order", row.id, field_key),
+                        category=CalendarCategory.WORK_ORDERS,
+                        source_type="work_order",
+                        record_id=row.id,
+                        date=day,
+                        date_label=label,
+                        title=row.work_order_number,
+                        subtitle=row.title,
+                        link=link,
+                        meta=meta,
+                    )
+                )
         return events
 
     def _collect_purchase_orders(
@@ -458,27 +524,53 @@ class CalendarService(BaseService):
             .filter(
                 ProductionBatch.workspace_id == workspace_id,
                 ProductionBatch.status != "cancelled",
-                ProductionBatch.batch_date >= start,
-                ProductionBatch.batch_date <= end,
+                or_(
+                    and_(ProductionBatch.batch_date >= start, ProductionBatch.batch_date <= end),
+                    and_(
+                        ProductionBatch.planned_start_at.isnot(None),
+                        func.date(ProductionBatch.planned_start_at) >= start,
+                        func.date(ProductionBatch.planned_start_at) <= end,
+                    ),
+                    and_(
+                        ProductionBatch.actual_start_time.isnot(None),
+                        func.date(ProductionBatch.actual_start_time) >= start,
+                        func.date(ProductionBatch.actual_start_time) <= end,
+                    ),
+                ),
             )
             .all()
         )
 
-        return [
-            CalendarEventResponse(
-                id=_event_id("production_batch", row.id, "batch_date"),
-                category=CalendarCategory.PRODUCTION,
-                source_type="production_batch",
-                record_id=row.id,
-                date=row.batch_date,
-                date_label="Batch date",
-                title=row.batch_number,
-                subtitle=row.notes,
-                link="/production",
-                meta={"status": row.status},
-            )
-            for row in rows
-        ]
+        events: List[CalendarEventResponse] = []
+        for row in rows:
+            link = build_production_batch_calendar_link(row.id)
+            meta = {
+                "status": row.status,
+                "planned_start_at": row.planned_start_at.isoformat() if row.planned_start_at else None,
+                "actual_start_time": row.actual_start_time.isoformat() if row.actual_start_time else None,
+            }
+            for field_key, label, day in production_batch_date_chip_specs(
+                row.batch_date,
+                row.planned_start_at,
+                row.actual_start_time,
+            ):
+                if not _date_in_range(day, start, end):
+                    continue
+                events.append(
+                    CalendarEventResponse(
+                        id=_event_id("production_batch", row.id, field_key),
+                        category=CalendarCategory.PRODUCTION,
+                        source_type="production_batch",
+                        record_id=row.id,
+                        date=day,
+                        date_label=label,
+                        title=row.batch_number,
+                        subtitle=row.notes,
+                        link=link,
+                        meta=meta,
+                    )
+                )
+        return events
 
     def _collect_projects(
         self,

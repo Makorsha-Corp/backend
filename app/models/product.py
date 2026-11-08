@@ -21,7 +21,7 @@ class Product(Base):
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     item_id = Column(Integer, ForeignKey("items.id"), nullable=False, index=True)
     factory_id = Column(Integer, ForeignKey("factories.id"), nullable=False, index=True)
-    qty = Column(Integer, nullable=False, default=0)
+    qty = Column(Numeric(15, 2), nullable=False, default=0)
     avg_cost = Column(Numeric(15, 2), nullable=True)
     selling_price = Column(Numeric(15, 2), nullable=True)
     min_order_qty = Column(Integer, nullable=True)

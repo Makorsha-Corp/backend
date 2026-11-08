@@ -11,11 +11,11 @@ class InventoryLedgerCreate(BaseModel):
     factory_id: int
     item_id: int
     transaction_type: str
-    quantity: int
+    quantity: Decimal
     unit_cost: Decimal | None = None
     total_cost: Decimal | None = None
-    qty_before: int
-    qty_after: int
+    qty_before: Decimal
+    qty_after: Decimal
     avg_price_before: Decimal | None = None
     avg_price_after: Decimal | None = None
     source_type: str | None = None
@@ -40,11 +40,11 @@ class InventoryLedgerResponse(BaseModel):
     factory_id: int
     item_id: int
     transaction_type: str
-    quantity: int
+    quantity: Decimal
     unit_cost: Decimal | None = None
     total_cost: Decimal | None = None
-    qty_before: int
-    qty_after: int
+    qty_before: Decimal
+    qty_after: Decimal
     avg_price_before: Decimal | None = None
     avg_price_after: Decimal | None = None
     source_type: str | None = None

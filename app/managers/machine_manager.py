@@ -375,6 +375,7 @@ class MachineManager(BaseManager[Machine]):
         workspace_id: int,
         user_id: int,
         work_order_id: Optional[int] = None,
+        extra_metadata: Optional[dict] = None,
     ) -> MachineEventResponse:
         """
         Record a machine status change in the activity log and sync is_running.
@@ -424,6 +425,8 @@ class MachineManager(BaseManager[Machine]):
         }
         if work_order_id is not None:
             metadata["work_order_id"] = work_order_id
+        if extra_metadata:
+            metadata.update(extra_metadata)
 
         activity = machine_activity_manager.log_event(
             session,

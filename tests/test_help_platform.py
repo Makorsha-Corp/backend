@@ -128,9 +128,9 @@ def test_to_platform_item_merges_creator_name_without_duplicate_kwargs() -> None
     creator = Profile(id=5, name="Jane Creator", email="j@t.com", user_id="u5", hashed_password="x")
     ticket.creator = creator
 
-    item = manager._to_platform_item(ticket, "Acme Mill", "Jane Creator")
+    item = manager._to_platform_item(ticket, "Acme Workspace", "Jane Creator")
 
-    assert item.workspace_name == "Acme Mill"
+    assert item.workspace_name == "Acme Workspace"
     assert item.creator_name == "Jane Creator"
     assert item.ticket_number == "HELP-2026-001"
 
@@ -224,7 +224,7 @@ def test_platform_item_includes_type() -> None:
     creator = Profile(id=5, name="Jane", email="j@t.com", user_id="u5", hashed_password="x")
     ticket.creator = creator
 
-    item = manager._to_platform_item(ticket, "Acme Mill", "Jane")
+    item = manager._to_platform_item(ticket, "Acme Workspace", "Jane")
     assert item.type == HelpTicketTypeEnum.FEEDBACK
 
 

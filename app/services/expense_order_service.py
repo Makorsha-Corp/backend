@@ -444,7 +444,7 @@ class ExpenseOrderService(BaseService):
             invoice_amount=Decimal("0.00"),  # recalculated after items sync
             invoice_number=None,
             vendor_invoice_number=None,
-            invoice_date=date.today(),
+            invoice_date=eo.expense_date,
             due_date=eo.due_date,
             description=f"Auto-created from expense order {eo.expense_number}",
             notes=eo.description,

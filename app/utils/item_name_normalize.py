@@ -10,6 +10,14 @@ SIMILARITY_THRESHOLD = 0.35
 _UNIT_GLUE_PATTERN = re.compile(r"(\d+)\s+([a-z]{1,4})\b")
 
 
+def normalize_item_sku(sku: str | None) -> str | None:
+    """Trim SKU; empty/whitespace becomes None (optional field)."""
+    if sku is None:
+        return None
+    trimmed = sku.strip()
+    return trimmed if trimmed else None
+
+
 def normalize_item_name(name: str) -> str:
     """
     Normalize an item name for comparison.

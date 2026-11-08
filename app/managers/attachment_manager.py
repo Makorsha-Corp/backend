@@ -299,6 +299,7 @@ class AttachmentManager:
         from app.managers.purchase_order_manager import purchase_order_manager
         from app.managers.sales_manager import sales_manager
         from app.managers.transfer_order_manager import transfer_order_manager
+        from app.managers.help_ticket_manager import help_ticket_manager
         from app.managers.work_order_manager import work_order_manager
 
         description = (
@@ -412,6 +413,16 @@ class AttachmentManager:
                         performed_by=performed_by,
                         metadata=metadata,
                     )
+            elif entity_type == AttachmentEntityTypeEnum.SUPPORT_TICKET:
+                help_ticket_manager.log_event(
+                    session,
+                    entity_id,
+                    workspace_id,
+                    event_type,
+                    description,
+                    performed_by,
+                    metadata,
+                )
 
     def create_pending_attachment(
         self,

@@ -1,5 +1,5 @@
 """Transfer order model - for internal item movements"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -13,12 +13,15 @@ class TransferOrder(Base):
     """
 
     __tablename__ = "transfer_orders"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "transfer_number", name="uq_transfer_orders_workspace_number"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # === REFERENCE ===
-    transfer_number = Column(String(100), nullable=False, unique=True, index=True)
+    transfer_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: TR-2025-001
 
     # === SOURCE LOCATION ===

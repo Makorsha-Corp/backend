@@ -11,7 +11,7 @@ from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.dao.base import BaseDAO
 from app.models.inventory_ledger import InventoryLedger
 from app.models.enums import InventoryTypeEnum
@@ -193,6 +193,25 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
             .first()
         )
 
+    def list_for_source(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        source_type: str,
+        source_id: int,
+    ) -> List[InventoryLedger]:
+        return (
+            db.query(InventoryLedger)
+            .filter(
+                InventoryLedger.workspace_id == workspace_id,
+                InventoryLedger.source_type == source_type,
+                InventoryLedger.source_id == source_id,
+            )
+            .order_by(InventoryLedger.id.asc())
+            .all()
+        )
+
     def exists_for_source(
         self,
         db: Session,
@@ -212,6 +231,28 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
             .first()
             is not None
         )
+
+    def sum_total_cost_for_source(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        source_type: str,
+        source_id: int,
+        transaction_type: str,
+    ) -> Decimal:
+        """Sum total_cost for ledger rows attributed to one source."""
+        total = (
+            db.query(func.coalesce(func.sum(InventoryLedger.total_cost), 0))
+            .filter(
+                InventoryLedger.workspace_id == workspace_id,
+                InventoryLedger.source_type == source_type,
+                InventoryLedger.source_id == source_id,
+                InventoryLedger.transaction_type == transaction_type,
+            )
+            .scalar()
+        )
+        return Decimal(str(total or 0))
 
 
 inventory_ledger_dao = InventoryLedgerDAO(InventoryLedger)

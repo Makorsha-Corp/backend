@@ -1,4 +1,6 @@
 """Notification endpoints — /me/notifications/"""
+import logging
+
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -14,7 +16,10 @@ from app.schemas.notification import (
 )
 from app.services.notification_service import notification_service
 from app.services.notification_stream import notification_event_generator
+from app.services.approval_notification_service import format_order_ref
 from app.utils.notification_entity_label import resolve_notification_entity_label
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,6 +55,39 @@ def _to_notification_response(
     )
 
 
+def _to_notification_response_safe(
+    db: Session,
+    workspace_id: int,
+    notification,
+) -> NotificationResponse:
+    try:
+        return _to_notification_response(db, workspace_id, notification)
+    except Exception:
+        logger.exception(
+            "notification response build failed id=%s workspace_id=%s",
+            notification.id,
+            workspace_id,
+        )
+        actor = None
+        if notification.actor is not None:
+            actor = NotificationActor.model_validate(notification.actor)
+        return NotificationResponse(
+            id=notification.id,
+            workspace_id=notification.workspace_id,
+            notification_type=notification.notification_type,
+            entity_type=notification.entity_type,
+            entity_id=notification.entity_id,
+            entity_label=format_order_ref(notification.entity_type, notification.entity_id),
+            source_type=notification.source_type,
+            source_id=notification.source_id,
+            preview=notification.preview,
+            is_read=notification.is_read,
+            read_at=notification.read_at,
+            created_at=notification.created_at,
+            actor=actor,
+        )
+
+
 @router.get("/", response_model=NotificationListResponse, status_code=status.HTTP_200_OK)
 def list_notifications(
     unread_only:  bool    = Query(False),
@@ -63,7 +101,7 @@ def list_notifications(
         db, workspace.id, current_user.id, unread_only, skip, limit
     )
     return NotificationListResponse(
-        items=[_to_notification_response(db, workspace.id, n) for n in items],
+        items=[_to_notification_response_safe(db, workspace.id, n) for n in items],
         total=total,
         unread_count=unread_count,
     )

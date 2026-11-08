@@ -9,8 +9,8 @@ class ProductionBatchItemBase(BaseModel):
     batch_id: int
     item_id: int
     item_role: str = Field(..., pattern=r'^(input|output|waste|byproduct)$')
-    expected_quantity: Optional[int] = Field(None, gt=0)
-    actual_quantity: Optional[int] = Field(None, gt=0)
+    expected_quantity: Optional[Decimal] = Field(None, gt=0)
+    actual_quantity: Optional[Decimal] = Field(None, gt=0)
     source_location_type: Optional[str] = Field(None, max_length=50)
     source_location_id: Optional[int] = None
     destination_location_type: Optional[str] = Field(None, max_length=50)
@@ -26,8 +26,10 @@ class ProductionBatchItemCreate(ProductionBatchItemBase):
 class ProductionBatchItemUpdate(BaseModel):
     """Production batch item update schema"""
     item_role: Optional[str] = Field(None, pattern=r'^(input|output|waste|byproduct)$')
-    expected_quantity: Optional[int] = Field(None, gt=0)
-    actual_quantity: Optional[int] = Field(None, gt=0)
+    expected_quantity: Optional[Decimal] = Field(None, gt=0)
+    actual_quantity: Optional[Decimal] = Field(None, gt=0)
+    # Audit-only: links quantity change events to the step being edited (not persisted on the item).
+    context_batch_stage_log_id: Optional[int] = Field(None, gt=0)
     source_location_type: Optional[str] = Field(None, max_length=50)
     source_location_id: Optional[int] = None
     destination_location_type: Optional[str] = Field(None, max_length=50)
@@ -41,7 +43,7 @@ class ProductionBatchItemInDB(ProductionBatchItemBase):
 
     id: int
     workspace_id: int
-    variance_quantity: Optional[int] = None
+    variance_quantity: Optional[Decimal] = None
     variance_percentage: Optional[Decimal] = None
 
 

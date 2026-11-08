@@ -98,27 +98,34 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
         )
 
     def get_by_sku_in_workspace(
-        self, db: Session, *, workspace_id: int, sku: str
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        sku: str,
+        exclude_item_id: Optional[int] = None,
+        active_only: bool = True,
     ) -> Optional[Item]:
         """
-        Get item by SKU within workspace (SECURITY-CRITICAL)
+        Get item by SKU within workspace (SECURITY-CRITICAL).
 
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            sku: SKU to search for
-
-        Returns:
-            Item with matching SKU or None
+        Comparison is case-insensitive on trimmed SKU. By default only active items
+        are considered (catalog uniqueness).
         """
-        return (
-            db.query(Item)
-            .filter(
-                Item.workspace_id == workspace_id,
-                Item.sku == sku
-            )
-            .first()
+        sku_key = sku.strip().lower()
+        if not sku_key:
+            return None
+
+        query = db.query(Item).filter(
+            Item.workspace_id == workspace_id,
+            Item.sku.isnot(None),
+            func.lower(func.trim(Item.sku)) == sku_key,
         )
+        if active_only:
+            query = query.filter(Item.is_active == True)
+        if exclude_item_id is not None:
+            query = query.filter(Item.id != exclude_item_id)
+        return query.first()
 
     def get_active_items_in_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100

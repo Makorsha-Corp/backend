@@ -12,17 +12,15 @@ from app.dao.product_ledger import product_ledger_dao
 from app.dao.factory import factory_dao
 
 
-def _quantity_to_int(quantity: Decimal | int, *, label: str) -> int:
-    """Product/product_ledger stock stays whole-unit (Integer) even though SO/PO line
-    items carry Decimal(15,2) precision — mirrors po_receive_inventory._delta_to_int.
-    """
-    dec = Decimal(str(quantity))
-    if dec != dec.to_integral_value():
+def _stock_quantity(quantity: Decimal | int, *, label: str) -> Decimal:
+    """Stock quantities keep two decimal places."""
+    dec = Decimal(str(quantity)).quantize(Decimal("0.01"))
+    if dec <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'{label} has a fractional quantity; stock requires whole units',
+            detail=f'{label} quantity must be positive',
         )
-    return int(dec)
+    return dec
 
 
 class ProductManager(BaseManager[Product]):
@@ -175,15 +173,15 @@ class ProductManager(BaseManager[Product]):
         user_id: int,
         factory_id: int,
         item_id: int,
-        quantity: int,
+        quantity: Decimal | int,
         batch_id: int,
         unit_cost: Optional[Decimal] = None,
         notes: Optional[str] = None,
     ) -> Product:
         """
         Increase finished-goods (products) quantity from a completed batch.
-        Uses the not-for-sale product row per factory/item (warehouse / storage bucket).
-        Caller must enforce idempotent batch posting.
+        Merges into the existing sellable row for this factory/item when one exists,
+        otherwise the not-for-sale row. Caller must enforce idempotent batch posting.
         """
         if quantity <= 0:
             raise ValueError("Production output quantity must be positive")
@@ -192,9 +190,17 @@ class ProductManager(BaseManager[Product]):
             session,
             factory_id=factory_id,
             item_id=item_id,
-            is_available_for_sale=False,
+            is_available_for_sale=True,
             workspace_id=workspace_id,
         )
+        if not record:
+            record = self.product_dao.get_by_factory_item_available(
+                session,
+                factory_id=factory_id,
+                item_id=item_id,
+                is_available_for_sale=False,
+                workspace_id=workspace_id,
+            )
         if not record:
             prod_dict = {
                 "workspace_id": workspace_id,
@@ -271,7 +277,7 @@ class ProductManager(BaseManager[Product]):
         """
         if quantity <= 0:
             raise ValueError("Sale deduction quantity must be positive")
-        quantity = _quantity_to_int(quantity, label="Delivery line")
+        quantity = _stock_quantity(quantity, label="Delivery line")
 
         record = self.product_dao.get_by_factory_item_available(
             session,
@@ -343,7 +349,7 @@ class ProductManager(BaseManager[Product]):
         """
         if quantity <= 0:
             raise ValueError("Sale return quantity must be positive")
-        quantity = _quantity_to_int(quantity, label="Return line")
+        quantity = _stock_quantity(quantity, label="Return line")
 
         record = self.product_dao.get_by_factory_item_available(
             session,

@@ -1,5 +1,5 @@
 """Sales delivery model - tracks individual deliveries for sales orders"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -13,13 +13,16 @@ class SalesDelivery(Base):
     """
 
     __tablename__ = "sales_deliveries"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "delivery_number", name="uq_sales_deliveries_workspace_number"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     sales_order_id = Column(Integer, ForeignKey("sales_orders.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # === REFERENCE ===
-    delivery_number = Column(String(100), nullable=False, unique=True, index=True)
+    delivery_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: DEL-2025-001
 
     # === DATES ===

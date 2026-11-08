@@ -1,8 +1,8 @@
 """Work order schemas"""
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import List, Literal, TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 
 if TYPE_CHECKING:
@@ -20,6 +20,9 @@ class WorkOrderCreate(BaseModel):
     project_component_id: int | None = None
     planned_date: date | None = None
     end_date: date | None = None
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = Field(default=None, gt=0)
     # Decided once at creation — whether this order will ever consume stock items.
     uses_inventory: bool = True
     cost: Decimal | None = None
@@ -37,6 +40,9 @@ class WorkOrderUpdate(BaseModel):
     project_component_id: int | None = None
     planned_date: date | None = None
     end_date: date | None = None
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = Field(default=None, gt=0)
     cost: Decimal | None = None
     account_id: int | None = None
     assigned_to: str | None = None
@@ -60,6 +66,9 @@ class WorkOrderResponse(BaseModel):
     project_component_id: int | None = None
     planned_date: date | None = None
     end_date: date | None = None
+    shift_id: int | None = None
+    planned_start_at: datetime | None = None
+    planned_end_at: datetime | None = None
     uses_inventory: bool
     cost: Decimal | None = None
     account_id: int | None = None
@@ -222,6 +231,9 @@ class WorkOrderSheetEntryCreate(BaseModel):
     machine_id: int
     work_order_type_id: int
     planned_date: date
+    shift_id: int | None = None
+    planned_start_time: time | None = None
+    expected_duration_minutes: int | None = Field(default=None, gt=0)
     assigned_to: str | None = None
     description: str | None = None
     priority: WorkOrderPriorityEnum = WorkOrderPriorityEnum.MEDIUM

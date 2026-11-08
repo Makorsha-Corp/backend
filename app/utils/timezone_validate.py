@@ -1,6 +1,7 @@
 """IANA timezone validation helpers."""
 from __future__ import annotations
 
+import tzdata  # noqa: F401  — Windows has no system zoneinfo; ZoneInfo reads this package.
 from zoneinfo import ZoneInfo
 
 

@@ -6,10 +6,11 @@ from typing import List, Tuple
 from sqlalchemy.orm import Session
 
 from app.dao.discussion import discussion_dao
+from app.dao.help_ticket import help_ticket_dao
 from app.models.discussion import Discussion
-from app.models.enums import DiscussionEntityType
+from app.models.enums import DiscussionEntityType, HelpTicketStatusEnum
 from app.schemas.discussion import DiscussionCreate
-from app.core.exceptions import APIException
+from app.core.exceptions import APIException, NotFoundError, ValidationError
 from fastapi import status
 
 
@@ -62,6 +63,17 @@ class DiscussionService:
                     detail="Reply must be on the same entity as the parent",
                 )
 
+        if data.entity_type == DiscussionEntityType.support_ticket:
+            ticket = help_ticket_dao.get_by_id_and_workspace(
+                db,
+                id=data.entity_id,
+                workspace_id=workspace_id,
+            )
+            if ticket is None:
+                raise NotFoundError("Help ticket not found")
+            if ticket.status == HelpTicketStatusEnum.CLOSED.value:
+                raise ValidationError("Cannot post on a closed ticket.")
+
         discussion = discussion_dao.create(
             db=db,
             workspace_id=workspace_id,
@@ -72,13 +84,36 @@ class DiscussionService:
             parent_id=data.parent_id,
         )
 
+        from app.services.notification_service import humanize_mention_preview
+
+        if data.entity_type == DiscussionEntityType.support_ticket:
+            from app.managers.help_ticket_manager import help_ticket_manager
+
+            preview = humanize_mention_preview(db, data.message, max_len=120).strip()
+            is_reply = data.parent_id is not None
+            if preview:
+                description = f"{'Replied' if is_reply else 'Posted'}: {preview}"
+            else:
+                description = "Replied in discussion" if is_reply else "Posted a message"
+            help_ticket_manager.log_event(
+                db,
+                data.entity_id,
+                workspace_id,
+                "discussion_reply" if is_reply else "discussion_message",
+                description,
+                user_id,
+                {
+                    "discussion_id": discussion.id,
+                    "parent_id": data.parent_id,
+                    "preview": preview or None,
+                },
+            )
+
         # Fan out mention notifications (deferred import avoids circular deps)
         mentioned_ids = _extract_mentions(data.message)
         if mentioned_ids:
-            from app.services.notification_service import (
-                humanize_mention_preview,
-                notification_service,
-            )
+            from app.services.notification_service import notification_service
+
             notification_service.fan_out_mentions(
                 db=db,
                 workspace_id=workspace_id,

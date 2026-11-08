@@ -5,6 +5,8 @@ from typing import Any
 
 from app.utils.timezone_validate import is_valid_iana_timezone
 
+_PRODUCTION_MACHINE_PICK_POLICIES = frozenset({"soft", "block_unavailable", "block_overlap"})
+
 
 class WorkspaceBase(BaseModel):
     """Base workspace schema"""
@@ -33,6 +35,13 @@ class WorkspaceUpdate(BaseModel):
         tz = value.get("timezone")
         if tz is not None and str(tz).strip() and not is_valid_iana_timezone(str(tz).strip()):
             raise ValueError("Invalid IANA timezone in workspace settings")
+        pick_policy = value.get("production_machine_pick_policy")
+        if pick_policy is not None and (
+            not isinstance(pick_policy, str) or pick_policy not in _PRODUCTION_MACHINE_PICK_POLICIES
+        ):
+            raise ValueError(
+                "production_machine_pick_policy must be one of: soft, block_unavailable, block_overlap"
+            )
         return value
 
 

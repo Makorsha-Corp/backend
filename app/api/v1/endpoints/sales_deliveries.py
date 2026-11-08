@@ -18,7 +18,11 @@ from app.schemas.sales_delivery import (
     SalesDeliveryCompleteRequest,
     SalesDeliveryResponse
 )
-from app.schemas.sales_delivery_item import SalesDeliveryItemCreate, SalesDeliveryItemInput
+from app.schemas.sales_delivery_item import (
+    SalesDeliveryItemCreate,
+    SalesDeliveryItemInput,
+    SalesDeliveryItemListResponse,
+)
 from app.schemas.sales_order import SalesOrderResponse
 from app.schemas.response import ActionResponse
 from app.services.sales_service import sales_service
@@ -197,6 +201,7 @@ def cancel_delivery(
 
 @router.get(
     "/{delivery_id}/items/",
+    response_model=list[SalesDeliveryItemListResponse],
     status_code=status.HTTP_200_OK,
     summary="Get delivery items",
     description="Get all line items for a delivery."

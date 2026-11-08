@@ -25,6 +25,20 @@ class ProductionBatchStageLogDAO(
             .all()
         )
 
+    def get_by_batch_ids(
+        self, db: Session, *, batch_ids: List[int], workspace_id: int
+    ) -> List[ProductionBatchStageLog]:
+        if not batch_ids:
+            return []
+        return (
+            db.query(ProductionBatchStageLog)
+            .filter(
+                ProductionBatchStageLog.workspace_id == workspace_id,
+                ProductionBatchStageLog.batch_id.in_(batch_ids),
+            )
+            .all()
+        )
+
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
     ) -> Optional[ProductionBatchStageLog]:

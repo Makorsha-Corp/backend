@@ -1,9 +1,14 @@
 """Help ticket business logic."""
+from typing import List, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
 from app.dao.help_ticket import help_ticket_dao
+from app.dao.help_ticket_event import help_ticket_event_dao
+from app.dao.profile import profile_dao
 from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum, RoleEnum
 from app.models.help_ticket import HelpTicket
+from app.models.help_ticket_event import HelpTicketEvent
 from app.models.profile import Profile
 from app.schemas.help_ticket import (
     HelpTicketCreate,
@@ -11,7 +16,7 @@ from app.schemas.help_ticket import (
     HelpTicketUpdate,
     PlatformHelpTicketListItem,
 )
-from app.utils.time import utcnow
+from app.utils.time import utcnow, utcnow_aware
 
 TICKET_VIEW_ALL_ROLES = {
     RoleEnum.OWNER.value,
@@ -41,9 +46,18 @@ ALLOWED_STATUS_TRANSITIONS: dict[HelpTicketStatusEnum, set[HelpTicketStatusEnum]
     HelpTicketStatusEnum.CLOSED: {HelpTicketStatusEnum.OPENED},
 }
 
+STATUS_CHANGE_DESCRIPTIONS: dict[tuple[HelpTicketStatusEnum, HelpTicketStatusEnum], str] = {
+    (HelpTicketStatusEnum.PENDING, HelpTicketStatusEnum.OPENED): "Opened ticket",
+    (HelpTicketStatusEnum.OPENED, HelpTicketStatusEnum.CLOSED): "Closed ticket",
+    (HelpTicketStatusEnum.CLOSED, HelpTicketStatusEnum.OPENED): "Reopened ticket",
+}
+
 
 class HelpTicketManager:
     """Manager for help ticket workflows."""
+
+    def __init__(self) -> None:
+        self.event_dao = help_ticket_event_dao
 
     @staticmethod
     def can_view_all_tickets(role: str | None) -> bool:
@@ -149,12 +163,22 @@ class HelpTicketManager:
         user_id: int,
         payload: HelpTicketCreate,
     ) -> HelpTicket:
-        return help_ticket_dao.create_with_user(
+        ticket = help_ticket_dao.create_with_user(
             session,
             obj_in=payload,
             workspace_id=workspace_id,
             user_id=user_id,
         )
+        self.log_event(
+            session,
+            ticket.id,
+            workspace_id,
+            "created",
+            "Ticket created",
+            user_id,
+            {"ticket_number": ticket.ticket_number},
+        )
+        return ticket
 
     def update_ticket(
         self,
@@ -200,7 +224,61 @@ class HelpTicketManager:
                 update_data["closed_at"] = None
                 update_data["closed_by"] = None
 
+            description = STATUS_CHANGE_DESCRIPTIONS.get(
+                (current_status, target_status),
+                f"Status changed to {target_status.value}",
+            )
+            self.log_event(
+                session,
+                ticket.id,
+                ticket.workspace_id,
+                "status_changed",
+                description,
+                user_id,
+                {"from_status": current_status.value, "to_status": target_status.value},
+            )
+
         return help_ticket_dao.update(session, db_obj=ticket, obj_in=update_data)
+
+    def log_event(
+        self,
+        session: Session,
+        ticket_id: int,
+        workspace_id: int,
+        event_type: str,
+        description: str,
+        performed_by: Optional[int] = None,
+        metadata: dict | None = None,
+    ) -> HelpTicketEvent:
+        event = HelpTicketEvent(
+            workspace_id=workspace_id,
+            help_ticket_id=ticket_id,
+            event_type=event_type,
+            description=description,
+            metadata_json=metadata,
+            performed_by=performed_by,
+            created_at=utcnow_aware(),
+        )
+        session.add(event)
+        session.flush()
+        return event
+
+    def list_events(
+        self,
+        session: Session,
+        *,
+        ticket_id: int,
+        workspace_id: int,
+    ) -> List[Tuple[HelpTicketEvent, Optional[Profile]]]:
+        events = self.event_dao.get_by_ticket(
+            session,
+            help_ticket_id=ticket_id,
+            workspace_id=workspace_id,
+        )
+        return [
+            (event, profile_dao.get(session, id=event.performed_by) if event.performed_by else None)
+            for event in events
+        ]
 
     @staticmethod
     def to_response(ticket: HelpTicket) -> HelpTicketResponse:

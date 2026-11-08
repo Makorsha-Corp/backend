@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session, Query
 from sqlalchemy import Date, cast, desc, func, or_
 from app.dao.base import BaseDAO
 from app.models.work_order import WorkOrder
-from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
+from app.models.enums import (
+    WORK_ORDER_PRE_START_STATUSES,
+    WorkOrderPriorityEnum,
+    WorkOrderStatusEnum,
+)
 from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate
 
 
@@ -43,7 +47,7 @@ def _apply_sheet_list_filters(
     if status_scope == "planned":
         today = date.today()
         query = query.filter(
-            WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+            WorkOrder.status.in_(WORK_ORDER_PRE_START_STATUSES),
             WorkOrder.planned_date.isnot(None),
             WorkOrder.planned_date > today,
         )
@@ -160,9 +164,64 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             .filter(
                 WorkOrder.workspace_id == workspace_id,
                 WorkOrder.is_deleted == False,
-                WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+                WorkOrder.status.in_(WORK_ORDER_PRE_START_STATUSES),
                 WorkOrder.work_order_template_id == work_order_template_id,
                 WorkOrder.machine_id == machine_id,
+                WorkOrder.planned_date.isnot(None),
+                WorkOrder.planned_date > after_date,
+            )
+            .order_by(WorkOrder.planned_date, WorkOrder.id)
+            .all()
+        )
+
+    def get_by_program_ids(
+        self, db: Session, *, program_ids: List[int], workspace_id: int
+    ) -> List[WorkOrder]:
+        if not program_ids:
+            return []
+        return (
+            db.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.program_id.in_(program_ids),
+                WorkOrder.is_deleted == False,
+            )
+            .order_by(WorkOrder.planned_date.asc(), WorkOrder.id.asc())
+            .all()
+        )
+
+    def count_by_program_ids(
+        self, db: Session, *, program_ids: List[int], workspace_id: int
+    ) -> dict[int, int]:
+        if not program_ids:
+            return {}
+        rows = (
+            db.query(WorkOrder.program_id, func.count(WorkOrder.id))
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.program_id.in_(program_ids),
+                WorkOrder.is_deleted == False,
+            )
+            .group_by(WorkOrder.program_id)
+            .all()
+        )
+        return {int(program_id): int(count) for program_id, count in rows}
+
+    def list_future_drafts_for_program(
+        self,
+        db: Session,
+        *,
+        workspace_id: int,
+        program_id: int,
+        after_date: date,
+    ) -> List[WorkOrder]:
+        return (
+            db.query(WorkOrder)
+            .filter(
+                WorkOrder.workspace_id == workspace_id,
+                WorkOrder.is_deleted == False,
+                WorkOrder.status.in_(WORK_ORDER_PRE_START_STATUSES),
+                WorkOrder.program_id == program_id,
                 WorkOrder.planned_date.isnot(None),
                 WorkOrder.planned_date > after_date,
             )
@@ -186,7 +245,7 @@ class WorkOrderDAO(BaseDAO[WorkOrder, WorkOrderCreate, WorkOrderUpdate]):
             .filter(
                 WorkOrder.workspace_id == workspace_id,
                 WorkOrder.is_deleted == False,
-                WorkOrder.status == WorkOrderStatusEnum.DRAFT.value,
+                WorkOrder.status.in_(WORK_ORDER_PRE_START_STATUSES),
                 WorkOrder.work_order_template_id == work_order_template_id,
                 WorkOrder.machine_id == machine_id,
                 WorkOrder.planned_date.isnot(None),

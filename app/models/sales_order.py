@@ -1,5 +1,5 @@
 """Sales order model - contracts with customers for selling goods"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Date, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Date, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
 from app.db.base_class import Base
@@ -14,12 +14,15 @@ class SalesOrder(Base):
     """
 
     __tablename__ = "sales_orders"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "sales_order_number", name="uq_sales_orders_workspace_number"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # === REFERENCE ===
-    sales_order_number = Column(String(100), nullable=False, unique=True, index=True)
+    sales_order_number = Column(String(100), nullable=False, index=True)
     # Auto-generated: SO-2025-001
 
     # === CUSTOMER (ACCOUNT) ===

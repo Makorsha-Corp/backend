@@ -24,10 +24,10 @@ class ProductionBatchItem(Base):
     # Valid values: 'input', 'output', 'waste', 'byproduct'
 
     # === EXPECTED (from formula, set when batch starts) ===
-    expected_quantity = Column(Integer, nullable=True)  # Expected amount
+    expected_quantity = Column(Numeric(15, 2), nullable=True)  # Expected amount
 
     # === ACTUAL (logged by user when batch completes) ===
-    actual_quantity = Column(Integer, nullable=True)  # Actual amount used/produced
+    actual_quantity = Column(Numeric(15, 2), nullable=True)  # Actual amount used/produced
 
     # === SOURCE/DESTINATION (for inventory ledger integration) ===
     # For INPUTS: where materials came from
@@ -39,7 +39,7 @@ class ProductionBatchItem(Base):
     destination_location_id = Column(Integer, nullable=True)  # factory_id, etc.
 
     # === VARIANCE (auto-calculated: actual - expected) ===
-    variance_quantity = Column(Integer, nullable=True)  # Difference
+    variance_quantity = Column(Numeric(15, 2), nullable=True)  # Difference
     variance_percentage = Column(Numeric(5, 2), nullable=True)  # Percentage difference
 
     # Notes

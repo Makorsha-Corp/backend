@@ -20,15 +20,15 @@ class ProductLedger(Base):
 
     # Transaction details
     transaction_type = Column(String(50), nullable=False, index=True)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Numeric(15, 2), nullable=False)
 
     # Cost tracking
     unit_cost = Column(Numeric(15, 2), nullable=True)
     total_cost = Column(Numeric(15, 2), nullable=True)
 
     # State tracking (for reconciliation)
-    qty_before = Column(Integer, nullable=False)
-    qty_after = Column(Integer, nullable=False)
+    qty_before = Column(Numeric(15, 2), nullable=False)
+    qty_after = Column(Numeric(15, 2), nullable=False)
     avg_cost_before = Column(Numeric(15, 2), nullable=True)
     avg_cost_after = Column(Numeric(15, 2), nullable=True)
 

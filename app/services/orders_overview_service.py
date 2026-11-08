@@ -198,6 +198,7 @@ class OrdersOverviewService:
             )
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.is_tour_sample.is_(False),
                 self._in_date_range(self._po_report_date(), from_date, to_date),
             )
             .all()
@@ -339,6 +340,7 @@ class OrdersOverviewService:
             .join(Item, PurchaseOrderItem.item_id == Item.id)
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.is_tour_sample.is_(False),
                 self._in_date_range(self._po_report_date(), from_date, to_date),
             )
         )
@@ -443,6 +445,7 @@ class OrdersOverviewService:
             .outerjoin(Account, PurchaseOrder.account_id == Account.id)
             .filter(
                 PurchaseOrder.workspace_id == workspace_id,
+                PurchaseOrder.is_tour_sample.is_(False),
                 PurchaseOrder.account_id.isnot(None),
                 self._in_date_range(self._po_report_date(), from_date, to_date),
             )

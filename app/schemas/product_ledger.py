@@ -9,11 +9,11 @@ class ProductLedgerCreate(BaseModel):
     factory_id: int
     item_id: int
     transaction_type: str
-    quantity: int
+    quantity: Decimal
     unit_cost: Decimal | None = None
     total_cost: Decimal | None = None
-    qty_before: int
-    qty_after: int
+    qty_before: Decimal
+    qty_after: Decimal
     avg_cost_before: Decimal | None = None
     avg_cost_after: Decimal | None = None
     source_type: str | None = None
@@ -37,11 +37,11 @@ class ProductLedgerResponse(BaseModel):
     factory_id: int
     item_id: int
     transaction_type: str
-    quantity: int
+    quantity: Decimal
     unit_cost: Decimal | None = None
     total_cost: Decimal | None = None
-    qty_before: int
-    qty_after: int
+    qty_before: Decimal
+    qty_after: Decimal
     avg_cost_before: Decimal | None = None
     avg_cost_after: Decimal | None = None
     source_type: str | None = None

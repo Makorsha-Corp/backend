@@ -952,6 +952,8 @@ class AuthService(BaseService):
                 user.name = data["name"]
             if "timezone" in data:
                 user.timezone = data["timezone"]
+            if "use_24_hour_time" in data and data["use_24_hour_time"] is not None:
+                user.use_24_hour_time = data["use_24_hour_time"]
             if "saved_stamp" in data:
                 from app.managers.profile_stamp_manager import profile_stamp_manager
 

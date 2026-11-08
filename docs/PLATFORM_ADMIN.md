@@ -1,6 +1,6 @@
 # Platform admin — operator and security guide
 
-Makorsha staff (platform operators) use the **same ERP login** as mill users. Extra access is gated by `profiles.is_platform_admin` (migration `115_platform_admin`).
+Makorsha staff (platform operators) use the **same ERP login** as workspace users. Extra access is gated by `profiles.is_platform_admin` (migration `115_platform_admin`).
 
 **Current platform operators (production target):**
 
@@ -85,7 +85,7 @@ Each operator should either:
 | Sidebar (bottom) | **Platform** link |
 | `/platform/support` | Cross-workspace support inbox |
 | `/platform/waitlist` | Waitlist signups |
-| Mill user (non-admin) | No Platform link; `/platform/*` redirects to dashboard |
+| Workspace user (non-admin) | No Platform link; `/platform/*` redirects to dashboard |
 
 ---
 
@@ -119,19 +119,19 @@ You cannot grant or revoke platform admin from the ERP UI. Only someone with dat
 Login (production ERP)
   → GET /auth/me/ returns is_platform_admin: true
   → /platform/* routes unlock
-       → /platform/support   — all mill help tickets (cross-workspace)
+       → /platform/support   — all workspace help tickets (cross-workspace)
        → /platform/waitlist  — landing page waitlist signups
 ```
 
 ### Support inbox (`/platform/support`)
 
 - List and open help tickets from **all workspaces**.
-- Read ticket body, category, creator, mill name.
+- Read ticket body, category, creator, workspace name.
 - Reply via **discussion thread** on the ticket.
 - View/upload **attachments** on the ticket.
 - **Close / reopen** tickets.
 
-When you select a ticket, the app temporarily sets the API workspace header (`X-Workspace-ID`) to that ticket’s mill so discussions and attachments hit the correct workspace. This uses `setWorkspaceHeaderOnly` — it does **not** wipe the rest of the app cache (avoids inbox flicker).
+When you select a ticket, the app temporarily sets the API workspace header (`X-Workspace-ID`) to that ticket’s workspace so discussions and attachments hit the correct workspace. This uses `setWorkspaceHeaderOnly` — it does **not** wipe the rest of the app cache (avoids inbox flicker).
 
 ### Waitlist (`/platform/waitlist`)
 
@@ -144,7 +144,7 @@ Platform admins get waitlist access automatically. Legacy fallback: `WAITLIST_AD
 
 ## What you cannot do (scope limits)
 
-- **Not a global superuser inside a mill.** Orders, inventory, finance, etc. still follow normal workspace membership and RBAC for your role in that workspace.
+- **Not a global superuser inside a workspace.** Orders, inventory, finance, etc. still follow normal workspace membership and RBAC for your role in that workspace.
 - **Cannot impersonate another user’s login** — you act as yourself with the platform flag.
 - **Cannot grant admin from the UI** — DB/script only.
 - **Platform routes still require authentication** — no anonymous access to `/platform/*` or platform API endpoints.
@@ -158,7 +158,7 @@ Platform admins get waitlist access automatically. Legacy fallback: `WAITLIST_AD
 | **Authentication** | JWT Bearer token on every API request |
 | **Platform authorization** | `profiles.is_platform_admin` checked in `get_platform_admin` |
 | **Workspace isolation (normal users)** | Must be a member of the workspace in `X-Workspace-ID` |
-| **Workspace isolation (platform admin)** | May use any valid workspace id in `X-Workspace-ID` for support context (e.g. ticket’s mill) — see `get_current_workspace` |
+| **Workspace isolation (platform admin)** | May use any valid workspace id in `X-Workspace-ID` for support context (e.g. ticket’s workspace) — see `get_current_workspace` |
 | **Waitlist** | Platform admin **or** legacy `WAITLIST_ADMIN_EMAILS` env allowlist |
 | **Revocation** | `UPDATE profiles SET is_platform_admin = false WHERE email = '...'` then user re-login |
 | **Secrets** | Never put admin emails in frontend env. Keep `DATABASE_URL`, `SECRET_KEY`, and Railway variables private |
@@ -167,7 +167,7 @@ Platform admins get waitlist access automatically. Legacy fallback: `WAITLIST_AD
 
 - **Railway Postgres** — anyone with write access can grant platform admin.
 - **Railway backend env** — `SECRET_KEY` forges JWTs; `DATABASE_URL` exposes all tenant data.
-- **Operator accounts** — use strong passwords; platform admin + mill owner role is high privilege.
+- **Operator accounts** — use strong passwords; platform admin + workspace owner role is high privilege.
 
 ### What attackers cannot do (by design)
 

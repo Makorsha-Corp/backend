@@ -35,6 +35,20 @@ class ProductionBatchItemDAO(BaseDAO[ProductionBatchItem, ProductionBatchItemCre
             .all()
         )
 
+    def get_by_batch_ids(
+        self, db: Session, *, batch_ids: List[int], workspace_id: int
+    ) -> List[ProductionBatchItem]:
+        if not batch_ids:
+            return []
+        return (
+            db.query(ProductionBatchItem)
+            .filter(
+                ProductionBatchItem.workspace_id == workspace_id,
+                ProductionBatchItem.batch_id.in_(batch_ids),
+            )
+            .all()
+        )
+
     def get_by_batch_and_role(
         self, db: Session, *, batch_id: int, item_role: str, workspace_id: int
     ) -> List[ProductionBatchItem]:

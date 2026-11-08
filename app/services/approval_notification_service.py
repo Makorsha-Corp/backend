@@ -27,7 +27,18 @@ ORDER_PREFIX = {
 }
 
 
-def format_order_ref(entity_type: str, entity_id: int) -> str:
+def format_order_ref(entity_type: str, entity_id: int, order: Any = None) -> str:
+    if order is not None:
+        for attr in (
+            "po_number",
+            "transfer_number",
+            "expense_number",
+            "work_order_number",
+            "sales_order_number",
+        ):
+            value = getattr(order, attr, None)
+            if value:
+                return str(value)
     prefix = ORDER_PREFIX.get(entity_type)
     if prefix:
         return f"{prefix}-{entity_id}"
@@ -209,7 +220,7 @@ def notify_approval_assigned(
     order: Any,
     ready_for_approval: bool = False,
 ) -> None:
-    ref = format_order_ref(entity_type, entity_id)
+    ref = format_order_ref(entity_type, entity_id, order)
     actor = _actor_name(db, actor_user_id)
     if ready_for_approval:
         approval_progress = build_approval_preview(db, entity_type, entity_id, workspace_id)
@@ -297,7 +308,7 @@ def notify_invoice_action(
     action: str,
     order: Any,
 ) -> None:
-    ref = format_order_ref(entity_type, entity_id)
+    ref = format_order_ref(entity_type, entity_id, order)
     if action == "draft":
         preview = "Linked payable invoice is in draft — confirm when details look correct"
         title_hint = "draft"

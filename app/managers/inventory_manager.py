@@ -31,7 +31,7 @@ class InventoryManager(BaseManager[Inventory]):
         self, session: Session, data: InventoryCreate,
         workspace_id: int, user_id: int
     ) -> Inventory:
-        """Create inventory record. Validates factory exists."""
+        """Create a storage row, or add qty onto the row that already exists for this item, type, and factory."""
         factory = factory_dao.get_by_id_and_workspace(
             session, id=data.factory_id, workspace_id=workspace_id
         )
@@ -41,15 +41,20 @@ class InventoryManager(BaseManager[Inventory]):
                 detail=f"Factory with ID {data.factory_id} not found"
             )
 
-        # Check for duplicate
         existing = self.inv_dao.get_by_factory_item_type(
             session, factory_id=data.factory_id, item_id=data.item_id,
             inventory_type=data.inventory_type, workspace_id=workspace_id
         )
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Inventory record already exists for this item/type/factory combination"
+            added = data.qty if data.qty is not None else 0
+            update = InventoryUpdate(qty=existing.qty + added)
+            if data.avg_price is not None:
+                update.avg_price = data.avg_price
+            if data.note:
+                update.note = data.note
+            return self.update_inventory(
+                session, inv_id=existing.id, data=update,
+                workspace_id=workspace_id, user_id=user_id,
             )
 
         inv_dict = data.model_dump()
@@ -222,7 +227,7 @@ class InventoryManager(BaseManager[Inventory]):
                 InventoryStatsByTypeRow(
                     inventory_type=row_type,
                     unique_item_count=int(unique_count or 0),
-                    total_qty=int(type_qty or 0),
+                    total_qty=Decimal(str(type_qty or 0)),
                 )
                 for row_type, unique_count, type_qty in by_type_rows
             ],

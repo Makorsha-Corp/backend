@@ -8,7 +8,7 @@ class ProductCreate(BaseModel):
     """Create product record"""
     item_id: int
     factory_id: int
-    qty: int = 0
+    qty: Decimal = 0
     avg_cost: Decimal | None = None
     selling_price: Decimal | None = None
     min_order_qty: int | None = None
@@ -18,7 +18,7 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     """Update product record"""
-    qty: int | None = None
+    qty: Decimal | None = None
     avg_cost: Decimal | None = None
     selling_price: Decimal | None = None
     min_order_qty: int | None = None
@@ -34,7 +34,7 @@ class ProductResponse(BaseModel):
     item_name: str | None = None
     item_unit: str | None = None
     factory_id: int
-    qty: int
+    qty: Decimal
     avg_cost: Decimal | None = None
     selling_price: Decimal | None = None
     min_order_qty: int | None = None

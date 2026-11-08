@@ -7,7 +7,9 @@ from app.dao.item import item_dao
 from app.dao.item_tag import item_tag_dao
 from app.dao.item_tag_assignment import item_tag_assignment_dao
 from app.schemas.item import ItemCreate, ItemUpdate
-from app.utils.item_name_normalize import normalize_item_name
+from app.core.exceptions import ConflictError
+from app.utils.item_catalog_tags import catalog_tag_code_for_production_role
+from app.utils.item_name_normalize import normalize_item_name, normalize_item_sku
 
 
 class ItemManager(BaseManager[Item]):
@@ -55,6 +57,13 @@ class ItemManager(BaseManager[Item]):
         item_dict['workspace_id'] = workspace_id
         item_dict['created_by'] = user_id
         item_dict['name_normalized'] = normalize_item_name(item_dict['name'])
+        item_dict['sku'] = normalize_item_sku(item_dict.get('sku'))
+
+        self._ensure_sku_unique(
+            session,
+            workspace_id=workspace_id,
+            sku=item_dict.get('sku'),
+        )
 
         # Create the item
         item = self.item_dao.create(session, obj_in=item_dict)
@@ -116,6 +125,16 @@ class ItemManager(BaseManager[Item]):
         item_dict['updated_by'] = user_id
         if 'name' in item_dict:
             item_dict['name_normalized'] = normalize_item_name(item_dict['name'])
+        if 'sku' in item_dict:
+            item_dict['sku'] = normalize_item_sku(item_dict['sku'])
+
+        sku_to_check = item_dict['sku'] if 'sku' in item_dict else item.sku
+        self._ensure_sku_unique(
+            session,
+            workspace_id=workspace_id,
+            sku=sku_to_check,
+            exclude_item_id=item_id,
+        )
 
         # Update the item
         updated_item = self.item_dao.update(session, db_obj=item, obj_in=item_dict)
@@ -320,6 +339,62 @@ class ItemManager(BaseManager[Item]):
                 session, tag_id=tag.id, workspace_id=workspace_id
             )
         return deleted_item
+
+    def ensure_production_role_catalog_tag(
+        self,
+        session: Session,
+        *,
+        item_id: int,
+        item_role: str,
+        workspace_id: int,
+        user_id: int,
+    ) -> None:
+        """Assign the system catalog tag for a production BOM role if missing."""
+        tag_code = catalog_tag_code_for_production_role(item_role)
+        if not tag_code:
+            return
+
+        tag = item_tag_dao.get_by_code_in_workspace(
+            session, workspace_id=workspace_id, tag_code=tag_code
+        )
+        if not tag or not tag.is_active:
+            return
+
+        if item_tag_assignment_dao.assignment_exists(
+            session, item_id=item_id, tag_id=tag.id, workspace_id=workspace_id
+        ):
+            return
+
+        self._assign_tags_to_item(
+            session=session,
+            item_id=item_id,
+            tag_ids=[tag.id],
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
+
+    def _ensure_sku_unique(
+        self,
+        session: Session,
+        *,
+        workspace_id: int,
+        sku: Optional[str],
+        exclude_item_id: Optional[int] = None,
+    ) -> None:
+        normalized = normalize_item_sku(sku)
+        if not normalized:
+            return
+
+        existing = self.item_dao.get_by_sku_in_workspace(
+            session,
+            workspace_id=workspace_id,
+            sku=normalized,
+            exclude_item_id=exclude_item_id,
+        )
+        if existing:
+            raise ConflictError(
+                f'An active item with SKU "{normalized}" already exists ({existing.name}).'
+            )
 
     def _assign_tags_to_item(
         self,

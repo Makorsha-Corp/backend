@@ -13,6 +13,7 @@ from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
 from app.managers.base_manager import BaseManager
 from app.managers.order_template_manager import order_template_manager
+from app.managers.production_batch_manager import require_linkable_production_batch
 from app.models.expense_order import ExpenseOrder
 from app.models.expense_order_approver import ExpenseOrderApprover
 from app.models.expense_order_event import ExpenseOrderEvent
@@ -26,6 +27,13 @@ from app.schemas.expense_order import (
     ExpenseOrderUpdate,
 )
 from app.utils.time import utcnow
+
+def _require_batch_link(session: Session, batch_id: int, workspace_id: int) -> None:
+    try:
+        require_linkable_production_batch(session, batch_id, workspace_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
 
 DETAILS_FIELDS = frozenset({
     'account_id', 'expense_category', 'cost_center_id', 'expense_date', 'due_date',
@@ -209,6 +217,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
         if not (data.description or '').strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Description is required')
 
+        if data.production_batch_id is not None:
+            _require_batch_link(session, data.production_batch_id, workspace_id)
         exp_number = self.eo_dao.get_next_number(session, workspace_id=workspace_id)
         items_data = data.items or []
         eo_dict = data.model_dump(exclude={'items'})
@@ -253,6 +263,8 @@ class ExpenseOrderManager(BaseManager[ExpenseOrder]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Expense order with ID {eo_id} not found")
 
         update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        if update_dict.get("production_batch_id") is not None:
+            _require_batch_link(session, update_dict["production_batch_id"], workspace_id)
         self._guard_confirmed_updates(record, update_dict)
 
         if 'expense_category' in update_dict or 'cost_center_id' in update_dict:
