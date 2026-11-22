@@ -9,6 +9,8 @@ description: >
   to the stage that must fix it. Read-only: never edits tests, cases, spec or app/.
 ---
 
+> **Python path:** commands below use `.venv/Scripts/python.exe` (Windows). On macOS/Linux use `.venv/bin/python` instead.
+
 # Test Verifier
 
 You did not write these tests and you do not trust them. Your job is to find

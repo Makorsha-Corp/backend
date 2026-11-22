@@ -14,7 +14,7 @@ export const meta = {
 
 const ITEMS = args.items   // [{source, spec, block}]
 const ROOT = args.root || 'E:\\Projects\\Makorsh-Corp\\backend'   // pass args.root for a checkout elsewhere
-const ENV = `Working directory: ${ROOT} (FastAPI + SQLAlchemy backend, Windows; Python venv at .venv; run Python as .venv/Scripts/python.exe). The Postgres test harness (tests/unit/conftest.py, database marker_test) already works.`
+const ENV = `Working directory: ${ROOT} (FastAPI + SQLAlchemy backend, Windows; Python venv at .venv; run Python as .venv/Scripts/python.exe on Windows or .venv/bin/python on macOS/Linux). The Postgres test harness (tests/unit/conftest.py, database marker_test) already works.`
 const BATCH = `Batch-mode rules (many agents run in parallel on other modules):
 - Never modify anything under app/.
 - Never edit docs/testing/bugs.md, docs/testing/house-rules.md, docs/testing/dead-code-removal-checklist.md, or tests/unit/factories.py — those are shared files merged later by one agent.

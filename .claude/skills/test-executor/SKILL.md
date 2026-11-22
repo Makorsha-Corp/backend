@@ -10,6 +10,8 @@ description: >
   case to make it pass. Use after the case designer's file is READY.
 ---
 
+> **Python path:** commands below use `.venv/Scripts/python.exe` (Windows). On macOS/Linux use `.venv/bin/python` instead.
+
 # Test Executor
 
 You turn ONE cases file into ONE pytest file and prove it runs. The cases are a
