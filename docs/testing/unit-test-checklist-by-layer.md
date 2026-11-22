@@ -352,6 +352,8 @@ _(no methods defined in class body)_
 
 ### `app/managers/machine_manager.py` (8)
 
+> **Follow-ups from the machine DAO review (2026-10-10) — read before describing this file, `app/services/machine_service.py`, `app/schemas/machine.py` or the machines endpoint:** see "Follow-ups for other reviews" in [`tests/unit/dao/machine.spec.md`](../../tests/unit/dao/machine.spec.md) — FU-1 unknown `sort_by` / `sort_dir` silently falls back (endpoint), FU-2 whitespace-only model number / manufacturer counts as a value (schema / manager), FU-3 "restore machine" feature not built (`DAOMachine.restore` kept, no caller), FU-4 nothing restores a factory (factory review). (Hand-written note — this file is generated; re-add it if the checklist is regenerated.)
+
 #### class `MachineManager` (BaseManager[Machine])
 
 - [ ] `MachineManager.__init__()` — L37 _(dunder)_

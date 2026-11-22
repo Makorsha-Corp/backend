@@ -1,0 +1,677 @@
+{
+ "model": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+ "n_ctx": 16384,
+ "cases_file": "tests/unit/dao/machine_section_assignment.cases.md",
+ "think": false,
+ "cases": [
+  {
+   "id": "MSA-GM-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 65.1,
+   "prompt_tokens": 5660,
+   "completion_tokens": 237,
+   "reason": "",
+   "test": "test_msa_gm_01__returns_the_assignment_row_of_the_machine_and_writes_nothing"
+  },
+  {
+   "id": "MSA-GM-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.7,
+   "prompt_tokens": 5621,
+   "completion_tokens": 147,
+   "reason": "",
+   "test": "test_msa_gm_07__the_row_of_a_soft_deleted_machine_is_returned"
+  },
+  {
+   "id": "MSA-GS-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 76.0,
+   "prompt_tokens": 11756,
+   "completion_tokens": 563,
+   "reason": "",
+   "test": "test_msa_gs_01__returns_a_list_of_the_rows_of_that_section_and_writes_nothing",
+   "last_code": "def test_msa_gs_01__returns_a_list_of_the_rows_of_that_section_and_writes_nothing(db, w1, m1, m2, m3, s1, mk_assignment):\n    \"\"\"MSA-GS-01 \u2014 returns a list of the rows of that section and writes nothing.\n    Rules: `get_by_section` R1, R7, Returns\"\"\"\n    a1 = mk_assignment(of=m1, to=s1)\n    a2 = mk_assignment(of=m2, to=s1)\n    mk_assignment(of=m3, to=s1)\n\n    before_a1 = snap(db, a1)\n    before = written(db)\n\n    result = dao.get_by_section(db, factory_section_id=s1.id, workspace_id=w1.id)\n\n    # Then 1\n    assert isinstance(result, list)\n    # Then 2\n    assert sorted(ids(result)) == [a1.id, a2.id]\n    # Then 3\n    assert len(result) == 2\n    # Then 4\n    assert isinstance(result[0], MachineSectionAssignment)\n    # Then 5\n    assert written(db) == before\n    # Then 6\n    assert snap(db, a1) == before_a1",
+   "rejections": [
+    "The card names S2, but the test never uses `s2`. Build every Given row with exactly the rows the card names, and make the When call with exactly the card's arguments."
+   ]
+  },
+  {
+   "id": "MSA-GS-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.7,
+   "prompt_tokens": 5656,
+   "completion_tokens": 189,
+   "reason": "",
+   "test": "test_msa_gs_03__the_other_workspace_gets_only_its_own_row_for_the_same_section_id"
+  },
+  {
+   "id": "MSA-GS-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.1,
+   "prompt_tokens": 5668,
+   "completion_tokens": 209,
+   "reason": "",
+   "test": "test_msa_gs_09__rows_of_other_sections_and_other_workspaces_do_not_use_up_a_place_in"
+  },
+  {
+   "id": "MSA-GS-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.5,
+   "prompt_tokens": 5652,
+   "completion_tokens": 188,
+   "reason": "",
+   "test": "test_msa_gs_13__the_last_window_is_short"
+  },
+  {
+   "id": "MSA-GS-19",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 37.6,
+   "prompt_tokens": 5675,
+   "completion_tokens": 261,
+   "reason": "",
+   "test": "test_msa_gs_19__negative_skip_is_rejected_by_the_database_and_nothing_changes"
+  },
+  {
+   "id": "MSA-UP-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 81.5,
+   "prompt_tokens": 11858,
+   "completion_tokens": 609,
+   "reason": "",
+   "test": "test_msa_up_02__moving_to_another_section_replaces_the_row_with_a_new_one",
+   "last_code": "def test_msa_up_02__moving_to_another_section_replaces_the_row_with_a_new_one(db, w1, u2, m1, s1, s2):\n    \"\"\"MSA-UP-02 \u2014 moving to another section replaces the row with a new one.\n    Rules: `upsert_for_machine` R2 (Q2)\"\"\"\n    a1 = mk_assignment(of=m1, to=s1)\n    a1_id = a1.id\n\n    result = dao.upsert_for_machine(db, machine_id=m1.id, factory_section_id=s2.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 1\n    assert result.factory_section_id == s2.id\n    # Then 2\n    assert result.id != a1_id\n    # Then 3\n    assert len(rows_of(db, m1)) == 1\n    # Then 4\n    row = rows_of(db, m1)[0]\n    assert row.id == result.id\n    assert row.factory_section_id == s2.id\n    # Then 5\n    assert row.created_by == u2.id\n    # Then 6\n    assert row.updated_at is None\n    assert row.updated_by is None\n    # Then 7\n    assert count_rows(db, \"machine_section_assignments\", id=a1_id) == 0",
+   "rejections": [
+    "You use the fixture(s) mk_assignment but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "MSA-UP-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.7,
+   "prompt_tokens": 5650,
+   "completion_tokens": 224,
+   "reason": "",
+   "test": "test_msa_up_06__clearing_a_machine_without_an_assignment_writes_nothing_and_does_not"
+  },
+  {
+   "id": "MSA-UP-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 102.6,
+   "prompt_tokens": 11892,
+   "completion_tokens": 789,
+   "reason": "",
+   "test": "test_msa_up_08__a_move_touches_only_the_machine_s_own_row",
+   "last_code": "def test_msa_up_08__a_move_touches_only_the_machine_s_own_row(db, w1, u2, m1, m2, m3, s1, s2, mk_assignment):\n    \"\"\"MSA-UP-08 \u2014 a move touches only the machine's own row.\n    Rules: `upsert_for_machine` R5\"\"\"\n    mk_assignment(of=m1, to=s1)\n    a2 = mk_assignment(of=m2, to=s1)\n    a3 = mk_assignment(of=m3, to=s2)\n    before_a2 = snap(db, a2)\n    before_a3 = snap(db, a3)\n    before_m1 = snap(db, m1)\n    before_s1 = snap(db, s1)\n    before_s2 = snap(db, s2)\n    before_f1 = snap(db, f1)\n\n    result = dao.upsert_for_machine(db, machine_id=m1.id, factory_section_id=s2.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 1\n    assert result.machine_id == m1.id\n    # Then 2\n    assert snap(db, a2) == before_a2\n    # Then 3\n    assert snap(db, a3) == before_a3\n    # Then 4\n    assert count_rows(db, \"machine_section_assignments\") == 3\n    # Then 5\n    assert snap(db, m1) == before_m1\n    # Then 6\n    assert snap(db, s1) == before_s1\n    # Then 7\n    assert snap(db, s2) == before_s2\n    # Then 8\n    assert snap(db, f1) == before_f1",
+   "rejections": [
+    "You use the fixture(s) f1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "MSA-UP-15",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 88.5,
+   "prompt_tokens": 11910,
+   "completion_tokens": 670,
+   "reason": "",
+   "test": "test_msa_up_15__a_machine_whose_row_has_another_workspace_id_hits_the_one_row_per",
+   "last_code": "def test_msa_up_15__a_machine_whose_row_has_another_workspace_id_hits_the_one_row_per(db, w1, w2, u2, m1, s1, s2, mk_assignment):\n    \"\"\"MSA-UP-15 \u2014 a machine whose row has another workspace_id hits the one-row-per-machine constraint and nothing changes.\n    Rules: `upsert_for_machine` R7, Errors row 1\"\"\"\n    a1 = mk_assignment(of=m1, to=s1, workspace_id=w2.id)\n    before_a1 = snap(db, a1)\n    before = written(db)\n\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            dao.upsert_for_machine(db, machine_id=m1.id, factory_section_id=s2.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 2\n    assert isinstance(exc.value.orig, UniqueViolation)\n    # Then 3\n    assert \"uq_machine_section_assignment_machine\" in str(exc.value.orig)\n    # Then 4\n    assert snap(db, a1) == before_a1\n    # Then 5\n    row = reread(db, a1)\n    assert row.workspace_id == w2.id\n    assert row.factory_section_id == s1.id\n    # Then 6\n    assert len(rows_of(db, m1)) == 1\n    # Then 7\n    assert written(db) == before",
+   "rejections": [
+    "The card has 7 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3`, `# Then 4`, `# Then 5`, `# Then 6`, `# Then 7` - each exactly once, in order."
+   ]
+  },
+  {
+   "id": "MSA-UP-21",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.8,
+   "prompt_tokens": 5704,
+   "completion_tokens": 223,
+   "reason": "",
+   "test": "test_msa_up_21__a_machine_whose_section_was_already_read_still_reports_the_old"
+  },
+  {
+   "id": "MSA-UP-25",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.3,
+   "prompt_tokens": 5642,
+   "completion_tokens": 171,
+   "reason": "",
+   "test": "test_msa_up_25__user_id_none_is_stored_as_null"
+  },
+  {
+   "id": "MSA-CL-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 33.8,
+   "prompt_tokens": 5669,
+   "completion_tokens": 233,
+   "reason": "",
+   "test": "test_msa_cl_04__the_row_of_a_soft_deleted_machine_is_deleted_and_listed_too"
+  },
+  {
+   "id": "MSA-CL-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.1,
+   "prompt_tokens": 5678,
+   "completion_tokens": 185,
+   "reason": "",
+   "test": "test_msa_cl_09__a_machine_whose_section_was_already_read_still_reports_the_removed"
+  },
+  {
+   "id": "MSA-INH-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.1,
+   "prompt_tokens": 5669,
+   "completion_tokens": 218,
+   "reason": "",
+   "test": "test_msa_inh_01__create_with_a_machinesectionassignmentcreate_schema_fails_on_flush"
+  },
+  {
+   "id": "MSA-INH-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 34.9,
+   "prompt_tokens": 5703,
+   "completion_tokens": 240,
+   "reason": "",
+   "test": "test_msa_inh_02__create_with_a_dict_stores_a_row_with_the_model_defaults"
+  },
+  {
+   "id": "MSA-INH-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.5,
+   "prompt_tokens": 5612,
+   "completion_tokens": 133,
+   "reason": "",
+   "test": "test_msa_inh_08__get_returns_a_row_of_another_workspace"
+  },
+  {
+   "id": "MSA-GM-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 51.1,
+   "prompt_tokens": 5596,
+   "completion_tokens": 121,
+   "reason": "",
+   "test": "test_msa_gm_02__a_machine_without_an_assignment_gives_none"
+  },
+  {
+   "id": "MSA-GM-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.1,
+   "prompt_tokens": 5588,
+   "completion_tokens": 116,
+   "reason": "",
+   "test": "test_msa_gm_03__an_unknown_machine_id_gives_none"
+  },
+  {
+   "id": "MSA-GM-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.9,
+   "prompt_tokens": 5593,
+   "completion_tokens": 130,
+   "reason": "",
+   "test": "test_msa_gm_04__the_machine_s_row_is_not_returned_for_another_workspace_id"
+  },
+  {
+   "id": "MSA-GM-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.2,
+   "prompt_tokens": 5625,
+   "completion_tokens": 155,
+   "reason": "",
+   "test": "test_msa_gm_05__the_row_s_own_workspace_id_decides_not_the_machine_s_asked_in_the"
+  },
+  {
+   "id": "MSA-GM-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.0,
+   "prompt_tokens": 5623,
+   "completion_tokens": 148,
+   "reason": "",
+   "test": "test_msa_gm_08__a_row_pointing_at_a_soft_deleted_section_is_returned"
+  },
+  {
+   "id": "MSA-GM-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.8,
+   "prompt_tokens": 5630,
+   "completion_tokens": 152,
+   "reason": "",
+   "test": "test_msa_gm_09__a_row_pointing_at_a_section_of_another_factory_is_returned"
+  },
+  {
+   "id": "MSA-GM-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.4,
+   "prompt_tokens": 5643,
+   "completion_tokens": 174,
+   "reason": "",
+   "test": "test_msa_gm_10__a_row_pointing_at_a_section_of_another_workspace_is_returned"
+  },
+  {
+   "id": "MSA-GS-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.4,
+   "prompt_tokens": 5639,
+   "completion_tokens": 168,
+   "reason": "",
+   "test": "test_msa_gs_02__a_row_of_another_workspace_pointing_at_the_same_section_is_not"
+  },
+  {
+   "id": "MSA-GS-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 35.4,
+   "prompt_tokens": 5662,
+   "completion_tokens": 240,
+   "reason": "",
+   "test": "test_msa_gs_04__the_row_of_a_soft_deleted_machine_is_returned_and_left_as_it_was"
+  },
+  {
+   "id": "MSA-GS-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.4,
+   "prompt_tokens": 5638,
+   "completion_tokens": 184,
+   "reason": "",
+   "test": "test_msa_gs_05__the_rows_of_a_soft_deleted_section_are_returned"
+  },
+  {
+   "id": "MSA-GS-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.1,
+   "prompt_tokens": 5590,
+   "completion_tokens": 119,
+   "reason": "",
+   "test": "test_msa_gs_06__an_unknown_section_id_returns_an_empty_list"
+  },
+  {
+   "id": "MSA-GS-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.0,
+   "prompt_tokens": 5598,
+   "completion_tokens": 124,
+   "reason": "",
+   "test": "test_msa_gs_07__a_section_with_no_rows_returns_an_empty_list"
+  },
+  {
+   "id": "MSA-GS-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.4,
+   "prompt_tokens": 5605,
+   "completion_tokens": 137,
+   "reason": "",
+   "test": "test_msa_gs_08__a_section_whose_rows_are_all_in_another_workspace_returns_an_empty"
+  },
+  {
+   "id": "MSA-GS-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 33.0,
+   "prompt_tokens": 5674,
+   "completion_tokens": 220,
+   "reason": "",
+   "test": "test_msa_gs_12__limit_2_of_three_rows_returns_two_different_rows_of_the_section"
+  },
+  {
+   "id": "MSA-GS-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.3,
+   "prompt_tokens": 5593,
+   "completion_tokens": 121,
+   "reason": "",
+   "test": "test_msa_gs_14__limit_0_returns_an_empty_list"
+  },
+  {
+   "id": "MSA-GS-15",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.5,
+   "prompt_tokens": 5611,
+   "completion_tokens": 147,
+   "reason": "",
+   "test": "test_msa_gs_15__skip_equal_to_the_number_of_rows_returns_an_empty_list"
+  },
+  {
+   "id": "MSA-GS-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.1,
+   "prompt_tokens": 5638,
+   "completion_tokens": 175,
+   "reason": "",
+   "test": "test_msa_gs_16__skip_one_below_the_number_of_rows_returns_one_row"
+  },
+  {
+   "id": "MSA-GS-17",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.4,
+   "prompt_tokens": 5610,
+   "completion_tokens": 145,
+   "reason": "",
+   "test": "test_msa_gs_17__skip_past_the_number_of_rows_returns_an_empty_list"
+  },
+  {
+   "id": "MSA-GS-18",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 37.5,
+   "prompt_tokens": 5674,
+   "completion_tokens": 260,
+   "reason": "",
+   "test": "test_msa_gs_18__negative_limit_is_rejected_by_the_database_and_nothing_changes"
+  },
+  {
+   "id": "MSA-UP-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 40.0,
+   "prompt_tokens": 5710,
+   "completion_tokens": 275,
+   "reason": "",
+   "test": "test_msa_up_04__re_saving_the_same_section_keeps_exactly_one_row_of_that_machine_for"
+  },
+  {
+   "id": "MSA-UP-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.8,
+   "prompt_tokens": 5644,
+   "completion_tokens": 189,
+   "reason": "",
+   "test": "test_msa_up_05__clearing_a_machine_s_section_deletes_its_row_and_returns_none"
+  },
+  {
+   "id": "MSA-UP-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 3,
+   "seconds": 71.8,
+   "prompt_tokens": 17623,
+   "completion_tokens": 529,
+   "reason": "",
+   "test": "test_msa_up_07__clearing_with_a_user_id_that_is_no_profile_still_deletes_the_row",
+   "last_code": "def test_msa_up_07__clearing_with_a_user_id_that_is_no_profile_still_deletes_the_row(db, w1, m1, s1, mk_assignment):\n    \"\"\"MSA-UP-07 \u2014 clearing with a user_id that is no profile still deletes the row.\n    Rules: `upsert_for_machine` R4\"\"\"\n    mk_assignment(of=m1, to=s1)\n    before = written(db)\n\n    result = dao.upsert_for_machine(db, machine_id=m1.id, factory_section_id=None, workspace_id=w1.id, user_id=MISSING)\n\n    # Then 1\n    assert result is None\n    # Then 2\n    assert len(rows_of(db, m1)) == 0",
+   "rejections": [
+    "The card has 2 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2` - each exactly once, in order.",
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "MSA-UP-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.1,
+   "prompt_tokens": 5673,
+   "completion_tokens": 272,
+   "reason": "",
+   "test": "test_msa_up_09__clearing_touches_only_the_machine_s_own_row"
+  },
+  {
+   "id": "MSA-UP-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.3,
+   "prompt_tokens": 5657,
+   "completion_tokens": 177,
+   "reason": "",
+   "test": "test_msa_up_10__a_section_of_another_factory_is_accepted"
+  },
+  {
+   "id": "MSA-UP-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.0,
+   "prompt_tokens": 5636,
+   "completion_tokens": 175,
+   "reason": "",
+   "test": "test_msa_up_11__a_soft_deleted_section_is_accepted"
+  },
+  {
+   "id": "MSA-UP-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 3,
+   "seconds": 75.9,
+   "prompt_tokens": 17746,
+   "completion_tokens": 562,
+   "reason": "",
+   "test": "test_msa_up_12__a_section_of_another_workspace_is_accepted_and_the_row_gets_the_given",
+   "last_code": "def test_msa_up_12__a_section_of_another_workspace_is_accepted_and_the_row_gets_the_given(db, w1, u2, m1, s9):\n    \"\"\"MSA-UP-12 \u2014 a section of another workspace is accepted and the row gets the given workspace.\n    Rules: `upsert_for_machine` R6\"\"\"\n    before = written(db)\n\n    result = dao.upsert_for_machine(db, machine_id=m1.id, factory_section_id=s9.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.factory_section_id == s9.id\n    # Then 3\n    assert row.workspace_id == w1.id",
+   "rejections": [
+    "The card has 3 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3` - each exactly once, in order.",
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "MSA-UP-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.5,
+   "prompt_tokens": 5644,
+   "completion_tokens": 180,
+   "reason": "",
+   "test": "test_msa_up_13__a_soft_deleted_machine_is_accepted"
+  },
+  {
+   "id": "MSA-UP-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.2,
+   "prompt_tokens": 5657,
+   "completion_tokens": 186,
+   "reason": "",
+   "test": "test_msa_up_14__a_machine_of_another_workspace_is_accepted_and_stored_with_the_given"
+  },
+  {
+   "id": "MSA-UP-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 37.1,
+   "prompt_tokens": 5673,
+   "completion_tokens": 258,
+   "reason": "",
+   "test": "test_msa_up_16__a_machine_id_that_is_no_machine_fails_on_flush_and_nothing_changes"
+  },
+  {
+   "id": "MSA-UP-18",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 45.7,
+   "prompt_tokens": 5718,
+   "completion_tokens": 326,
+   "reason": "",
+   "test": "test_msa_up_18__a_user_id_that_is_no_profile_fails_on_flush_and_the_machine_s"
+  },
+  {
+   "id": "MSA-UP-19",
+   "expect": "pass",
+   "outcome": "escalated",
+   "attempts": 3,
+   "seconds": 114.1,
+   "prompt_tokens": 19229,
+   "completion_tokens": 842,
+   "reason": "did not end as designed after 3 attempts",
+   "test": "",
+   "last_code": "def test_msa_up_19__a_workspace_id_that_is_no_workspace_fails_on_flush_and_nothing_changes(db, u2, m1, m2, s1, mk_assignment):\n    \"\"\"MSA-UP-19 \u2014 a workspace_id that is no workspace fails on flush and nothing changes.\n    Rules: `upsert_for_machine` R8, Errors row 5\"\"\"\n    a1 = mk_assignment(of=m1, to=s1)\n    before_a1 = snap(db, a1)\n    before = written(db)\n\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            dao.upsert_for_machine(db, machine_id=m2.id, factory_section_id=s1.id, workspace_id=MISSING, user_id=u2.id)\n\n    # Then 1\n    assert isinstance(exc.value.orig, ForeignKeyViolation)\n    # Then 2\n    assert \"machine_section_assignments_workspace_id_fkey\" in str(exc.value.orig)\n    # Then 3\n    assert len(rows_of(db, m2)) == 0\n    # Then 4\n    assert snap(db, a1) == before_a1\n    # Then 5\n    assert written(db) == before",
+   "last_output": "============================= test session starts =============================\ncollected 1 item\n\ntests\\unit\\dao\\test_machine_section_assignment.py F                      [100%]\n\n================================== FAILURES ===================================\n_ test_msa_up_19__a_workspace_id_that_is_no_workspace_fails_on_flush_and_nothing_changes _\ntests\\unit\\dao\\test_machine_section_assignment.py:1272: in test_msa_up_19__a_workspace_id_that_is_no_workspace_fails_on_flush_and_nothing_changes\n    assert isinstance(exc.value.orig, IntegrityError)\nE   assert False\nE    +  where False = isinstance(\n...\nDETAIL:  Key (workspace_id)=(999999999) is not present in table \"workspaces\".\\n').orig\nE    +      where IntegrityError('(psycopg2.errors.ForeignKeyViolation) insert or update on table \"machine_section_assignments\" violates...ction_assignments_workspace_id_fkey\"\\nDETAIL:  Key (workspace_id)=(999999999) is not present in table \"workspaces\".\\n') = <ExceptionInfo IntegrityError('(psycopg2.errors.ForeignKeyViolation) insert or update on table \"machine_section_assign...gnments_workspace_id_fkey\"\\nDETAIL:  Key (workspace_id)=(999999999) is not present in table \"workspaces\".\\n') tblen=18>.value\n=========================== short test summary info ===========================\nFAILED tests/unit/dao/test_machine_section_assignment.py::test_msa_up_19__a_workspace_id_that_is_no_workspace_fails_on_flush_and_nothing_changes\n============================== 1 failed in 1.91s ==============================\n",
+   "rejections": [
+    "The test ran and ended as `failed`. It must PASS.",
+    "The card has 6 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3`, `# Then 4`, `# Then 5`, `# Then 6` - each exactly once, in order.",
+    "The card has 6 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3`, `# Then 4`, `# Then 5`, `# Then 6` - each exactly once, in order."
+   ]
+  },
+  {
+   "id": "MSA-UP-23",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.2,
+   "prompt_tokens": 5691,
+   "completion_tokens": 200,
+   "reason": "",
+   "test": "test_msa_up_23__a_machine_whose_section_was_already_read_still_reports_it_after"
+  },
+  {
+   "id": "MSA-CL-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.1,
+   "prompt_tokens": 5663,
+   "completion_tokens": 210,
+   "reason": "",
+   "test": "test_msa_cl_02__a_row_of_another_workspace_pointing_at_the_same_section_is_not_touched"
+  },
+  {
+   "id": "MSA-CL-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.8,
+   "prompt_tokens": 5662,
+   "completion_tokens": 207,
+   "reason": "",
+   "test": "test_msa_cl_03__the_other_workspace_s_call_removes_only_its_own_row"
+  },
+  {
+   "id": "MSA-CL-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.2,
+   "prompt_tokens": 5653,
+   "completion_tokens": 219,
+   "reason": "",
+   "test": "test_msa_cl_05__the_rows_of_a_soft_deleted_section_are_deleted_and_the_section_is_not"
+  },
+  {
+   "id": "MSA-CL-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.3,
+   "prompt_tokens": 5611,
+   "completion_tokens": 179,
+   "reason": "",
+   "test": "test_msa_cl_07__an_unknown_section_id_returns_an_empty_list_and_writes_nothing"
+  },
+  {
+   "id": "MSA-CL-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.7,
+   "prompt_tokens": 5619,
+   "completion_tokens": 184,
+   "reason": "",
+   "test": "test_msa_cl_08__a_section_with_no_rows_returns_an_empty_list_and_writes_nothing"
+  },
+  {
+   "id": "MSA-INH-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.8,
+   "prompt_tokens": 5687,
+   "completion_tokens": 279,
+   "reason": "",
+   "test": "test_msa_inh_03__create_of_a_second_row_for_the_same_machine_fails_on_flush_and_the"
+  },
+  {
+   "id": "MSA-INH-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.9,
+   "prompt_tokens": 5651,
+   "completion_tokens": 191,
+   "reason": "",
+   "test": "test_msa_inh_05__get_by_workspace_returns_the_rows_of_that_workspace_only"
+  }
+ ],
+ "totals": {
+  "cases": 57,
+  "accepted": 56,
+  "escalated": 1,
+  "accepted_first_try": 50,
+  "seconds": 2129.0,
+  "prompt_tokens": 384352,
+  "completion_tokens": 14165
+ }
+}

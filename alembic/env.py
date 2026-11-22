@@ -61,6 +61,13 @@ def run_migrations_offline() -> None:
 def _ensure_version_num_width(connection) -> None:
     """Alembic defaults version_num to VARCHAR(32); some revision ids are longer."""
     if 'alembic_version' not in inspect(connection).get_table_names():
+        # Fresh database: create the table wide up front, otherwise Alembic creates
+        # it as VARCHAR(32) and the first >32-char revision id fails mid-chain.
+        connection.execute(text(
+            'CREATE TABLE alembic_version ('
+            'version_num VARCHAR(255) NOT NULL, '
+            'CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))'
+        ))
         return
     connection.execute(
         text('ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)')

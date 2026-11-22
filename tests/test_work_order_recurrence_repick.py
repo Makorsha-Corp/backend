@@ -72,15 +72,17 @@ def test_maybe_seed_reseeds_when_anchored_range_changed(
     )
 
 
+@patch.object(work_order_manager.wo_dao, 'soft_delete')
+@patch.object(work_order_manager.wo_dao, 'list_drafts_outside_range_for_template_machine')
 @patch('app.managers.work_order_manager.work_order_template_manager')
-def test_sync_recurrence_drafts_deletes_orphans_and_generates(mock_tpl_manager) -> None:
+def test_sync_recurrence_drafts_deletes_orphans_and_generates(
+    mock_tpl_manager, mock_list_drafts, _mock_soft_delete
+) -> None:
+    # patch.object (not plain assignment) so the shared DAO singleton is restored afterwards
     session = MagicMock()
     template = _anchored_template()
     orphan = SimpleNamespace(id=101)
-    work_order_manager.wo_dao.list_drafts_outside_range_for_template_machine = MagicMock(
-        return_value=[orphan],
-    )
-    work_order_manager.wo_dao.soft_delete = MagicMock()
+    mock_list_drafts.return_value = [orphan]
 
     work_order_manager.sync_recurrence_drafts_for_machine(
         session,

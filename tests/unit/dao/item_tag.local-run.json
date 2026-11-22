@@ -1,0 +1,821 @@
+{
+ "model": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+ "n_ctx": 16384,
+ "cases_file": "tests/unit/dao/item_tag.cases.md",
+ "think": false,
+ "cases": [
+  {
+   "id": "ITG-CODE-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 45.6,
+   "prompt_tokens": 4837,
+   "completion_tokens": 113,
+   "reason": "",
+   "test": "test_itg_code_14__a_code_of_none_returns_none"
+  },
+  {
+   "id": "ITG-CODE-15",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.9,
+   "prompt_tokens": 4884,
+   "completion_tokens": 185,
+   "reason": "",
+   "test": "test_itg_code_15__a_deleted_tag_is_found_by_its_code_and_left_as_it_was"
+  },
+  {
+   "id": "ITG-CODE-17",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.2,
+   "prompt_tokens": 4896,
+   "completion_tokens": 176,
+   "reason": "",
+   "test": "test_itg_code_17__two_tags_with_one_code_one_of_them_is_returned"
+  },
+  {
+   "id": "ITG-SYS-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.1,
+   "prompt_tokens": 4961,
+   "completion_tokens": 270,
+   "reason": "",
+   "test": "test_itg_sys_01__returns_a_list_of_the_system_tags_of_the_workspace_no_user_tag_and"
+  },
+  {
+   "id": "ITG-SYS-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.3,
+   "prompt_tokens": 4875,
+   "completion_tokens": 153,
+   "reason": "",
+   "test": "test_itg_sys_04__the_other_workspace_gets_only_its_own_system_tag"
+  },
+  {
+   "id": "ITG-ACT-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.0,
+   "prompt_tokens": 4971,
+   "completion_tokens": 223,
+   "reason": "",
+   "test": "test_itg_act_09__every_system_tag_comes_before_every_user_tag"
+  },
+  {
+   "id": "ITG-ACT-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.2,
+   "prompt_tokens": 4952,
+   "completion_tokens": 207,
+   "reason": "",
+   "test": "test_itg_act_10__within_each_group_lower_case_names_come_back_in_alphabetical_order"
+  },
+  {
+   "id": "ITG-INC-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.5,
+   "prompt_tokens": 4881,
+   "completion_tokens": 193,
+   "reason": "",
+   "test": "test_itg_inc_04__a_tag_of_another_workspace_returns_none_and_its_counter_stays"
+  },
+  {
+   "id": "ITG-INC-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 3,
+   "seconds": 306.9,
+   "prompt_tokens": 18149,
+   "completion_tokens": 2492,
+   "reason": "",
+   "test": "test_itg_inc_09__only_the_counter_of_that_tag_changes",
+   "last_code": "def test_itg_inc_09__only_the_counter_of_that_tag_changes(db, w1, mk_tag):\n    \"\"\"ITG-INC-09 \u2014 only the counter of that tag changes.\n    Rules: `increment_usage_count` Side effects\"\"\"\n    t1 = mk_tag(name=\"Hex Bolt\", tag_code=\"hex_bolt\", usage_count=4, color=\"#AA3300\", icon=\"bolt\", description=\"M8 bolts\")\n    t2 = mk_tag(name=\"Lock Nut\", tag_code=\"lock_nut\", usage_count=4)\n    before_t2 = snap(db, t2)\n\n    result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)\n\n    # Then 1\n    assert result is t1\n    # Then 2\n    row = reread(db, t1)\n    assert row.usage_count == 5\n    # Then 3\n    assert row.name == \"Hex Bolt\"\n    assert row.tag_code == \"hex_bolt\"\n    assert row.workspace_id == w1.id\n    # Then 4\n    assert row.color == \"#AA3300\"\n    assert row.icon == \"bolt\"\n    assert row.description == \"M8 bolts\"\n    # Then 5\n    assert row.is_active is True\n    assert row.is_system_tag is False\n    assert row.created_by is None\n    # Then 6\n    assert snap(db, t2) == before_t2\n    # Then 7\n    assert written(db) == 0",
+   "last_output": "============================= test session starts =============================\ncollected 1 item\n\ntests\\unit\\dao\\test_item_tag.py F                                        [100%]\n\n================================== FAILURES ===================================\n____________ test_itg_inc_09__only_the_counter_of_that_tag_changes ____________\ntests\\unit\\dao\\test_item_tag.py:446: in test_itg_inc_09__only_the_counter_of_that_tag_changes\n    assert written(db) == 0\nE   assert 2 == 0\nE    +  where 2 = written(<sqlalchemy.orm.session.Session object at 0x000002371490D640>)\n=========================== short test summary info ===========================\nFAILED tests/unit/dao/test_item_tag.py::test_itg_inc_09__only_the_counter_of_that_tag_changes\n============================== 1 failed in 2.08s ==============================\n",
+   "rejections": [
+    "The test ran and ended as `failed`. It must PASS.",
+    "SyntaxError in your code: unexpected indent (<unknown>, line 1)"
+   ]
+  },
+  {
+   "id": "ITG-INC-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.0,
+   "prompt_tokens": 4897,
+   "completion_tokens": 184,
+   "reason": "",
+   "test": "test_itg_inc_10__the_flush_also_saves_another_pending_change_of_the_same_tag"
+  },
+  {
+   "id": "ITG-DEC-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.4,
+   "prompt_tokens": 4881,
+   "completion_tokens": 180,
+   "reason": "",
+   "test": "test_itg_dec_05__a_negative_stored_counter_is_left_as_it_is_and_the_tag_is_returned"
+  },
+  {
+   "id": "ITG-DEC-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 47.5,
+   "prompt_tokens": 5031,
+   "completion_tokens": 351,
+   "reason": "",
+   "test": "test_itg_dec_11__only_the_counter_of_that_tag_changes"
+  },
+  {
+   "id": "ITG-INH-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.5,
+   "prompt_tokens": 4896,
+   "completion_tokens": 181,
+   "reason": "",
+   "test": "test_itg_inh_02__create_with_an_itemtagcreate_schema_fails_on_flush_and_saves_nothing"
+  },
+  {
+   "id": "ITG-INH-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.5,
+   "prompt_tokens": 4907,
+   "completion_tokens": 205,
+   "reason": "",
+   "test": "test_itg_inh_12__create_checks_no_uniqueness_a_second_tag_with_the_same_name_and_code"
+  },
+  {
+   "id": "ITG-INH-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.0,
+   "prompt_tokens": 4902,
+   "completion_tokens": 196,
+   "reason": "",
+   "test": "test_itg_inh_13__update_with_an_itemtagupdate_changes_the_name_and_keeps_a_colour_sent"
+  },
+  {
+   "id": "ITG-INH-20",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 18.0,
+   "prompt_tokens": 4840,
+   "completion_tokens": 112,
+   "reason": "",
+   "test": "test_itg_inh_20__get_returns_a_deleted_tag"
+  },
+  {
+   "id": "ITG-INH-24",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.4,
+   "prompt_tokens": 4912,
+   "completion_tokens": 204,
+   "reason": "",
+   "test": "test_itg_inh_24__remove_deletes_the_tag_row_for_good"
+  },
+  {
+   "id": "ITG-CODE-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 51.9,
+   "prompt_tokens": 4934,
+   "completion_tokens": 158,
+   "reason": "",
+   "test": "test_itg_code_12__an_empty_code_finds_a_tag_stored_with_an_empty_code"
+  },
+  {
+   "id": "ITG-INC-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.7,
+   "prompt_tokens": 4926,
+   "completion_tokens": 187,
+   "reason": "",
+   "test": "test_itg_inc_03__an_unknown_tag_id_returns_none_writes_nothing_and_raises_nothing"
+  },
+  {
+   "id": "ITG-DEC-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.9,
+   "prompt_tokens": 4946,
+   "completion_tokens": 204,
+   "reason": "",
+   "test": "test_itg_dec_03__a_counter_of_0_stays_0_and_the_tag_is_returned"
+  },
+  {
+   "id": "ITG-INH-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 49.2,
+   "prompt_tokens": 10111,
+   "completion_tokens": 363,
+   "reason": "",
+   "test": "test_itg_inh_03__create_with_a_dict_without_tag_code_fails_on_flush_and_saves_nothing",
+   "last_code": "def test_itg_inh_03__create_with_a_dict_without_tag_code_fails_on_flush_and_saves_nothing(db):\n    \"\"\"ITG-INH-03 \u2014 create with a dict without tag_code fails on flush and saves nothing.\n    Rules: inherited R2, Errors row 1\"\"\"\n    # Then 1\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"Spare Part\"})\n\n    # Then 2\n    assert isinstance(exc.value.orig, NotNullViolation)\n    # Then 3\n    assert 'column \"tag_code\"' in str(exc.value.orig)\n    # Then 4\n    assert count_rows(db, \"item_tags\") == 0",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 54.4,
+   "prompt_tokens": 10181,
+   "completion_tokens": 407,
+   "reason": "",
+   "test": "test_itg_inh_07__a_color_of_8_characters_is_too_long_and_nothing_is_saved",
+   "last_code": "def test_itg_inh_07__a_color_of_8_characters_is_too_long_and_nothing_is_saved(db):\n    \"\"\"ITG-INH-07 \u2014 a color of 8 characters is too long and nothing is saved.\n    Rules: inherited R2, Errors row 3\"\"\"\n    # Then 1\n    with pytest.raises(DataError) as exc:\n        with db.begin_nested():\n            dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"Spare Part\", \"tag_code\": \"spare_part\", \"color\": \"#AA33001\"})\n\n    # Then 2\n    assert isinstance(exc.value.orig, StringDataRightTruncation)\n    # Then 3\n    assert exc.value.orig.pgcode == \"22001\"\n    # Then 4\n    assert count_rows(db, \"item_tags\") == 0",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 54.9,
+   "prompt_tokens": 10185,
+   "completion_tokens": 411,
+   "reason": "",
+   "test": "test_itg_inh_09__an_icon_of_51_characters_is_too_long_and_nothing_is_saved",
+   "last_code": "def test_itg_inh_09__an_icon_of_51_characters_is_too_long_and_nothing_is_saved(db):\n    \"\"\"ITG-INH-09 \u2014 an icon of 51 characters is too long and nothing is saved.\n    Rules: inherited R2, Errors row 3\"\"\"\n    # Then 1\n    with pytest.raises(DataError) as exc:\n        with db.begin_nested():\n            dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"Spare Part\", \"tag_code\": \"spare_part\", \"icon\": \"i\" * 51})\n\n    # Then 2\n    assert isinstance(exc.value.orig, StringDataRightTruncation)\n    # Then 3\n    assert exc.value.orig.pgcode == \"22001\"\n    # Then 4\n    assert count_rows(db, \"item_tags\") == 0",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.3,
+   "prompt_tokens": 4959,
+   "completion_tokens": 199,
+   "reason": "",
+   "test": "test_itg_inh_14__update_with_the_dict_is_active_false_deletes_the_tag"
+  },
+  {
+   "id": "ITG-INH-17",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.9,
+   "prompt_tokens": 4990,
+   "completion_tokens": 212,
+   "reason": "",
+   "test": "test_itg_inh_17__get_by_workspace_returns_the_workspace_s_tags_deleted_ones_included"
+  },
+  {
+   "id": "ITG-CODE-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 58.4,
+   "prompt_tokens": 5005,
+   "completion_tokens": 216,
+   "reason": "",
+   "test": "test_itg_code_01__returns_the_tag_of_the_workspace_with_that_code_and_writes_nothing"
+  },
+  {
+   "id": "ITG-CODE-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.4,
+   "prompt_tokens": 4977,
+   "completion_tokens": 157,
+   "reason": "",
+   "test": "test_itg_code_02__a_tag_of_another_workspace_with_that_code_is_not_returned"
+  },
+  {
+   "id": "ITG-CODE-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.3,
+   "prompt_tokens": 4938,
+   "completion_tokens": 115,
+   "reason": "",
+   "test": "test_itg_code_04__an_unknown_workspace_id_returns_none"
+  },
+  {
+   "id": "ITG-CODE-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.8,
+   "prompt_tokens": 4944,
+   "completion_tokens": 128,
+   "reason": "",
+   "test": "test_itg_code_05__a_code_differing_in_the_case_of_some_letters_returns_none"
+  },
+  {
+   "id": "ITG-CODE-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.5,
+   "prompt_tokens": 4939,
+   "completion_tokens": 117,
+   "reason": "",
+   "test": "test_itg_code_06__an_all_capitals_code_returns_none"
+  },
+  {
+   "id": "ITG-CODE-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.2,
+   "prompt_tokens": 4937,
+   "completion_tokens": 114,
+   "reason": "",
+   "test": "test_itg_code_07__a_leading_space_returns_none"
+  },
+  {
+   "id": "ITG-CODE-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.2,
+   "prompt_tokens": 4937,
+   "completion_tokens": 114,
+   "reason": "",
+   "test": "test_itg_code_08__a_trailing_space_returns_none"
+  },
+  {
+   "id": "ITG-CODE-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.0,
+   "prompt_tokens": 4938,
+   "completion_tokens": 116,
+   "reason": "",
+   "test": "test_itg_code_09__a_prefix_of_the_code_returns_none"
+  },
+  {
+   "id": "ITG-CODE-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.6,
+   "prompt_tokens": 4941,
+   "completion_tokens": 120,
+   "reason": "",
+   "test": "test_itg_code_10__the_code_with_one_more_character_returns_none"
+  },
+  {
+   "id": "ITG-CODE-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.2,
+   "prompt_tokens": 4945,
+   "completion_tokens": 126,
+   "reason": "",
+   "test": "test_itg_code_11__a_like_pattern_is_not_a_pattern_raw_returns_none"
+  },
+  {
+   "id": "ITG-CODE-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.1,
+   "prompt_tokens": 4942,
+   "completion_tokens": 125,
+   "reason": "",
+   "test": "test_itg_code_13__an_empty_code_returns_none_when_no_tag_has_an_empty_code"
+  },
+  {
+   "id": "ITG-CODE-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.9,
+   "prompt_tokens": 4957,
+   "completion_tokens": 140,
+   "reason": "",
+   "test": "test_itg_code_16__a_system_tag_is_found_by_its_code"
+  },
+  {
+   "id": "ITG-SYS-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.5,
+   "prompt_tokens": 4979,
+   "completion_tokens": 169,
+   "reason": "",
+   "test": "test_itg_sys_02__a_deleted_system_tag_is_not_returned"
+  },
+  {
+   "id": "ITG-SYS-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.5,
+   "prompt_tokens": 4974,
+   "completion_tokens": 153,
+   "reason": "",
+   "test": "test_itg_sys_03__a_system_tag_of_another_workspace_is_not_returned"
+  },
+  {
+   "id": "ITG-SYS-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.0,
+   "prompt_tokens": 4935,
+   "completion_tokens": 115,
+   "reason": "",
+   "test": "test_itg_sys_05__an_unknown_workspace_id_returns_an_empty_list"
+  },
+  {
+   "id": "ITG-SYS-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.4,
+   "prompt_tokens": 4970,
+   "completion_tokens": 153,
+   "reason": "",
+   "test": "test_itg_sys_06__a_workspace_with_only_user_tags_and_a_deleted_system_tag_returns_an"
+  },
+  {
+   "id": "ITG-ACT-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.9,
+   "prompt_tokens": 4975,
+   "completion_tokens": 164,
+   "reason": "",
+   "test": "test_itg_act_02__a_deleted_user_tag_is_not_returned"
+  },
+  {
+   "id": "ITG-ACT-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.4,
+   "prompt_tokens": 4969,
+   "completion_tokens": 144,
+   "reason": "",
+   "test": "test_itg_act_03__a_deleted_system_tag_is_not_returned"
+  },
+  {
+   "id": "ITG-ACT-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.0,
+   "prompt_tokens": 4972,
+   "completion_tokens": 149,
+   "reason": "",
+   "test": "test_itg_act_04__a_tag_of_another_workspace_is_not_returned"
+  },
+  {
+   "id": "ITG-ACT-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.0,
+   "prompt_tokens": 4972,
+   "completion_tokens": 149,
+   "reason": "",
+   "test": "test_itg_act_05__the_other_workspace_gets_only_its_own_tag"
+  },
+  {
+   "id": "ITG-ACT-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 18.7,
+   "prompt_tokens": 4934,
+   "completion_tokens": 113,
+   "reason": "",
+   "test": "test_itg_act_06__an_unknown_workspace_id_returns_an_empty_list"
+  },
+  {
+   "id": "ITG-ACT-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 19.8,
+   "prompt_tokens": 4950,
+   "completion_tokens": 123,
+   "reason": "",
+   "test": "test_itg_act_07__a_workspace_without_tags_returns_an_empty_list"
+  },
+  {
+   "id": "ITG-INC-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.6,
+   "prompt_tokens": 4958,
+   "completion_tokens": 146,
+   "reason": "",
+   "test": "test_itg_inc_02__a_counter_of_0_becomes_1"
+  },
+  {
+   "id": "ITG-INC-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.4,
+   "prompt_tokens": 4964,
+   "completion_tokens": 153,
+   "reason": "",
+   "test": "test_itg_inc_05__the_tag_s_own_workspace_counts_it"
+  },
+  {
+   "id": "ITG-INC-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.0,
+   "prompt_tokens": 4975,
+   "completion_tokens": 166,
+   "reason": "",
+   "test": "test_itg_inc_06__a_deleted_tag_is_counted_like_any_other"
+  },
+  {
+   "id": "ITG-INC-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.1,
+   "prompt_tokens": 4958,
+   "completion_tokens": 151,
+   "reason": "",
+   "test": "test_itg_inc_07__a_system_tag_is_counted_like_any_other"
+  },
+  {
+   "id": "ITG-INC-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.6,
+   "prompt_tokens": 4958,
+   "completion_tokens": 151,
+   "reason": "",
+   "test": "test_itg_inc_08__a_negative_stored_counter_goes_up_by_one"
+  },
+  {
+   "id": "ITG-DEC-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.8,
+   "prompt_tokens": 4997,
+   "completion_tokens": 201,
+   "reason": "",
+   "test": "test_itg_dec_01__the_counter_goes_down_by_one_flushed_and_the_session_s_tag_object_is"
+  },
+  {
+   "id": "ITG-DEC-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.4,
+   "prompt_tokens": 4961,
+   "completion_tokens": 153,
+   "reason": "",
+   "test": "test_itg_dec_02__a_counter_of_1_becomes_0"
+  },
+  {
+   "id": "ITG-DEC-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.7,
+   "prompt_tokens": 4971,
+   "completion_tokens": 189,
+   "reason": "",
+   "test": "test_itg_dec_06__an_unknown_tag_id_returns_none_writes_nothing_and_raises_nothing"
+  },
+  {
+   "id": "ITG-DEC-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.4,
+   "prompt_tokens": 4983,
+   "completion_tokens": 195,
+   "reason": "",
+   "test": "test_itg_dec_07__a_tag_of_another_workspace_returns_none_and_its_counter_stays"
+  },
+  {
+   "id": "ITG-DEC-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.2,
+   "prompt_tokens": 4968,
+   "completion_tokens": 158,
+   "reason": "",
+   "test": "test_itg_dec_08__the_tag_s_own_workspace_decrements_it"
+  },
+  {
+   "id": "ITG-DEC-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.5,
+   "prompt_tokens": 4979,
+   "completion_tokens": 170,
+   "reason": "",
+   "test": "test_itg_dec_09__a_deleted_tag_is_decremented_like_any_other"
+  },
+  {
+   "id": "ITG-DEC-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.8,
+   "prompt_tokens": 4962,
+   "completion_tokens": 155,
+   "reason": "",
+   "test": "test_itg_dec_10__a_system_tag_is_decremented_like_any_other"
+  },
+  {
+   "id": "ITG-DEC-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.7,
+   "prompt_tokens": 5005,
+   "completion_tokens": 197,
+   "reason": "",
+   "test": "test_itg_dec_12__when_a_value_is_written_the_flush_also_saves_another_pending_change"
+  },
+  {
+   "id": "ITG-INH-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 47.5,
+   "prompt_tokens": 10182,
+   "completion_tokens": 353,
+   "reason": "",
+   "test": "test_itg_inh_04__create_with_a_dict_without_name_fails_on_flush_and_saves_nothing",
+   "last_code": "def test_itg_inh_04__create_with_a_dict_without_name_fails_on_flush_and_saves_nothing(db):\n    \"\"\"ITG-INH-04 \u2014 create with a dict without name fails on flush and saves nothing.\n    Rules: inherited Errors row 1\"\"\"\n    # Then 1\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            dao.create(db, obj_in={\"workspace_id\": w1.id, \"tag_code\": \"spare_part\"})\n\n    # Then 2\n    assert isinstance(exc.value.orig, NotNullViolation)\n    # Then 3\n    assert 'column \"name\"' in str(exc.value.orig)\n    # Then 4\n    assert count_rows(db, \"item_tags\") == 0",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 52.8,
+   "prompt_tokens": 10239,
+   "completion_tokens": 391,
+   "reason": "",
+   "test": "test_itg_inh_06__create_with_an_unknown_created_by_fails_on_flush_and_saves_nothing",
+   "last_code": "def test_itg_inh_06__create_with_an_unknown_created_by_fails_on_flush_and_saves_nothing(db):\n    \"\"\"ITG-INH-06 \u2014 create with an unknown created_by fails on flush and saves nothing.\n    Rules: inherited R2, Errors row 2\"\"\"\n    # Then 1\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"Spare Part\", \"tag_code\": \"spare_part\", \"created_by\": MISSING})\n\n    # Then 2\n    assert isinstance(exc.value.orig, ForeignKeyViolation)\n    # Then 3\n    assert \"item_tags_created_by_fkey\" in str(exc.value.orig)\n    # Then 4\n    assert count_rows(db, \"item_tags\") == 0",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.3,
+   "prompt_tokens": 4965,
+   "completion_tokens": 149,
+   "reason": "",
+   "test": "test_itg_inh_08__a_color_of_exactly_7_characters_is_saved"
+  },
+  {
+   "id": "ITG-INH-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 42.8,
+   "prompt_tokens": 10154,
+   "completion_tokens": 311,
+   "reason": "",
+   "test": "test_itg_inh_10__an_icon_of_exactly_50_characters_is_saved",
+   "last_code": "def test_itg_inh_10__an_icon_of_exactly_50_characters_is_saved(db, w1):\n    \"\"\"ITG-INH-10 \u2014 an icon of exactly 50 characters is saved.\n    Rules: inherited R2\"\"\"\n    before = written(db)\n\n    result = dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"Spare Part\", \"tag_code\": \"spare_part\", \"icon\": \"i\" * 50})\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.icon == \"i\" * 50",
+   "rejections": [
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "ITG-INH-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 49.2,
+   "prompt_tokens": 10223,
+   "completion_tokens": 367,
+   "reason": "",
+   "test": "test_itg_inh_11__a_500_character_name_and_a_60_character_code_are_saved_no_database",
+   "last_code": "def test_itg_inh_11__a_500_character_name_and_a_60_character_code_are_saved_no_database(db):\n    \"\"\"ITG-INH-11 \u2014 a 500-character name and a 60-character code are saved (no database length limit).\n    Rules: inherited R2\"\"\"\n\n    result = dao.create(db, obj_in={\"workspace_id\": w1.id, \"name\": \"N\" * 500, \"tag_code\": \"c\" * 60})\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.name == \"N\" * 500\n    # Then 3\n    assert row.tag_code == \"c\" * 60",
+   "rejections": [
+    "You use the fixture(s) w1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITG-INH-15",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.2,
+   "prompt_tokens": 4960,
+   "completion_tokens": 151,
+   "reason": "",
+   "test": "test_itg_inh_15__update_with_the_dict_is_active_true_brings_a_deleted_tag_back"
+  },
+  {
+   "id": "ITG-INH-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.6,
+   "prompt_tokens": 4983,
+   "completion_tokens": 171,
+   "reason": "",
+   "test": "test_itg_inh_16__update_with_the_dict_color_none_clears_the_colour"
+  },
+  {
+   "id": "ITG-INH-21",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.2,
+   "prompt_tokens": 4950,
+   "completion_tokens": 126,
+   "reason": "",
+   "test": "test_itg_inh_21__get_returns_a_tag_of_any_workspace"
+  },
+  {
+   "id": "ITG-INH-22",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.9,
+   "prompt_tokens": 4955,
+   "completion_tokens": 132,
+   "reason": "",
+   "test": "test_itg_inh_22__get_by_id_and_workspace_returns_a_deleted_tag"
+  },
+  {
+   "id": "ITG-INH-23",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.2,
+   "prompt_tokens": 4950,
+   "completion_tokens": 134,
+   "reason": "",
+   "test": "test_itg_inh_23__get_by_id_and_workspace_returns_none_for_a_tag_of_another_workspace"
+  }
+ ],
+ "totals": {
+  "cases": 70,
+  "accepted": 70,
+  "escalated": 0,
+  "accepted_first_try": 62,
+  "seconds": 2281.9,
+  "prompt_tokens": 396134,
+  "completion_tokens": 15256
+ }
+}
