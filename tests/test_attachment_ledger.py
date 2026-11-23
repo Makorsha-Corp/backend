@@ -55,6 +55,7 @@ def test_create_pending_appends_ledger(
 ) -> None:
     attachment = _attachment()
     mock_attachment_dao.create.return_value = attachment
+    mock_link_dao.count_linked_attachments_for_entity.return_value = 0  # under the per-entity limit
     user = MagicMock()
     user.id = 5
     payload = AttachmentSignRequest(

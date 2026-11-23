@@ -8,6 +8,10 @@ Database: TEST_DATABASE_URL (default postgresql://postgres:postgres@localhost:54
 The database name must end in `_test` — the harness refuses anything else so a
 misconfigured run can never touch dev or production data. It is created if
 missing and migrated to the Alembic head once per test session.
+
+Parallel runs (pytest-xdist, `-n 4`): each worker gets its own database, named
+after the base one with the worker id before `_test` (marker_test → marker_gw0_test,
+marker_gw1_test, ...), so workers never wait on each other's locks.
 """
 import os
 import subprocess
@@ -29,6 +33,11 @@ if not (_url.database or "").endswith("_test"):
         f"Refusing to run unit tests against database {_url.database!r}: "
         "TEST_DATABASE_URL must point at a database whose name ends in '_test'."
     )
+
+_worker = os.environ.get("PYTEST_XDIST_WORKER")  # "gw0", "gw1", ... under xdist; unset otherwise
+if _worker:
+    _url = _url.set(database=f"{_url.database[: -len('_test')]}_{_worker}_test")
+    TEST_DATABASE_URL = _url.render_as_string(hide_password=False)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 

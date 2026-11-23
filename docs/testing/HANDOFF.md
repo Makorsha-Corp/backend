@@ -24,7 +24,7 @@ pipeline, and then for splitting the bug fixing.
 python -m pytest tests/unit -o addopts=""
 ```
 
-This takes about 16 minutes. Before the revamp the result was **17,994 passed,
+This takes about 16 minutes. Add `-n 4` to run on 4 workers, which is faster; CI does this on every PR. Before the revamp the result was **17,994 passed,
 5,902 xfailed, 75 xpassed, 1 skipped, 0 failed**.
 
 - **`failed`:** your change altered behaviour that another module's test

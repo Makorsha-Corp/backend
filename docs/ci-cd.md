@@ -330,8 +330,9 @@ post-deploy
 - **2026-11-21: the whole document is suggestions only; the owner is rethinking it.**
 - **2026-11-21: no error tracking, logging dashboards or paging for now (owner).**
 - **2026-11-21: one test database per xdist worker (owner agreed).**
-  - `marker_test` is migrated once and used as a template. Each worker gets `marker_test_gwN` via `CREATE DATABASE … TEMPLATE marker_test`.
+  - As built (2026-11-23): each worker gets `marker_gwN_test` (the `_test` suffix stays last, so the safety check still applies) and migrates it itself. A fresh migration takes about 5 s, so no template clone is needed.
   - A plain run without xdist still uses `marker_test`.
   - `UNIT_TESTS_SKIP_MIGRATE=1` (used by `mutate.py`) keeps working: no migrate, no clone.
   - The worker databases are reused between runs.
   - Drawbacks: a small conftest change, and a few empty databases on dev machines.
+- **2026-11-23: CI test jobs built (`.github/workflows/ci.yml`).** Jobs `legacy` (tests/*.py, no DB, dummy Cloudinary env), `unit` (Postgres 16, `pytest tests/unit -n 4`), and `migrations` (unchanged). No `lint` job yet: `ruff check .` has about 1,450 existing findings in `app/`, so it would start red. Add it once those are cleaned up. Three stale legacy attachment tests were updated to current behaviour (attachment limit check mocked; `density: 200` for wide PDF pages, per attachment_manager spec R7).

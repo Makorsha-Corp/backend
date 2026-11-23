@@ -299,7 +299,7 @@ def test_build_pdf_page_image_url(mock_build_url: MagicMock, mock_settings: Magi
 
 @patch("app.managers.attachment_manager.settings")
 @patch("app.managers.attachment_manager.build_signed_delivery_url")
-def test_build_pdf_page_image_url_default_width_no_density(
+def test_build_pdf_page_image_url_wide_page_has_density(
     mock_build_url: MagicMock, mock_settings: MagicMock,
 ) -> None:
     mock_settings.CLOUDINARY_CLOUD_NAME = "demo"
@@ -321,7 +321,7 @@ def test_build_pdf_page_image_url_default_width_no_density(
 
     transform = mock_build_url.call_args.kwargs["transformation"][0]
     assert transform["width"] == 1600
-    assert "density" not in transform
+    assert transform["density"] == 200  # added for widths >= 1200 (attachment_manager spec R7)
 
 
 @patch("app.managers.attachment_manager.attachment_link_dao")
@@ -333,6 +333,7 @@ def test_create_pending_attachment_passes_resource_type(
     created = MagicMock()
     created.id = 99
     mock_attachment_dao.create.return_value = created
+    mock_link_dao.count_linked_attachments_for_entity.return_value = 0  # under the per-entity limit
 
     session = MagicMock()
     user = MagicMock()

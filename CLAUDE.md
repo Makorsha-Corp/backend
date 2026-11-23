@@ -32,6 +32,8 @@ attachments (deferred until after launch).
   `postgresql://postgres:postgres@localhost:5432/marker_test`; the name must
   end in `_test`. The database is created and migrated automatically.
 - Full suite: `python -m pytest tests/unit -o addopts=""` (about 16 minutes).
+  Faster: add `-n 4` (pytest-xdist; each worker gets its own database,
+  `marker_gw0_test`, ...). CI runs it this way on every PR and push to main.
 - Each test runs in a rolled-back transaction; nothing is ever committed.
 - Known bugs are strict `xfail` tests tagged with their BUG id. A strict
   xfail that starts passing means the bug was fixed: remove the marker.
