@@ -906,3 +906,7 @@ The owner asked whether a finalized invoice on a completed order can still chang
   If money was already refunded on that credit note, nothing is cancelled automatically: a warning is shown and staff decide. → `sales_service.spec.md`
 - **OQ-65 (OQ-WOS-1, money): creating an invoice for a work order with no cost.** Answer: option (a). "Create invoice" is refused until the order has a cost above 0, with "Set the work order's cost before creating an invoice." Free outside work has no account and gets no invoice. → `work_order_service.spec.md`
 
+
+## Answered in chat, 2026-11-26 (help tickets after the merge of main)
+
+- **OQ-66 (permissions and workflow): who may change a help ticket's status after the new pending → opened → closed workflow.** The merged code (41d5ac1) lets only platform admins change status. Answer: **keep OQ-8**. The workspace owner and ground-team managers may change status too, along with platform admins, following the same transition table (pending→opened, opened→closed, closed→opened). Anyone else (for example a plain member who raised the ticket) is refused with 403. The admin-only rule in the code is a bug. → `help_ticket_manager.spec.md`, `help_ticket_service.spec.md`, the help-ticket endpoints

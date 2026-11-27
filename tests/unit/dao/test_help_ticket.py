@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from unittest import mock
 
+import pydantic
 import pytest
 from sqlalchemy import event, func, select, text
 from sqlalchemy import inspect as sa_inspect
@@ -93,7 +94,7 @@ def _ticket_fields(w1, u1, ticket_number, columns):
     return fields
 
 
-# Convention "ticket": status left to its default "open"
+# Convention "ticket": status and type left to their model defaults "pending" and "support"
 @pytest.fixture
 def mk_ticket(db, w1, u1):
     """mk_ticket(ticket_number, **columns) -> HelpTicket, flushed."""
@@ -228,6 +229,21 @@ class StatementRecorder:
 # Convention "order_part"
 def order_part_of(sql):
     return sql.split("ORDER BY", 1)[1].split("LIMIT", 1)[0] if "ORDER BY" in sql else ""
+
+
+# Convention "NoType": an input object with no `type` field
+class NoType(pydantic.BaseModel):
+    title: str
+    description: str
+    category: str | None = None
+
+
+# Convention "WithStatus": an input object that carries a `status` field
+class WithStatus(pydantic.BaseModel):
+    title: str
+    description: str
+    category: str | None = None
+    status: str
 
 
 def new_pending(db, w1, u1, ticket_number):
@@ -397,15 +413,31 @@ def test_hlp_gn_11__asked_for_w2_the_earlier_w1_ticket_does_not_count(db, w2, mk
     assert result == "HELP-2026-001"
 
 
+# [claude] HLP-GN-12
+def test_hlp_gn_12__every_status_and_both_types_count_in_one_sequence(db, w1, mk_ticket):
+    """HLP-GN-12 — every status and both types count, in one sequence.
+    Rules: `generate_ticket_number` R2a"""
+    mk_ticket("HELP-2026-001")
+    mk_ticket("HELP-2026-002", status="opened", type="feedback")
+    mk_ticket("HELP-2026-003", status="closed", type="feedback")
+    mk_ticket("HELP-2026-004", status="closed")
+
+    result = dao.generate_ticket_number(db, workspace_id=w1.id, year=2026)
+
+    # Then 1
+    assert result == "HELP-2026-005"
+
+
 # --------------------------------------------------------------------------- #
 # DAOHelpTicket.create_with_user
 # --------------------------------------------------------------------------- #
 
 
 # [claude] HLP-CW-01
-def test_hlp_cw_01__a_ticket_is_opened_with_the_schema_s_fields_the_next_number_and_status_open(db, w1, u1):
-    """HLP-CW-01 — a ticket is opened with the schema's fields, the next number and status open.
-    Rules: `create_with_user` R1, Returns, Side effects"""
+def test_hlp_cw_01__a_ticket_is_opened_with_the_schema_s_fields_the_next_number_status_pending_and_type_support(
+        db, w1, u1):
+    """HLP-CW-01 — a ticket is opened with the schema's fields, the next number, status pending and type support.
+    Rules: `create_with_user` R1, R1a, R1b, Returns, Side effects"""
     with default_clock():
         result = dao.create_with_user(
             db, obj_in=HelpTicketCreate(title="Printer jam", description="It jams", category="hardware"),
@@ -416,25 +448,36 @@ def test_hlp_cw_01__a_ticket_is_opened_with_the_schema_s_fields_the_next_number_
     # Then 2
     assert result.id is not None
     # Then 3
+    assert type(result.status) is str
+    assert result.status == "pending"
+    # Then 4
+    assert type(result.type) is str
+    assert result.type == "support"
+    # Then 5
     row = reread(db, result.id)
     assert row.ticket_number == "HELP-2026-001"
-    assert row.status == "open"
+    assert row.status == "pending"
+    assert row.type == "support"
     assert row.workspace_id == w1.id
     assert row.created_by == u1.id
-    # Then 4
+    # Then 6
+    row = reread(db, result.id)
+    assert type(row.status) is str
+    assert type(row.type) is str
+    # Then 7
     row = reread(db, result.id)
     assert row.title == "Printer jam"
     assert row.description == "It jams"
     assert row.category == "hardware"
-    # Then 5
+    # Then 8
     row = reread(db, result.id)
     assert row.closed_at is None
     assert row.closed_by is None
-    # Then 6
+    # Then 9
     row = reread(db, result.id)
     assert row.created_at == now_db(db)
     assert row.updated_at == now_db(db)
-    # Then 7
+    # Then 10
     assert w1_count(db, w1) == 1
 
 
@@ -565,6 +608,168 @@ def test_hlp_cw_08__flushed_not_committed_a_rollback_removes_the_ticket(db, w1, 
         assert w1_count(db, w1) == 0
         # Then 4
         assert commit_spy.call_count == 0
+
+
+# [claude] HLP-CW-09
+def test_hlp_cw_09__type_feedback_from_the_schema_is_stored_as_the_plain_string_feedback(db, w1, u1):
+    """HLP-CW-09 — type "feedback" from the schema is stored as the plain string "feedback".
+    Rules: `create_with_user` R1a, R1b"""
+    with default_clock():
+        result = dao.create_with_user(
+            db, obj_in=HelpTicketCreate(title="Idea", description="Add dark mode", type="feedback"),
+            workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert result.id is not None
+    # Then 2
+    assert type(result.type) is str
+    assert result.type == "feedback"
+    # Then 3
+    assert type(result.status) is str
+    assert result.status == "pending"
+    # Then 4
+    row = reread(db, result.id)
+    assert row.type == "feedback"
+    assert row.status == "pending"
+    assert row.ticket_number == "HELP-2026-001"
+    # Then 5
+    row = reread(db, result.id)
+    assert type(row.type) is str
+    # Then 6
+    assert db.scalar(text("SELECT count(*) FROM help_tickets WHERE workspace_id = :w AND type = 'feedback'"),
+                     {"w": w1.id}) == 1
+
+
+# [claude] HLP-CW-10
+def test_hlp_cw_10__a_type_that_is_already_a_plain_string_is_stored_as_given(db, w1, u1):
+    """HLP-CW-10 — a type that is already a plain string is stored as given.
+    Rules: `create_with_user` R1a, R1b"""
+    with default_clock():
+        result = dao.create_with_user(
+            db, obj_in=HelpTicketCreate.model_construct(title="Idea", description="Add dark mode", category=None,
+                                                        type="feedback"),
+            workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert result.id is not None
+    # Then 2
+    assert type(result.type) is str
+    assert result.type == "feedback"
+    # Then 3
+    row = reread(db, result.id)
+    assert row.type == "feedback"
+    assert row.status == "pending"
+    assert row.title == "Idea"
+
+
+# [claude] HLP-CW-11
+def test_hlp_cw_11__an_input_object_with_no_type_field_gives_type_support(db, w1, u1):
+    """HLP-CW-11 — an input object with no type field gives type "support".
+    Rules: `create_with_user` R1a"""
+    with default_clock():
+        result = dao.create_with_user(db, obj_in=NoType(title="Leak", description="Drips"),
+                                      workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert result.id is not None
+    # Then 2
+    assert result.type == "support"
+    # Then 3
+    row = reread(db, result.id)
+    assert row.type == "support"
+    assert row.status == "pending"
+    assert row.title == "Leak"
+    assert row.description == "Drips"
+    assert row.category is None
+
+
+# [claude] HLP-CW-12
+def test_hlp_cw_12__a_type_of_17_characters_fails_at_the_flush_with_dataerror_22001_and_saves_nothing(
+        db, w1, w2, u1):
+    """HLP-CW-12 — a type of 17 characters fails at the flush with DataError 22001 and saves nothing.
+    Rules: `create_with_user` R1c, Errors"""
+    before = ws_counts(db, w1, w2)
+
+    with default_clock():
+        with pytest.raises(DataError) as exc:
+            with db.begin_nested():
+                dao.create_with_user(
+                    db, obj_in=HelpTicketCreate.model_construct(title="Idea", description="Add dark mode",
+                                                                category=None, type="f" * 17),
+                    workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert exc.value.orig.pgcode == "22001"
+    # Then 2
+    assert ws_counts(db, w1, w2) == before
+    # Then 3
+    assert w1_count(db, w1) == 0
+
+
+# [claude] HLP-CW-13
+def test_hlp_cw_13__a_type_of_exactly_16_characters_is_stored(db, w1, u1):
+    """HLP-CW-13 — a type of exactly 16 characters is stored.
+    Rules: `create_with_user` R1c, R1a"""
+    with default_clock():
+        result = dao.create_with_user(
+            db, obj_in=HelpTicketCreate.model_construct(title="Idea", description="Add dark mode", category=None,
+                                                        type="f" * 16),
+            workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert result.id is not None
+    # Then 2
+    row = reread(db, result.id)
+    assert row.type == "ffffffffffffffff"
+    # Then 3
+    assert w1_count(db, w1) == 1
+
+
+# [claude] HLP-CW-14
+def test_hlp_cw_14__a_non_schema_input_carrying_a_status_raises_typeerror_and_inserts_nothing(db, w1, w2, u1):
+    """HLP-CW-14 — a non-schema input carrying a status raises TypeError and inserts nothing.
+    Rules: `create_with_user` R1d"""
+    before = ws_counts(db, w1, w2)
+
+    with default_clock():
+        with StatementRecorder(db) as recorder:
+            with pytest.raises(TypeError) as exc:
+                dao.create_with_user(db, obj_in=WithStatus(title="Leak", description="Drips", status="closed"),
+                                     workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert "multiple values for keyword argument 'status'" in str(exc.value)
+    # Then 2
+    assert len(db.new) == 0
+    # Then 3
+    assert [s for s in recorder.written() if s.lstrip().upper().startswith("INSERT")] == []
+    # Then 4
+    assert ws_counts(db, w1, w2) == before
+    # Then 5
+    assert w1_count(db, w1) == 0
+
+
+# [claude] HLP-CW-15
+def test_hlp_cw_15__helpticketcreate_model_construct_drops_a_status_so_the_ticket_is_pending(db, w1, u1):
+    """HLP-CW-15 — HelpTicketCreate.model_construct drops a status, so the ticket is pending.
+    Rules: `create_with_user` R1d, R1"""
+    with default_clock():
+        result = dao.create_with_user(
+            db, obj_in=HelpTicketCreate.model_construct(title="Idea", description="Add dark mode", category=None,
+                                                        type="feedback", status="closed"),
+            workspace_id=w1.id, user_id=u1.id)
+
+    # Then 1
+    assert result.id is not None
+    # Then 2
+    assert result.status == "pending"
+    # Then 3
+    row = reread(db, result.id)
+    assert row.status == "pending"
+    assert row.type == "feedback"
+    assert row.ticket_number == "HELP-2026-001"
+    # Then 4
+    assert w1_count(db, w1) == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -873,12 +1078,12 @@ def test_hlp_lw_04__status_keeps_none(db, w1, mk_ticket):
 
 
 # [claude] HLP-LW-05
-def test_hlp_lw_05__status_open_in_capitals_keeps_none(db, w1, mk_ticket):
-    """HLP-LW-05 — status "OPEN" in capitals keeps none.
+def test_hlp_lw_05__status_pending_in_capitals_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-05 — status "PENDING" in capitals keeps none.
     Rules: `list_by_workspace` R2"""
     mk_ticket("HELP-2026-001")
 
-    result = dao.list_by_workspace(db, workspace_id=w1.id, status="OPEN")
+    result = dao.list_by_workspace(db, workspace_id=w1.id, status="PENDING")
 
     # Then 1
     assert result == []
@@ -1103,7 +1308,7 @@ def test_hlp_lw_19__the_status_filter_comes_before_the_page_a_newer_closed_ticke
     newer(db, a, 2)
     newer(db, b, 1)
 
-    result = dao.list_by_workspace(db, workspace_id=w1.id, status="open", skip=1, limit=1)
+    result = dao.list_by_workspace(db, workspace_id=w1.id, status="pending", skip=1, limit=1)
 
     # Then 1
     assert ids(result) == [b.id]
@@ -1246,6 +1451,167 @@ def test_hlp_lw_27__on_a_tie_the_id_decides_not_the_title(db, w1, mk_ticket):
 
     # Then 1
     assert ids(result) == [d.id, c.id, b.id, a.id]
+
+
+# [claude] HLP-LW-28
+def test_hlp_lw_28__the_retired_status_open_keeps_none_not_even_an_opened_ticket(db, w1, mk_ticket):
+    """HLP-LW-28 — the retired status "open" keeps none, not even an "opened" ticket.
+    Rules: `list_by_workspace` R2"""
+    mk_ticket("HELP-2026-001", status="opened")
+    mk_ticket("HELP-2026-002")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, status="open")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-29
+def test_hlp_lw_29__ticket_type_feedback_keeps_the_feedback_tickets_only(db, w1, mk_ticket):
+    """HLP-LW-29 — ticket_type "feedback" keeps the feedback tickets only.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001")
+    f = mk_ticket("HELP-2026-002", type="feedback")
+    mk_ticket("HELP-2026-003")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="feedback")
+
+    # Then 1
+    assert ids(result) == [f.id]
+
+
+# [claude] HLP-LW-30
+def test_hlp_lw_30__ticket_type_none_keeps_both_types(db, w1, mk_ticket):
+    """HLP-LW-30 — ticket_type None keeps both types.
+    Rules: `list_by_workspace` R2a"""
+    a = mk_ticket("HELP-2026-001")
+    f = mk_ticket("HELP-2026-002", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type=None)
+
+    # Then 1
+    assert set(ids(result)) == {a.id, f.id}
+
+
+# [claude] HLP-LW-31
+def test_hlp_lw_31__ticket_type_is_a_filter_and_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-31 — ticket_type "" is a filter and keeps none.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001")
+    mk_ticket("HELP-2026-002", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-32
+def test_hlp_lw_32__ticket_type_feedback_with_a_capital_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-32 — ticket_type "Feedback" with a capital keeps none.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="Feedback")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-33
+def test_hlp_lw_33__a_part_of_a_type_feed_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-33 — a part of a type ("feed") keeps none.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="feed")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-34
+def test_hlp_lw_34__a_stored_type_with_a_leading_space_is_not_kept(db, w1, mk_ticket):
+    """HLP-LW-34 — a stored type with a leading space is not kept.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001", type=" feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="feedback")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-35
+def test_hlp_lw_35__the_type_filter_comes_before_the_page_a_newer_feedback_ticket_takes_no_place(
+        db, w1, mk_ticket):
+    """HLP-LW-35 — the type filter comes before the page: a newer feedback ticket takes no place.
+    Rules: `list_by_workspace` R2a, R5"""
+    x = mk_ticket("HELP-2026-001", type="feedback")
+    a = mk_ticket("HELP-2026-002")
+    b = mk_ticket("HELP-2026-003")
+    newer(db, x, 3)
+    newer(db, a, 2)
+    newer(db, b, 1)
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="support", skip=1, limit=1)
+
+    # Then 1
+    assert ids(result) == [b.id]
+
+
+# [claude] HLP-LW-36
+def test_hlp_lw_36__status_ticket_type_and_created_by_combine_with_and(db, w1, w2, u2, mk_ticket):
+    """HLP-LW-36 — status, ticket_type and created_by combine with AND.
+    Rules: `list_by_workspace` R3, R2, R2a"""
+    mk_ticket("HELP-2026-001", created_by=u2.id)
+    mk_ticket("HELP-2026-002", type="feedback")
+    mk_ticket("HELP-2026-003", status="closed", type="feedback", created_by=u2.id)
+    d = mk_ticket("HELP-2026-004", type="feedback", created_by=u2.id)
+    mk_ticket("HELP-2026-005", workspace_id=w2.id, type="feedback", created_by=u2.id)
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, status="pending", ticket_type="feedback",
+                                   created_by=u2.id)
+
+    # Then 1
+    assert ids(result) == [d.id]
+
+
+# [claude] HLP-LW-37
+def test_hlp_lw_37__status_opened_with_ticket_type_feedback_and_no_opened_feedback_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-37 — status "opened" with ticket_type "feedback" and no opened feedback keeps none.
+    Rules: `list_by_workspace` R3, R2, R2a"""
+    mk_ticket("HELP-2026-001", status="opened")
+    mk_ticket("HELP-2026-002", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, status="opened", ticket_type="feedback")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-38
+def test_hlp_lw_38___in_ticket_type_is_no_wildcard(db, w1, mk_ticket):
+    """HLP-LW-38 — _ in ticket_type is no wildcard.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type="feed_ack")
+
+    # Then 1
+    assert result == []
+
+
+# [claude] HLP-LW-39
+def test_hlp_lw_39__a_leading_space_in_ticket_type_keeps_none(db, w1, mk_ticket):
+    """HLP-LW-39 — a leading space in ticket_type keeps none.
+    Rules: `list_by_workspace` R2a"""
+    mk_ticket("HELP-2026-001", type="feedback")
+
+    result = dao.list_by_workspace(db, workspace_id=w1.id, ticket_type=" feedback")
+
+    # Then 1
+    assert result == []
 
 
 # --------------------------------------------------------------------------- #
@@ -1593,7 +1959,7 @@ def test_hlp_lp_22__the_status_filter_comes_before_the_page_a_newer_closed_ticke
     newer(db, a, 2)
     newer(db, b, 1)
 
-    result = dao.list_platform(db, status="open", search=TAG, skip=1, limit=1)
+    result = dao.list_platform(db, status="pending", search=TAG, skip=1, limit=1)
 
     # Then 1
     assert tids(result) == [b.id]
@@ -1677,6 +2043,150 @@ def test_hlp_lp_26__on_a_tie_the_id_decides_not_the_title(db, TAG, mk_ticket):
 
     # Then 1
     assert tids(result) == [d.id, c.id, b.id, a.id]
+
+
+# [claude] HLP-LP-27
+def test_hlp_lp_27__the_retired_status_open_keeps_none_not_even_an_opened_ticket(db, TAG, mk_ticket):
+    """HLP-LP-27 — the retired status "open" keeps none, not even an "opened" ticket.
+    Rules: `list_platform` R2"""
+    a = mk_ticket("HELP-2026-001", status="opened")
+    b = mk_ticket("HELP-2026-002")
+    own_ids = {a.id, b.id}
+
+    result = dao.list_platform(db, status="open", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
+
+
+# [claude] HLP-LP-28
+def test_hlp_lp_28__ticket_type_feedback_keeps_the_feedback_tickets_of_every_workspace(db, w2, TAG, mk_ticket):
+    """HLP-LP-28 — ticket_type "feedback" keeps the feedback tickets of every workspace.
+    Rules: `list_platform` R2a, R1"""
+    a = mk_ticket("HELP-2026-001")
+    f1 = mk_ticket("HELP-2026-002", type="feedback")
+    f2 = mk_ticket("HELP-2026-001", workspace_id=w2.id, type="feedback")
+    s2 = mk_ticket("HELP-2026-002", workspace_id=w2.id)
+    own_ids = {a.id, f1.id, f2.id, s2.id}
+
+    result = dao.list_platform(db, ticket_type="feedback", search=TAG)
+
+    # Then 1
+    assert set(own(result, own_ids)) == {f1.id, f2.id}
+
+
+# [claude] HLP-LP-29
+def test_hlp_lp_29__ticket_type_is_a_filter_and_keeps_none(db, TAG, mk_ticket):
+    """HLP-LP-29 — ticket_type "" is a filter and keeps none.
+    Rules: `list_platform` R2a"""
+    a = mk_ticket("HELP-2026-001")
+    f = mk_ticket("HELP-2026-002", type="feedback")
+    own_ids = {a.id, f.id}
+
+    result = dao.list_platform(db, ticket_type="", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
+
+
+# [claude] HLP-LP-30
+def test_hlp_lp_30__ticket_type_and_search_combine_with_and_one_workspace_s_feedback_only(
+        db, w2, TAG, mk_ticket):
+    """HLP-LP-30 — ticket_type and search combine with AND: one workspace's feedback only.
+    Rules: `list_platform` R2a, R3"""
+    mk_ticket("HELP-2026-001")
+    f1 = mk_ticket("HELP-2026-002", type="feedback")
+    mk_ticket("HELP-2026-001", workspace_id=w2.id, type="feedback")
+
+    result = dao.list_platform(db, ticket_type="feedback", search=f"Gamma {TAG}")
+
+    # Then 1
+    assert tids(result) == [f1.id]
+
+
+# [claude] HLP-LP-31
+def test_hlp_lp_31__the_type_filter_comes_before_the_page_a_newer_feedback_ticket_takes_no_place(
+        db, TAG, mk_ticket):
+    """HLP-LP-31 — the type filter comes before the page: a newer feedback ticket takes no place.
+    Rules: `list_platform` R2a, R5"""
+    x = mk_ticket("HELP-2026-001", type="feedback")
+    a = mk_ticket("HELP-2026-002")
+    b = mk_ticket("HELP-2026-003")
+    newer(db, x, 3)
+    newer(db, a, 2)
+    newer(db, b, 1)
+
+    result = dao.list_platform(db, ticket_type="support", search=TAG, skip=1, limit=1)
+
+    # Then 1
+    assert tids(result) == [b.id]
+
+
+# [claude] HLP-LP-32
+def test_hlp_lp_32__status_and_ticket_type_combine_with_and(db, TAG, mk_ticket):
+    """HLP-LP-32 — status and ticket_type combine with AND.
+    Rules: `list_platform` R2a, R2"""
+    a = mk_ticket("HELP-2026-001", type="feedback")
+    c = mk_ticket("HELP-2026-002", status="closed", type="feedback")
+    s = mk_ticket("HELP-2026-003", status="closed")
+    own_ids = {a.id, c.id, s.id}
+
+    result = dao.list_platform(db, status="closed", ticket_type="feedback", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == [c.id]
+
+
+# [claude] HLP-LP-33
+def test_hlp_lp_33__ticket_type_feedback_with_a_capital_keeps_none(db, TAG, mk_ticket):
+    """HLP-LP-33 — ticket_type "Feedback" with a capital keeps none.
+    Rules: `list_platform` R2a"""
+    f = mk_ticket("HELP-2026-001", type="feedback")
+    own_ids = {f.id}
+
+    result = dao.list_platform(db, ticket_type="Feedback", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
+
+
+# [claude] HLP-LP-34
+def test_hlp_lp_34___in_ticket_type_is_no_wildcard(db, TAG, mk_ticket):
+    """HLP-LP-34 — _ in ticket_type is no wildcard.
+    Rules: `list_platform` R2a"""
+    f = mk_ticket("HELP-2026-001", type="feedback")
+    own_ids = {f.id}
+
+    result = dao.list_platform(db, ticket_type="feed_ack", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
+
+
+# [claude] HLP-LP-35
+def test_hlp_lp_35__a_leading_space_in_ticket_type_keeps_none(db, TAG, mk_ticket):
+    """HLP-LP-35 — a leading space in ticket_type keeps none.
+    Rules: `list_platform` R2a"""
+    f = mk_ticket("HELP-2026-001", type="feedback")
+    own_ids = {f.id}
+
+    result = dao.list_platform(db, ticket_type=" feedback", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
+
+
+# [claude] HLP-LP-36
+def test_hlp_lp_36__a_stored_type_with_a_leading_space_is_not_kept(db, TAG, mk_ticket):
+    """HLP-LP-36 — a stored type with a leading space is not kept.
+    Rules: `list_platform` R2a"""
+    f = mk_ticket("HELP-2026-001", type=" feedback")
+    own_ids = {f.id}
+
+    result = dao.list_platform(db, ticket_type="feedback", search=TAG)
+
+    # Then 1
+    assert own(result, own_ids) == []
 
 
 # --------------------------------------------------------------------------- #

@@ -1,5 +1,164 @@
 # Verification — `app/dao/help_ticket.py`
 
+## Round 2 (2026-11-26) — cases Revision 3, narrow
+
+> **Verdict:** PASS
+> Tests: 112 passed · 10 xfailed, 6 strict + 4 non-strict (reproduced ✅) · coverage 100% branch (55 statements, 16 branches)
+> Mutation: not re-run. `app/dao/help_ticket.py` is unchanged since the round above (41d5ac1, clean in `git status`), and that run killed all 51 mutants with fewer tests. Adding tests cannot let a killed mutant survive.
+> Hand variants: the 7 survivors of the round above were re-run. 6 are now killed, and 1 is equivalent under the new R1d. 2 new R1d variants: 1 killed, 1 equivalent.
+> Source commit: 41d5ac1 · Cases revision: 3 · Spec: Gap log G1 (new `create_with_user` R1d)
+
+### Summary
+- The findings of the round above are closed.
+  - Finding 1 is closed by HLP-LW-38 and LW-39.
+  - Finding 2 is closed by HLP-LP-33 … LP-36.
+  - Finding 3 is closed by spec R1d plus HLP-CW-14 and CW-15.
+- I read all 8 new cards against their tests. Each test builds the card's Given exactly, including `WithStatus` as the Conventions define it, and asserts every Then line in order with the card's values. 0 fidelity findings.
+- Each new card kills the variant it was written for, and no other test changed outcome.
+- Findings in local-written tests / local-written tests: 0 / 0. In others: 0 / 8 new (122 in all, every test under `# [claude]`).
+
+### Findings
+None.
+
+### Hand variants
+Same plugin, `C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_dao\plug\htv_plug.py`, default run.
+
+| Variant | Round above | Now |
+|---|---|---|
+| `lw_type_like` (L106 `.like`) | survived | killed by LW-38 |
+| `lw_type_strip` (L106 `.strip()`) | survived | killed by LW-39 |
+| `lp_type_like` (L136) | survived | killed by LP-34 |
+| `lp_type_strip` (L136) | survived | killed by LP-35 |
+| `lp_type_lower` (L136) | survived | killed by LP-33 |
+| `lp_type_trimcol` (L136) | survived | killed by LP-36 |
+| `cw_status_from_input` (L53 `getattr(obj_in, "status", None) or PENDING`) | survived (spec-gap) | **equivalent** under R1d: see below |
+| `cw_status_drop` (new: `data.pop("status", None)`, so a caller's status is silently overridden) | — | killed by CW-14 (`DID NOT RAISE TypeError`) |
+| `cw_status_keep` (new: `status=data.pop("status", PENDING)`) | — | **equivalent**: see below |
+
+Why the two R1d variants are equivalent:
+- **`cw_status_from_input`:** `**data` still carries the key, so any input whose dump has `status` raises the same `TypeError`. For `HelpTicketCreate.model_construct(status=…)`, the attribute is not set, so `getattr` returns `None` and the ticket is pending (CW-15 passes under it). Only an object with a `status` attribute that is missing from `model_dump()` would behave differently. No rule or caller describes such an input.
+- **`cw_status_keep`:** `**data` is unpacked before the later keyword value is evaluated, so the `status` key is still passed twice and the call raises the same `TypeError`.
+
+### Reproduced claims
+- **Coverage:** `112 passed, 10 xfailed, 4 warnings` — 100% (55 statements, 16 branches, 0 missing). The 4th warning is CW-15's `model_construct` serialization warning, which the Conventions call harmless.
+- **`--runxfail`:** `10 failed, 112 passed`. Each test fails on the Then line its card names: CW-03 Then 2, LW-17 Then 2, LW-18 Then 3, LW-27 Then 1, LP-11 Then 2, LP-12 Then 2, LP-13 Then 1, LP-20 Then 2, LP-21 Then 3, LP-26 Then 1.
+- **Repeats:** 3 more default runs with `-rX`. Two gave `112 passed, 10 xfailed`. One gave `112 passed, 9 xfailed, 1 xpassed`, and the XPASS was **HLP-LW-17**. This is the same XPASS as in the round above, now identified, and it also appeared in 2 of the variant runs.
+  - It is not a finding. LW-17 is non-strict by the spec's Notes because the order of tied rows is not fixed under BUG-1442. The run stays green, and the strict cards LW-18 and LP-21 carry the proof.
+  - It does show that the notes' "xfailed in every run" is not true for LW-17. That is notes wording only; the executor may correct it, but nothing is required.
+
+### Traceability
+- Cases 122, tests 122. Unmatched IDs: none. Marker mismatches: none.
+- The `# Then N` count equals the card's Then count for all 122 tests.
+- The 8 new cards are all `Expect: pass`, and none of their tests has a marker.
+
+### Commands run
+```
+.venv/Scripts/python.exe trace.py tests/unit/dao/help_ticket.cases.md tests/unit/dao/test_help_ticket.py docs/testing/bugs.md
+  → cards 122 tests 122 (no mismatch lines)
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider --cov=app.dao.help_ticket --cov-branch --cov-report=term-missing
+  → 112 passed, 10 xfailed, 4 warnings · app\dao\help_ticket.py 55 0 16 0 100%
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider --runxfail --tb=line
+  → 10 failed, 112 passed, 4 warnings
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider -rX   (x3)
+  → 2 x 112 passed, 10 xfailed · 1 x 112 passed, 9 xfailed, 1 xpassed (XPASS HLP-LW-17)
+HTV=<variant> PYTHONPATH=...\plug .venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider -p htv_plug   (9 variants, table above)
+```
+
+### Fix list
+None.
+
+---
+
+
+## Round (2026-11-26) — cases Revision 2, spec revision 2026-11-26
+
+> **Verdict:** NEEDS WORK — the case designer has two small card additions and the describer one spec line. No test is wrong.
+> Tests: 104 passed · 10 xfailed, 6 strict + 4 non-strict (reproduced ✅) · coverage 100% branch (55 statements, 16 branches)
+> Mutation: 51 mutants · 51 killed · 0 survived → score 100% (after excluding 0 equivalent, 0 dead, 0 bug-path)
+> Hand variants on the new `type` / `ticket_type` code: 11 · 4 caught by a pass card · 7 survive (Findings 1–3)
+> Fidelity: 0 of 114 unfaithful (all 26 new / revised cards read line by line against their tests; `git diff` of the test file removes only the old CW-01, LW-05, LW-19, LP-22 lines, so the other 88 tests are the ones round 2 checked)
+> Source commit: 41d5ac1 · Cases revision: 2
+
+### Summary
+- **The tests can be trusted as written.** Each of the 114 cards has exactly one test. The 22 new cards (GN-12, CW-09 … CW-13, LW-28 … LW-37, LP-27 … LP-32) and the 4 revised ones (CW-01, LW-05, LW-19, LP-22) assert every Then line in order, with the card's exact values and Givens (types, statuses, workspaces, `newer` order). The tool killed all 51 mutants, including every mutant on the new lines 44–47, 105–106 and 135–136.
+- **Why NEEDS WORK:** hand variants on the new exact-compare lines survive. On `list_by_workspace` the type cards copy the status shapes `""`, capitals, a part and a stored space. They leave out the two that round 1 asked for on status (`_`, a leading space in the parameter: LW-23 / LW-24), so `.like()` and `.strip()` pass. On `list_platform` only `ticket_type=""` is carded, so `.like()`, `.strip()`, `lower()` or `trim(column)` on line 136 all pass. Separately, the spec says status is `pending` "whatever the input". The code does not do that for an input that carries a `status` field: it raises `TypeError`. The cases file already lists this as Spec gap 5.
+- Written by Claude (all 114 under `# [claude]`). Findings in local-written tests / local-written tests: 0 / 0. In others: 0 test-side / 114. There is no `help_ticket.local-run.json`, so there is no `## Local-coder patterns` section.
+
+### Findings
+| # | Kind | Case / line | What is wrong | Evidence | Fix by |
+|---|---|---|---|---|---|
+| 1 | case-missing | `list_by_workspace` R2a ("exactly that type", by reference to R2: no wildcard, no trimming), line 106 | LW-31 … LW-34 cover `""`, `"Feedback"`, `"feed"` and a stored `" feedback"`. No card puts `_` in the parameter and none puts a leading or trailing space in the parameter. Those are the LW-23 / LW-24 shapes that exist for status. | Variants `lw_type_like` (`HelpTicket.type.like(ticket_type)`) and `lw_type_strip` (`== ticket_type.strip()`) pass all 104 pass cards. Recipe R-7. | **case designer** |
+| 2 | case-missing | `list_platform` R2a ("keeps exactly that type, as `list_by_workspace` R2a"), line 136 | Only LP-29 (`""`) checks the exact compare. Line 136 is its own expression, so the LW cards do not reach it. The Reviewer summary chose to card the shapes on LW only, and that leaves the platform line unchecked. | Variants `lp_type_like`, `lp_type_strip`, `lp_type_lower` (`func.lower(col) == func.lower(arg)`) and `lp_type_trimcol` (`func.trim(col) == arg`) each pass all 104 pass cards. Recipe R-8. | **case designer** |
+| 3 | spec-gap | `create_with_user` R1 ("`status = 'pending'` (always, whatever the input)"); cases Spec gap 5 | The rule does not say what happens when the input carries a `status` field (or a `workspace_id`, `ticket_number` or `created_by` field). Today such an input raises `TypeError` before any SQL runs, because `HelpTicket(**data, status=…)` gets the keyword twice. It cannot happen through `HelpTicketCreate`: `model_construct(status="closed")` drops the extra field, so it is not in `model_dump()`. | Probe `C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_dao\probe_status.py` (no DB write): `TypeError app.models.help_ticket.HelpTicket() got multiple values for keyword argument 'status'`; `model_construct keeps status in dump: False`. Variant `cw_status_from_input` (take `obj_in.status` if present) passes all 104 pass cards. | **describer** (fill-gaps). Either narrow R1 to "`HelpTicketCreate` has no `status`; the status is always `pending`", or state the `TypeError`. Then the case designer closes Spec gap 5 if a rule results. |
+
+No fidelity finding.
+
+**Recipes (for the case designer; the wording is theirs):**
+- **R-7** (`list_by_workspace`, like LW-23 / LW-24): F = ticket, `type "feedback"`, `ticket_type="feed_ack"` → `result == []` (kills `.like`). F = ticket, `type "feedback"`, `ticket_type=" feedback"` → `result == []` (kills `.strip()`).
+- **R-8** (`list_platform`, `search=TAG`, `own(...)`): F = ticket, `type "feedback"`, then each of `ticket_type="Feedback"`, `"feed_ack"` and `" feedback"` → `own(result) == []`. Also F = ticket, `type " feedback"`, `ticket_type="feedback"` → `own(result) == []`. `list_platform`'s `status` (line 134) is missing the same shapes: it has only LP-25 (`""`) and LP-27 (`"open"`), which round 2 accepted. Whether to cover both in the same cards is the designer's choice.
+
+### Surviving mutants
+None: all 51 were killed. The mutants on the new code were L45 `'type'`→`''` and `'support'`→`''`, L46 negate `if` and `'value'`→`''`, L105 / L135 negate `if` and `IsNot`→`Is`, and L106 / L136 `Eq`→`NotEq`. All were killed.
+
+### Hand variants (2026-11-26, new code only)
+The variants run through the plugin `htv_plug.py` in `C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_dao\plug\` (`-p htv_plug`, `HTV=<variant>`). The plugin rewrites the DAO class's methods in-process from the source text with one change and asserts that the change applied; nothing in `app/` is touched. Default run, xfail markers on.
+
+| Variant | Change | Result |
+|---|---|---|
+| `lw_type_lower` | L106 `func.lower(col) == func.lower(arg)` | killed by LW-32 |
+| `lp_type_truthy` | L135 `if ticket_type:` | killed by LP-29 |
+| `cw_type_str` | L47 `str(ticket_type)` instead of `.value` | killed by CW-01, 02, 04 … 09 (enum repr, 22001 on `HelpTicketTypeEnum.SUPPORT`) |
+| `gn_type_support` | L26 also `HelpTicket.type == 'support'` | killed by GN-12 (`HELP-2026-003` ≠ `-005`) |
+| `lw_type_like`, `lw_type_strip` | L106 | **survive** → Finding 1 |
+| `lp_type_like`, `lp_type_strip`, `lp_type_lower`, `lp_type_trimcol` | L136 | **survive** → Finding 2 |
+| `cw_status_from_input` | L53 `getattr(obj_in, "status", None) or PENDING` | **survives** → Finding 3 |
+
+Considered and not listed:
+- An `OR` with a status that no row has: equivalent by construction.
+- `data.get` instead of `pop`: raises `TypeError` on every create, so every CW pass card catches it.
+
+### Reproduced claims
+- Coverage run: `104 passed, 10 xfailed, 3 warnings` — 100% (55 statements, 16 branches, 0 missing). The 3 warnings are the pydantic serialization warnings of CW-10, 12 and 13, which the Conventions call harmless.
+- `--runxfail -rf`: `10 failed, 104 passed`. Each fails on the Then line its card names, mapped by the `# Then N` comment above the failing line:
+  - CW-03 Then 2 (`'HELP-2027-001' == 'HELP-2026-001'`)
+  - LW-17 Then 2, LW-18 Then 3 (`'.id' in ' help_tickets.created_at DESC \n '`), LW-27 Then 1
+  - LP-11 Then 2 (decoy returned), LP-12 Then 2, LP-13 Then 1 (`[…88] == […87]`)
+  - LP-20 Then 2, LP-21 Then 3, LP-26 Then 1
+
+  This matches the notes' table. No test failed on a setup or import error.
+- Repeats: 12 more default runs. 11 gave `104 passed, 10 xfailed`. **1 gave `104 passed, 9 xfailed, 1 xpassed`.** That was the second run, while the mutation run was using the database. It did not happen again in the next 10 runs with `-rX`, so the card is not known; it is one of the non-strict tie cards LW-17, LW-27, LP-20 or LP-26. This is not a finding. The spec's Notes make those cards non-strict precisely because the tie order is not fixed under BUG-1442. The run stays green, and the strict SQL cards LW-18 / LP-21 carry the proof. The notes' "xfailed in every run" should not be read as a guarantee (executor, notes wording only, optional).
+
+### Traceability
+- Cases 114, tests 114. Unmatched: none. Tests without an ID: none.
+- Marker mismatches: none. There are 10 xfail markers, each as strict as its Expect line says. Their reasons come from `BUG_1441` / `BUG_1442` / `BUG_1443`, and all three IDs are in `docs/testing/bugs.md`.
+- For all 114 tests the `# Then N` count equals the card's Then count.
+- Script: `C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_dao\trace.py`.
+
+### Commands run
+```
+.venv/Scripts/python.exe tests/unit/_tools/mutate.py app/dao/help_ticket.py tests/unit/dao/test_help_ticket.py --json C:/Users/User/AppData/Local/Temp/makorsh-pipeline/help_ticket_dao/mutants-2026-11-26.json
+  → Mutants: 51 · killed 51 · timeout 0 · survived 0 · score 100%
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider --cov=app.dao.help_ticket --cov-branch --cov-report=term-missing   (COVERAGE_FILE in scratch)
+  → 104 passed, 10 xfailed, 3 warnings · app\dao\help_ticket.py 55 0 16 0 100%
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider --runxfail -rf
+  → 10 failed, 104 passed, 3 warnings
+.venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider   (x12, ten with -rX)
+  → 11 x 104 passed, 10 xfailed · 1 x 104 passed, 9 xfailed, 1 xpassed
+HTV=<variant> PYTHONPATH=...\plug .venv/Scripts/python.exe -m pytest tests/unit/dao/test_help_ticket.py -q -p no:cacheprovider -p htv_plug   (11 variants, table above)
+.venv/Scripts/python.exe trace.py tests/unit/dao/help_ticket.cases.md tests/unit/dao/test_help_ticket.py docs/testing/bugs.md
+  → cards 114 tests 114 (no mismatch lines)
+```
+
+### Fix list
+- **case designer:** R-7 (Finding 1) and R-8 (Finding 2). Both are new pass cards; no new bug.
+- **describer (fill-gaps):** Finding 3. Settle what `create_with_user` R1 means by "whatever the input" (cases Spec gap 5).
+- **executor:** nothing required now. Once the new cards exist, implement them and re-run.
+
+---
+
+# Earlier rounds (kept as written)
+
+
 > **Current verdict: PASS** (round 2, 2026-11-03, revision 1). See "Round 2" at the end. The rest of this block is round 1.
 >
 > **Verdict:** NEEDS WORK — only the case designer has work. No test is wrong.

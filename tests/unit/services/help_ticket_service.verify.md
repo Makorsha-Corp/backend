@@ -1,6 +1,143 @@
 # Verification — `app/services/help_ticket_service.py`
 
-> **Current verdict (round 2, 2026-11-04):** PASS — 62 passed · 26 xfailed · 100% branch · mutation 12/12 killed (after excluding 2 equivalent: L48, L119, per spec revision)
+## Round 2 (2026-11-26)
+
+> **Verdict:** PASS
+> Tests: 119 passed · 39 xfailed (reproduced ✅: the same 39 fail under `--runxfail`, on the same Then lines as round 1) · coverage 100% branch (57 stmts, 2 branches)
+> Mutation: 24 mutants · 21 killed · 3 survived → score 100% (21 / 21, after excluding 3 equivalent: L48, L123, L150 `or -> and`, as in round 1). Mutant #24 re-run: killed.
+> Hand variants re-run: 5 · 2 caught (the two `except` narrowings) · 3 survive (equivalent, as in round 1)
+> Source commit: 41d5ac1 · Cases revision: 4
+
+Narrow round, covering the cases Revision 4 additions made for round-1 findings 1–3.
+
+- **Traceability:** 158 cards, 158 tests, one to one, no mismatches (`trace.py`). The new cards HTS-U-60, U-61, U-62 and V-23 are all `pass` and carry no xfail marker. The counts line reads 158 · 119 pass · 39 xfail.
+- **Fidelity of the four new cards:** each test matches its card line by line.
+  - **U-60:** `SimpleNamespace(id=CR.id, name="Rahim")` sends `status=OPENED`. The test asserts `HelpTicketStatusChangeForbiddenError` with a `type(...) is` check, then unchanged(T) and nothing written.
+  - **U-61:** the same object sends a title. The test checks the returned id, title and `PENDING`, then the committed row after `db.rollback()`.
+  - **U-62 and V-23:** both send `HelpTicketUpdate.model_construct(title=None)` and expect `IntegrityError`. Next comes `x not in db`, then `x_gone`, with no test-level rollback before either. Then come nothing written, `SELECT 1`, and unchanged(T).
+  - No extra mocks.
+- **Round-1 finding 1** (mutant #24, `L118:69 False -> True`): closed. `mutate.py … --lines 118-118` gives 2 mutants, 2 killed.
+- **Round-1 finding 2** (`except` narrowed to `(LookupError, PermissionError, ValueError)`): closed. U-62 catches it in `update_ticket` and V-23 in `update_platform_ticket`; each run gave 1 failed, 118 passed, 39 xfailed.
+- **Equivalent hand variants:** the three `to_response(refreshed or ticket)` → `to_response(ticket)` variants still survive (119 passed, 39 xfailed). They are equivalent at this layer, as in round 1.
+- **Round-1 finding 3** (stale gaps): closed. The cases file's "Spec gaps" rows 3–5 are marked closed by G1–G3. The Reviewer summary now says "Needs a decision: None".
+- **Runs:** 119 passed, 39 xfailed in three runs, stable. `--runxfail` gives 39 failed and 119 passed. The set of failing tests is identical to round 1, and only ids and microseconds differ in the messages. None of the new cards is among them.
+- **Findings:** none.
+
+Commands:
+```
+.venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider --cov=app.services.help_ticket_service --cov-branch --cov-report=term-missing
+  app\services\help_ticket_service.py  57 stmts  0 miss  2 branch  0 partial  100% · 119 passed, 39 xfailed (×3)
+.venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider --runxfail -rf --tb=line
+  39 failed, 119 passed
+.venv/Scripts/python.exe tests/unit/_tools/mutate.py app/services/help_ticket_service.py tests/unit/services/test_help_ticket_service.py --lines 118-118 --json C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_service\mutants_r2_l118.json
+  Mutants: 2 · killed 2 · survived 0
+HTS_VARIANT=<narrow_lookup|noreread>:<method> PYTHONPATH=C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_service\plug .venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider -p hts_hand
+  narrow_lookup:update → U-62 fails · narrow_lookup:platform → V-23 fails · noreread:* → 119 passed, 39 xfailed (equivalent)
+```
+
+---
+
+## Round 1 (2026-11-26)
+
+> **Verdict:** NEEDS WORK
+> Tests: 115 passed · 39 xfailed (reproduced ✅: 38 strict plus L-16 non-strict, each on its card's Then line) · coverage 100% branch (57 stmts, 2 branches)
+> Mutation: 24 mutants · 20 killed · 4 survived → score 95% (20 / 21, after excluding 3 equivalent, 0 dead, 0 bug-path)
+> Hand variants (TC3 / transaction shape, scratch plugin): 16 run (plus the reference) · 11 caught · 5 survive (3 equivalent, 2 case-missing: finding 2)
+> Source commit: 41d5ac1 · Cases revision: 3 · Spec revision: 2026-11-26 (Gap log G1–G3)
+
+### Summary
+The tests can be trusted for what the cards say. All 154 cards are implemented one to one. I read every
+revised and new card against its test and found no fidelity problem: exact messages, `type(...) is` where the
+card says type only, commit-point snapshots with `type` in `unchanged(T)`, `committed:` lines after one
+`db.rollback()`. The runs reproduce the notes exactly, three times, with no flaky test. Every xfail fails on
+the line its card names. The TC3 convention holds where it is written: `X not in db` comes first after the
+raise in U-35, U-48, V-05, V-08 and V-12. A rollback spy sits on a non-failing-commit refusal for
+`update_ticket` (U-35, U-48) and `update_platform_ticket` (V-05, V-08). `create_ticket` has no refusal, but
+C-02's `IntegrityError` leaves the session unusable without the service's rollback, so it is killed too.
+
+Two gaps remain, both for the **case designer**:
+- **No card for G2.** Spec G2 closed cases gap 4 ("an object without `is_platform_admin` counts as not an
+  admin"), but no card was added. Mutant #24 (`getattr` default `False -> True`) survives.
+- **No card with a non-manager error before the commit.** On both update paths, every passing error card
+  raises a manager error (`LookupError`, `PermissionError`, `ValueError`; pydantic's `ValidationError` is a
+  `ValueError` too). So `except Exception` can be narrowed to those families without any test noticing.
+
+The cases file's "Spec gaps" table and Reviewer summary still list gaps 3–5 as open, but spec G1–G3 has
+answered them.
+
+### Findings
+| # | Kind | Case / line | What is wrong | Evidence | Fix by |
+|---|---|---|---|---|---|
+| 1 | case-missing | `update_ticket` Inputs `user` / spec Gap log G2 (cases gap 4); source line 118 | Spec G2 states the rule: the see-right check and the status flag both use `getattr(user, "is_platform_admin", False)`, and a profile-like object without the attribute counts as not an admin. No card calls `update_ticket` with such an object. Every card passes a real `Profile`, so the `False` default is never read. | Mutant #24 `L118:69 const False -> True` SURVIVED | **case designer**: one card, for example `user=SimpleNamespace(id=CR.id)` (the creator, no `is_platform_admin`), `role=GT_R`, on a pending ticket, `payload=HelpTicketUpdate(status=OPENED)`. Then: raises `HelpTicketStatusChangeForbiddenError` (type only), unchanged(T). A second line could be a text-only change by the same object that passes, which shows the see-right tolerates the missing attribute. |
+| 2 | case-missing (TC3, non-manager error) | `update_ticket` R7 / `update_platform_ticket` R6 (TC3 "any exception … anything") | No passing card on either update path raises a non-manager error before the commit. The only flush failure (`{"title": null}` → `IntegrityError`) sits in xfail cards U-30 / U-31 (BUG-1575), which the mutation run excludes. TC4 / TC5 cards don't count: `_commit_transaction` rolls back by itself, and after a commit there is nothing to undo. | Hand variants `except Exception:` → `except (LookupError, PermissionError, ValueError):` in `update_ticket` and in `update_platform_ticket`: 115 passed, 39 xfailed (both survive). The same narrowing in `create_ticket` is killed by C-02. | **case designer**: one card per update method, written like C-02. Creator `title=None` through `HelpTicketUpdate.model_construct(title=None)`, so the schema is skipped and the card still passes after BUG-1575's fix. Expect `IntegrityError`, then x_gone with no test-level rollback, nothing written, `SELECT 1` works. |
+| 3 | stale bookkeeping | cases file "Reviewer summary" ("Needs a decision: … Gaps 3–5") and "Spec gaps" rows 3–5 | Spec Gap log G1–G3 (2026-11-26) answers gaps 3, 4 and 5, but the cases file still shows them open. Rows 3 and 5 need no new card: U-43 follows G1, and the R5 cards assert type only, per G3. Row 4 needs finding 1's card. | `help_ticket_service.cases.md` lines 25 and 2622–2629 vs spec lines 385–388 | **case designer**: mark gaps 3–5 closed by G1–G3 in the next revision, together with findings 1 and 2. |
+
+No fidelity findings. These cards were checked line by line against their tests: C-01, C-11, G-01, G-17 …
+G-19, L-08, L-17 … L-23, U-01, U-03 … U-06, U-09 … U-11, U-22, U-33 … U-59, V-01 … V-22, P-02, P-09 … P-14,
+Q-05, Q-06. U-07, U-12, U-14, U-25 and C-02 were spot-checked. In particular:
+- **TC3 `session: X not in db`:** U-35, U-48, V-05 and V-08 assert `x not in db` as the first statement after the `pytest.raises` block. V-12 asserts it as Then 2, in its card's order. None of them has a `db.rollback()` before it.
+- **Refusal spy:** U-35, U-48, V-05 and V-08 nest `pytest.raises(<Type>)` around `rollback_spy(db)` around the When, with no savepoint, as the Conventions say.
+- **Error checks:** U-59 and V-13 use `pytest.raises(Exception)` only because their cards say so, and Then 2 narrows it with `isinstance(…, (HelpTicketForbiddenError, HelpTicketInvalidTransitionError))`. That is not a swallowed failure.
+- **Patches:** no extra mocks. The only patches are the Conventions' clock and close clock, the spies, the refusal spy, the failing commit and the failing refresh.
+- **U-11 and V-22:** both run on the real clock after `SET LOCAL TIME ZONE 'America/New_York'`.
+
+### Surviving mutants
+| # | Line | Mutation | Class | Why | Fix by |
+|---|---|---|---|---|---|
+| 18 | 48 | `refreshed or ticket` → `refreshed and ticket` (`create_ticket`) | equivalent | Spec revision 2026-11-04: on every reachable path the re-read returns the same identity-mapped instance, and the `None` side is not unit-testable | — |
+| 19 | 123 | same (`update_ticket`) | equivalent | same | — |
+| 20 | 150 | same (`update_platform_ticket`) | equivalent | same (spec extends the decision to L150, 2026-11-26) | — |
+| 24 | 118 | `getattr(user, "is_platform_admin", False)` → default `True` | case-missing | Spec G2 has the rule, but no card passes a user without the attribute (finding 1) | **case designer** |
+
+#### Hand variants (scratch plugin `hts_hand.py`, re-execs the service module with one method's text changed)
+| Variant | `create_ticket` | `update_ticket` | `update_platform_ticket` |
+|---|---|---|---|
+| reference (no change) | 115 passed, 39 xfailed | — | — |
+| `self._rollback_transaction(db)` → `pass` | caught (C-02: `PendingRollbackError`) | caught (U-12 `x_gone`) | caught (V-05 `x not in db` / spy) |
+| `except Exception` → `except PermissionError` | caught (C-02) | caught (U-12) | caught (V-05) |
+| `except Exception` → `except (LookupError, PermissionError, ValueError)` | caught (C-02) | **survives**: finding 2 | **survives**: finding 2 |
+| `is_platform_admin=getattr(…)` → `True` | — | caught (U-35 …, and the BUG-3251 xfails XPASS) | — |
+| `db.refresh(ticket)` → `pass` | caught (C-04) | caught (U-34) | caught (V-19) |
+| `to_response(refreshed or ticket)` → `to_response(ticket)` | survives: equivalent | survives: equivalent | survives: equivalent |
+
+The last row is equivalent at this layer. `refreshed` is the same identity-mapped instance as `ticket`, and
+the creator relationship lazy-loads on either. This is the same reason the spec gives for mutants #18–#20.
+
+### Traceability
+cases 154 · tests 154 · unmatched: none · duplicates: none · marker mismatches: none (AST script
+`trace.py`). 115 `pass` cards have no xfail marker. 38 strict xfails: BUG-1441 ×1, BUG-1443 ×1, BUG-1574 ×9,
+BUG-1575 ×2, BUG-1577 ×2, BUG-1578 ×1, BUG-1863 ×10, BUG-3251 ×8, BUG-3270 ×4. L-16 is `strict=False` for
+BUG-1442, as its card says. Every reason string names its card's BUG ID, and every ID exists in
+`docs/testing/bugs.md`. No test cites BUG-1576 (resolved).
+
+### Commands run
+```
+.venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider --cov=app.services.help_ticket_service --cov-branch --cov-report=term-missing
+  app\services\help_ticket_service.py   57 stmts  0 miss  2 branch  0 partial  100%
+  115 passed, 39 xfailed, 17 warnings
+  repeat runs (no coverage): 115 passed, 39 xfailed ×2 — stable (L-16 xfailed each time)
+
+.venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider --runxfail -rf --tb=line
+  39 failed, 115 passed. Each on its card's line: C-05 'HELP-2027-001'; C-06 '  Printer  '; C-07, C-08, U-27, U-28,
+  U-30, U-31 DID NOT RAISE ValidationError; C-09 / U-29 '   ' is None; L-12 set(); L-16 physical order;
+  U-11 / V-22 timedelta(seconds=18000, …); U-16 … U-21, U-23 … U-25, U-58, V-11, V-12, V-14, V-15 DID NOT RAISE
+  HelpTicketForbiddenError; U-26 / V-21 '  Toner low  '; U-04, U-05, U-38 … U-43 HelpTicketStatusChangeForbiddenError
+  "Only platform admins may change ticket status." from the When call (U-42: escapes pytest.raises(HelpTicketInvalidTransitionError));
+  P-05 {T1, T2} == {T1}
+
+.venv/Scripts/python.exe tests/unit/_tools/mutate.py app/services/help_ticket_service.py tests/unit/services/test_help_ticket_service.py --json C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_service\mutants.json
+  Mutants: 24 · killed 20 · timeout 0 · survived 4 · score 83% (raw)
+  SURVIVED #18 L48:44 Or -> And · #19 L123:44 Or -> And · #20 L150:44 Or -> And · #24 L118:69 const False -> True
+
+HTS_VARIANT=<kind:method> PYTHONPATH=C:\Users\User\AppData\Local\Temp\makorsh-pipeline\help_ticket_service\plug .venv/Scripts/python.exe -m pytest tests/unit/services/test_help_ticket_service.py -q -p no:cacheprovider -p hts_hand -x
+  (results in the hand-variant table above)
+```
+
+---
+
+## Earlier rounds (2026-11-04, source e48a092, cases revisions 1–2)
+
+> **Round 2 verdict (2026-11-04):** PASS — 62 passed · 26 xfailed · 100% branch · mutation 12/12 killed (after excluding 2 equivalent: L48, L119, per spec revision)
 > **Round 1 verdict:** NEEDS WORK
 > Tests: 61 passed · 26 xfailed (reproduced ✅: 25 strict plus L-16 non-strict, each on its card's line) · coverage 100% branch
 > Mutation: 14 mutants · 11 killed · 3 survived → score 79% (after excluding 0 equivalent, 0 dead, 0 bug-path)

@@ -199,15 +199,18 @@ def test_list_platform_tickets_no_type_filter_when_none(mock_dao: MagicMock) -> 
     assert mock_dao.list_platform.call_args.kwargs["ticket_type"] is None
 
 
-def test_platform_help_tickets_endpoint_accepts_type_param() -> None:
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_platform_help_tickets_endpoint_accepts_type_param(mock_dao: MagicMock) -> None:
     """Platform tickets endpoint accepts type query param."""
     from fastapi.testclient import TestClient
 
-    from app.core.deps import get_platform_admin
+    from app.core.deps import get_db, get_platform_admin
     from app.main import app
 
     admin = _user(user_id=1, is_platform_admin=True)
     app.dependency_overrides[get_platform_admin] = lambda: admin
+    app.dependency_overrides[get_db] = lambda: MagicMock()  # no real database
+    mock_dao.list_platform.return_value = []
     try:
         client = TestClient(app)
         response = client.get("/api/v1/platform/help/tickets?type=feedback")
@@ -239,14 +242,17 @@ def test_list_platform_tickets_passes_status_filter(mock_dao: MagicMock) -> None
     assert mock_dao.list_platform.call_args.kwargs["status"] == "pending"
 
 
-def test_platform_help_tickets_endpoint_accepts_status_param() -> None:
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_platform_help_tickets_endpoint_accepts_status_param(mock_dao: MagicMock) -> None:
     from fastapi.testclient import TestClient
 
-    from app.core.deps import get_platform_admin
+    from app.core.deps import get_db, get_platform_admin
     from app.main import app
 
     admin = _user(user_id=1, is_platform_admin=True)
     app.dependency_overrides[get_platform_admin] = lambda: admin
+    app.dependency_overrides[get_db] = lambda: MagicMock()  # no real database
+    mock_dao.list_platform.return_value = []
     try:
         client = TestClient(app)
         response = client.get("/api/v1/platform/help/tickets?status=opened")
