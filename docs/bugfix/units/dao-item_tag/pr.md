@@ -80,4 +80,13 @@ The sort follows house rule HR-6 (every list sorts names ignoring case and ends 
 
 </details>
 
+## Code review
+
+**PASS**: 0 blockers, 0 majors, 1 minor, 3 nits. This was an independent strict review; the reviewer didn't see the test results. Details are in `docs/bugfix/units/dao-item_tag/review-1.md`.
+
+For you to decide:
+- **Minor (R1-1):** say a decrement runs inside a savepoint, and the count is read before that savepoint is rolled back. The database goes back to 5, but the in-memory tag still shows 4. The increment gets this right. The code comment calls the decrement "savepoint-safe", which isn't accurate. No app code wraps tag counters in a savepoint today, and the wrong value is never written back. The systems engineer flagged the same edge case on its own and also judged it non-blocking. Fixing it means expiring the attribute after the write; the alternative is to correct the comment.
+- Open question: if the row disappears between the decrement's two steps (the workspace is deleted at the same moment), the re-read would raise. Very unlikely.
+- The same counter flaw exists in `app/dao/account_tag.py` (BUG-1484, already logged).
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

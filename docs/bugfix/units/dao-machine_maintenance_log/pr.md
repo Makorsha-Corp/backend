@@ -80,4 +80,12 @@ The rules behind it: house rule HR-16 (no links across workspaces, treat them as
 
 </details>
 
+## Code review
+
+**PASS**: 0 blockers, 0 majors, 1 minor, 1 nit. This was an independent strict review; the reviewer didn't see the test results. Details are in `docs/bugfix/units/dao-machine_maintenance_log/review-1.md`.
+
+For you to decide (neither changes behaviour):
+- Minor: the new helper `_same_workspace_logs` has no `-> Query` return type. Other DAO helpers have one, e.g. `app/dao/expense_order.py:179`.
+- Nit: its docstring cites "BUG-1101". No other code in `app/` cites bug ids.
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

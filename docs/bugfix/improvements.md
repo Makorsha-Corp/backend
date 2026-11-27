@@ -186,3 +186,5 @@ test pipeline), T13 (record the test environment in the baseline metadata), C4 s
 ### Batch 2 result
 
 All 3 units CLEAN on the first round, no fixer feedback rounds, no contract changes: dao-machine_maintenance_log (46 flipped, `5966805`), dao-factory_section (16 flipped, `cab794a`), dao-item_tag (11 flipped, `10ac8de`). All three testers lost one full run to T15.
+| R1 | Fixers write bug ids into code comments/docstrings (both reviewers flagged it as a minor: nothing else in `app/` does). | Fixer rule: explain the why in comments, never cite BUG ids; ids go in fix-notes and the commit. |
+| R2 | Parallel reviewers overwrote each other's `chk.py` in the shared session scratchpad. | Orchestrator prompts give each agent its own scratch subfolder (`scratchpad/<unit>/`). |

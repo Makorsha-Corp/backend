@@ -79,4 +79,14 @@ Not a trivial unit (two files, and the soft-delete patterns aren't on the trivia
 
 </details>
 
+## Code review
+
+**PASS**: 0 blockers, 0 majors, 2 minors, 2 nits. This was an independent strict review; the reviewer didn't see the test results. Details are in `docs/bugfix/units/dao-factory_section/review-1.md`.
+
+Minors for you to decide (neither changes behaviour):
+- The new code comments name bug ids (BUG-903/904/905). No other code in `app/` does that. Keep the explanation and drop the ids.
+- The `get_by_factory` docstring's "Returns" line doesn't say the list is live sections only by default, sorted by lower(name), then id.
+
+Not for this PR: `factory_sections.factory_id` has no index (the change adds no cost).
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
