@@ -49,3 +49,111 @@ fixed through the test pipeline.
   Matching cases change in `tests/unit/managers/machine_maintenance_log_manager.cases.md`:
   MMLM-G-21 and MMLM-G-22 `Expect: xfail BUG-1101` becomes `Expect: xfail BUG-1101, BUG-1150`.
 
+## BUG-931: ITG-INC-11 and ITG-DEC-13 (right check, but a racy shortcut passes them)
+
+**Status: proposed 2026-11-27 by the tester's pre-check** (adds one check to two strict tests;
+today's outcome is unchanged). BUG-931 stays in unit dao-item_tag **only if** this diff is on
+`origin/main` before the batch-2 baseline is recorded; otherwise BUG-931 is skipped this round.
+
+- **Unit:** `dao-item_tag` (pre-check 2026-11-27).
+- **Tests:** `test_itg_inc_11__the_increase_is_applied_to_the_stored_value_not_to_the_loaded_one`,
+  `test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_loaded_one`
+  (and, unchanged, `test_itg_dec_14__the_not_below_0_check_uses_the_stored_value_stored_0_stays_0`),
+  in `tests/unit/dao/test_item_tag.py`.
+- **Why it's incomplete:** the bug row's Intended is "The change is applied in the database
+  relative to the stored value (`usage_count = usage_count + 1`; `usage_count - 1` only where
+  `usage_count > 0`) ... no row lock needed (HR-10 does not apply)", and HR-10 in the brief says
+  "The fix is a single relative update in the database, not a lock". The tests check spec
+  `increment_usage_count` R5 / `decrement_usage_count` R6 with a stale object in one session
+  (loaded 3, stored 10 → 11 / 9). That is right and a correct fix passes it, but a shortcut
+  that re-reads the counter and then writes an absolute value
+  (`db.refresh(tag, ["usage_count"]); tag.usage_count += 1; db.flush()`) passes all three tests
+  and the rest of the file, while two concurrent requests still both read 5 and write 6 (the
+  bug's own example). Measured on `bf_dao_item_tag_test` with the candidate patched in (no
+  `app/` edit): the shortcut makes INC-11, DEC-13 and DEC-14 pass. A true two-transaction
+  test is out (nothing is ever committed), so the missing part is a SQL-text check on the
+  UPDATE the call sends, the same kind as ITG-SYS-10 / ACT-13.
+- **Proposed correction** (one new Then per test; the relative-UPDATE pattern accepts ORM
+  `query.update(...)`, Core `update(...)` and raw `text()` forms, and does not require the
+  UPDATE to be the only statement, so a fix that also re-writes the value inside the same
+  transaction still passes). Checked against four candidate fixes: Core `update().returning()`
+  with `set_committed_value` and ORM `update(synchronize_session=False)` + `refresh` both pass
+  all three tests; the refresh-then-write shortcut now fails INC-11 and DEC-13; today's code
+  still fails on Then 2 as the cards say.
+
+```diff
+--- a/tests/unit/dao/test_item_tag.py
++++ b/tests/unit/dao/test_item_tag.py
+@@ -11,6 +11,7 @@
+ finishing.
+ """
+ # ruff: noqa: SIM117  (Conventions prescribe `with pytest.raises(...)` around `with db.begin_nested()`)
++import re
+ from datetime import datetime, timedelta, timezone
+ from unittest.mock import patch
+ 
+@@ -204,6 +205,17 @@
+     def selects(self):
+         return [s for s in self.statements if s.lstrip().upper().startswith("SELECT")]
+ 
++    def updates(self):
++        return [s for s in self.statements if s.lstrip().upper().startswith("UPDATE")]
++
++
++# Convention "relative update" (BUG-931, ITG-INC-11, DEC-13): an UPDATE of item_tags whose
++# SET computes the counter from the stored column (`usage_count = usage_count + / - ...`);
++# for the decrease, the same statement's WHERE also tests the stored column (`usage_count >`).
++_REL_INC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:item_tags\.)?usage_count\s*\+", re.IGNORECASE)
++_REL_DEC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:item_tags\.)?usage_count\s*-", re.IGNORECASE)
++_DEC_GUARD = re.compile(r"WHERE.*usage_count\s*>", re.IGNORECASE | re.DOTALL)
++
+ 
+ # Convention "order_part": the text of `sql` after `ORDER BY` ("" when there is none)
+ def order_part_of(sql):
+@@ -1103,7 +1115,8 @@
+     t1 = mk_tag(name="Hex Bolt", tag_code="hex_bolt", usage_count=3)
+     db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": t1.id})
+ 
+-    result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
++    with StatementRecorder(db) as recorder:
++        result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+ 
+     # Then 1
+     assert result is t1
+@@ -1111,6 +1124,8 @@
+     assert result.usage_count == 11
+     # Then 3
+     assert stored_count(db, t1) == 11
++    # Then 4
++    assert any(_REL_INC.search(s) for s in recorder.updates())
+ 
+ 
+ # [claude] ITG-INC-12
+@@ -1369,7 +1384,8 @@
+     t1 = mk_tag(name="Hex Bolt", tag_code="hex_bolt", usage_count=3)
+     db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": t1.id})
+ 
+-    result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
++    with StatementRecorder(db) as recorder:
++        result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+ 
+     # Then 1
+     assert result is t1
+@@ -1377,6 +1393,8 @@
+     assert result.usage_count == 9
+     # Then 3
+     assert stored_count(db, t1) == 9
++    # Then 4
++    assert any(_REL_DEC.search(s) and _DEC_GUARD.search(s) for s in recorder.updates())
+ 
+ 
+ # [claude] ITG-DEC-14
+```
+
+  Matching cases change in `tests/unit/dao/item_tag.cases.md`: ITG-INC-11 and ITG-DEC-13 get
+  the When wrapped in the statement recorder and a Then 4 — "statement recorder: one UPDATE of
+  `item_tags` sets `usage_count` from the stored column (`usage_count + ...`)" and, for DEC-13,
+  "(`usage_count - ...`) and its WHERE tests `usage_count >`". Add "relative update" to the
+  Conventions next to "Statement recorder". The diff applies cleanly to the current file
+  (`git apply --check`); the file is CRLF, so apply with `--ignore-whitespace`.
+

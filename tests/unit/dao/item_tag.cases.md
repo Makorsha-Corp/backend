@@ -873,7 +873,7 @@
 2. re-read T1: `name == "Lock Nut"`.
 3. re-read T1: `usage_count == 3`.
 
-### ITG-INC-11 — the increase is applied to the stored value, not to the loaded one
+### ITG-INC-11 — the increase is applied to the stored value, not to the loaded one *(revised 2026-11-27, bug-fix pre-check)*
 - **Rules:** `increment_usage_count` R5 [BUG-931]
 - **Kind:** bug
 - **Expect:** xfail BUG-931
@@ -885,12 +885,13 @@
 2. `db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": T1.id})` — T1 is not expired.
 
 **When**
-- `result = dao.increment_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
+- `result = dao.increment_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`, inside the statement recorder.
 
 **Then**
 1. returns: `result is T1`.
 2. returns: `result.usage_count == 11` (read on the object, before any re-read).
 3. returns: `stored_count(T1) == 11`.
+4. sql: an `UPDATE` of `item_tags` was sent whose `SET usage_count = usage_count + …` computes from the stored column. (A re-read followed by writing a fixed value would pass Then 1–3 but still lose concurrent changes; R5 requires a single relative update.)
 
 ### ITG-INC-12 — with the object expired first, the increase starts from the stored value
 - **Rules:** `increment_usage_count` R5 (the control that holds today), R1
@@ -1130,7 +1131,7 @@
 2. re-read T1: `name == "Lock Nut"`.
 3. re-read T1: `usage_count == 2`.
 
-### ITG-DEC-13 — the decrease is applied to the stored value, not to the loaded one
+### ITG-DEC-13 — the decrease is applied to the stored value, not to the loaded one *(revised 2026-11-27, bug-fix pre-check)*
 - **Rules:** `decrement_usage_count` R6 [BUG-931]
 - **Kind:** bug
 - **Expect:** xfail BUG-931
@@ -1142,12 +1143,13 @@
 2. `db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": T1.id})` — T1 is not expired.
 
 **When**
-- `result = dao.decrement_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
+- `result = dao.decrement_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`, inside the statement recorder.
 
 **Then**
 1. returns: `result is T1`.
 2. returns: `result.usage_count == 9` (read on the object, before any re-read).
 3. returns: `stored_count(T1) == 9`.
+4. sql: an `UPDATE` of `item_tags` was sent whose `SET usage_count = usage_count - …` computes from the stored column, and whose `WHERE` also tests the stored `usage_count >` (no read-then-write; R6).
 
 ### ITG-DEC-14 — the "not below 0" check uses the stored value: stored 0 stays 0
 - **Rules:** `decrement_usage_count` R6 [BUG-931]
