@@ -53,9 +53,6 @@ T12 = datetime(2026, 3, 4, 12, 0, 0)
 DT = date(2026, 3, 10)
 DAY = timedelta(days=1)
 
-R2330 = "BUG-2330: Work order template list repeats and misses rows when timestamps tie"
-R2331 = "BUG-2331: A template's default approvers have no order"
-R2332 = "BUG-2332: Plan-day run reaches templates through a deleted factory section"
 R2333 = "BUG-2333: A work order template's times depend on the database's time zone"
 
 
@@ -417,7 +414,6 @@ def test_wotp_gw_14__tie_rows_between_newer_and_older(db, st):
 
 
 # [claude] WOTP-GW-15
-@pytest.mark.xfail(strict=False, reason=R2330)
 def test_wotp_gw_15__tie_highest_id_first_after_lowest_updated(db, st):
     """WOTP-GW-15 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `get_by_workspace` R5 [BUG-2330]"""
@@ -437,7 +433,6 @@ def test_wotp_gw_15__tie_highest_id_first_after_lowest_updated(db, st):
 
 
 # [claude] WOTP-GW-16
-@pytest.mark.xfail(strict=False, reason=R2330)
 def test_wotp_gw_16__tie_id_decides_over_other_columns(db, st):
     """WOTP-GW-16 — on a tie the id decides, when name, flag, type and cost would each sort otherwise.
     Rules: `get_by_workspace` R5 [BUG-2330]"""
@@ -455,7 +450,6 @@ def test_wotp_gw_16__tie_id_decides_over_other_columns(db, st):
 
 
 # [claude] WOTP-GW-17
-@pytest.mark.xfail(strict=False, reason=R2330)
 def test_wotp_gw_17__tied_rows_paged_neither_repeat_nor_miss(db, st):
     """WOTP-GW-17 — tied rows paged one at a time neither repeat nor miss a row.
     Rules: `get_by_workspace` R5 [BUG-2330]"""
@@ -477,7 +471,6 @@ def test_wotp_gw_17__tied_rows_paged_neither_repeat_nor_miss(db, st):
 
 
 # [claude] WOTP-GW-18
-@pytest.mark.xfail(strict=True, reason=R2330)
 def test_wotp_gw_18__query_orders_by_created_at_then_id_desc(db, st):
     """WOTP-GW-18 — the query orders by created_at, then id, both descending.
     Rules: `get_by_workspace` R5 [BUG-2330]"""
@@ -908,7 +901,6 @@ def test_wotp_rd_12__factory_run_keeps_its_sections_and_sectionless(db, st):
 
 
 # [claude] WOTP-RD-13
-@pytest.mark.xfail(strict=True, reason=R2332)
 def test_wotp_rd_13__factory_run_skips_deleted_default_section(db, st):
     """WOTP-RD-13 — a factory run skips a template whose default section is deleted.
     Rules: `list_recurring_due` R5a [BUG-2332]"""
@@ -923,7 +915,6 @@ def test_wotp_rd_13__factory_run_skips_deleted_default_section(db, st):
 
 
 # [claude] WOTP-RD-14
-@pytest.mark.xfail(strict=True, reason=R2332)
 def test_wotp_rd_14__section_run_naming_deleted_section_returns_nothing(db, st):
     """WOTP-RD-14 — a section run naming a deleted section returns nothing.
     Rules: `list_recurring_due` R5a [BUG-2332]"""
@@ -1592,7 +1583,6 @@ def test_wotp_ag_07__non_member_approver_returned(db, st):
 
 
 # [claude] WOTP-AG-08
-@pytest.mark.xfail(strict=False, reason=R2331)
 def test_wotp_ag_08__out_of_order_ids_come_back_by_id(db, st):
     """WOTP-AG-08 — rows inserted out of id order come back by id, after the lowest was updated.
     Rules: approver `get_by_template` R2 [BUG-2331]"""
@@ -1613,7 +1603,6 @@ def test_wotp_ag_08__out_of_order_ids_come_back_by_id(db, st):
 
 
 # [claude] WOTP-AG-09
-@pytest.mark.xfail(strict=False, reason=R2331)
 def test_wotp_ag_09__order_is_by_id_not_by_user(db, st):
     """WOTP-AG-09 — on rows built in id order, the order is by id, not by user.
     Rules: approver `get_by_template` R2 [BUG-2331]"""
@@ -1632,7 +1621,6 @@ def test_wotp_ag_09__order_is_by_id_not_by_user(db, st):
 
 
 # [claude] WOTP-AG-10
-@pytest.mark.xfail(strict=True, reason=R2331)
 def test_wotp_ag_10__query_orders_by_id_ascending(db, st):
     """WOTP-AG-10 — the query orders by id ascending.
     Rules: approver `get_by_template` R2 [BUG-2331]"""

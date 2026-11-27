@@ -85,7 +85,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
                     Attachment.upload_status == "ready",
                 )
             )
-            .order_by(Attachment.uploaded_at.desc())
+            .order_by(Attachment.uploaded_at.desc(), Attachment.id.desc())
             .offset(skip)
             .limit(limit)
             .all()
@@ -100,7 +100,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
         entity_type: str,
         entity_id: int,
     ) -> int:
-        """Count non-deleted attachments linked to entity (all upload statuses)."""
+        """Count non-deleted, non-failed attachments linked to entity (pending and ready)."""
         return (
             db.query(Attachment)
             .join(AttachmentLink, AttachmentLink.attachment_id == Attachment.id)
@@ -110,6 +110,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
                     AttachmentLink.entity_type == entity_type,
                     AttachmentLink.entity_id == entity_id,
                     Attachment.is_deleted == False,
+                    Attachment.upload_status != "failed",
                 )
             )
             .count()
@@ -131,6 +132,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
                     AttachmentLink.attachment_id == attachment_id,
                 )
             )
+            .order_by(AttachmentLink.id.asc())
             .all()
         )
 

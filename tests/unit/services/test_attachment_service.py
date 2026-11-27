@@ -103,10 +103,6 @@ def PID1(S):
     return "development/ws-" + str(S.W1.id) + "/" + TOKEN
 
 
-X1434 = pytest.mark.xfail(
-    strict=True,
-    reason="BUG-1434: A failed upload keeps using up one of the record's 25 attachment places",
-)
 X1870 = pytest.mark.xfail(
     strict=True,
     reason="BUG-1870: Any member lists and adds attachments of a private project",
@@ -1930,7 +1926,6 @@ def test_atsv_l_07__failed_attachments_are_not_listed(db, S):
 
 
 # [claude] ATSV-L-08
-@X1434
 def test_atsv_l_08__failed_attachments_do_not_use_a_place(db, S):
     """ATSV-L-08 — failed attachments do not use a place.
     Rules: list_attachments R3 [BUG-1434]"""
