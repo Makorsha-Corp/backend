@@ -72,3 +72,8 @@ alembic/versions/*.pyc
 
 # Planning
 .plan/
+
+# Bug-fix pipeline scratch
+.scratch/
+.scratch-flip/
+docs/bugfix/baseline-*.json
