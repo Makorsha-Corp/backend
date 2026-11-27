@@ -341,7 +341,6 @@ def test_its_t_07__a_stored_tag_with_an_empty_code_passes_the_response_schema(db
 
 
 # [claude] ITS-T-08
-@pytest.mark.xfail(strict=False, reason="BUG-930: Active tag list sorted by collation name with no tie-break")
 def test_its_t_08__pass_through_bug_930_names_come_case_insensitive_ascending(db, w1, mk_tag):
     """ITS-T-08 — pass-through BUG-930: names come case-insensitive ascending.
     Rules: `get_tags` R1 [BUG-930]"""
@@ -413,7 +412,6 @@ def test_its_y_03__the_list_neither_commits_nor_rolls_back(db, w1, mk_tag, mk_sy
 
 
 # [claude] ITS-Y-04
-@pytest.mark.xfail(strict=False, reason="BUG-929: System tag list has no sort order")
 def test_its_y_04__pass_through_bug_929_system_tags_come_by_name_case_insensitive_ascending(
     db, w1, mk_system_tag,
 ):
