@@ -117,3 +117,10 @@ There were no feedback rounds and no wrong tests. The guard never blocked legiti
 | C1 | 5 tests expect Postgres 18's error code 23001 (`ON DELETE RESTRICT`); CI ran Postgres 16, which reports 23503. Production (Railway) is 18.6. | CI uses `postgres:18`, matching production and local. | done |
 | C2 | `is_valid_iana_timezone("localtime")` is True on Linux (OS timezone files) and False on Windows (`tzdata` package). It's a real production bug hidden by Windows-only test runs. | BUG-3301 logged. The 2 tests are strict xfail wherever the OS timezone files include those names. | done |
 | C3 | Every baseline and tester run was on Windows, so platform differences only show up in CI. | Treat CI (Linux, PG 18) as the reference. A tester's PR isn't "green" until GitHub CI passes. Consider running the baseline in CI too. | open |
+
+### Owner feedback (2026-11-27)
+
+| # | Finding | Change made | Status |
+|---|---|---|---|
+| O1 | PR descriptions were written for the pipeline, not for a human reviewer. | `bug-tester` D.4 now gives a reviewer-first template: human title, what was wrong with a concrete example, a small commented diff, what you'll notice, what to look at, and pipeline checks collapsed. The batch-1 `pr.md` files are rewritten to match. | done |
+| C4 | WOM-GI-01 asserted id order on a list with no ORDER BY (BUG-1272) but was a plain "pass" card. It passed by chance on Windows and failed on Linux CI. | Made it non-strict `xf(1272)`; card revised. **Lesson for the test designer and verifier:** any pass card that checks the order of a list whose sort is a known bug must be non-strict xfail for that bug. A sweep of other such cards is worth doing (verifier task). | done (sweep open) |
