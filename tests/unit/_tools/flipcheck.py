@@ -97,6 +97,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         Path(tmp, "flipcheck_plugin.py").write_text(PLUGIN_SOURCE, encoding="utf-8")
         env = {**os.environ, "FLIPCHECK_OUT": str(out),
                "PYTHONPATH": tmp + os.pathsep + os.environ.get("PYTHONPATH", "")}
+        # Same dummy values as CI's legacy job: a few tests build signed URLs and only need them set.
+        for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"):
+            env.setdefault(k, "ci")
         cmd = [sys.executable, "-m", "pytest", *args.paths, "-q", "-o", "addopts=",
                "-p", "no:cacheprovider", "-p", "flipcheck_plugin"]
         if args.workers:

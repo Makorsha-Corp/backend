@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_attachment_link.py::test_alk_cn_01__failed_attachments_do_not_count_ready_and_pending_do",
+    "tests/unit/dao/test_attachment_link.py::test_alk_ga_28__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated",
+    "tests/unit/dao/test_attachment_link.py::test_alk_ga_29__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row",
+    "tests/unit/dao/test_attachment_link.py::test_alk_ga_30__the_query_orders_by_uploaded_at_then_id_both_descending",
+    "tests/unit/dao/test_attachment_link.py::test_alk_gl_07__links_come_in_the_order_they_were_made_also_after_the_first_was_updated",
+    "tests/unit/dao/test_attachment_link.py::test_alk_gl_08__the_query_orders_by_id_ascending",
+    "tests/unit/dao/test_attachment_link.py::test_alk_gl_12__links_come_in_id_order_not_entity_order",
+    "tests/unit/managers/test_attachment_manager.py::test_atcm_cp_03__failed_not_counted",
+    "tests/unit/managers/test_attachment_manager.py::test_atcm_lg_08__first_link_is_lowest_link_id",
+    "tests/unit/managers/test_attachment_manager.py::test_atcm_lg_09__links_query_is_ordered",
+    "tests/unit/managers/test_attachment_manager.py::test_atcm_tr_07__w1_links_in_link_id_order",
+    "tests/unit/services/test_attachment_service.py::test_atsv_l_08__failed_attachments_do_not_use_a_place"
+  ],
+  "rejections": [],
+  "notes": [],
+  "before_commit": "8d0150ca49e5dd2ab977b98db13d5ad6b4aef39d",
+  "after_commit": "d5fea1c222541262b17c0226f46f62e340702eb7",
+  "bugs": [
+    "BUG-1432",
+    "BUG-1433",
+    "BUG-1434"
+  ]
+}

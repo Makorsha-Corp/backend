@@ -23,7 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WT_ROOT = ROOT.parent / "bugfix-worktrees"
-BLIND_PATTERNS = ["/*", "!/tests/", "!/docs/bugfix/units/*/tester*", "!/docs/bugfix/wrong-tests.md"]
+BLIND_PATTERNS = ["/*", "!/tests/", "!/docs/bugfix/units/", "!/docs/bugfix/wrong-tests.md", "!/docs/bugfix/questions.md"]
 
 
 def git(*args: str, cwd: Path = ROOT) -> str:
