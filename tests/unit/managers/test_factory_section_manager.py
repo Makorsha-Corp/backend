@@ -2768,7 +2768,6 @@ def test_fsm_s_19__without_a_factory_the_live_section_of_a_soft_deleted_factory_
 
 
 # [local-coder] FSM-S-20
-@pytest.mark.xfail(strict=True, reason="BUG-904: Sections of a soft-deleted factory are still returned")
 def test_fsm_s_20__with_the_soft_deleted_factory_as_filter_its_live_section_is_hidden(db, w1, fd, mk_section):
     """FSM-S-20 — with the soft-deleted factory as filter its live section is hidden.
     Rules: `search_factory_sections` R7 [BUG-904]"""
@@ -3371,7 +3370,6 @@ def test_fsm_s_63__without_a_factory_a_middle_page_holds_the_second_and_third_se
 
 
 # [claude] FSM-S-64
-@pytest.mark.xfail(strict=False, reason="BUG-903: Section list of a factory has no sort order (non-strict: today's order is the physical row order, which can match by accident)")
 def test_fsm_s_64__with_a_factory_the_list_is_ordered_by_name_ignoring_case(db, w1, f1, mk_section):
     """FSM-S-64 — with a factory the list is ordered by name ignoring case.
     Rules: `search_factory_sections` R4 [BUG-903]"""
@@ -3404,7 +3402,6 @@ def test_fsm_s_65__without_a_factory_the_list_query_asks_the_database_for_a_name
 
 
 # [claude] FSM-S-66
-@pytest.mark.xfail(strict=True, reason="BUG-903: Section list of a factory has no sort order")
 def test_fsm_s_66__with_a_factory_the_list_query_asks_the_database_for_a_name_order(db, w1, f1, mk_section):
     """FSM-S-66 — with a factory the list query asks the database for a name order.
     Rules: `search_factory_sections` R4 [BUG-903]"""
