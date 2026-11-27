@@ -231,7 +231,8 @@ class FactorySectionManager(BaseManager[FactorySection]):
         if factory_id:
             # Get sections for specific factory
             sections = self.factory_section_dao.get_by_factory(
-                session, factory_id=factory_id, workspace_id=workspace_id, skip=skip, limit=limit
+                session, factory_id=factory_id, workspace_id=workspace_id, skip=skip, limit=limit,
+                include_deleted=include_deleted
             )
         else:
             # Get all sections in workspace

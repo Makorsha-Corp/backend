@@ -835,7 +835,6 @@ def test_fss_l_08__the_list_neither_commits_nor_rolls_back(db, w1, w2, f9, mk_se
 
 
 # [claude] FSS-L-09
-@pytest.mark.xfail(strict=False, reason="BUG-903: Section list of a factory has no sort order")
 def test_fss_l_09__pass_through_bug_903_with_a_factory_names_come_case_insensitive_ascending(
     db, w1, f1, mk_section,
 ):
@@ -853,7 +852,6 @@ def test_fss_l_09__pass_through_bug_903_with_a_factory_names_come_case_insensiti
 
 
 # [claude] FSS-L-10
-@pytest.mark.xfail(strict=True, reason="BUG-904: Sections of a soft-deleted factory are still returned")
 def test_fss_l_10__pass_through_bug_904_filtered_by_a_soft_deleted_factory_its_live_section_is_hidden(
     db, w1, fd, mk_section,
 ):

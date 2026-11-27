@@ -251,7 +251,6 @@ def test_fsd_gf_04__the_other_workspace_gets_its_own_section(db, w2, f9, mk_sect
     assert result[0].workspace_id == w2.id
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-905: Section list of a factory returns soft-deleted sections")
 def test_fsd_gf_10__a_soft_deleted_section_is_not_returned(db, w1, f1, mk_section):
     """FSD-GF-10 — a soft-deleted section is not returned.
     Rules: `get_by_factory` R2 [BUG-905]"""
@@ -394,7 +393,6 @@ def test_fsd_gf_01__returns_a_list_of_the_sections_of_that_factory(db, w1, f1, f
 
 
 # [local-coder] FSD-GF-12
-@pytest.mark.xfail(strict=True, reason="BUG-905: Section list of a factory returns soft-deleted sections")
 def test_fsd_gf_12__soft_deleted_sections_do_not_use_up_a_place_under_limit(db, w1, f1, mk_section):
     """FSD-GF-12 — soft-deleted sections do not use up a place under limit.
     Rules: `get_by_factory` R2 [BUG-905], R4"""
@@ -410,7 +408,6 @@ def test_fsd_gf_12__soft_deleted_sections_do_not_use_up_a_place_under_limit(db, 
 
 
 # [local-coder] FSD-GF-15
-@pytest.mark.xfail(strict=True, reason="BUG-904: Sections of a soft-deleted factory are still returned")
 def test_fsd_gf_15__the_live_section_of_a_soft_deleted_factory_is_hidden(db, w1, fd, mk_section):
     """FSD-GF-15 — the live section of a soft-deleted factory is hidden.
     Rules: `get_by_factory` R3a [BUG-904] (P1)"""
@@ -970,7 +967,6 @@ def test_fsd_gf_09__an_unknown_workspace_id_returns_an_empty_list(db, f1, mk_sec
 
 
 # [claude] FSD-GF-11
-@pytest.mark.xfail(strict=True, reason="BUG-905: Section list of a factory returns soft-deleted sections")
 def test_fsd_gf_11__100_soft_deleted_sections_in_front_of_one_live_section_do_not_fill_the_default_page(db, w1, f1, mk_section):
     """FSD-GF-11 — 100 soft-deleted sections in front of one live section do not fill the default page.
     Rules: `get_by_factory` R2 [BUG-905]"""
@@ -985,7 +981,6 @@ def test_fsd_gf_11__100_soft_deleted_sections_in_front_of_one_live_section_do_no
 
 
 # [local-coder] FSD-GF-13
-@pytest.mark.xfail(strict=True, reason="BUG-905: Section list of a factory returns soft-deleted sections")
 def test_fsd_gf_13__a_soft_deleted_section_does_not_count_toward_skip(db, w1, f1, mk_section):
     """FSD-GF-13 — a soft-deleted section does not count toward skip.
     Rules: `get_by_factory` R2 [BUG-905], R5"""
@@ -1290,11 +1285,6 @@ def test_fsd_gf_31__negative_skip_is_rejected_by_the_database_and_nothing_change
 
 
 # [claude] FSD-GF-32
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-903: Section list of a factory has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_fsd_gf_32__sections_come_back_by_name_case_insensitive_ascending(db, w1, f1, mk_section):
     """FSD-GF-32 — sections come back by name, case-insensitive ascending.
     Rules: `get_by_factory` R6 [BUG-903]"""
@@ -1312,11 +1302,6 @@ def test_fsd_gf_32__sections_come_back_by_name_case_insensitive_ascending(db, w1
 
 
 # [claude] FSD-GF-33
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-903: Section list of a factory has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_fsd_gf_33__names_that_differ_only_in_case_come_back_in_id_order(db, w1, f1, mk_section):
     """FSD-GF-33 — names that differ only in case come back in id order.
     Rules: `get_by_factory` R6 [BUG-903]"""
@@ -1335,11 +1320,6 @@ def test_fsd_gf_33__names_that_differ_only_in_case_come_back_in_id_order(db, w1,
 
 
 # [claude] FSD-GF-34
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-903: Section list of a factory has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_fsd_gf_34__a_middle_window_holds_the_second_and_third_section_by_name(db, w1, f1, mk_section):
     """FSD-GF-34 — a middle window holds the second and third section by name.
     Rules: `get_by_factory` R6 [BUG-903], R4"""
@@ -1355,11 +1335,6 @@ def test_fsd_gf_34__a_middle_window_holds_the_second_and_third_section_by_name(d
 
 
 # [claude] FSD-GF-35
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-903: Section list of a factory has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_fsd_gf_35__the_first_window_holds_the_first_two_sections_by_name(db, w1, f1, mk_section):
     """FSD-GF-35 — the first window holds the first two sections by name.
     Rules: `get_by_factory` R6 [BUG-903], R4"""
@@ -1375,7 +1350,6 @@ def test_fsd_gf_35__the_first_window_holds_the_first_two_sections_by_name(db, w1
 
 
 # [claude] FSD-GF-36
-@pytest.mark.xfail(strict=True, reason="BUG-903: Section list of a factory has no sort order")
 def test_fsd_gf_36__the_by_factory_query_asks_the_database_for_an_order(db, w1, f1, mk_section):
     """FSD-GF-36 — the by-factory query asks the database for an order.
     Rules: `get_by_factory` R6 [BUG-903]"""
@@ -1793,7 +1767,6 @@ def test_fsd_rs_14__the_restore_writes_nothing_to_the_machine_or_the_assignment_
 
 
 # [claude] FSD-RS-16
-@pytest.mark.xfail(strict=True, reason="BUG-904: Sections of a soft-deleted factory are still returned")
 def test_fsd_rs_16__a_section_restored_inside_a_soft_deleted_factory_stays_hidden_from_the_by_factory_list(db, w1, fd, mk_section):
     """FSD-RS-16 — a section restored inside a soft-deleted factory stays hidden from the by-factory list.
     Rules: `restore` R7c [BUG-904] (P1); `get_by_factory` R3a"""

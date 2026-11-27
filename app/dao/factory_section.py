@@ -5,9 +5,11 @@ This DAO handles workspace-scoped data. All query methods MUST filter by workspa
 to prevent unauthorized cross-workspace data access.
 """
 
+from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
+from app.models.factory import Factory
 from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
 from app.utils.time import utcnow
@@ -17,7 +19,8 @@ class DAOFactorySection(BaseDAO[FactorySection, FactorySectionCreate, FactorySec
     """DAO operations for FactorySection model (workspace-scoped)"""
 
     def get_by_factory(
-        self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100
+        self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100,
+        include_deleted: bool = False
     ) -> list[FactorySection]:
         """
         Get factory sections by factory ID (SECURITY-CRITICAL: workspace-filtered)
@@ -28,16 +31,30 @@ class DAOFactorySection(BaseDAO[FactorySection, FactorySectionCreate, FactorySec
             workspace_id: Workspace ID to filter by
             skip: Number of records to skip
             limit: Maximum number of records to return
+            include_deleted: Also return soft-deleted sections and sections of a
+                soft-deleted factory
 
         Returns:
             List of factory sections belonging to the workspace
         """
-        return (
-            db.query(FactorySection)
-            .filter(
-                FactorySection.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                FactorySection.factory_id == factory_id
+        query = db.query(FactorySection).filter(
+            FactorySection.workspace_id == workspace_id,  # SECURITY: workspace isolation
+            FactorySection.factory_id == factory_id
+        )
+        if not include_deleted:
+            # BUG-905: hide soft-deleted sections.
+            # BUG-904: hide sections of a soft-deleted factory (only the factory's
+            # is_deleted is read; its workspace_id / is_active are not compared).
+            query = query.filter(
+                FactorySection.is_deleted == False,
+                exists().where(
+                    Factory.id == FactorySection.factory_id,
+                    Factory.is_deleted == False,
+                ),
             )
+        # BUG-903: stable order before paging (HR-6).
+        return (
+            query.order_by(func.lower(FactorySection.name).asc(), FactorySection.id.asc())
             .offset(skip)
             .limit(limit)
             .all()
