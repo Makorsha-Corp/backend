@@ -9,7 +9,7 @@ from app.managers.help_ticket_manager import (
     HelpTicketManager,
     HelpTicketNotFoundError,
 )
-from app.models.enums import HelpTicketStatusEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.help_ticket import HelpTicket
 from app.models.profile import Profile
 
@@ -22,7 +22,8 @@ def _ticket(**overrides) -> HelpTicket:
         title="Login issue",
         description="Cannot sign in on mobile.",
         category="Bug",
-        status=HelpTicketStatusEnum.OPEN.value,
+        status=HelpTicketStatusEnum.PENDING.value,
+        type=HelpTicketTypeEnum.SUPPORT.value,
         created_by=5,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
@@ -143,8 +144,12 @@ def test_platform_help_tickets_endpoint_returns_200_for_admin() -> None:
     admin = _user(user_id=1, is_platform_admin=True)
     app.dependency_overrides[get_platform_admin] = lambda: admin
     try:
-        client = TestClient(app)
-        response = client.get("/api/v1/platform/help/tickets")
+        with patch(
+            "app.api.v1.endpoints.platform_help.help_ticket_service.list_platform_tickets",
+            return_value=[],
+        ):
+            client = TestClient(app)
+            response = client.get("/api/v1/platform/help/tickets")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
     finally:
@@ -164,5 +169,148 @@ def test_platform_help_tickets_endpoint_returns_403_for_non_admin() -> None:
         response = client.get("/api/v1/platform/help/tickets")
         assert response.status_code == 403
         assert "Platform admin" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ---------------- Platform type filter tests ----------------
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_list_platform_tickets_passes_type_filter(mock_dao: MagicMock) -> None:
+    """Manager list_platform_tickets passes ticket_type to DAO."""
+    mock_dao.list_platform.return_value = []
+    manager = HelpTicketManager()
+    manager.list_platform_tickets(
+        MagicMock(),
+        ticket_type=HelpTicketTypeEnum.FEEDBACK,
+    )
+    mock_dao.list_platform.assert_called_once()
+    assert mock_dao.list_platform.call_args.kwargs["ticket_type"] == "feedback"
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_list_platform_tickets_no_type_filter_when_none(mock_dao: MagicMock) -> None:
+    """Manager list_platform_tickets passes None ticket_type when not specified."""
+    mock_dao.list_platform.return_value = []
+    manager = HelpTicketManager()
+    manager.list_platform_tickets(MagicMock())
+    mock_dao.list_platform.assert_called_once()
+    assert mock_dao.list_platform.call_args.kwargs["ticket_type"] is None
+
+
+def test_platform_help_tickets_endpoint_accepts_type_param() -> None:
+    """Platform tickets endpoint accepts type query param."""
+    from fastapi.testclient import TestClient
+
+    from app.core.deps import get_platform_admin
+    from app.main import app
+
+    admin = _user(user_id=1, is_platform_admin=True)
+    app.dependency_overrides[get_platform_admin] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/platform/help/tickets?type=feedback")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_platform_item_includes_type() -> None:
+    """PlatformHelpTicketListItem includes type field."""
+    manager = HelpTicketManager()
+    ticket = _ticket(type=HelpTicketTypeEnum.FEEDBACK.value)
+    creator = Profile(id=5, name="Jane", email="j@t.com", user_id="u5", hashed_password="x")
+    ticket.creator = creator
+
+    item = manager._to_platform_item(ticket, "Acme Mill", "Jane")
+    assert item.type == HelpTicketTypeEnum.FEEDBACK
+
+
+@patch("app.managers.help_ticket_manager.help_ticket_dao")
+def test_list_platform_tickets_passes_status_filter(mock_dao: MagicMock) -> None:
+    mock_dao.list_platform.return_value = []
+    manager = HelpTicketManager()
+    manager.list_platform_tickets(
+        MagicMock(),
+        status=HelpTicketStatusEnum.PENDING,
+    )
+    assert mock_dao.list_platform.call_args.kwargs["status"] == "pending"
+
+
+def test_platform_help_tickets_endpoint_accepts_status_param() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.core.deps import get_platform_admin
+    from app.main import app
+
+    admin = _user(user_id=1, is_platform_admin=True)
+    app.dependency_overrides[get_platform_admin] = lambda: admin
+    try:
+        client = TestClient(app)
+        response = client.get("/api/v1/platform/help/tickets?status=opened")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_platform_patch_ticket_status_returns_200_for_admin() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.core.deps import get_platform_admin
+    from app.main import app
+    from app.schemas.help_ticket import HelpTicketResponse
+
+    admin = _user(user_id=1, is_platform_admin=True)
+    app.dependency_overrides[get_platform_admin] = lambda: admin
+    ticket_response = HelpTicketResponse(
+        id=1,
+        workspace_id=10,
+        ticket_number="HELP-2026-001",
+        title="Login issue",
+        description="Cannot sign in on mobile.",
+        category="Bug",
+        status=HelpTicketStatusEnum.OPENED,
+        type=HelpTicketTypeEnum.SUPPORT,
+        created_by=5,
+        creator_name="Jane",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        closed_at=None,
+        closed_by=None,
+    )
+    try:
+        with patch(
+            "app.api.v1.endpoints.platform_help.help_ticket_service.update_platform_ticket",
+            return_value=ticket_response,
+        ):
+            client = TestClient(app)
+            response = client.patch(
+                "/api/v1/platform/help/tickets/1",
+                json={"status": "opened"},
+            )
+        assert response.status_code == 200
+        assert response.json()["status"] == "opened"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_platform_patch_ticket_status_returns_403_for_non_admin() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.core.deps import get_current_active_user
+    from app.main import app
+
+    non_admin = _user(user_id=2, is_platform_admin=False)
+    app.dependency_overrides[get_current_active_user] = lambda: non_admin
+    try:
+        client = TestClient(app)
+        response = client.patch(
+            "/api/v1/platform/help/tickets/1",
+            json={"status": "opened"},
+        )
+        assert response.status_code == 403
     finally:
         app.dependency_overrides.clear()

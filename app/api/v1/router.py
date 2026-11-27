@@ -28,6 +28,7 @@ from app.api.v1.endpoints import (
     item_tags,
     # Items & Inventory
     items,
+    landing_perf_reports,
     # Ledgers
     ledgers,
     machine_items,
@@ -159,6 +160,13 @@ api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"]
 
 # Landing waitlist (public signup + platform admin list)
 api_router.include_router(waitlist.router, prefix="/waitlist", tags=["waitlist"])
+
+# Landing perf feedback (public submit + platform admin list)
+api_router.include_router(
+    landing_perf_reports.router,
+    prefix="/landing-perf-reports",
+    tags=["landing-perf-reports"],
+)
 
 # Attachments (Cloudinary signed uploads)
 api_router.include_router(attachments.router, prefix="/attachments", tags=["attachments"])

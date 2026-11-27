@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 
 from app.dao.help_ticket import help_ticket_dao
-from app.models.enums import HelpTicketStatusEnum, RoleEnum
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum, RoleEnum
 from app.models.help_ticket import HelpTicket
 from app.models.profile import Profile
 from app.schemas.help_ticket import (
@@ -25,6 +25,21 @@ class HelpTicketNotFoundError(LookupError):
 
 class HelpTicketForbiddenError(PermissionError):
     """Caller may not access this ticket."""
+
+
+class HelpTicketStatusChangeForbiddenError(PermissionError):
+    """Caller may not change ticket status."""
+
+
+class HelpTicketInvalidTransitionError(ValueError):
+    """Requested status transition is not allowed."""
+
+
+ALLOWED_STATUS_TRANSITIONS: dict[HelpTicketStatusEnum, set[HelpTicketStatusEnum]] = {
+    HelpTicketStatusEnum.PENDING: {HelpTicketStatusEnum.OPENED},
+    HelpTicketStatusEnum.OPENED: {HelpTicketStatusEnum.CLOSED},
+    HelpTicketStatusEnum.CLOSED: {HelpTicketStatusEnum.OPENED},
+}
 
 
 class HelpTicketManager:
@@ -73,10 +88,12 @@ class HelpTicketManager:
         user: Profile,
         role: str | None,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> list[HelpTicket]:
         status_value = status.value if status is not None else None
+        type_value = ticket_type.value if ticket_type is not None else None
         created_by_filter = None
         if not self.can_view_all_tickets(role):
             created_by_filter = user.id
@@ -84,6 +101,7 @@ class HelpTicketManager:
             session,
             workspace_id=workspace_id,
             status=status_value,
+            ticket_type=type_value,
             created_by=created_by_filter,
             skip=skip,
             limit=limit,
@@ -94,14 +112,17 @@ class HelpTicketManager:
         session: Session,
         *,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> list[PlatformHelpTicketListItem]:
         status_value = status.value if status is not None else None
+        type_value = ticket_type.value if ticket_type is not None else None
         rows = help_ticket_dao.list_platform(
             session,
             status=status_value,
+            ticket_type=type_value,
             search=search,
             skip=skip,
             limit=limit,
@@ -142,20 +163,40 @@ class HelpTicketManager:
         ticket: HelpTicket,
         payload: HelpTicketUpdate,
         user_id: int,
+        is_platform_admin: bool = False,
     ) -> HelpTicket:
         update_data = payload.model_dump(exclude_unset=True)
         new_status = update_data.pop("status", None)
 
         if new_status is not None:
-            status_value = (
-                new_status.value if isinstance(new_status, HelpTicketStatusEnum) else new_status
+            if not is_platform_admin:
+                raise HelpTicketStatusChangeForbiddenError(
+                    "Only platform admins may change ticket status."
+                )
+            target_status = (
+                new_status
+                if isinstance(new_status, HelpTicketStatusEnum)
+                else HelpTicketStatusEnum(new_status)
             )
-            if status_value == HelpTicketStatusEnum.CLOSED.value:
-                update_data["status"] = HelpTicketStatusEnum.CLOSED.value
+            try:
+                current_status = HelpTicketStatusEnum(ticket.status)
+            except ValueError as exc:
+                raise HelpTicketInvalidTransitionError(
+                    f"Cannot transition from invalid status '{ticket.status}'."
+                ) from exc
+            allowed = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+            if target_status not in allowed:
+                raise HelpTicketInvalidTransitionError(
+                    f"Cannot transition from {current_status.value} to {target_status.value}."
+                )
+            update_data["status"] = target_status.value
+            if target_status == HelpTicketStatusEnum.CLOSED:
                 update_data["closed_at"] = utcnow()
                 update_data["closed_by"] = user_id
-            elif status_value == HelpTicketStatusEnum.OPEN.value:
-                update_data["status"] = HelpTicketStatusEnum.OPEN.value
+            elif (
+                target_status == HelpTicketStatusEnum.OPENED
+                and current_status == HelpTicketStatusEnum.CLOSED
+            ):
                 update_data["closed_at"] = None
                 update_data["closed_by"] = None
 

@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.managers.help_ticket_manager import (
     HelpTicketManager,
+    HelpTicketNotFoundError,
     help_ticket_manager,
 )
-from app.models.enums import HelpTicketStatusEnum
+from app.dao.help_ticket import help_ticket_dao
+from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.help_ticket import (
@@ -42,8 +44,6 @@ class HelpTicketService(BaseService):
             )
             self._commit_transaction(db)
             db.refresh(ticket)
-            from app.dao.help_ticket import help_ticket_dao
-
             refreshed = help_ticket_dao.get_by_id(db, ticket_id=ticket.id)
             return self.manager.to_response(refreshed or ticket)
         except Exception:
@@ -58,6 +58,7 @@ class HelpTicketService(BaseService):
         user: Profile,
         role: str | None,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> list[HelpTicketResponse]:
@@ -67,6 +68,7 @@ class HelpTicketService(BaseService):
             user=user,
             role=role,
             status=status,
+            ticket_type=ticket_type,
             skip=skip,
             limit=limit,
         )
@@ -109,12 +111,41 @@ class HelpTicketService(BaseService):
                 role=role,
             )
             ticket = self.manager.update_ticket(
-                db, ticket=ticket, payload=payload, user_id=user.id
+                db,
+                ticket=ticket,
+                payload=payload,
+                user_id=user.id,
+                is_platform_admin=getattr(user, "is_platform_admin", False),
             )
             self._commit_transaction(db)
             db.refresh(ticket)
-            from app.dao.help_ticket import help_ticket_dao
+            refreshed = help_ticket_dao.get_by_id(db, ticket_id=ticket.id)
+            return self.manager.to_response(refreshed or ticket)
+        except Exception:
+            self._rollback_transaction(db)
+            raise
 
+    def update_platform_ticket(
+        self,
+        db: Session,
+        *,
+        ticket_id: int,
+        user: Profile,
+        payload: HelpTicketUpdate,
+    ) -> HelpTicketResponse:
+        try:
+            ticket = help_ticket_dao.get_by_id(db, ticket_id=ticket_id)
+            if ticket is None:
+                raise HelpTicketNotFoundError("Help ticket not found.")
+            ticket = self.manager.update_ticket(
+                db,
+                ticket=ticket,
+                payload=payload,
+                user_id=user.id,
+                is_platform_admin=True,
+            )
+            self._commit_transaction(db)
+            db.refresh(ticket)
             refreshed = help_ticket_dao.get_by_id(db, ticket_id=ticket.id)
             return self.manager.to_response(refreshed or ticket)
         except Exception:
@@ -126,6 +157,7 @@ class HelpTicketService(BaseService):
         db: Session,
         *,
         status: HelpTicketStatusEnum | None = None,
+        ticket_type: HelpTicketTypeEnum | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 100,
@@ -133,6 +165,7 @@ class HelpTicketService(BaseService):
         return self.manager.list_platform_tickets(
             db,
             status=status,
+            ticket_type=ticket_type,
             search=search,
             skip=skip,
             limit=limit,

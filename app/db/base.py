@@ -39,6 +39,7 @@ from app.models.invoice_status_tracker import InvoiceStatusTracker
 from app.models.item import Item
 from app.models.item_tag import ItemTag
 from app.models.item_tag_assignment import ItemTagAssignment
+from app.models.landing_perf_report import LandingPerfReport
 from app.models.machine import Machine
 from app.models.machine_activity_event import MachineActivityEvent
 from app.models.machine_item import MachineItem
