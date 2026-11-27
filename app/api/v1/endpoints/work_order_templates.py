@@ -1,20 +1,24 @@
 """Work order template API endpoints - reusable "things that happen all the time" presets"""
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
-from app.models.profile import Profile
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
-from app.schemas.work_order_template import (
-    WorkOrderTemplateCreate, WorkOrderTemplateUpdate, WorkOrderTemplateResponse,
-    WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate, WorkOrderTemplateItemResponse,
-    WorkOrderTemplateApproverResponse, GenerateWorkOrderDraftsRequest,
-)
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.work_order import WorkOrderResponse
+from app.schemas.work_order_template import (
+    GenerateWorkOrderDraftsRequest,
+    WorkOrderTemplateApproverResponse,
+    WorkOrderTemplateCreate,
+    WorkOrderTemplateItemCreate,
+    WorkOrderTemplateItemResponse,
+    WorkOrderTemplateItemUpdate,
+    WorkOrderTemplateResponse,
+    WorkOrderTemplateUpdate,
+)
 from app.services.work_order_template_service import work_order_template_service
-
 
 router = APIRouter()
 
@@ -23,15 +27,15 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[WorkOrderTemplateResponse],
+    response_model=list[WorkOrderTemplateResponse],
     status_code=status.HTTP_200_OK,
     summary="List work order templates"
 )
 def list_work_order_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    is_active: Optional[bool] = Query(True),
-    work_order_type_id: Optional[int] = Query(None),
+    is_active: bool | None = Query(True),
+    work_order_type_id: int | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -44,7 +48,7 @@ def list_work_order_templates(
 
 @router.post(
     "/generate-drafts/",
-    response_model=List[WorkOrderResponse],
+    response_model=list[WorkOrderResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Generate draft work orders from recurring/section templates (deprecated — range auto-generates on sheet anchor)",
 )
@@ -141,7 +145,7 @@ def restore_work_order_template(
 
 @router.get(
     "/{tpl_id}/items/",
-    response_model=List[WorkOrderTemplateItemResponse],
+    response_model=list[WorkOrderTemplateItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get template items"
 )
@@ -200,7 +204,7 @@ def remove_template_item(
 
 @router.get(
     "/{tpl_id}/approvers/",
-    response_model=List[WorkOrderTemplateApproverResponse],
+    response_model=list[WorkOrderTemplateApproverResponse],
     status_code=status.HTTP_200_OK,
     summary="Get template default approvers"
 )

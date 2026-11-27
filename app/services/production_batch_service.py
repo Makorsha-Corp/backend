@@ -1,11 +1,12 @@
 """Production Batch Service for orchestrating production batch workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.services.base_service import BaseService
+
+from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.managers.production_batch_manager import production_batch_manager
 from app.models.production_batch import ProductionBatch
 from app.models.production_batch_item import ProductionBatchItem
-from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.services.base_service import BaseService
 
 
 class ProductionBatchService(BaseService):
@@ -66,12 +67,12 @@ class ProductionBatchService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        production_line_id: Optional[int] = None,
-        formula_id: Optional[int] = None,
-        status: Optional[str] = None,
+        production_line_id: int | None = None,
+        formula_id: int | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """Get batches with optional filtering."""
         return self.batch_manager.get_batches(
             session=db,
@@ -87,7 +88,7 @@ class ProductionBatchService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
     ):
         return self.batch_manager.get_batch_stats(
             session=db, workspace_id=workspace_id, factory_id=factory_id
@@ -155,7 +156,7 @@ class ProductionBatchService(BaseService):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        target_output_quantity: Optional[int] = None
+        target_output_quantity: int | None = None
     ) -> ProductionBatch:
         """
         Start a production batch (draft → in_progress).
@@ -189,9 +190,9 @@ class ProductionBatchService(BaseService):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        actual_output_quantity: Optional[int] = None,
-        actual_duration_minutes: Optional[int] = None,
-        notes: Optional[str] = None,
+        actual_output_quantity: int | None = None,
+        actual_duration_minutes: int | None = None,
+        notes: str | None = None,
     ) -> ProductionBatch:
         """
         Complete a production batch (in_progress → completed).
@@ -264,7 +265,7 @@ class ProductionBatchService(BaseService):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        notes: Optional[str] = None
+        notes: str | None = None
     ) -> ProductionBatch:
         """Cancel a production batch."""
         try:
@@ -373,8 +374,8 @@ class ProductionBatchService(BaseService):
         db: Session,
         batch_id: int,
         workspace_id: int,
-        item_role: Optional[str] = None
-    ) -> List[ProductionBatchItem]:
+        item_role: str | None = None
+    ) -> list[ProductionBatchItem]:
         """Get items for a batch with optional role filter."""
         try:
             return self.batch_manager.get_batch_items(
@@ -393,7 +394,7 @@ class ProductionBatchService(BaseService):
 
     def get_batch_stage_logs(
         self, db: Session, batch_id: int, workspace_id: int
-    ) -> List["ProductionBatchStageLog"]:
+    ) -> list["ProductionBatchStageLog"]:
         try:
             return self.batch_manager.get_batch_stage_logs(db, batch_id, workspace_id)
         except ValueError as e:

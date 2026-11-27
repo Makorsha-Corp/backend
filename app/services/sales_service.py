@@ -1,31 +1,33 @@
 """Sales Service for orchestrating sales workflows"""
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
-from app.managers.sales_manager import sales_manager
-from app.managers.account_invoice_manager import account_invoice_manager
+from app.core.exceptions import NotFoundError
 from app.dao.account import account_dao
 from app.dao.account_invoice import account_invoice_dao
+from app.dao.sales_order_return import (
+    sales_order_return_dao,
+    sales_order_return_item_dao,
+)
+from app.managers.account_invoice_manager import account_invoice_manager
+from app.managers.sales_manager import sales_manager
+from app.managers.sales_order_return_manager import sales_order_return_manager
+from app.models.profile import Profile
+from app.models.sales_delivery import SalesDelivery
 from app.models.sales_order import SalesOrder
 from app.models.sales_order_approver import SalesOrderApprover
 from app.models.sales_order_event import SalesOrderEvent
-from app.models.sales_delivery import SalesDelivery
-from app.models.profile import Profile
-from app.schemas.sales_order import SalesOrderCreate, SalesOrderUpdate
-from app.schemas.sales_delivery import SalesDeliveryCreate, SalesDeliveryUpdate
-from app.schemas.account_invoice import AccountInvoiceCreate
-from app.schemas.response import ActionMessage, success_message, info_message
-from app.core.exceptions import NotFoundError
-from app.utils.time import utcnow
 from app.models.sales_order_return import SalesOrderReturn
-from app.dao.sales_order_return import sales_order_return_dao, sales_order_return_item_dao
-from app.managers.sales_order_return_manager import sales_order_return_manager
+from app.schemas.account_invoice import AccountInvoiceCreate
+from app.schemas.response import ActionMessage, info_message, success_message
+from app.schemas.sales_delivery import SalesDeliveryCreate
+from app.schemas.sales_order import SalesOrderUpdate
 from app.schemas.sales_order_return import SalesOrderReturnCreate
+from app.services.base_service import BaseService
+from app.utils.time import utcnow
 
 
 class SalesService(BaseService):
@@ -159,7 +161,7 @@ class SalesService(BaseService):
         order: SalesOrder,
         workspace_id: int,
         user_id: int,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Auto-create a draft receivable invoice once order info + items are
         both confirmed (mirrors Purchase Order's auto-draft-on-confirm).
@@ -275,38 +277,11 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def create_sales_order(
-        self,
-        db: Session,
-        order_in: SalesOrderCreate,
-        items_data: List[dict],
-        workspace_id: int,
-        current_user: Profile
-    ) -> SalesOrder:
-        """
-        Create a new sales order with items.
-
-        Args:
-            db: Database session
-            order_in: Sales order creation data
-            items_data: List of items to sell
-            workspace_id: Workspace ID
-            current_user: Current authenticated user
-
-        Returns:
-            Created sales order
-
-        Raises:
-            Exception: If creation fails
-        """
-        order_data = order_in.model_dump()
-        return self.create_sales_order_from_dict(db, order_data, items_data, workspace_id, current_user)
-
     def create_sales_order_from_dict(
         self,
         db: Session,
         order_data: dict,
-        items_data: List[dict],
+        items_data: list[dict],
         workspace_id: int,
         current_user: Profile
     ) -> SalesOrder:
@@ -342,7 +317,7 @@ class SalesService(BaseService):
 
             return sales_order
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -380,7 +355,7 @@ class SalesService(BaseService):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesOrder]:
+    ) -> list[SalesOrder]:
         """
         Get list of sales orders for workspace.
 
@@ -400,7 +375,7 @@ class SalesService(BaseService):
         return orders
 
     @staticmethod
-    def _attach_invoice_payment_status(db: Session, orders: List[SalesOrder]) -> None:
+    def _attach_invoice_payment_status(db: Session, orders: list[SalesOrder]) -> None:
         """Batch-fetch invoice payment_status and attach as a transient attribute."""
         from app.models.account_invoice import AccountInvoice
         invoice_ids = [o.invoice_id for o in orders if o.invoice_id is not None]
@@ -463,7 +438,7 @@ class SalesService(BaseService):
         self,
         db: Session,
         delivery_in: SalesDeliveryCreate,
-        delivery_items_data: List[dict],
+        delivery_items_data: list[dict],
         workspace_id: int,
         current_user: Profile
     ) -> tuple[SalesDelivery, SalesOrder]:
@@ -515,9 +490,9 @@ class SalesService(BaseService):
         delivery_id: int,
         workspace_id: int,
         current_user: Profile,
-        actual_delivery_date: Optional[date] = None,
-        completion_code: Optional[str] = None,
-    ) -> Tuple[SalesOrder, List[ActionMessage]]:
+        actual_delivery_date: date | None = None,
+        completion_code: str | None = None,
+    ) -> tuple[SalesOrder, list[ActionMessage]]:
         """
         Mark delivery as completed and update inventory.
 
@@ -602,7 +577,7 @@ class SalesService(BaseService):
 
             return sales_order, messages
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -611,7 +586,7 @@ class SalesService(BaseService):
         db: Session,
         delivery_id: int,
         workspace_id: int,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> SalesDelivery:
         """
         Cancel a planned delivery so its committed quantity becomes available
@@ -649,7 +624,7 @@ class SalesService(BaseService):
         delivery_id: int,
         workspace_id: int,
         data,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> SalesDelivery:
         """
         Edit a still-planned delivery (schedule/delivery method/tracking number/notes).
@@ -687,8 +662,8 @@ class SalesService(BaseService):
         order_item_id: int,
         workspace_id: int,
         current_user: Profile,
-        completion_code: Optional[str] = None,
-    ) -> Tuple[SalesOrder, List[ActionMessage]]:
+        completion_code: str | None = None,
+    ) -> tuple[SalesOrder, list[ActionMessage]]:
         """
         Mark a sales order line that doesn't require delivery as fulfilled directly
         (no delivery, no inventory/product movement).
@@ -745,7 +720,7 @@ class SalesService(BaseService):
         db: Session,
         sales_order_id: int,
         workspace_id: int
-    ) -> List[SalesDelivery]:
+    ) -> list[SalesDelivery]:
         """
         Get all deliveries for a sales order.
 
@@ -817,7 +792,7 @@ class SalesService(BaseService):
         delivery_status: str = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[SalesDelivery]:
+    ) -> list[SalesDelivery]:
         """
         Get list of deliveries for workspace with optional status filter.
 
@@ -910,8 +885,8 @@ class SalesService(BaseService):
                 'source_order_item_type': 'so_item',
                 'quantity': ri.quantity_returned,
                 'unit': ri.item_unit,
-                'unit_price': ri.unit_price or Decimal('0'),
-                'line_subtotal': (ri.unit_price or Decimal('0')) * Decimal(str(ri.quantity_returned)),
+                'unit_price': ri.unit_price or Decimal(0),
+                'line_subtotal': (ri.unit_price or Decimal(0)) * Decimal(str(ri.quantity_returned)),
             }
             for idx, ri in enumerate(return_items, start=1)
         ]
@@ -1089,7 +1064,7 @@ class SalesService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def list_returns(self, db: Session, order_id: int, workspace_id: int) -> List[SalesOrderReturn]:
+    def list_returns(self, db: Session, order_id: int, workspace_id: int) -> list[SalesOrderReturn]:
         self.get_sales_order(db, order_id, workspace_id)
         return sales_order_return_manager.list_returns(db, order_id, workspace_id)
 
@@ -1137,10 +1112,10 @@ class SalesService(BaseService):
 
     def list_approvers(
         self, db: Session, order_id: int, workspace_id: int
-    ) -> List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[SalesOrderApprover, Profile | None, str | None]]:
         return self.sales_manager.list_approvers(db, order_id, workspace_id)
 
-    def approval_summary(self, db: Session, order: SalesOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, db: Session, order: SalesOrder) -> tuple[int, int, bool]:
         return self.sales_manager.approval_summary(db, order)
 
     def add_approver(
@@ -1181,7 +1156,7 @@ class SalesService(BaseService):
 
     def list_events(
         self, db: Session, order_id: int, workspace_id: int
-    ) -> List[Tuple[SalesOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[SalesOrderEvent, Profile | None]]:
         return self.sales_manager.list_events(db, order_id, workspace_id)
 
 

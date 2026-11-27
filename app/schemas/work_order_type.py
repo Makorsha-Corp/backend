@@ -9,7 +9,6 @@ class WorkOrderTypeBase(BaseModel):
 
 class WorkOrderTypeCreate(WorkOrderTypeBase):
     """Work order type creation schema"""
-    pass
 
 
 class WorkOrderTypeUpdate(BaseModel):

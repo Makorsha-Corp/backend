@@ -1,5 +1,4 @@
 """Platform admin help ticket inbox — cross-workspace."""
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -24,13 +23,13 @@ router = APIRouter()
 
 @router.get(
     "/help/tickets",
-    response_model=List[PlatformHelpTicketListItem],
+    response_model=list[PlatformHelpTicketListItem],
     summary="List help tickets across all workspaces (platform admin)",
 )
 def list_platform_help_tickets(
-    status_filter: Optional[HelpTicketStatusEnum] = Query(None, alias="status"),
-    type_filter: Optional[HelpTicketTypeEnum] = Query(None, alias="type"),
-    search: Optional[str] = Query(None, max_length=200),
+    status_filter: HelpTicketStatusEnum | None = Query(None, alias="status"),
+    type_filter: HelpTicketTypeEnum | None = Query(None, alias="type"),
+    search: str | None = Query(None, max_length=200),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     _: Profile = Depends(get_platform_admin),

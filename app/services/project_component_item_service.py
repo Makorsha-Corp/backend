@@ -1,9 +1,13 @@
 """Project component item service for business orchestration"""
 from sqlalchemy.orm import Session
-from app.dao.project_component_item import project_component_item_dao
+
 from app.dao.project_component import project_component_dao
+from app.dao.project_component_item import project_component_item_dao
 from app.managers.project_manager import project_manager
-from app.schemas.project_component_item import ProjectComponentItemCreate, ProjectComponentItemUpdate
+from app.schemas.project_component_item import (
+    ProjectComponentItemCreate,
+    ProjectComponentItemUpdate,
+)
 
 
 class ProjectComponentItemService:
@@ -133,7 +137,7 @@ class ProjectComponentItemService:
                 item.project_component_id,
                 workspace_id,
                 'item_removed',
-                f'Removed item from component',
+                'Removed item from component',
                 user_id,
                 metadata={'item_id': item.item_id},
             )

@@ -1,6 +1,7 @@
 """Discussion DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List, Tuple
+
 from sqlalchemy.orm import Session
+
 from app.models.discussion import Discussion
 
 
@@ -13,7 +14,7 @@ class DiscussionDAO:
         entity_id: int,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[Discussion], int]:
+    ) -> tuple[list[Discussion], int]:
         """Return root-level discussions (no parent) with their replies eager-loaded."""
         base = (
             db.query(Discussion)

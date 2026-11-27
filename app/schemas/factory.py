@@ -10,7 +10,6 @@ class FactoryBase(BaseModel):
 
 class FactoryCreate(FactoryBase):
     """Factory creation schema"""
-    pass
 
 
 class FactoryUpdate(BaseModel):

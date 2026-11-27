@@ -22,13 +22,13 @@ from app.schemas.attachment_markup import (
     AttachmentMarkupListResponse,
     AttachmentMarkupPutRequest,
 )
+from app.services.attachment_markup_service import attachment_markup_service
 from app.services.attachment_service import (
     AttachmentConfirmError,
     AttachmentNotFoundError,
     AttachmentValidationError,
     attachment_service,
 )
-from app.services.attachment_markup_service import attachment_markup_service
 
 router = APIRouter()
 

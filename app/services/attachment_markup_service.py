@@ -1,5 +1,4 @@
 """Service for attachment markup overlay workflows."""
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -73,8 +72,8 @@ class AttachmentMarkupService(BaseService):
         attachment_id: int,
         user_id: int,
         payload: MarkupPayload,
-        session_id: Optional[str] = None,
-    ) -> Optional[AttachmentMarkupLayerResponse]:
+        session_id: str | None = None,
+    ) -> AttachmentMarkupLayerResponse | None:
         try:
             layer = self.manager.put_own_layer(
                 db,
@@ -97,7 +96,7 @@ class AttachmentMarkupService(BaseService):
         workspace_id: int,
         attachment_id: int,
         user_id: int,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> None:
         try:
             self.manager.delete_own_layer(

@@ -1,14 +1,14 @@
 """Product Service - transaction orchestration for finished goods"""
 from datetime import datetime
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
+from app.dao.product_ledger import product_ledger_dao
 from app.managers.product_manager import product_manager
 from app.models.product import Product
 from app.models.product_ledger import ProductLedger
 from app.schemas.product import ProductCreate, ProductUpdate
-from app.dao.product_ledger import product_ledger_dao
+from app.services.base_service import BaseService
 
 
 class ProductService(BaseService):
@@ -50,10 +50,10 @@ class ProductService(BaseService):
 
     def list_products(
         self, db: Session, workspace_id: int,
-        factory_id: Optional[int] = None,
-        is_available_for_sale: Optional[bool] = None,
+        factory_id: int | None = None,
+        is_available_for_sale: bool | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Product]:
+    ) -> list[Product]:
         return self.manager.list_products(
             db, workspace_id=workspace_id,
             factory_id=factory_id,
@@ -74,13 +74,13 @@ class ProductService(BaseService):
     # Ledger queries
     def list_ledger(
         self, db: Session, workspace_id: int,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0, limit: int = 100,
-    ) -> List[ProductLedger]:
+    ) -> list[ProductLedger]:
         return self.ledger_dao.get_by_workspace(
             db, workspace_id=workspace_id,
             factory_id=factory_id,

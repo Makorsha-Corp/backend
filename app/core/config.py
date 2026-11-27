@@ -1,9 +1,9 @@
 """
 Application configuration settings
 """
-from typing import List
-from pydantic_settings import BaseSettings
+
 from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Landing waitlist
     TURNSTILE_SECRET_KEY: str = ""
-    WAITLIST_ADMIN_EMAILS: List[str] = []
+    WAITLIST_ADMIN_EMAILS: list[str] = []
     WAITLIST_IP_HASH_SALT: str = ""
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")

@@ -1,14 +1,14 @@
 """Project component activity event manager - append-only audit log for project components."""
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.dao.profile import profile_dao
 from app.dao.project_component import project_component_dao
-from app.dao.project_component_activity_event import project_component_activity_event_dao
+from app.dao.project_component_activity_event import (
+    project_component_activity_event_dao,
+)
 from app.models.project_component_activity_event import ProjectComponentActivityEvent
 
 
@@ -26,7 +26,7 @@ class ProjectComponentActivityManager:
         workspace_id: int,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> ProjectComponentActivityEvent:
         ev = ProjectComponentActivityEvent(
@@ -48,7 +48,7 @@ class ProjectComponentActivityManager:
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Tuple[ProjectComponentActivityEvent, Optional[object]]]:
+    ) -> list[tuple[ProjectComponentActivityEvent, object | None]]:
         component = self.component_dao.get_by_id_and_workspace(
             session, id=project_component_id, workspace_id=workspace_id
         )

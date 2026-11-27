@@ -1,5 +1,5 @@
 """Per-user vector markup layers for attachments."""
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON, UniqueConstraint
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 

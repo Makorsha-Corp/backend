@@ -1,7 +1,17 @@
 """Work order item model - items consumed/used in a work order"""
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Text, Numeric, Boolean, String
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.db.base_class import Base
 
 

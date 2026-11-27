@@ -1,18 +1,18 @@
 """Ledger Service for orchestrating ledger workflows"""
-from typing import List, Dict, Any, Optional, Tuple
-from sqlalchemy.orm import Session
 from datetime import datetime
-from decimal import Decimal
-from app.services.base_service import BaseService
+from typing import Any
+
+from sqlalchemy.orm import Session
+
 from app.managers.ledger_manager import ledger_manager
-from app.models.machine_item_ledger import MachineItemLedger
-from app.models.project_component_item_ledger import ProjectComponentItemLedger
-from app.models.inventory_ledger import InventoryLedger
 from app.models.attachment_ledger import AttachmentLedger
 from app.models.enums import InventoryTypeEnum
+from app.models.inventory_ledger import InventoryLedger
+from app.models.machine_item_ledger import MachineItemLedger
 from app.models.profile import Profile
-from app.schemas.response import ActionMessage, success_message, info_message, warning_message
-from app.core.exceptions import NotFoundError
+from app.models.project_component_item_ledger import ProjectComponentItemLedger
+from app.schemas.response import ActionMessage, success_message, warning_message
+from app.services.base_service import BaseService
 
 
 class LedgerService(BaseService):
@@ -39,13 +39,13 @@ class LedgerService(BaseService):
         db: Session,
         machine_id: int,
         workspace_id: int,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """Get machine ledger entries; `item_id` is optional (lists the whole machine when omitted)."""
         return self.ledger_manager.get_machine_ledger(
             session=db,
@@ -65,7 +65,7 @@ class LedgerService(BaseService):
         machine_id: int,
         item_id: int,
         workspace_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get current machine balance from ledger."""
         qty, value = self.ledger_manager.get_machine_balance(
             session=db,
@@ -87,7 +87,7 @@ class LedgerService(BaseService):
         item_id: int,
         workspace_id: int,
         current_user: Profile
-    ) -> Tuple[Dict[str, Any], List[ActionMessage]]:
+    ) -> tuple[dict[str, Any], list[ActionMessage]]:
         """Reconcile machine ledger vs snapshot and return messages."""
         messages = []
 
@@ -118,7 +118,7 @@ class LedgerService(BaseService):
             self._commit_transaction(db)
             return result, messages
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -132,10 +132,10 @@ class LedgerService(BaseService):
         project_component_id: int,
         workspace_id: int,
         user_id: int,
-        item_id: Optional[int] = None,
+        item_id: int | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProjectComponentItemLedger]:
+    ) -> list[ProjectComponentItemLedger]:
         """Get project component consumption ledger."""
         from app.managers.project_manager import project_manager
         project_manager.require_component_access(
@@ -156,7 +156,7 @@ class LedgerService(BaseService):
         project_component_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Calculate total cost of all items consumed by a project component."""
         from app.managers.project_manager import project_manager
         project_manager.require_component_access(
@@ -180,15 +180,15 @@ class LedgerService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """Get unified inventory ledger entries with optional filters.
 
         Each (factory_id, item_id, inventory_type) is an independent balance
@@ -215,7 +215,7 @@ class LedgerService(BaseService):
         item_id: int,
         inventory_type: InventoryTypeEnum,
         workspace_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get current inventory balance from ledger for one bucket."""
         qty, value = self.ledger_manager.get_inventory_balance(
             session=db,
@@ -240,7 +240,7 @@ class LedgerService(BaseService):
         inventory_type: InventoryTypeEnum,
         workspace_id: int,
         current_user: Profile
-    ) -> Tuple[Dict[str, Any], List[ActionMessage]]:
+    ) -> tuple[dict[str, Any], list[ActionMessage]]:
         """Reconcile inventory ledger vs snapshot for one bucket and return messages."""
         messages = []
 
@@ -272,7 +272,7 @@ class LedgerService(BaseService):
             self._commit_transaction(db)
             return result, messages
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -284,14 +284,14 @@ class LedgerService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        attachment_id: Optional[int] = None,
-        entity_type: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        attachment_id: int | None = None,
+        entity_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[AttachmentLedger]:
+    ) -> list[AttachmentLedger]:
         """Get attachment ledger entries with optional filters."""
         return self.ledger_manager.get_attachment_ledger(
             session=db,
@@ -314,9 +314,9 @@ class LedgerService(BaseService):
         db: Session,
         item_id: int,
         workspace_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> Dict[str, List]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
+    ) -> dict[str, list]:
         """
         Get item movement across all ledgers.
 
@@ -335,11 +335,11 @@ class LedgerService(BaseService):
         db: Session,
         user_id: int,
         workspace_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> Dict[str, List]:
+    ) -> dict[str, list]:
         """Get all transactions performed by a user across all ledgers."""
         return self.ledger_manager.get_transactions_by_user(
             session=db,
@@ -356,7 +356,7 @@ class LedgerService(BaseService):
         db: Session,
         order_id: int,
         workspace_id: int
-    ) -> Dict[str, List]:
+    ) -> dict[str, list]:
         """Get all ledger entries related to an order across all ledgers."""
         return self.ledger_manager.get_transactions_by_order(
             session=db,

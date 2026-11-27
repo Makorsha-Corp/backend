@@ -1,7 +1,7 @@
 """WorkspaceInvitation schemas"""
-from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 VALID_INVITE_ROLES = {'manager', 'member', 'viewer', 'ground-team'}
 
@@ -17,7 +17,7 @@ class WorkspaceInvitationCreate(WorkspaceInvitationBase):
     """Workspace invitation creation schema"""
     workspace_id: int
     token: str
-    invited_by_user_id: Optional[int] = None
+    invited_by_user_id: int | None = None
     expires_at: datetime
     status: str = 'pending'
 

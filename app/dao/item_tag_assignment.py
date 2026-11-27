@@ -1,20 +1,24 @@
 """Item tag assignment DAO operations"""
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
-from typing import Dict, List, Optional
+
 from app.dao.base import BaseDAO
 from app.models.item import Item
-from app.models.item_tag_assignment import ItemTagAssignment
 from app.models.item_tag import ItemTag
-from app.schemas.item_tag_assignment import ItemTagAssignmentCreate, ItemTagAssignmentResponse
+from app.models.item_tag_assignment import ItemTagAssignment
+from app.schemas.item_tag_assignment import (
+    ItemTagAssignmentCreate,
+    ItemTagAssignmentResponse,
+)
 
 
 class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, ItemTagAssignmentResponse]):
     """DAO operations for ItemTagAssignment model"""
 
     def get_tags_for_items(
-        self, db: Session, *, item_ids: List[int], workspace_id: int
-    ) -> Dict[int, List[ItemTag]]:
+        self, db: Session, *, item_ids: list[int], workspace_id: int
+    ) -> dict[int, list[ItemTag]]:
         """
         Get tags for multiple items in one query (SECURITY-CRITICAL).
 
@@ -36,14 +40,14 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             .all()
         )
 
-        tags_by_item: Dict[int, List[ItemTag]] = {item_id: [] for item_id in item_ids}
+        tags_by_item: dict[int, list[ItemTag]] = {item_id: [] for item_id in item_ids}
         for item_id, tag in rows:
             tags_by_item[item_id].append(tag)
         return tags_by_item
 
     def get_tags_for_item(
         self, db: Session, *, item_id: int, workspace_id: int
-    ) -> List[ItemTag]:
+    ) -> list[ItemTag]:
         """
         Get all tags assigned to an item (SECURITY-CRITICAL)
 
@@ -65,68 +69,6 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             )
             .all()
         )
-
-    def get_items_with_tag(
-        self, db: Session, *, tag_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[int]:
-        """
-        Get all item IDs that have a specific tag (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            tag_id: Tag ID
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of item IDs with the tag
-        """
-        results = (
-            db.query(ItemTagAssignment.item_id)
-            .filter(
-                ItemTagAssignment.tag_id == tag_id,
-                ItemTagAssignment.workspace_id == workspace_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-        return [r[0] for r in results]
-
-    def get_items_with_tags(
-        self, db: Session, *, tag_codes: List[str], workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[int]:
-        """
-        Get item IDs that have ALL specified tags (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            tag_codes: List of tag codes
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of item IDs with all specified tags
-        """
-        # Build query with multiple tag filters
-        query = db.query(ItemTagAssignment.item_id)
-
-        for tag_code in tag_codes:
-            subquery = (
-                db.query(ItemTagAssignment.item_id)
-                .join(ItemTag, ItemTag.id == ItemTagAssignment.tag_id)
-                .filter(
-                    ItemTag.tag_code == tag_code,
-                    ItemTag.workspace_id == workspace_id,
-                    ItemTagAssignment.workspace_id == workspace_id
-                )
-            )
-            query = query.filter(ItemTagAssignment.item_id.in_(subquery))
-
-        results = query.offset(skip).limit(limit).all()
-        return [r[0] for r in results]
 
     def assignment_exists(
         self, db: Session, *, item_id: int, tag_id: int, workspace_id: int
@@ -153,40 +95,9 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             .first()
         ) is not None
 
-    def remove_assignment(
-        self, db: Session, *, item_id: int, tag_id: int, workspace_id: int
-    ) -> Optional[ItemTagAssignment]:
-        """
-        Remove tag assignment from item (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            item_id: Item ID
-            tag_id: Tag ID
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            Removed assignment or None
-        """
-        assignment = (
-            db.query(ItemTagAssignment)
-            .filter(
-                ItemTagAssignment.item_id == item_id,
-                ItemTagAssignment.tag_id == tag_id,
-                ItemTagAssignment.workspace_id == workspace_id
-            )
-            .first()
-        )
-
-        if assignment:
-            db.delete(assignment)
-            db.flush()
-
-        return assignment
-
     def count_active_items_per_tag(
         self, db: Session, *, workspace_id: int
-    ) -> Dict[int, int]:
+    ) -> dict[int, int]:
         """
         Count tag assignments for active (non-deleted) items only.
 

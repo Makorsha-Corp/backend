@@ -1,28 +1,27 @@
 """Production Line schemas"""
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 
 
 class ProductionLineBase(BaseModel):
     """Base production line schema"""
     factory_id: int
-    machine_id: Optional[int] = None
+    machine_id: int | None = None
     name: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
+    description: str | None = None
     is_active: bool = True
 
 
 class ProductionLineCreate(ProductionLineBase):
     """Production line creation schema (workspace_id and created_by injected by service)"""
-    pass
 
 
 class ProductionLineUpdate(BaseModel):
     """Production line update schema"""
-    machine_id: Optional[int] = None
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
+    machine_id: int | None = None
+    name: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = None
+    is_active: bool | None = None
 
 
 class ProductionLineInDB(ProductionLineBase):
@@ -31,10 +30,9 @@ class ProductionLineInDB(ProductionLineBase):
 
     id: int
     workspace_id: int
-    created_by: Optional[int] = None
-    updated_by: Optional[int] = None
+    created_by: int | None = None
+    updated_by: int | None = None
 
 
 class ProductionLineResponse(ProductionLineInDB):
     """Production line response schema"""
-    pass

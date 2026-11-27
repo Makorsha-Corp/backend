@@ -1,38 +1,22 @@
 """Machine Service for orchestrating machine workflows"""
 
 from datetime import date, timedelta
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-
-
+from app.managers.machine_activity_manager import machine_activity_manager
+from app.managers.machine_manager import machine_manager
+from app.models.enums import MachineEventTypeEnum
+from app.models.machine import Machine
+from app.schemas.machine import MachineCreate, MachineResponse, MachineUpdate
+from app.schemas.machine_activity_event import (
+    MachineActivityEventMetadata,
+    MachineActivityEventResponse,
+)
+from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
+from app.schemas.machine_work import MachineUpcomingWorkRow
 from app.services.base_service import BaseService
 from app.services.machine_work_service import machine_work_service
-
-from app.managers.machine_manager import machine_manager
-
-from app.managers.machine_activity_manager import machine_activity_manager
-
-from app.models.machine import Machine
-
-from app.models.enums import MachineEventTypeEnum
-
-from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse
-from app.schemas.machine_work import MachineUpcomingWorkRow
-
-from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
-
-from app.schemas.machine_activity_event import (
-
-    MachineActivityEventMetadata,
-
-    MachineActivityEventResponse,
-
-)
-
-
-
 
 
 class MachineService(BaseService):
@@ -69,7 +53,7 @@ class MachineService(BaseService):
 
         machine: Machine,
 
-        status_map: Optional[dict] = None,
+        status_map: dict | None = None,
 
     ) -> MachineResponse:
 
@@ -100,9 +84,9 @@ class MachineService(BaseService):
 
     def _to_machine_responses(
 
-        self, db: Session, machines: List[Machine], workspace_id: int
+        self, db: Session, machines: list[Machine], workspace_id: int
 
-    ) -> List[MachineResponse]:
+    ) -> list[MachineResponse]:
 
         if not machines:
 
@@ -180,21 +164,21 @@ class MachineService(BaseService):
 
         self, db: Session, workspace_id: int,
 
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
 
-        factory_section_id: Optional[int] = None,
+        factory_section_id: int | None = None,
 
-        is_running: Optional[bool] = None,
+        is_running: bool | None = None,
 
-        search: Optional[str] = None,
+        search: str | None = None,
 
         maintenance_window: str = "all",
 
-        has_model_number: Optional[bool] = None,
+        has_model_number: bool | None = None,
 
-        has_manufacturer: Optional[bool] = None,
+        has_manufacturer: bool | None = None,
 
-        latest_event_type: Optional[MachineEventTypeEnum] = None,
+        latest_event_type: MachineEventTypeEnum | None = None,
 
         sort_by: str = "name",
 
@@ -202,7 +186,7 @@ class MachineService(BaseService):
 
         skip: int = 0, limit: int = 100
 
-    ) -> List[MachineResponse]:
+    ) -> list[MachineResponse]:
 
         """Get machines in workspace with optional filters."""
 
@@ -248,11 +232,11 @@ class MachineService(BaseService):
 
         within_days: int = 7,
 
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
 
         include_overdue: bool = False,
 
-    ) -> List[MachineUpcomingWorkRow]:
+    ) -> list[MachineUpcomingWorkRow]:
 
         """Upcoming machine work within the next N days (live union)."""
 

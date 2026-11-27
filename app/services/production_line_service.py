@@ -1,10 +1,11 @@
 """Production Line Service for orchestrating production line workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.services.base_service import BaseService
+
+from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.managers.production_line_manager import production_line_manager
 from app.models.production_line import ProductionLine
-from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.services.base_service import BaseService
 
 
 class ProductionLineService(BaseService):
@@ -59,7 +60,7 @@ class ProductionLineService(BaseService):
         except ValueError as e:
             self._rollback_transaction(db)
             raise BusinessRuleError(str(e))
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -94,11 +95,11 @@ class ProductionLineService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
         active_only: bool = False,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get production lines with optional filtering.
 
@@ -167,7 +168,7 @@ class ProductionLineService(BaseService):
             if "not found" in error_msg:
                 raise NotFoundError(error_msg)
             raise BusinessRuleError(error_msg)
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -200,7 +201,7 @@ class ProductionLineService(BaseService):
         except ValueError as e:
             self._rollback_transaction(db)
             raise NotFoundError(str(e))
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

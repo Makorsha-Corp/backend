@@ -1,6 +1,5 @@
 """Transfer order DAO. SECURITY: All queries MUST filter by workspace_id."""
 from datetime import date, datetime, time
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.orm import Query, Session, joinedload
@@ -88,13 +87,13 @@ def _apply_transfer_order_hub_filters(
     query: Query,
     *,
     workspace_id: int,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
-    status_ids: Optional[List[int]] = None,
-    factory_id: Optional[int] = None,
-    source_location_type: Optional[str] = None,
-    destination_location_type: Optional[str] = None,
-    search: Optional[str] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    status_ids: list[int] | None = None,
+    factory_id: int | None = None,
+    source_location_type: str | None = None,
+    destination_location_type: str | None = None,
+    search: str | None = None,
     exclude_complete: bool = True,
 ) -> Query:
     query = query.filter(TransferOrder.workspace_id == workspace_id)
@@ -194,7 +193,7 @@ def _hub_base_query(db: Session, *, workspace_id: int, **filters) -> Query:
 class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrderUpdate]):
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         query = (
             db.query(TransferOrder)
             .options(joinedload(TransferOrder.current_status))
@@ -210,7 +209,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(desc(TransferOrder.created_at), desc(TransferOrder.id))
@@ -235,7 +234,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
         workspace_id: int,
         limit: int = 10,
         **filters,
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         return (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .order_by(desc(TransferOrder.updated_at), desc(TransferOrder.created_at))
@@ -306,7 +305,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
 
     def aggregate_hub_stats(
         self, db: Session, *, workspace_id: int, **filters
-    ) -> Tuple[int, int, int]:
+    ) -> tuple[int, int, int]:
         filtered_ids = (
             _hub_base_query(db, workspace_id=workspace_id, **filters)
             .with_entities(TransferOrder.id)
@@ -339,7 +338,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
         workspace_id: int,
         location_type: str,
         location_id: int,
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         touch = or_(
             and_(
                 TransferOrder.source_location_type == location_type,
@@ -368,7 +367,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
         *,
         workspace_id: int,
         factory_id: int,
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         """Incomplete transfers whose destination is factory storage."""
         return (
             db.query(TransferOrder)
@@ -385,7 +384,7 @@ class TransferOrderDAO(BaseDAO[TransferOrder, TransferOrderCreate, TransferOrder
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[TransferOrder]:
+    ) -> TransferOrder | None:
         return (
             db.query(TransferOrder)
             .options(joinedload(TransferOrder.current_status))
@@ -420,7 +419,7 @@ class TransferOrderItemDAO(
 ):
     def get_by_order(
         self, db: Session, *, transfer_order_id: int, workspace_id: int
-    ) -> List[TransferOrderItem]:
+    ) -> list[TransferOrderItem]:
         return (
             db.query(TransferOrderItem)
             .filter(
@@ -436,8 +435,8 @@ class TransferOrderItemDAO(
         db: Session,
         *,
         workspace_id: int,
-        transfer_order_ids: List[int],
-    ) -> List[TransferOrderItem]:
+        transfer_order_ids: list[int],
+    ) -> list[TransferOrderItem]:
         if not transfer_order_ids:
             return []
         return (
@@ -452,7 +451,7 @@ class TransferOrderItemDAO(
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[TransferOrderItem]:
+    ) -> TransferOrderItem | None:
         return (
             db.query(TransferOrderItem)
             .filter(TransferOrderItem.id == id, TransferOrderItem.workspace_id == workspace_id)

@@ -1,10 +1,9 @@
 """Schemas for item order history."""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 ItemOrderType = Literal['purchase_order', 'transfer_order', 'sales_order', 'work_order']
 
@@ -26,5 +25,5 @@ class ItemOrderRowResponse(BaseModel):
 
 
 class ItemOrdersListResponse(BaseModel):
-    items: List[ItemOrderRowResponse] = Field(default_factory=list)
+    items: list[ItemOrderRowResponse] = Field(default_factory=list)
     total: int = 0

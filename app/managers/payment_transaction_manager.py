@@ -8,22 +8,19 @@ funnel into the same locked validation path so a transaction is only ever
 finalized once, no matter which channel — or both — deliver the outcome.
 """
 import secrets
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.dao.payment_transaction import payment_transaction_dao
+from app.dao.payment_transaction_event import payment_transaction_event_dao
+from app.integrations.sslcommerz import get_sslcommerz_client
+from app.integrations.sslcommerz.client import InitSessionRequest, ValidationResult
 from app.managers.base_manager import BaseManager
 from app.models.payment_transaction import PaymentTransaction
 from app.models.profile import Profile
 from app.schemas.payment_transaction import InitiatePaymentRequest
-from app.dao.payment_transaction import payment_transaction_dao
-from app.dao.payment_transaction_event import payment_transaction_event_dao
-from app.core.config import settings
-from app.integrations.sslcommerz import get_sslcommerz_client
-from app.integrations.sslcommerz.client import InitSessionRequest, ValidationResult
 from app.utils.time import utcnow
 
 RECONCILE_TIMEOUT_MINUTES = 30
@@ -41,8 +38,8 @@ class PaymentTransactionManager(BaseManager[PaymentTransaction]):
         txn: PaymentTransaction,
         event_type: str,
         description: str,
-        performed_by: Optional[int] = None,
-        metadata: Optional[dict] = None,
+        performed_by: int | None = None,
+        metadata: dict | None = None,
     ) -> None:
         self.event_dao.create(session, obj_in={
             "workspace_id": txn.workspace_id,

@@ -1,7 +1,7 @@
 """SubscriptionPlan model"""
-from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.types import JSON
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

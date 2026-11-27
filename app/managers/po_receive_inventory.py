@@ -1,13 +1,15 @@
 """Post and reverse purchase-order receive inventory per receive event item."""
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import List, Sequence, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.dao.inventory_ledger import inventory_ledger_dao
 from app.managers.inventory_movements import item_name, post_stock_in, post_stock_out
-from app.managers.po_storage_inventory import PO_INVENTORY_SOURCE_TYPE as PO_LEGACY_LINE_SOURCE
+from app.managers.po_storage_inventory import (
+    PO_INVENTORY_SOURCE_TYPE as PO_LEGACY_LINE_SOURCE,
+)
 from app.models.inventory_ledger import InventoryLedger
 from app.models.machine_item_ledger import MachineItemLedger
 from app.models.po_receive_event import PoReceiveEvent, PoReceiveEventItem
@@ -166,7 +168,7 @@ def _post_event_item_delta(
 def post_receive_event_inventory(
     session: Session,
     po: PurchaseOrder,
-    event_items: Sequence[Tuple[PoReceiveEventItem, PurchaseOrderItem]],
+    event_items: Sequence[tuple[PoReceiveEventItem, PurchaseOrderItem]],
     workspace_id: int,
     user_id: int,
 ) -> int:
@@ -368,7 +370,7 @@ def _reverse_legacy_line_posting(
 def reverse_po_receive_inventory(
     session: Session,
     po: PurchaseOrder,
-    po_lines: List[PurchaseOrderItem],
+    po_lines: list[PurchaseOrderItem],
     workspace_id: int,
     user_id: int,
 ) -> int:

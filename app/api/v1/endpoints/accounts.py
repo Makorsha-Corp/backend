@@ -4,32 +4,34 @@ Account endpoints
 Provides CRUD operations for accounts (unified entity for suppliers, clients, utilities, payroll).
 Accounts can be tagged as suppliers, clients, utilities, or payroll entities.
 """
-from typing import List, Optional
 from datetime import date
 from decimal import Decimal
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.account import (
     AccountCreate,
+    AccountHubListResponse,
     AccountUpdate,
     AccountWithTagsResponse,
-    AccountHubListResponse,
 )
-from app.schemas.account_invoice import AccountInvoiceSummaryResponse, AccountInvoiceListResponse
-from app.services.account_service import account_service
+from app.schemas.account_invoice import (
+    AccountInvoiceListResponse,
+    AccountInvoiceSummaryResponse,
+)
 from app.services.account_invoice_service import account_invoice_service
-
+from app.services.account_service import account_service
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[AccountWithTagsResponse],
+    response_model=list[AccountWithTagsResponse],
     status_code=status.HTTP_200_OK,
     summary="List all accounts with tags",
     description="""
@@ -41,8 +43,8 @@ router = APIRouter()
 def get_accounts(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, le=500, description="Maximum number of records to return"),
-    search: Optional[str] = Query(None, description="Search by account name"),
-    tag_code: Optional[str] = Query(None, description="Filter by tag code (e.g. supplier, client, vendor)"),
+    search: str | None = Query(None, description="Search by account name"),
+    tag_code: str | None = Query(None, description="Filter by tag code (e.g. supplier, client, vendor)"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -55,7 +57,7 @@ def get_accounts(
 
 @router.get(
     "/by-tag/{tag_id}/",
-    response_model=List[AccountWithTagsResponse],
+    response_model=list[AccountWithTagsResponse],
     status_code=status.HTTP_200_OK,
     summary="Get accounts by tag",
     description="Get all accounts that have a specific tag assigned. Raises 404 if the tag does not exist."
@@ -89,7 +91,7 @@ def list_accounts_hub(
         pattern=r"^(overview|payable|receivable)$",
         description="Hub section filter",
     ),
-    search: Optional[str] = Query(None, description="Search by account name"),
+    search: str | None = Query(None, description="Search by account name"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=500, description="Maximum number of records to return"),
     workspace: Workspace = Depends(get_current_workspace),
@@ -142,19 +144,19 @@ def get_account(
 )
 def get_account_invoice_summary(
     account_id: int,
-    invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
-    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
-    invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
-    invoice_number_search: Optional[str] = Query(
+    invoice_type: str | None = Query(None, description="Filter by type (payable/receivable)"),
+    payment_status: str | None = Query(None, description="Filter by payment status"),
+    invoice_status: str | None = Query(None, description="Filter by invoice lifecycle status"),
+    invoice_number_search: str | None = Query(
         None,
         description="Search invoice_number, vendor_invoice_number, linked order number (PO/EXP/SO/WO), or internal id when query is numeric",
     ),
-    invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
-    invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
-    due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
-    due_date_to: Optional[date] = Query(None, description="Due date range end (YYYY-MM-DD)"),
-    amount_min: Optional[Decimal] = Query(None, description="Minimum invoice amount"),
-    amount_max: Optional[Decimal] = Query(None, description="Maximum invoice amount"),
+    invoice_date_from: date | None = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
+    invoice_date_to: date | None = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
+    due_date_from: date | None = Query(None, description="Due date range start (YYYY-MM-DD)"),
+    due_date_to: date | None = Query(None, description="Due date range end (YYYY-MM-DD)"),
+    amount_min: Decimal | None = Query(None, description="Minimum invoice amount"),
+    amount_max: Decimal | None = Query(None, description="Maximum invoice amount"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -197,7 +199,7 @@ def list_account_open_invoices(
     account_id: int,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
-    prioritize_purchase_order_id: Optional[int] = Query(
+    prioritize_purchase_order_id: int | None = Query(
         None,
         description="When set, invoices linked to this purchase order sort first",
     ),
@@ -234,17 +236,17 @@ def list_account_invoices(
     account_id: int,
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of records to return"),
-    invoice_type: Optional[str] = Query(None, description="Filter by type (payable/receivable)"),
-    payment_status: Optional[str] = Query(None, description="Filter by payment status"),
-    invoice_status: Optional[str] = Query(None, description="Filter by invoice lifecycle status"),
-    invoice_number_search: Optional[str] = Query(
+    invoice_type: str | None = Query(None, description="Filter by type (payable/receivable)"),
+    payment_status: str | None = Query(None, description="Filter by payment status"),
+    invoice_status: str | None = Query(None, description="Filter by invoice lifecycle status"),
+    invoice_number_search: str | None = Query(
         None,
         description="Search invoice_number, vendor_invoice_number, linked order number (PO/EXP/SO/WO), or internal id when query is numeric",
     ),
-    invoice_date_from: Optional[date] = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
-    invoice_date_to: Optional[date] = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
-    due_date_from: Optional[date] = Query(None, description="Due date range start (YYYY-MM-DD)"),
-    due_date_to: Optional[date] = Query(None, description="Due date range end (YYYY-MM-DD)"),
+    invoice_date_from: date | None = Query(None, description="Invoice date range start (YYYY-MM-DD)"),
+    invoice_date_to: date | None = Query(None, description="Invoice date range end (YYYY-MM-DD)"),
+    due_date_from: date | None = Query(None, description="Due date range start (YYYY-MM-DD)"),
+    due_date_to: date | None = Query(None, description="Due date range end (YYYY-MM-DD)"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):

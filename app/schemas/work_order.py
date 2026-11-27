@@ -1,8 +1,10 @@
 """Work order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal, TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict, computed_field, model_validator
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import BaseModel, ConfigDict, computed_field
+
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
 
 if TYPE_CHECKING:
@@ -159,12 +161,12 @@ class ApprovalSummaryResponse(BaseModel):
 
 
 class WorkOrderApproversList(BaseModel):
-    approvers: List[WorkOrderApproverResponse]
+    approvers: list[WorkOrderApproverResponse]
     summary: ApprovalSummaryResponse
 
 
 class WorkOrderEventMetadata(BaseModel):
-    changes: List[dict] | None = None
+    changes: list[dict] | None = None
     user_id: int | None = None
     user_name: str | None = None
     item_id: int | None = None
@@ -229,20 +231,20 @@ class WorkOrderSheetEntryCreate(BaseModel):
     cost: Decimal | None = None
     template_id: int | None = None
     recurrence_end_date: date | None = None
-    items: List[WorkOrderSheetItemLine] = []
-    approvers: List[WorkOrderSheetApproverLine] = []
+    items: list[WorkOrderSheetItemLine] = []
+    approvers: list[WorkOrderSheetApproverLine] = []
 
 
 class WorkOrderSheetBundle(BaseModel):
     """Work order with embedded items + approvers for sheet view."""
     order: WorkOrderResponse
-    items: List['WorkOrderItemResponse']
+    items: list['WorkOrderItemResponse']
     approvers: WorkOrderApproversList
 
 
 class WorkOrderSheetListResponse(BaseModel):
     """Paginated sheet bundles for the machines tab."""
-    items: List[WorkOrderSheetBundle]
+    items: list[WorkOrderSheetBundle]
     total: int
     skip: int
     limit: int
@@ -263,7 +265,7 @@ class BulkDeleteFutureRecurrenceDraftsRequest(BaseModel):
 
 class BulkDeleteFutureRecurrenceDraftsResponse(BaseModel):
     deleted_count: int
-    deleted_ids: List[int]
+    deleted_ids: list[int]
 
 
 def _rebuild_work_order_sheet_bundle() -> None:

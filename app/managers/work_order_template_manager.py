@@ -1,22 +1,26 @@
 """Work Order Template Manager - business logic for reusable work order presets"""
 from datetime import date
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.managers.base_manager import BaseManager
-from app.models.work_order_template import WorkOrderTemplate
-from app.models.work_order_template_item import WorkOrderTemplateItem
-from app.models.work_order_template_approver import WorkOrderTemplateApprover
-from app.schemas.work_order_template import (
-    WorkOrderTemplateCreate, WorkOrderTemplateUpdate,
-    WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate,
-)
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.dao.work_order_template import (
-    work_order_template_dao, work_order_template_item_dao, work_order_template_approver_dao,
+    work_order_template_approver_dao,
+    work_order_template_dao,
+    work_order_template_item_dao,
 )
 from app.dao.work_order_type import work_order_type_dao
 from app.dao.workspace_member import workspace_member_dao
+from app.managers.base_manager import BaseManager
+from app.models.work_order_template import WorkOrderTemplate
+from app.models.work_order_template_approver import WorkOrderTemplateApprover
+from app.models.work_order_template_item import WorkOrderTemplateItem
+from app.schemas.work_order_template import (
+    WorkOrderTemplateCreate,
+    WorkOrderTemplateItemCreate,
+    WorkOrderTemplateItemUpdate,
+    WorkOrderTemplateUpdate,
+)
 
 
 class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
@@ -29,7 +33,7 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         self.approver_dao = work_order_template_approver_dao
 
     def _replace_approvers(
-        self, session: Session, tpl_id: int, workspace_id: int, approver_user_ids: List[int]
+        self, session: Session, tpl_id: int, workspace_id: int, approver_user_ids: list[int]
     ) -> None:
         self.approver_dao.delete_all_for_template(session, work_order_template_id=tpl_id, workspace_id=workspace_id)
         session.flush()
@@ -102,10 +106,10 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
 
     def list_templates(
         self, session: Session, workspace_id: int,
-        is_active: Optional[bool] = None,
-        work_order_type_id: Optional[int] = None,
+        is_active: bool | None = None,
+        work_order_type_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderTemplate]:
+    ) -> list[WorkOrderTemplate]:
         return self.tpl_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             is_active=is_active, work_order_type_id=work_order_type_id,
@@ -158,10 +162,10 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         session.flush()
         return record
 
-    def get_items(self, session: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateItem]:
+    def get_items(self, session: Session, tpl_id: int, workspace_id: int) -> list[WorkOrderTemplateItem]:
         return self.item_dao.get_by_template(session, work_order_template_id=tpl_id, workspace_id=workspace_id)
 
-    def get_approvers(self, session: Session, tpl_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
+    def get_approvers(self, session: Session, tpl_id: int, workspace_id: int) -> list[WorkOrderTemplateApprover]:
         return self.approver_dao.get_by_template(session, work_order_template_id=tpl_id, workspace_id=workspace_id)
 
     def generate_drafts_for_anchored_range(
@@ -172,17 +176,17 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         machine_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> List:
+    ) -> list:
         """Create draft WOs for every remaining date in an anchored recurring range."""
         from app.managers.work_order_manager import work_order_manager
-        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
         from app.models.work_order import WorkOrder
+        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
         from app.utils.work_order_recurrence import advance_next_generation_date
 
         if not template.is_recurring or template.recurrence_end_date is None:
             return []
 
-        created: List[WorkOrder] = []
+        created: list[WorkOrder] = []
         while (
             template.next_generation_date is not None
             and template.next_generation_date <= template.recurrence_end_date
@@ -225,19 +229,22 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
         target_date: date,
         factory_section_id: int | None = None,
         factory_id: int | None = None,
-    ) -> List:
+    ) -> list:
         """Create draft work orders from recurring/section templates for a target day."""
         from app.managers.work_order_manager import work_order_manager
-        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
         from app.models.work_order import WorkOrder
+        from app.schemas.work_order_template import WorkOrderFromTemplateCreate
         from app.utils.work_order_generation import resolve_template_machine_ids
-        from app.utils.work_order_recurrence import advance_next_generation_date, should_advance_template
+        from app.utils.work_order_recurrence import (
+            advance_next_generation_date,
+            should_advance_template,
+        )
 
         recurring = self.tpl_dao.list_recurring_due(
             session, workspace_id=workspace_id, target_date=target_date,
             factory_section_id=factory_section_id, factory_id=factory_id,
         )
-        section_templates: List[WorkOrderTemplate] = []
+        section_templates: list[WorkOrderTemplate] = []
         if factory_section_id is not None:
             all_active = self.tpl_dao.get_by_workspace(
                 session, workspace_id=workspace_id, is_active=True, skip=0, limit=1000,
@@ -248,14 +255,14 @@ class WorkOrderTemplateManager(BaseManager[WorkOrderTemplate]):
             ]
 
         seen_tpl_ids: set[int] = set()
-        templates: List[WorkOrderTemplate] = []
+        templates: list[WorkOrderTemplate] = []
         for tpl in recurring + section_templates:
             if tpl.id in seen_tpl_ids:
                 continue
             seen_tpl_ids.add(tpl.id)
             templates.append(tpl)
 
-        created: List[WorkOrder] = []
+        created: list[WorkOrder] = []
         for tpl in templates:
             if (
                 tpl.is_recurring

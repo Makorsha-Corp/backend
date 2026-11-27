@@ -1,5 +1,6 @@
 """Attachment schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import AttachmentEntityTypeEnum
@@ -32,7 +33,6 @@ class AttachmentSignResponse(BaseModel):
 
 class AttachmentConfirmRequest(BaseModel):
     """Optional client hint; server verifies via Cloudinary Admin API."""
-    pass
 
 
 class AttachmentDerivedUrls(BaseModel):

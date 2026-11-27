@@ -1,7 +1,18 @@
 """Unified inventory model for STORAGE, DAMAGED, WASTE, SCRAP"""
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Text, Numeric, Boolean, Enum, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.db.base_class import Base
 from app.models.enums import InventoryTypeEnum
 

@@ -1,17 +1,19 @@
 """Order Template Manager - business logic for expense order templates"""
-from typing import List, Optional
 from decimal import Decimal
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.order_template import order_template_dao, order_template_item_dao
 from app.managers.base_manager import BaseManager
 from app.models.order_template import OrderTemplate
 from app.models.order_template_item import OrderTemplateItem
 from app.schemas.order_template import (
-    OrderTemplateCreate, OrderTemplateUpdate,
-    OrderTemplateItemCreate, OrderTemplateItemUpdate,
+    OrderTemplateCreate,
+    OrderTemplateItemCreate,
+    OrderTemplateItemUpdate,
+    OrderTemplateUpdate,
 )
-from app.dao.order_template import order_template_dao, order_template_item_dao
 
 
 class OrderTemplateManager(BaseManager[OrderTemplate]):
@@ -69,10 +71,10 @@ class OrderTemplateManager(BaseManager[OrderTemplate]):
 
     def list_templates(
         self, session: Session, workspace_id: int,
-        is_active: Optional[bool] = None,
-        expense_category: Optional[str] = None,
+        is_active: bool | None = None,
+        expense_category: str | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[OrderTemplate]:
+    ) -> list[OrderTemplate]:
         return self.tpl_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             is_active=is_active, expense_category=expense_category,
@@ -137,7 +139,7 @@ class OrderTemplateManager(BaseManager[OrderTemplate]):
         session.flush()
         return record
 
-    def get_items(self, session: Session, tpl_id: int, workspace_id: int) -> List[OrderTemplateItem]:
+    def get_items(self, session: Session, tpl_id: int, workspace_id: int) -> list[OrderTemplateItem]:
         return self.item_dao.get_by_template(session, order_template_id=tpl_id, workspace_id=workspace_id)
 
 

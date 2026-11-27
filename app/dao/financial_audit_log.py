@@ -1,11 +1,12 @@
 """Financial audit log DAO operations"""
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
-from typing import List, Optional
 from datetime import datetime
+
+from pydantic import BaseModel
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.financial_audit_log import FinancialAuditLog
-from pydantic import BaseModel
 
 
 class FinancialAuditLogCreate(BaseModel):
@@ -13,12 +14,12 @@ class FinancialAuditLogCreate(BaseModel):
     entity_type: str
     entity_id: int
     action_type: str
-    related_entity_type: Optional[str] = None
-    related_entity_id: Optional[int] = None
-    changes: Optional[dict] = None
-    description: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    related_entity_type: str | None = None
+    related_entity_id: int | None = None
+    changes: dict | None = None
+    description: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
 
 
 class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, BaseModel]):
@@ -33,7 +34,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get all audit logs for a specific entity (SECURITY-CRITICAL)
 
@@ -70,7 +71,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get all audit logs related to an entity (direct and related) (SECURITY-CRITICAL)
 
@@ -119,7 +120,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get audit logs by action type (SECURITY-CRITICAL)
 
@@ -153,7 +154,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get audit logs by user (SECURITY-CRITICAL)
 
@@ -188,7 +189,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get audit logs within a date range (SECURITY-CRITICAL)
 
@@ -222,7 +223,7 @@ class FinancialAuditLogDAO(BaseDAO[FinancialAuditLog, FinancialAuditLogCreate, B
         *,
         workspace_id: int,
         limit: int = 50
-    ) -> List[FinancialAuditLog]:
+    ) -> list[FinancialAuditLog]:
         """
         Get recent audit logs for a workspace (SECURITY-CRITICAL)
 

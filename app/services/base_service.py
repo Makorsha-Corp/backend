@@ -1,6 +1,5 @@
 """Base Service class for orchestrating business operations"""
 from sqlalchemy.orm import Session
-from typing import Optional
 
 
 class BaseService:
@@ -26,7 +25,7 @@ class BaseService:
         """
         try:
             db.commit()
-        except Exception as e:
+        except Exception:
             db.rollback()
             raise
 

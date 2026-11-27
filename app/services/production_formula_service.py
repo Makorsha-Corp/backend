@@ -1,11 +1,12 @@
 """Production Formula Service for orchestrating production formula workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.services.base_service import BaseService
+
+from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.managers.production_formula_manager import production_formula_manager
 from app.models.production_formula import ProductionFormula
 from app.models.production_formula_item import ProductionFormulaItem
-from app.core.exceptions import NotFoundError, BusinessRuleError
+from app.services.base_service import BaseService
 
 
 class ProductionFormulaService(BaseService):
@@ -68,7 +69,7 @@ class ProductionFormulaService(BaseService):
         active_only: bool = False,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionFormula]:
+    ) -> list[ProductionFormula]:
         """Get formulas with optional filtering."""
         return self.formula_manager.get_formulas(
             session=db,
@@ -213,8 +214,8 @@ class ProductionFormulaService(BaseService):
         db: Session,
         formula_id: int,
         workspace_id: int,
-        item_role: Optional[str] = None
-    ) -> List[ProductionFormulaItem]:
+        item_role: str | None = None
+    ) -> list[ProductionFormulaItem]:
         """Get items for a formula with optional role filter."""
         try:
             return self.formula_manager.get_formula_items(
@@ -233,7 +234,7 @@ class ProductionFormulaService(BaseService):
 
     def get_formula_stages(
         self, db: Session, formula_id: int, workspace_id: int
-    ) -> List["ProductionFormulaStage"]:
+    ) -> list["ProductionFormulaStage"]:
         try:
             return self.formula_manager.get_formula_stages(db, formula_id, workspace_id)
         except ValueError as e:

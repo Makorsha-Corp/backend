@@ -1,17 +1,18 @@
 """
 FastAPI dependencies for dependency injection
 """
-from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from collections.abc import Generator
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+
 from app.core.security import decode_token
-from app.models.profile import Profile
-from app.models.workspace import Workspace
 from app.dao.workspace import workspace_dao
 from app.dao.workspace_member import workspace_member_dao
-
+from app.db.session import SessionLocal
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 
 security = HTTPBearer()
 
@@ -59,7 +60,7 @@ def get_current_user(
     if payload is None:
         raise credentials_exception
 
-    user_id_str: Optional[str] = payload.get("sub")
+    user_id_str: str | None = payload.get("sub")
 
     if user_id_str is None:
         raise credentials_exception

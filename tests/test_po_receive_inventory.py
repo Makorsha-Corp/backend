@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from app.managers import purchase_order_manager as po_manager_module
+from app.managers import purchase_order_return_manager as po_return_manager_module
 from app.managers.po_receive_inventory import (
     PO_RECEIVE_EVENT_ITEM_SOURCE,
     post_receive_event_inventory,
     reverse_po_receive_inventory,
 )
-from app.managers import purchase_order_manager as po_manager_module
-from app.managers import purchase_order_return_manager as po_return_manager_module
 
 
 def _make_po(*, destination_type: str = 'storage', destination_id: int = 1) -> MagicMock:
@@ -205,14 +205,16 @@ def test_mark_order_complete_does_not_post_inventory(
 def test_delete_purchase_order_blocks_when_receive_events_exist(mock_get_items) -> None:
     session = MagicMock()
     po = _make_po()
-    po_manager_module.purchase_order_manager.po_dao.get_by_id_and_workspace = MagicMock(return_value=po)
 
     count_query = MagicMock()
     count_query.filter.return_value = count_query
     count_query.count.return_value = 2
     session.query.return_value = count_query
 
-    with pytest.raises(HTTPException) as exc:
+    # patch.object (not plain assignment) so the shared DAO singleton is restored afterwards
+    with patch.object(
+        po_manager_module.purchase_order_manager.po_dao, 'get_by_id_and_workspace', return_value=po
+    ), pytest.raises(HTTPException) as exc:
         po_manager_module.purchase_order_manager.delete_purchase_order(
             session, po_id=100, workspace_id=1
         )

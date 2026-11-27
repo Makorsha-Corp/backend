@@ -1,17 +1,17 @@
 """Production formula stage schemas"""
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 
 
 class ProductionFormulaStageBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     stage_order: int = Field(..., ge=1)
-    production_line_id: Optional[int] = None
-    machine_id: Optional[int] = None
-    expected_duration_minutes: Optional[int] = Field(None, ge=0)
-    expected_output_quantity: Optional[int] = Field(None, ge=0)
-    expected_output_item_id: Optional[int] = None
-    notes: Optional[str] = None
+    production_line_id: int | None = None
+    machine_id: int | None = None
+    expected_duration_minutes: int | None = Field(None, ge=0)
+    expected_output_quantity: int | None = Field(None, ge=0)
+    expected_output_item_id: int | None = None
+    notes: str | None = None
 
 
 class ProductionFormulaStageCreate(ProductionFormulaStageBase):
@@ -19,14 +19,14 @@ class ProductionFormulaStageCreate(ProductionFormulaStageBase):
 
 
 class ProductionFormulaStageUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    stage_order: Optional[int] = Field(None, ge=1)
-    production_line_id: Optional[int] = None
-    machine_id: Optional[int] = None
-    expected_duration_minutes: Optional[int] = Field(None, ge=0)
-    expected_output_quantity: Optional[int] = Field(None, ge=0)
-    expected_output_item_id: Optional[int] = None
-    notes: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=200)
+    stage_order: int | None = Field(None, ge=1)
+    production_line_id: int | None = None
+    machine_id: int | None = None
+    expected_duration_minutes: int | None = Field(None, ge=0)
+    expected_output_quantity: int | None = Field(None, ge=0)
+    expected_output_item_id: int | None = None
+    notes: str | None = None
 
 
 class ProductionFormulaStageInDB(ProductionFormulaStageBase):

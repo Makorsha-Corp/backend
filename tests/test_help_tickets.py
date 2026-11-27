@@ -11,9 +11,13 @@ from app.managers.help_ticket_manager import (
     HelpTicketNotFoundError,
     HelpTicketStatusChangeForbiddenError,
 )
-from app.models.enums import AttachmentEntityTypeEnum, HelpTicketStatusEnum, HelpTicketTypeEnum
-from app.models.profile import Profile
+from app.models.enums import (
+    AttachmentEntityTypeEnum,
+    HelpTicketStatusEnum,
+    HelpTicketTypeEnum,
+)
 from app.models.help_ticket import HelpTicket
+from app.models.profile import Profile
 from app.schemas.attachment import AttachmentSignRequest
 from app.schemas.help_ticket import HelpTicketCreate, HelpTicketUpdate
 

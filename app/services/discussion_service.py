@@ -1,23 +1,23 @@
 """Discussion service — owns commit/rollback and mention fan-out."""
 from __future__ import annotations
-import re
-from typing import List, Tuple
 
+import builtins
+import re
+
+from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import APIException
 from app.dao.discussion import discussion_dao
 from app.models.discussion import Discussion
 from app.models.enums import DiscussionEntityType
 from app.schemas.discussion import DiscussionCreate
-from app.core.exceptions import APIException
-from fastapi import status
-
 
 # Matches @[123] tokens where 123 is a user profile id
 _MENTION_RE = re.compile(r"@\[(\d+)\]")
 
 
-def _extract_mentions(message: str) -> List[int]:
+def _extract_mentions(message: str) -> list[int]:
     return [int(uid) for uid in _MENTION_RE.findall(message)]
 
 
@@ -30,7 +30,7 @@ class DiscussionService:
         entity_id: int,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[Discussion], int]:
+    ) -> tuple[builtins.list[Discussion], int]:
         return discussion_dao.get_by_entity(
             db, workspace_id, entity_type.value, entity_id, skip, limit
         )

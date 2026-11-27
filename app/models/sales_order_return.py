@@ -1,6 +1,16 @@
 """Sales order return model - accepting delivered/fulfilled goods back from a customer"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, Boolean
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

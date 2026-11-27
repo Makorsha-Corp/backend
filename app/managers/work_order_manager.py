@@ -1,51 +1,66 @@
 """Work Order Manager - business logic for work orders"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.dao.account import account_dao
+from app.dao.factory import factory_dao
+from app.dao.item import item_dao
+from app.dao.machine import machine_dao
+from app.dao.machine_item import machine_item_dao
+from app.dao.profile import profile_dao
+from app.dao.project_component import project_component_dao
+from app.dao.work_order import work_order_dao
+from app.dao.work_order_approver import work_order_approver_dao
+from app.dao.work_order_assignee import work_order_assignee_dao
+from app.dao.work_order_completer import work_order_completer_dao
+from app.dao.work_order_event import work_order_event_dao
+from app.dao.work_order_item import work_order_item_dao
+from app.dao.work_order_type import work_order_type_dao
+from app.dao.workspace_member import workspace_member_dao
 from app.managers.base_manager import BaseManager
 from app.managers.inventory_movements import (
-    item_name, post_stock_in, post_stock_out, ensure_machine_item, get_machine_unit_cost,
+    item_name,
+    post_stock_in,
+    post_stock_out,
 )
 from app.managers.machine_activity_manager import machine_activity_manager
 from app.managers.machine_manager import machine_manager
-from app.managers.project_component_activity_manager import project_component_activity_manager
+from app.managers.project_component_activity_manager import (
+    project_component_activity_manager,
+)
 from app.managers.work_order_template_manager import work_order_template_manager
+from app.models.enums import (
+    MachineEventTypeEnum,
+    WorkOrderPriorityEnum,
+    WorkOrderStatusEnum,
+)
+from app.models.profile import Profile
 from app.models.work_order import WorkOrder
 from app.models.work_order_approver import WorkOrderApprover
 from app.models.work_order_event import WorkOrderEvent
 from app.models.work_order_item import WorkOrderItem
-from app.models.profile import Profile
-from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum, MachineEventTypeEnum
-from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderSheetEntryCreate
+from app.schemas.machine_event import MachineEventCreate
+from app.schemas.work_order import (
+    WorkOrderCreate,
+    WorkOrderSheetEntryCreate,
+    WorkOrderUpdate,
+)
 from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
-from app.schemas.machine_event import MachineEventCreate
-from app.utils.work_order_recurrence import reseed_recurrence_program, seed_recurrence_from_planned_date
-from app.dao.work_order import work_order_dao
-from app.dao.work_order_item import work_order_item_dao
-from app.dao.work_order_approver import work_order_approver_dao
-from app.dao.work_order_event import work_order_event_dao
-from app.dao.work_order_assignee import work_order_assignee_dao
-from app.dao.work_order_completer import work_order_completer_dao
-from app.dao.work_order_type import work_order_type_dao
-from app.dao.factory import factory_dao
-from app.dao.account import account_dao
-from app.dao.item import item_dao
-from app.dao.machine import machine_dao
-from app.dao.machine_item import machine_item_dao
-from app.dao.project_component import project_component_dao
-from app.dao.profile import profile_dao
-from app.dao.workspace_member import workspace_member_dao
 from app.utils.time import utcnow
+from app.utils.work_order_recurrence import (
+    reseed_recurrence_program,
+    seed_recurrence_from_planned_date,
+)
 from app.utils.work_order_workers import (
+    display_names_for_user_ids,
     load_active_member_lookups,
     resolve_worker_text_to_members,
-    display_names_for_user_ids,
 )
 
 DETAILS_FIELDS = frozenset({
@@ -109,8 +124,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         return text if text else '—'
 
     def _variance_vs_planned(
-        self, planned_date: Optional[date], actual_dt: Optional[datetime],
-    ) -> Optional[dict]:
+        self, planned_date: date | None, actual_dt: datetime | None,
+    ) -> dict | None:
         if not planned_date or not actual_dt:
             return None
         actual_day = actual_dt.date() if isinstance(actual_dt, datetime) else actual_dt
@@ -151,8 +166,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             'started_by_user_id': user_id,
         }
 
-    def _collect_field_changes(self, session: Session, record: WorkOrder, update_dict: dict) -> List[dict]:
-        changes: List[dict] = []
+    def _collect_field_changes(self, session: Session, record: WorkOrder, update_dict: dict) -> list[dict]:
+        changes: list[dict] = []
         for field, label in ORDER_UPDATE_LOG_FIELDS.items():
             if field not in update_dict:
                 continue
@@ -174,7 +189,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             })
         return changes
 
-    def _work_order_type_name(self, session: Session, type_id: Optional[int], workspace_id: int) -> str:
+    def _work_order_type_name(self, session: Session, type_id: int | None, workspace_id: int) -> str:
         if type_id is None:
             return '—'
         wo_type = work_order_type_dao.get_by_id_and_workspace(session, id=type_id, workspace_id=workspace_id)
@@ -501,16 +516,16 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def list_work_orders(
         self, session: Session, workspace_id: int,
-        work_order_type_id: Optional[int] = None,
-        wo_status: Optional[WorkOrderStatusEnum] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        work_order_template_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
+        work_order_type_id: int | None = None,
+        wo_status: WorkOrderStatusEnum | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        work_order_template_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         return self.wo_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             work_order_type_id=work_order_type_id, status=wo_status, priority=priority,
@@ -528,8 +543,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         user_id: int,
         work_order_template_id: int,
         machine_id: int,
-        after_date: Optional[date] = None,
-    ) -> List[int]:
+        after_date: date | None = None,
+    ) -> list[int]:
         from datetime import date as date_type
         cutoff = after_date or date_type.today()
         records = self.wo_dao.list_future_drafts_for_template_machine(
@@ -539,7 +554,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             machine_id=machine_id,
             after_date=cutoff,
         )
-        deleted_ids: List[int] = []
+        deleted_ids: list[int] = []
         for record in records:
             self.wo_dao.soft_delete(session, db_obj=record, deleted_by=user_id)
             deleted_ids.append(record.id)
@@ -564,10 +579,10 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     # ─── Approvals ───────────────────────────────────────────────
     def list_approvers(
         self, session: Session, wo_id: int, workspace_id: int
-    ) -> List[Tuple[WorkOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[WorkOrderApprover, Profile | None, str | None]]:
         self.get_work_order(session, wo_id, workspace_id)
         approvers = self.approver_dao.get_by_order(session, work_order_id=wo_id, workspace_id=workspace_id)
-        result: List[Tuple[WorkOrderApprover, Optional[Profile], Optional[str]]] = []
+        result: list[tuple[WorkOrderApprover, Profile | None, str | None]] = []
         for approver in approvers:
             profile = profile_dao.get(session, id=approver.user_id)
             member = workspace_member_dao.get_by_workspace_and_user(
@@ -576,7 +591,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             result.append((approver, profile, member.position if member else None))
         return result
 
-    def approval_summary(self, session: Session, wo: WorkOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, session: Session, wo: WorkOrder) -> tuple[int, int, bool]:
         approvers = self.approver_dao.get_by_order(session, work_order_id=wo.id, workspace_id=wo.workspace_id)
         approved_count = sum(1 for a in approvers if a.approved)
         if wo.required_approvals is not None:
@@ -607,7 +622,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             )
 
     def _recompute_approval_status(
-        self, session: Session, wo: WorkOrder, workspace_id: int, actor_user_id: Optional[int],
+        self, session: Session, wo: WorkOrder, workspace_id: int, actor_user_id: int | None,
     ) -> None:
         """Approvals no longer gate a visible status — they gate `start_work_order` directly
         (see `approvals_met`). This just stamps `approved_by`/`approved_at` informationally,
@@ -667,7 +682,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def remove_approver(
         self, session: Session, wo_id: int, user_id: int, workspace_id: int,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
     ) -> None:
         wo = self.get_work_order(session, wo_id, workspace_id)
         if self._is_locked(wo):
@@ -774,7 +789,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             location_id=item.source_location_id,
             item_id=item.item_id,
             qty=qty,
-            unit_cost=item.unit_cost or Decimal('0'),
+            unit_cost=item.unit_cost or Decimal(0),
             transaction_type='consumption_reversal',
             source_type='work_order',
             source_id=wo.id,
@@ -840,7 +855,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                     f'Additional {delta} {name} consumed for work order {wo.work_order_number} (qty adjustment)'
                 ),
             )
-            prior_total = item.total_cost or Decimal('0')
+            prior_total = item.total_cost or Decimal(0)
             new_total = (prior_total + unit_cost * Decimal(delta)).quantize(Decimal('0.01'))
             item.unit_cost = (new_total / Decimal(new_int)).quantize(Decimal('0.01'))
             item.total_cost = new_total
@@ -852,7 +867,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 location_id=item.source_location_id,
                 item_id=item.item_id,
                 qty=return_qty,
-                unit_cost=item.unit_cost or Decimal('0'),
+                unit_cost=item.unit_cost or Decimal(0),
                 transaction_type='consumption_reversal',
                 source_type='work_order',
                 source_id=wo.id,
@@ -904,7 +919,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             post_stock_in(
                 session,
                 location_type='machine', location_id=wo.machine_id, item_id=item.item_id, qty=qty,
-                unit_cost=item.unit_cost or Decimal('0'),
+                unit_cost=item.unit_cost or Decimal(0),
                 transaction_type='work_order_install', source_type='work_order', source_id=wo.id,
                 notes=f'{wo.work_order_number} — {name} installed',
                 workspace_id=wo.workspace_id, user_id=user_id,
@@ -932,7 +947,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 post_stock_in(
                     session,
                     location_type='damaged', location_id=wo.factory_id, item_id=item.replaced_item_id, qty=qty,
-                    unit_cost=Decimal('0'),
+                    unit_cost=Decimal(0),
                     transaction_type='work_order_replace_damaged', source_type='work_order', source_id=wo.id,
                     notes=f'{wo.work_order_number} — {replaced_name} moved to damaged stock',
                     workspace_id=wo.workspace_id, user_id=user_id,
@@ -948,7 +963,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             post_stock_in(
                 session,
                 location_type='machine', location_id=wo.machine_id, item_id=item.item_id, qty=qty,
-                unit_cost=item.unit_cost or Decimal('0'),
+                unit_cost=item.unit_cost or Decimal(0),
                 transaction_type='work_order_replace_in', source_type='work_order', source_id=wo.id,
                 notes=f'{wo.work_order_number} — {name} installed (replacement)',
                 workspace_id=wo.workspace_id, user_id=user_id,
@@ -961,7 +976,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
                 session,
                 location_type=item.source_location_type, location_id=item.source_location_id,
                 item_id=item.item_id, qty=qty,
-                unit_cost=item.unit_cost or Decimal('0'),
+                unit_cost=item.unit_cost or Decimal(0),
                 transaction_type='work_order_borrow_returned', source_type='work_order', source_id=wo.id,
                 notes=f'{wo.work_order_number} — {name} returned',
                 workspace_id=wo.workspace_id, user_id=user_id,
@@ -972,8 +987,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     def _set_machine_status(
         self, session: Session, machine_id: int, workspace_id: int, user_id: int,
         new_status: MachineEventTypeEnum, *,
-        work_order_number: Optional[str] = None, work_order_id: Optional[int] = None,
-    ) -> Optional[str]:
+        work_order_number: str | None = None, work_order_id: int | None = None,
+    ) -> str | None:
         """Best-effort machine status flip via the existing manual-status mechanism
         (`machine_manager.create_machine_event`). No-ops (and returns the current value)
         if the machine is already in that state — that call 400s on a same-status set.
@@ -995,7 +1010,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         )
         return prev_status
 
-    def _previous_machine_status(self, session: Session, wo: WorkOrder) -> Optional[str]:
+    def _previous_machine_status(self, session: Session, wo: WorkOrder) -> str | None:
         events = self.event_dao.get_by_order(session, work_order_id=wo.id, workspace_id=wo.workspace_id)
         for e in events:
             if e.event_type == 'started':
@@ -1048,7 +1063,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def _run_start_side_effects(
         self, session: Session, wo: WorkOrder, workspace_id: int, user_id: int,
-    ) -> tuple[int, Optional[str]]:
+    ) -> tuple[int, str | None]:
         """Consume pending inventory and set machine to maintenance. Does not change WO status."""
         items = self.item_dao.get_by_work_order(session, work_order_id=wo.id, workspace_id=workspace_id)
         pending = [i for i in items if i.uses_inventory and i.consumed_at is None]
@@ -1094,9 +1109,9 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         workspace_id: int,
         performed_by_user_id: int,
         *,
-        completed_by_names: Optional[str] = None,
-        completed_by_user_ids: Optional[list[int]] = None,
-        completed_by_user_id: Optional[int] = None,
+        completed_by_names: str | None = None,
+        completed_by_user_ids: list[int] | None = None,
+        completed_by_user_id: int | None = None,
     ) -> tuple[str | None, list[int]]:
         user_ids = list(completed_by_user_ids or [])
         if completed_by_user_id is not None and not user_ids:
@@ -1132,11 +1147,11 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         workspace_id: int,
         user_id: int,
         *,
-        completion_notes: Optional[str] = None,
-        machine_status: Optional[MachineEventTypeEnum] = None,
-        completed_by_user_id: Optional[int] = None,
-        completed_by_user_ids: Optional[list[int]] = None,
-        completed_by_names: Optional[str] = None,
+        completion_notes: str | None = None,
+        machine_status: MachineEventTypeEnum | None = None,
+        completed_by_user_id: int | None = None,
+        completed_by_user_ids: list[int] | None = None,
+        completed_by_names: str | None = None,
     ) -> WorkOrder:
         wo = self.get_work_order(session, wo_id, workspace_id)
         if wo.status != WorkOrderStatusEnum.DRAFT.value:
@@ -1200,14 +1215,14 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def finalize_completion(
         self, session: Session, wo: WorkOrder, performed_by_user_id: int,
-        completion_notes: Optional[str] = None,
-        machine_status: Optional[MachineEventTypeEnum] = None,
+        completion_notes: str | None = None,
+        machine_status: MachineEventTypeEnum | None = None,
         *,
-        completed_by_user_id: Optional[int] = None,
-        completed_by_user_ids: Optional[list[int]] = None,
-        completed_by_names: Optional[str] = None,
-        completed_at: Optional[datetime] = None,
-        event_metadata_extra: Optional[dict[str, Any]] = None,
+        completed_by_user_id: int | None = None,
+        completed_by_user_ids: list[int] | None = None,
+        completed_by_names: str | None = None,
+        completed_at: datetime | None = None,
+        event_metadata_extra: dict[str, Any] | None = None,
     ) -> WorkOrder:
         """Stamp completion and write the usage record onto the target (machine or component).
 
@@ -1328,7 +1343,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     # ─── Work Order Items ────────────────────────────────────────
     def _ensure_catalog_item_not_on_wo(
         self, session: Session, work_order_id: int, item_id: int, workspace_id: int,
-        *, exclude_item_id: Optional[int] = None,
+        *, exclude_item_id: int | None = None,
     ) -> None:
         from app.utils.order_catalog_items import catalog_item_already_on_order_detail
 
@@ -1474,7 +1489,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
             self.reset_approvals(session, wo.id, workspace_id, user_id, reason='Items edited')
         return record
 
-    def get_items(self, session: Session, wo_id: int, workspace_id: int) -> List[WorkOrderItem]:
+    def get_items(self, session: Session, wo_id: int, workspace_id: int) -> list[WorkOrderItem]:
         self.get_work_order(session, wo_id, workspace_id)
         return self.item_dao.get_by_work_order(session, work_order_id=wo_id, workspace_id=workspace_id)
 
@@ -1484,8 +1499,8 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         session: Session,
         wo: WorkOrder,
         *,
-        items: List[dict],
-        approvers: List[dict],
+        items: list[dict],
+        approvers: list[dict],
         machine_id: int,
         factory_id: int,
         workspace_id: int,
@@ -1696,19 +1711,19 @@ class WorkOrderManager(BaseManager[WorkOrder]):
 
     def list_sheet_orders(
         self, session: Session, workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        status_scope: Optional[str] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        status_scope: str | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
         exclude_completed: bool = False,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> List[WorkOrder]:
+    ) -> list[WorkOrder]:
         return self.wo_dao.list_for_sheet(
             session,
             workspace_id=workspace_id,
@@ -1730,16 +1745,16 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        status_scope: Optional[str] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        status_scope: str | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
         exclude_completed: bool = False,
-        search: Optional[str] = None,
+        search: str | None = None,
     ) -> int:
         return self.wo_dao.count_for_sheet(
             session,
@@ -1760,13 +1775,13 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        machine_id: Optional[int] = None,
-        planned_date_from: Optional[date] = None,
-        planned_date_to: Optional[date] = None,
-        status: Optional[WorkOrderStatusEnum] = None,
-        work_order_type_id: Optional[int] = None,
-        priority: Optional[WorkOrderPriorityEnum] = None,
+        factory_id: int | None = None,
+        machine_id: int | None = None,
+        planned_date_from: date | None = None,
+        planned_date_to: date | None = None,
+        status: WorkOrderStatusEnum | None = None,
+        work_order_type_id: int | None = None,
+        priority: WorkOrderPriorityEnum | None = None,
     ) -> dict[str, int]:
         raw = self.wo_dao.count_by_calendar_date_for_sheet(
             session,
@@ -1784,7 +1799,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
     # ─── Events ──────────────────────────────────────────────────
     def log_event(
         self, session: Session, wo_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None,
+        event_type: str, description: str, performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> WorkOrderEvent:
         ev = WorkOrderEvent(
@@ -1796,7 +1811,7 @@ class WorkOrderManager(BaseManager[WorkOrder]):
         session.flush()
         return ev
 
-    def list_events(self, session: Session, wo_id: int, workspace_id: int) -> List[Tuple[WorkOrderEvent, Optional[Profile]]]:
+    def list_events(self, session: Session, wo_id: int, workspace_id: int) -> list[tuple[WorkOrderEvent, Profile | None]]:
         self.get_work_order(session, wo_id, workspace_id)
         events = self.event_dao.get_by_order(session, work_order_id=wo_id, workspace_id=workspace_id)
         return [

@@ -1,21 +1,29 @@
 """Transfer order API endpoints"""
 from datetime import date
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
-from app.models.workspace import Workspace
 from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.transfer_order import (
-    TransferOrderCreate, TransferOrderUpdate, TransferOrderResponse,
-    TransferOrderListResponse, TransferOrderHubStatsResponse,
-    TransferOrderItemCreate, TransferOrderItemUpdate, TransferOrderItemResponse,
-    TransferOrderApproverCreate, TransferOrderApproverResponse,
-    ApprovalSummaryResponse, TransferOrderApproversList,
-    TransferOrderEventMetadata, TransferOrderEventResponse,
+    ApprovalSummaryResponse,
+    TransferOrderApproverCreate,
+    TransferOrderApproverResponse,
+    TransferOrderApproversList,
+    TransferOrderCreate,
+    TransferOrderEventMetadata,
+    TransferOrderEventResponse,
+    TransferOrderHubStatsResponse,
+    TransferOrderItemCreate,
+    TransferOrderItemResponse,
+    TransferOrderItemUpdate,
+    TransferOrderListResponse,
+    TransferOrderResponse,
+    TransferOrderUpdate,
 )
 from app.services.transfer_order_service import transfer_order_service
 
@@ -40,13 +48,13 @@ router = APIRouter()
 
 
 def _read_transfer_order_hub_filters(
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
-    status_ids: Optional[List[int]] = Query(None),
-    factory_id: Optional[int] = Query(None),
-    source_location_type: Optional[str] = Query(None),
-    destination_location_type: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    status_ids: list[int] | None = Query(None),
+    factory_id: int | None = Query(None),
+    source_location_type: str | None = Query(None),
+    destination_location_type: str | None = Query(None),
+    search: str | None = Query(None),
     exclude_complete: bool = Query(False),
 ) -> dict:
     return {
@@ -294,7 +302,7 @@ def unapprove_transfer_order(
 
 @router.get(
     "/{to_id}/events/",
-    response_model=List[TransferOrderEventResponse],
+    response_model=list[TransferOrderEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List transfer order activity events"
 )
@@ -328,7 +336,7 @@ def list_transfer_order_events(
 
 @router.get(
     "/{to_id}/items/",
-    response_model=List[TransferOrderItemResponse],
+    response_model=list[TransferOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get transfer order items"
 )

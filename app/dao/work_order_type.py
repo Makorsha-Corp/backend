@@ -4,9 +4,8 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All inherited BaseDAO methods automatically
 filter by workspace_id via get_by_workspace() and get_by_id_and_workspace().
 """
-from typing import List
-from datetime import datetime
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.work_order_type import WorkOrderType
 from app.schemas.work_order_type import WorkOrderTypeCreate, WorkOrderTypeUpdate
@@ -21,23 +20,6 @@ class DAOWorkOrderType(BaseDAO[WorkOrderType, WorkOrderTypeCreate, WorkOrderType
     - get_by_workspace() - Get all work order types in workspace
     - get_by_id_and_workspace() - Get specific work order type in workspace
     """
-
-    def get_active_types(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderType]:
-        """Get all active, non-deleted work order types for a workspace (SECURITY-CRITICAL: workspace-filtered)"""
-        return (
-            db.query(WorkOrderType)
-            .filter(
-                WorkOrderType.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                WorkOrderType.is_active == True,
-                WorkOrderType.is_deleted == False
-            )
-            .order_by(WorkOrderType.name)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
 
     def soft_delete(
         self, db: Session, *, db_obj: WorkOrderType, deleted_by: int

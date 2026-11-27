@@ -1,6 +1,6 @@
 """Schemas for storage incoming order summaries (PO + inbound transfer)."""
 from decimal import Decimal
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,6 @@ class ItemIncomingSummary(BaseModel):
     item_id: int
     total_pending_qty: Decimal
     order_count: int
-    orders: List[IncomingOrderLine] = Field(default_factory=list)
+    orders: list[IncomingOrderLine] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

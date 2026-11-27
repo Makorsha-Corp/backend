@@ -8,7 +8,11 @@ from app.dao.attachment_ledger import attachment_ledger_dao
 from app.managers.attachment_manager import AttachmentConfirmError, AttachmentManager
 from app.models.attachment import Attachment
 from app.models.attachment_ledger import AttachmentLedger
-from app.models.enums import AttachmentEntityTypeEnum, AttachmentLedgerTransactionTypeEnum, UploadStatusEnum
+from app.models.enums import (
+    AttachmentEntityTypeEnum,
+    AttachmentLedgerTransactionTypeEnum,
+    UploadStatusEnum,
+)
 from app.schemas.attachment import AttachmentSignRequest
 from app.utils.attachment_allowlist import NormalizedUploadRequest
 
@@ -51,6 +55,7 @@ def test_create_pending_appends_ledger(
 ) -> None:
     attachment = _attachment()
     mock_attachment_dao.create.return_value = attachment
+    mock_link_dao.count_linked_attachments_for_entity.return_value = 0  # under the per-entity limit
     user = MagicMock()
     user.id = 5
     payload = AttachmentSignRequest(

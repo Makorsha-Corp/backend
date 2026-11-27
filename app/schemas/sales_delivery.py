@@ -1,6 +1,7 @@
 """Sales delivery schemas"""
+from datetime import date, datetime
+
 from pydantic import BaseModel, ConfigDict
-from datetime import datetime, date
 
 
 class SalesDeliveryBase(BaseModel):

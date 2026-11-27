@@ -1,6 +1,8 @@
 """Project component schemas"""
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import ProjectStatusEnum
 
 
@@ -16,7 +18,6 @@ class ProjectComponentBase(BaseModel):
 
 class ProjectComponentCreate(ProjectComponentBase):
     """Project component creation schema"""
-    pass
 
 
 class ProjectComponentUpdate(BaseModel):

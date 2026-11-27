@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from datetime import date
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -38,10 +38,10 @@ class MachineWorkService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        factory_id: Optional[int] = None,
-        machine_ids: Optional[Sequence[int]] = None,
-        statuses: Optional[Sequence[str]] = None,
-    ) -> List[Tuple[WorkOrder, Machine | None]]:
+        factory_id: int | None = None,
+        machine_ids: Sequence[int] | None = None,
+        statuses: Sequence[str] | None = None,
+    ) -> list[tuple[WorkOrder, Machine | None]]:
         """Fetch matching open work orders in the date window."""
         status_filter = statuses if statuses is not None else _OPEN_WO_STATUSES
         wo_query = (
@@ -73,9 +73,9 @@ class MachineWorkService(BaseService):
         workspace_id: int,
         start: date,
         end: date,
-        factory_id: Optional[int] = None,
-        machine_ids: Optional[Sequence[int]] = None,
-    ) -> List[MachineUpcomingWorkRow]:
+        factory_id: int | None = None,
+        machine_ids: Sequence[int] | None = None,
+    ) -> list[MachineUpcomingWorkRow]:
         """Return per-machine upcoming work rows for [start, end] inclusive."""
         wo_rows = self.collect_raw_items(
             db,
@@ -86,7 +86,7 @@ class MachineWorkService(BaseService):
             machine_ids=machine_ids,
         )
 
-        by_machine: Dict[int, dict] = defaultdict(
+        by_machine: dict[int, dict] = defaultdict(
             lambda: {
                 "machine": None,
                 "items": [],
@@ -111,12 +111,12 @@ class MachineWorkService(BaseService):
                 )
             )
 
-        rows: List[MachineUpcomingWorkRow] = []
+        rows: list[MachineUpcomingWorkRow] = []
         for mid, bucket in by_machine.items():
             machine: Machine | None = bucket["machine"]
             if machine is None:
                 continue
-            items: List[MachineUpcomingWorkItem] = bucket["items"]
+            items: list[MachineUpcomingWorkItem] = bucket["items"]
             items.sort(key=lambda item: (item.date, item.kind, item.source_id))
             earliest = min(item.date for item in items)
             rows.append(
@@ -146,8 +146,8 @@ class MachineWorkService(BaseService):
         machine_ids: Iterable[int],
         start: date,
         end: date,
-        statuses: Optional[Sequence[str]] = None,
-    ) -> Dict[int, List[date]]:
+        statuses: Sequence[str] | None = None,
+    ) -> dict[int, list[date]]:
         """All work dates per machine in [start, end], sorted ascending."""
         ids = list(machine_ids)
         if not ids:
@@ -162,7 +162,7 @@ class MachineWorkService(BaseService):
             statuses=statuses,
         )
 
-        result: Dict[int, List[date]] = defaultdict(list)
+        result: dict[int, list[date]] = defaultdict(list)
         for work_order, _machine in wo_rows:
             assert work_order.machine_id is not None
             assert work_order.planned_date is not None
@@ -185,30 +185,5 @@ class MachineWorkService(BaseService):
     def has_upcoming_in_horizon(dates: Sequence[date], today: date, horizon_days: int) -> bool:
         end = date.fromordinal(today.toordinal() + horizon_days)
         return any(today <= d <= end for d in dates)
-
-    def has_upcoming_work(
-        self,
-        db: Session,
-        *,
-        workspace_id: int,
-        machine_id: int,
-        from_date: date,
-    ) -> bool:
-        """True when machine has any open WO on/after from_date."""
-        return (
-            db.query(WorkOrder.id)
-            .filter(
-                WorkOrder.workspace_id == workspace_id,
-                WorkOrder.machine_id == machine_id,
-                WorkOrder.is_deleted.is_(False),
-                WorkOrder.status.in_(_OPEN_WO_STATUSES),
-                WorkOrder.planned_date.isnot(None),
-                WorkOrder.planned_date >= from_date,
-            )
-            .limit(1)
-            .first()
-            is not None
-        )
-
 
 machine_work_service = MachineWorkService()

@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import cast, Date, func
+from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
@@ -18,6 +17,7 @@ from app.dao.product_ledger import product_ledger_dao
 from app.managers.item_manager import item_manager
 from app.models.account import Account
 from app.models.enums import InventoryTypeEnum
+from app.models.expense_order import ExpenseOrder
 from app.models.factory import Factory
 from app.models.factory_section import FactorySection
 from app.models.machine import Machine
@@ -29,7 +29,6 @@ from app.models.production_formula_item import ProductionFormulaItem
 from app.models.project import Project
 from app.models.project_component import ProjectComponent
 from app.models.project_component_item import ProjectComponentItem
-from app.models.expense_order import ExpenseOrder
 from app.models.purchase_order import PurchaseOrder
 from app.models.purchase_order_item import PurchaseOrderItem
 from app.models.sales_order import SalesOrder
@@ -39,6 +38,8 @@ from app.models.transfer_order_item import TransferOrderItem
 from app.models.work_order import WorkOrder
 from app.models.work_order_item import WorkOrderItem
 from app.schemas.item_summary import (
+    ItemSummaryBatchUsage,
+    ItemSummaryFormulaUsage,
     ItemSummaryInventoryRow,
     ItemSummaryItem,
     ItemSummaryKpis,
@@ -49,6 +50,7 @@ from app.schemas.item_summary import (
     ItemSummaryPricing,
     ItemSummaryPricingPeriod,
     ItemSummaryProductRow,
+    ItemSummaryProjectUsage,
     ItemSummaryRecentActivity,
     ItemSummaryResponse,
     ItemSummarySupplierHighlights,
@@ -57,9 +59,6 @@ from app.schemas.item_summary import (
     ItemSummarySupplierStats,
     ItemSummarySupplierStatsPeriod,
     ItemSummaryTag,
-    ItemSummaryBatchUsage,
-    ItemSummaryFormulaUsage,
-    ItemSummaryProjectUsage,
     ItemSummaryUsageCounts,
     ItemSummaryUsageDetails,
     ItemSummaryWorkOrderUsage,
@@ -71,11 +70,11 @@ from app.services.orders_overview_service import orders_overview_service
 
 def _dec(value) -> Decimal:
     if value is None:
-        return Decimal('0')
+        return Decimal(0)
     return Decimal(str(value))
 
 
-def _est_value(qty: int, avg_price) -> Optional[Decimal]:
+def _est_value(qty: int, avg_price) -> Decimal | None:
     if avg_price is None or qty <= 0:
         return None
     return _dec(avg_price) * qty
@@ -186,15 +185,15 @@ class ItemSummaryService:
             recent_activity=recent_activity,
         )
 
-    def _factory_name_map(self, db: Session, workspace_id: int) -> Dict[int, str]:
+    def _factory_name_map(self, db: Session, workspace_id: int) -> dict[int, str]:
         rows = db.query(Factory.id, Factory.name).filter(Factory.workspace_id == workspace_id).all()
         return {row.id: row.name for row in rows}
 
-    def _machine_name_map(self, db: Session, workspace_id: int) -> Dict[int, str]:
+    def _machine_name_map(self, db: Session, workspace_id: int) -> dict[int, str]:
         rows = db.query(Machine.id, Machine.name).filter(Machine.workspace_id == workspace_id).all()
         return {row.id: row.name for row in rows}
 
-    def _machine_location_map(self, db: Session, workspace_id: int) -> Dict[int, dict]:
+    def _machine_location_map(self, db: Session, workspace_id: int) -> dict[int, dict]:
         rows = (
             db.query(
                 Machine.id,
@@ -230,10 +229,10 @@ class ItemSummaryService:
         *,
         item_id: int,
         workspace_id: int,
-        factory_names: Dict[int, str],
-    ) -> Tuple[List[ItemSummaryInventoryRow], int, set[int]]:
+        factory_names: dict[int, str],
+    ) -> tuple[list[ItemSummaryInventoryRow], int, set[int]]:
         records = inventory_dao.get_by_item(db, item_id=item_id, workspace_id=workspace_id)
-        rows: List[ItemSummaryInventoryRow] = []
+        rows: list[ItemSummaryInventoryRow] = []
         storage_total = 0
         factory_ids: set[int] = set()
 
@@ -269,10 +268,10 @@ class ItemSummaryService:
         *,
         item_id: int,
         workspace_id: int,
-        factory_names: Dict[int, str],
-    ) -> Tuple[List[ItemSummaryProductRow], int]:
+        factory_names: dict[int, str],
+    ) -> tuple[list[ItemSummaryProductRow], int]:
         records = product_dao.get_by_item(db, item_id=item_id, workspace_id=workspace_id)
-        rows: List[ItemSummaryProductRow] = []
+        rows: list[ItemSummaryProductRow] = []
         total_qty = 0
 
         for prod in records:
@@ -303,10 +302,10 @@ class ItemSummaryService:
         *,
         item_id: int,
         workspace_id: int,
-        machine_locations: Dict[int, dict],
-    ) -> List[ItemSummaryMachinePlacement]:
+        machine_locations: dict[int, dict],
+    ) -> list[ItemSummaryMachinePlacement]:
         records = machine_item_dao.get_by_item(db, item_id=item_id, workspace_id=workspace_id)
-        rows: List[ItemSummaryMachinePlacement] = []
+        rows: list[ItemSummaryMachinePlacement] = []
 
         for mi in records:
             low = mi.req_qty is not None and mi.qty < mi.req_qty
@@ -344,8 +343,8 @@ class ItemSummaryService:
         *,
         workspace_id: int,
         item_id: int,
-        from_date: Optional[date],
-        to_date: Optional[date],
+        from_date: date | None,
+        to_date: date | None,
     ) -> ItemSummaryOrderStats:
         svc = orders_overview_service
         stats = ItemSummaryOrderStats()
@@ -412,11 +411,11 @@ class ItemSummaryService:
         return stats
 
     def _pricing_snapshot_from_po_lines(
-        self, lines: List[Tuple]
+        self, lines: list[tuple]
     ) -> ItemSummaryPeriodPricing:
-        prices: List[Decimal] = []
-        weighted_sum = Decimal('0')
-        weight_total = Decimal('0')
+        prices: list[Decimal] = []
+        weighted_sum = Decimal(0)
+        weight_total = Decimal(0)
         for qty, price in lines:
             if price is None:
                 continue
@@ -547,7 +546,7 @@ class ItemSummaryService:
         )
 
     def _supplier_period_snapshot(
-        self, rows, *, today: date, days: Optional[int]
+        self, rows, *, today: date, days: int | None
     ) -> ItemSummarySupplierPeriod:
         if days is None:
             filtered = list(rows)
@@ -569,8 +568,8 @@ class ItemSummaryService:
             suppliers=suppliers[:10],
         )
 
-    def _supplier_rows_from_po_lines(self, rows) -> List[ItemSummarySupplierRow]:
-        buckets: Dict[int, dict] = {}
+    def _supplier_rows_from_po_lines(self, rows) -> list[ItemSummarySupplierRow]:
+        buckets: dict[int, dict] = {}
 
         for account_id, name, po_id, qty_raw, unit_price, line_subtotal, po_date_val in rows:
             if account_id is None:
@@ -581,9 +580,9 @@ class ItemSummaryService:
                 {
                     'account_name': name or f'Account #{account_id}',
                     'po_ids': set(),
-                    'total_qty': Decimal('0'),
-                    'total_spend': Decimal('0'),
-                    'weighted_sum': Decimal('0'),
+                    'total_qty': Decimal(0),
+                    'total_spend': Decimal(0),
+                    'weighted_sum': Decimal(0),
                     'last_date': None,
                     'last_price': None,
                 },
@@ -606,7 +605,7 @@ class ItemSummaryService:
                 bucket['last_date'] = po_date_val
                 bucket['last_price'] = price
 
-        result: List[ItemSummarySupplierRow] = []
+        result: list[ItemSummarySupplierRow] = []
         for account_id, data in buckets.items():
             total_qty = data['total_qty']
             avg = (
@@ -629,8 +628,8 @@ class ItemSummaryService:
         return result
 
     def _pick_cheapest_supplier(
-        self, rows: List[ItemSummarySupplierRow]
-    ) -> Optional[ItemSummarySupplierRow]:
+        self, rows: list[ItemSummarySupplierRow]
+    ) -> ItemSummarySupplierRow | None:
         candidates = [
             r for r in rows
             if r.avg_unit_price_weighted is not None and r.total_qty > 0
@@ -643,21 +642,21 @@ class ItemSummaryService:
         )
 
     def _pick_most_frequent_supplier(
-        self, rows: List[ItemSummarySupplierRow]
-    ) -> Optional[ItemSummarySupplierRow]:
+        self, rows: list[ItemSummarySupplierRow]
+    ) -> ItemSummarySupplierRow | None:
         if not rows:
             return None
         return max(
             rows,
             key=lambda r: (
                 r.order_count,
-                -(r.avg_unit_price_weighted or Decimal('999999999')),
+                -(r.avg_unit_price_weighted or Decimal(999999999)),
             ),
         )
 
     def _usage(
         self, db: Session, *, workspace_id: int, item_id: int
-    ) -> Tuple[ItemSummaryUsageCounts, ItemSummaryUsageDetails]:
+    ) -> tuple[ItemSummaryUsageCounts, ItemSummaryUsageDetails]:
         formula_count = (
             db.query(func.count(ProductionFormulaItem.id))
             .filter(
@@ -822,11 +821,11 @@ class ItemSummaryService:
         self,
         db: Session,
         *,
-        order_type: Optional[str],
-        order_id: Optional[int],
-        source_type: Optional[str],
-        source_id: Optional[int],
-    ) -> Tuple[Optional[str], Optional[int]]:
+        order_type: str | None,
+        order_id: int | None,
+        source_type: str | None,
+        source_id: int | None,
+    ) -> tuple[str | None, int | None]:
         if order_type and order_id:
             return order_type, order_id
 
@@ -855,9 +854,9 @@ class ItemSummaryService:
         self,
         db: Session,
         *,
-        order_type: Optional[str],
-        order_id: Optional[int],
-    ) -> Optional[str]:
+        order_type: str | None,
+        order_id: int | None,
+    ) -> str | None:
         if not order_type or not order_id:
             return None
 
@@ -884,15 +883,15 @@ class ItemSummaryService:
         performed_at,
         transaction_type: str,
         quantity: int,
-        factory_id: Optional[int] = None,
-        factory_name: Optional[str] = None,
-        machine_id: Optional[int] = None,
-        machine_name: Optional[str] = None,
-        inventory_type: Optional[str] = None,
-        order_type: Optional[str] = None,
-        order_id: Optional[int] = None,
-        source_type: Optional[str] = None,
-        source_id: Optional[int] = None,
+        factory_id: int | None = None,
+        factory_name: str | None = None,
+        machine_id: int | None = None,
+        machine_name: str | None = None,
+        inventory_type: str | None = None,
+        order_type: str | None = None,
+        order_id: int | None = None,
+        source_type: str | None = None,
+        source_id: int | None = None,
     ) -> ItemSummaryRecentActivity:
         resolved_type, resolved_id = self._resolve_order_link(
             db,
@@ -925,12 +924,12 @@ class ItemSummaryService:
         *,
         workspace_id: int,
         item_id: int,
-        factory_names: Dict[int, str],
-        machine_names: Dict[int, str],
+        factory_names: dict[int, str],
+        machine_names: dict[int, str],
         limit: int = 10,
-    ) -> List[ItemSummaryRecentActivity]:
+    ) -> list[ItemSummaryRecentActivity]:
         per_source = max(limit, 5)
-        combined: List[ItemSummaryRecentActivity] = []
+        combined: list[ItemSummaryRecentActivity] = []
 
         for entry in inventory_ledger_dao.get_by_workspace(
             db, workspace_id=workspace_id, item_id=item_id, skip=0, limit=per_source

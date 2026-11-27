@@ -1,6 +1,7 @@
 """Purchase order approver DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.purchase_order_approver import PurchaseOrderApprover
 from app.schemas.purchase_order import PurchaseOrderApproverCreate
@@ -9,7 +10,7 @@ from app.schemas.purchase_order import PurchaseOrderApproverCreate
 class PurchaseOrderApproverDAO(BaseDAO[PurchaseOrderApprover, PurchaseOrderApproverCreate, PurchaseOrderApproverCreate]):
     def get_by_order(
         self, db: Session, *, purchase_order_id: int, workspace_id: int
-    ) -> List[PurchaseOrderApprover]:
+    ) -> list[PurchaseOrderApprover]:
         return (
             db.query(PurchaseOrderApprover)
             .filter(
@@ -22,7 +23,7 @@ class PurchaseOrderApproverDAO(BaseDAO[PurchaseOrderApprover, PurchaseOrderAppro
 
     def get_by_order_and_user(
         self, db: Session, *, purchase_order_id: int, user_id: int, workspace_id: int
-    ) -> Optional[PurchaseOrderApprover]:
+    ) -> PurchaseOrderApprover | None:
         return (
             db.query(PurchaseOrderApprover)
             .filter(

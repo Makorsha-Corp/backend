@@ -3,23 +3,26 @@ Account Tag endpoints
 
 Provides operations for managing account tags (categories for accounts).
 """
-from typing import List
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
-from app.schemas.account_tag import AccountTagCreate, AccountTagUpdate, AccountTagResponse
+from app.models.workspace import Workspace
+from app.schemas.account_tag import (
+    AccountTagCreate,
+    AccountTagResponse,
+    AccountTagUpdate,
+)
 from app.services.account_tag_service import account_tag_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[AccountTagResponse],
+    response_model=list[AccountTagResponse],
     status_code=status.HTTP_200_OK,
     summary="List all tags",
     description="""
@@ -38,7 +41,7 @@ def get_tags(
 
 @router.get(
     "/system/",
-    response_model=List[AccountTagResponse],
+    response_model=list[AccountTagResponse],
     status_code=status.HTTP_200_OK,
     summary="List system tags",
     description="Get all system tags (default tags that cannot be deleted)"

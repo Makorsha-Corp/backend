@@ -13,8 +13,7 @@ Each row represents one rotation step in a refresh-token "family":
 
 The raw token value is never persisted — we only store sha256(raw).
 """
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base

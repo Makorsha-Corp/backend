@@ -1,40 +1,42 @@
 """Purchase Order Manager - business logic for purchase orders"""
-from typing import Any, List, Optional, Tuple
+from datetime import date
 from decimal import Decimal
-from datetime import date, datetime
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from typing import Any
 
-from app.managers.base_manager import BaseManager
-from app.models.purchase_order import PurchaseOrder
-from app.models.status import Status
-from app.models.purchase_order_item import PurchaseOrderItem
-from app.models.purchase_order_approver import PurchaseOrderApprover
-from app.models.purchase_order_event import PurchaseOrderEvent
-from app.models.profile import Profile
-from app.schemas.purchase_order import (
-    PurchaseOrderCreate, PurchaseOrderUpdate,
-    PurchaseOrderItemCreate, PurchaseOrderItemUpdate,
-    PurchaseOrderItemSyncRequest,
-)
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.account import account_dao
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.factory import factory_dao
+from app.dao.item import item_dao
+from app.dao.machine import machine_dao
+from app.dao.profile import profile_dao
+from app.dao.project_component import project_component_dao
 from app.dao.purchase_order import purchase_order_dao, purchase_order_item_dao
 from app.dao.purchase_order_approver import purchase_order_approver_dao
 from app.dao.purchase_order_event import purchase_order_event_dao
-from app.dao.workspace_member import workspace_member_dao
-from app.dao.profile import profile_dao
-from app.dao.account import account_dao
-from app.dao.factory import factory_dao
-from app.dao.machine import machine_dao
-from app.dao.project_component import project_component_dao
 from app.dao.status import status_dao
-from app.dao.item import item_dao
-from app.dao.account_invoice import account_invoice_dao
-from app.dao.order_workflow import order_workflow_dao
-from app.models.order_workflow import OrderWorkflow
+from app.dao.workspace_member import workspace_member_dao
 from app.db.seed_po_workflow import (
     PO_WORKFLOW_TYPE,
     ensure_po_stage_statuses,
     ensure_po_workflow_record,
+)
+from app.managers.base_manager import BaseManager
+from app.models.order_workflow import OrderWorkflow
+from app.models.profile import Profile
+from app.models.purchase_order import PurchaseOrder
+from app.models.purchase_order_approver import PurchaseOrderApprover
+from app.models.purchase_order_event import PurchaseOrderEvent
+from app.models.purchase_order_item import PurchaseOrderItem
+from app.models.status import Status
+from app.schemas.purchase_order import (
+    PurchaseOrderCreate,
+    PurchaseOrderItemCreate,
+    PurchaseOrderItemSyncRequest,
+    PurchaseOrderItemUpdate,
+    PurchaseOrderUpdate,
 )
 from app.utils.time import utcnow
 
@@ -90,7 +92,7 @@ def _line_subtotal(qty: Decimal, price: Decimal | None) -> Decimal | None:
     return None if price is None else qty * price
 
 
-def _all_items_have_positive_unit_price(items: List[PurchaseOrderItem]) -> bool:
+def _all_items_have_positive_unit_price(items: list[PurchaseOrderItem]) -> bool:
     return bool(items) and all(
         i.unit_price is not None and Decimal(str(i.unit_price)) > 0 for i in items
     )
@@ -108,7 +110,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def get_po_by_invoice_id(
         self, session: Session, invoice_id: int, workspace_id: int
-    ) -> Optional[PurchaseOrder]:
+    ) -> PurchaseOrder | None:
         return self.po_dao.get_by_invoice_id(
             session, invoice_id=invoice_id, workspace_id=workspace_id
         )
@@ -252,7 +254,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self._raise_po_workflow_setup_error(session, workspace_id)
         return workflow.id
 
-    def _all_items_fully_received(self, items: List[PurchaseOrderItem]) -> bool:
+    def _all_items_fully_received(self, items: list[PurchaseOrderItem]) -> bool:
         if not items:
             return False
         return all(
@@ -322,7 +324,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         self,
         session: Session,
         po: PurchaseOrder,
-        items: List[PurchaseOrderItem],
+        items: list[PurchaseOrderItem],
     ) -> str:
         if items and any(self._quantity_received_decimal(i) > 0 for i in items):
             return 'Receiving'
@@ -337,7 +339,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         session: Session,
         po: PurchaseOrder,
         workspace_id: int,
-        user_id: Optional[int],
+        user_id: int | None,
     ) -> bool:
         """Recompute and apply PO stage from business state. Returns True if status changed."""
         items = self.item_dao.get_by_order(
@@ -417,7 +419,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                 detail='All line items must be fully received before marking the order complete',
             )
 
-        from app.managers.purchase_order_return_manager import purchase_order_return_manager
+        from app.managers.purchase_order_return_manager import (
+            purchase_order_return_manager,
+        )
 
         if purchase_order_return_manager.has_open_return(session, po.id, workspace_id):
             raise HTTPException(
@@ -506,7 +510,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             get_item_id=lambda row: row.item_id,
         )
 
-        subtotal = Decimal('0')
+        subtotal = Decimal(0)
 
         for idx, item_data in enumerate(items_data, start=1):
             item_dict = item_data.model_dump()
@@ -519,9 +523,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             line_sub = _line_subtotal(qty, price)
             item_dict['unit_price'] = price
             item_dict['line_subtotal'] = line_sub
-            item_dict['quantity_received'] = Decimal('0')
+            item_dict['quantity_received'] = Decimal(0)
 
-            subtotal += line_sub or Decimal('0')
+            subtotal += line_sub or Decimal(0)
 
             self.item_dao.create(session, obj_in=item_dict)
 
@@ -696,8 +700,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         record: PurchaseOrder,
         update_dict: dict,
         fields: dict[str, str],
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         new_destination_type = update_dict.get('destination_type', record.destination_type)
         for field, label in fields.items():
             if field not in update_dict:
@@ -722,8 +726,8 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def _collect_item_field_changes(
         self, record: PurchaseOrderItem, update_dict: dict,
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         for field, label in ITEM_UPDATE_LOG_FIELDS.items():
             if field not in update_dict:
                 continue
@@ -747,7 +751,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         user_id: int,
         event_type: str,
         description: str,
-        changes: List[dict],
+        changes: list[dict],
         extra_metadata: dict | None = None,
     ) -> None:
         metadata: dict = {'changes': changes}
@@ -826,25 +830,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     def _items_structure_confirmed(self, session: Session, po: PurchaseOrder) -> bool:
         return bool(po.items_confirmed or self.is_po_financially_locked(session, po))
 
-    def details_complete_for_invoice(self, po: PurchaseOrder) -> bool:
-        return (
-            po.account_id is not None
-            and bool(po.destination_type)
-            and po.destination_id is not None
-            and po.order_date is not None
-        )
-
     def _base_sections_confirmed(self, po: PurchaseOrder) -> bool:
         return bool(
             po.supplier_confirmed
             and po.details_confirmed
             and po.items_confirmed
-        )
-
-    def _all_sections_confirmed(self, po: PurchaseOrder) -> bool:
-        return bool(
-            self._base_sections_confirmed(po)
-            and po.invoice_confirmed
         )
 
     def _validate_section_confirm(
@@ -939,10 +929,10 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def list_purchase_orders(
         self, session: Session, workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_id: Optional[int] = None,
+        account_id: int | None = None,
+        invoice_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         return self.po_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             account_id=account_id,
@@ -958,7 +948,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[PurchaseOrder]:
+    ) -> list[PurchaseOrder]:
         return self.po_dao.list_for_hub(
             session,
             workspace_id=workspace_id,
@@ -1034,7 +1024,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         """Coerce NULL legacy quantity_received rows to 0."""
         raw = record.quantity_received
         if raw is None:
-            return Decimal('0')
+            return Decimal(0)
         return Decimal(str(raw))
 
     def _validate_ordered_vs_received(
@@ -1058,7 +1048,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         item_id: int,
         workspace_id: int,
         *,
-        exclude_item_id: Optional[int] = None,
+        exclude_item_id: int | None = None,
     ) -> None:
         for line in self.item_dao.get_by_order(
             session, purchase_order_id=po_id, workspace_id=workspace_id
@@ -1075,7 +1065,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def add_item(
         self, session: Session, po_id: int, data: PurchaseOrderItemCreate,
-        workspace_id: int, user_id: Optional[int] = None
+        workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         """Add item to purchase order and recalculate totals."""
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
@@ -1096,7 +1086,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         item_dict['workspace_id'] = workspace_id
         item_dict['purchase_order_id'] = po_id
         item_dict['line_number'] = next_line
-        item_dict['quantity_received'] = Decimal('0')
+        item_dict['quantity_received'] = Decimal(0)
 
         qty = Decimal(str(item_dict['quantity_ordered']))
         price = _parse_unit_price(item_dict.get('unit_price'))
@@ -1130,7 +1120,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def update_item(
         self, session: Session, item_id: int, data: PurchaseOrderItemUpdate,
-        workspace_id: int, user_id: Optional[int] = None
+        workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         """Update purchase order item. Logs a 'received' event when quantity_received changes."""
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
@@ -1283,7 +1273,9 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
                         Decimal(str(i.quantity_received or 0)) for i in po_items
                     )
                     if total_received > 0:
-                        from app.managers.account_invoice_manager import account_invoice_manager
+                        from app.managers.account_invoice_manager import (
+                            account_invoice_manager,
+                        )
                         account_invoice_manager.set_receiving_started(
                             session,
                             invoice_id=po.invoice_id,
@@ -1303,7 +1295,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         return result
 
     def remove_item(
-        self, session: Session, item_id: int, workspace_id: int, user_id: Optional[int] = None
+        self, session: Session, item_id: int, workspace_id: int, user_id: int | None = None
     ) -> PurchaseOrderItem:
         """Remove item from purchase order."""
         record = self.item_dao.get_by_id_and_workspace(session, id=item_id, workspace_id=workspace_id)
@@ -1346,7 +1338,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
         po_id: int,
         data: PurchaseOrderItemSyncRequest,
         workspace_id: int,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> PurchaseOrder:
         """Apply item removes, updates, and additions in one pass; recalc totals once."""
         po = self.po_dao.get_by_id_and_workspace(session, id=po_id, workspace_id=workspace_id)
@@ -1441,7 +1433,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             item_dict['workspace_id'] = workspace_id
             item_dict['purchase_order_id'] = po_id
             item_dict['line_number'] = next_line
-            item_dict['quantity_received'] = Decimal('0')
+            item_dict['quantity_received'] = Decimal(0)
             qty = Decimal(str(item_dict['quantity_ordered']))
             price = _parse_unit_price(item_dict.get('unit_price'))
             item_dict['unit_price'] = price
@@ -1471,13 +1463,13 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             self.sync_po_stage(session, po, workspace_id, user_id)
         return po
 
-    def get_items(self, session: Session, po_id: int, workspace_id: int) -> List[PurchaseOrderItem]:
+    def get_items(self, session: Session, po_id: int, workspace_id: int) -> list[PurchaseOrderItem]:
         return self.item_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
 
     def _recalc_totals(self, session: Session, po: PurchaseOrder):
         """Recalculate order totals from line items."""
         items = self.item_dao.get_by_order(session, purchase_order_id=po.id, workspace_id=po.workspace_id)
-        subtotal = sum((i.line_subtotal or Decimal('0')) for i in items)
+        subtotal = sum((i.line_subtotal or Decimal(0)) for i in items)
         po.subtotal = subtotal
         po.total_amount = subtotal
         session.flush()
@@ -1485,11 +1477,11 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     # ─── Approvers ─────────────────────────────────────────────
     def list_approvers(
         self, session: Session, po_id: int, workspace_id: int
-    ) -> List[Tuple[PurchaseOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[PurchaseOrderApprover, Profile | None, str | None]]:
         """Approvers for an order, enriched with profile + workspace position."""
         self.get_purchase_order(session, po_id, workspace_id)  # 404 guard
         approvers = self.approver_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
-        result: List[Tuple[PurchaseOrderApprover, Optional[Profile], Optional[str]]] = []
+        result: list[tuple[PurchaseOrderApprover, Profile | None, str | None]] = []
         for a in approvers:
             profile = profile_dao.get(session, id=a.user_id)
             member = workspace_member_dao.get_by_workspace_and_user(
@@ -1498,7 +1490,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
             result.append((a, profile, member.position if member else None))
         return result
 
-    def approval_summary(self, session: Session, po: PurchaseOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, session: Session, po: PurchaseOrder) -> tuple[int, int, bool]:
         """(approved_count, required, met). required null -> all assigned must approve."""
         approvers = self.approver_dao.get_by_order(
             session, purchase_order_id=po.id, workspace_id=po.workspace_id
@@ -1556,7 +1548,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def remove_approver(
         self, session: Session, po_id: int, user_id: int, workspace_id: int,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
     ) -> None:
         rec = self.approver_dao.get_by_order_and_user(
             session, purchase_order_id=po_id, user_id=user_id, workspace_id=workspace_id
@@ -1623,7 +1615,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
     # ─── Events ────────────────────────────────────────────────
     def log_event(
         self, session: Session, po_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None,
+        event_type: str, description: str, performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> PurchaseOrderEvent:
         ev = PurchaseOrderEvent(
@@ -1640,7 +1632,7 @@ class PurchaseOrderManager(BaseManager[PurchaseOrder]):
 
     def list_events(
         self, session: Session, po_id: int, workspace_id: int
-    ) -> List[Tuple[PurchaseOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[PurchaseOrderEvent, Profile | None]]:
         self.get_purchase_order(session, po_id, workspace_id)  # 404 guard
         events = self.event_dao.get_by_order(session, purchase_order_id=po_id, workspace_id=workspace_id)
         return [

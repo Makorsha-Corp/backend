@@ -4,22 +4,24 @@ Machine Manager
 Business logic for machine operations including status tracking via activity events.
 """
 from datetime import date, timedelta
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory import factory_dao
+from app.dao.machine import machine_dao
 from app.managers.base_manager import BaseManager
-from app.models.machine import Machine
+from app.managers.machine_activity_manager import (
+    MACHINE_LOG_FIELDS,
+    machine_activity_manager,
+)
+from app.managers.machine_section_assignment_manager import (
+    machine_section_assignment_manager,
+)
 from app.models.enums import MachineEventTypeEnum, WorkOrderStatusEnum
+from app.models.machine import Machine
 from app.schemas.machine import MachineCreate, MachineUpdate
 from app.schemas.machine_event import MachineEventCreate, MachineEventResponse
-from app.dao.machine import machine_dao
-from app.dao.factory import factory_dao
-from app.managers.machine_activity_manager import (
-    machine_activity_manager,
-    MACHINE_LOG_FIELDS,
-)
-from app.managers.machine_section_assignment_manager import machine_section_assignment_manager
 from app.services.machine_work_service import machine_work_service
 
 
@@ -211,20 +213,20 @@ class MachineManager(BaseManager[Machine]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        factory_section_id: Optional[int] = None,
-        is_running: Optional[bool] = None,
-        search: Optional[str] = None,
+        factory_id: int | None = None,
+        factory_section_id: int | None = None,
+        is_running: bool | None = None,
+        search: str | None = None,
         maintenance_window: str = "all",
-        has_model_number: Optional[bool] = None,
-        has_manufacturer: Optional[bool] = None,
-        latest_event_type: Optional[MachineEventTypeEnum] = None,
+        has_model_number: bool | None = None,
+        has_manufacturer: bool | None = None,
+        latest_event_type: MachineEventTypeEnum | None = None,
         sort_by: str = "name",
         sort_dir: str = "asc",
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
-    ) -> List[Machine]:
+    ) -> list[Machine]:
         """Search machines in workspace with optional filters."""
         if include_deleted:
             # Preserve existing behavior for include_deleted callers.
@@ -374,7 +376,7 @@ class MachineManager(BaseManager[Machine]):
         event_data: MachineEventCreate,
         workspace_id: int,
         user_id: int,
-        work_order_id: Optional[int] = None,
+        work_order_id: int | None = None,
     ) -> MachineEventResponse:
         """
         Record a machine status change in the activity log and sync is_running.
@@ -462,7 +464,7 @@ class MachineManager(BaseManager[Machine]):
         workspace_id: int,
         factory_id: int,
         name: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """Check if machine name already exists in a factory (excluding deleted)."""
         machines = self.machine_dao.get_by_factory(

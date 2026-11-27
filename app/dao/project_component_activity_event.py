@@ -1,7 +1,8 @@
 """Project component activity event DAO. SECURITY: All queries MUST filter by workspace_id."""
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.project_component_activity_event import ProjectComponentActivityEvent
 
@@ -17,7 +18,7 @@ class ProjectComponentActivityEventDAO(
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ProjectComponentActivityEvent]:
+    ) -> list[ProjectComponentActivityEvent]:
         return (
             db.query(ProjectComponentActivityEvent)
             .filter(

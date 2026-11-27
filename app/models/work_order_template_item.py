@@ -1,6 +1,7 @@
 """Work order template item model - preset part lines for a work order template"""
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Numeric
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

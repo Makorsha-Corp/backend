@@ -3,23 +3,27 @@ Invoice Payment API endpoints
 
 Provides operations for managing invoice payments.
 """
-from typing import List
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, InvoicePaymentResponse, VoidPaymentRequest
+from app.schemas.invoice_payment import (
+    InvoicePaymentCreate,
+    InvoicePaymentResponse,
+    InvoicePaymentUpdate,
+    VoidPaymentRequest,
+)
 from app.services.invoice_payment_service import invoice_payment_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/invoice/{invoice_id}/",
-    response_model=List[InvoicePaymentResponse],
+    response_model=list[InvoicePaymentResponse],
     status_code=status.HTTP_200_OK,
     summary="List payments for an invoice",
     description="Get all payments for a specific invoice"

@@ -13,7 +13,6 @@ import hashlib
 import hmac
 import json
 from decimal import Decimal
-from typing import Optional
 
 from app.core.config import settings
 from app.integrations.sslcommerz.client import (
@@ -62,7 +61,7 @@ class MockSSLCommerzClient(SSLCommerzClient):
         signature = _sign(payload)
         return f"{encoded}.{signature}"
 
-    def _decode_val_id(self, val_id: str) -> Optional[dict]:
+    def _decode_val_id(self, val_id: str) -> dict | None:
         try:
             encoded, signature = val_id.rsplit(".", 1)
             payload = json.loads(base64.urlsafe_b64decode(encoded.encode()).decode())
@@ -92,7 +91,7 @@ class MockSSLCommerzClient(SSLCommerzClient):
             verify_key=",".join(_SIGNED_FIELDS),
         )
 
-    def query_by_tran_id(self, tran_id: str, val_id_hint: Optional[str] = None) -> ValidationResult:
+    def query_by_tran_id(self, tran_id: str, val_id_hint: str | None = None) -> ValidationResult:
         if val_id_hint:
             result = self.validate(val_id_hint)
             if result.tran_id == tran_id:

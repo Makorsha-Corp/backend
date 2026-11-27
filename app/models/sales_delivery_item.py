@@ -1,6 +1,7 @@
 """Sales delivery item model - line items in each delivery"""
-from sqlalchemy import Column, Integer, ForeignKey, Text, Numeric
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

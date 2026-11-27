@@ -9,7 +9,6 @@ class DepartmentBase(BaseModel):
 
 class DepartmentCreate(DepartmentBase):
     """Department creation schema"""
-    pass
 
 
 class DepartmentUpdate(BaseModel):

@@ -1,34 +1,34 @@
 """Account schemas"""
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AccountBase(BaseModel):
     """Base account schema"""
     name: str = Field(..., min_length=1, max_length=255)
-    account_code: Optional[str] = Field(None, max_length=50)
+    account_code: str | None = Field(None, max_length=50)
 
     # Contact info
-    primary_contact_person: Optional[str] = Field(None, max_length=255)
-    primary_email: Optional[str] = Field(None, max_length=255)
-    primary_phone: Optional[str] = Field(None, max_length=50)
-    secondary_contact_person: Optional[str] = Field(None, max_length=255)
-    secondary_email: Optional[str] = Field(None, max_length=255)
-    secondary_phone: Optional[str] = Field(None, max_length=50)
+    primary_contact_person: str | None = Field(None, max_length=255)
+    primary_email: str | None = Field(None, max_length=255)
+    primary_phone: str | None = Field(None, max_length=50)
+    secondary_contact_person: str | None = Field(None, max_length=255)
+    secondary_email: str | None = Field(None, max_length=255)
+    secondary_phone: str | None = Field(None, max_length=50)
 
     # Address
-    address: Optional[str] = None
-    city: Optional[str] = Field(None, max_length=100)
-    postal_code: Optional[str] = Field(None, max_length=20)
-    country: Optional[str] = Field(None, max_length=100)
+    address: str | None = None
+    city: str | None = Field(None, max_length=100)
+    postal_code: str | None = Field(None, max_length=20)
+    country: str | None = Field(None, max_length=100)
 
     # Payment Preferences
-    payment_preferences: Optional[str] = None
+    payment_preferences: str | None = None
 
     # Banking Info
-    bank_details: Optional[str] = None
+    bank_details: str | None = None
 
     # Admin Controls
     allow_invoices: bool = True
@@ -36,38 +36,38 @@ class AccountBase(BaseModel):
 
 class AccountCreate(AccountBase):
     """Schema for creating an account (workspace_id injected by service)"""
-    tag_ids: List[int] = []  # List of tag IDs to assign
+    tag_ids: list[int] = []  # List of tag IDs to assign
 
 
 class AccountUpdate(BaseModel):
     """Schema for updating an account"""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    account_code: Optional[str] = Field(None, max_length=50)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    account_code: str | None = Field(None, max_length=50)
 
     # Contact info
-    primary_contact_person: Optional[str] = Field(None, max_length=255)
-    primary_email: Optional[str] = Field(None, max_length=255)
-    primary_phone: Optional[str] = Field(None, max_length=50)
-    secondary_contact_person: Optional[str] = Field(None, max_length=255)
-    secondary_email: Optional[str] = Field(None, max_length=255)
-    secondary_phone: Optional[str] = Field(None, max_length=50)
+    primary_contact_person: str | None = Field(None, max_length=255)
+    primary_email: str | None = Field(None, max_length=255)
+    primary_phone: str | None = Field(None, max_length=50)
+    secondary_contact_person: str | None = Field(None, max_length=255)
+    secondary_email: str | None = Field(None, max_length=255)
+    secondary_phone: str | None = Field(None, max_length=50)
 
     # Address
-    address: Optional[str] = None
-    city: Optional[str] = Field(None, max_length=100)
-    postal_code: Optional[str] = Field(None, max_length=20)
-    country: Optional[str] = Field(None, max_length=100)
+    address: str | None = None
+    city: str | None = Field(None, max_length=100)
+    postal_code: str | None = Field(None, max_length=20)
+    country: str | None = Field(None, max_length=100)
 
     # Payment Preferences
-    payment_preferences: Optional[str] = None
+    payment_preferences: str | None = None
 
     # Banking Info
-    bank_details: Optional[str] = None
+    bank_details: str | None = None
 
     # Admin Controls
-    allow_invoices: Optional[bool] = None
-    is_active: Optional[bool] = None
-    tag_ids: Optional[List[int]] = None  # Update tags if provided
+    allow_invoices: bool | None = None
+    is_active: bool | None = None
+    tag_ids: list[int] | None = None  # Update tags if provided
 
 
 class AccountInDB(AccountBase):
@@ -82,18 +82,17 @@ class AccountInDB(AccountBase):
 
 class AccountResponse(AccountInDB):
     """Account response schema"""
-    pass
 
 
 class AccountWithTagsResponse(AccountInDB):
     """Account response schema with tags included"""
-    account_tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon
+    account_tags: list[dict] = []  # List of tag objects with id, name, tag_code, color, icon
 
 
 class AccountOpenBalanceRollup(BaseModel):
     """Open invoice balances for one account."""
-    payable_outstanding: Decimal = Decimal("0")
-    receivable_outstanding: Decimal = Decimal("0")
+    payable_outstanding: Decimal = Decimal(0)
+    receivable_outstanding: Decimal = Decimal(0)
     open_payable_count: int = 0
     open_receivable_count: int = 0
     has_overdue_payable: bool = False
@@ -107,7 +106,7 @@ class AccountHubRowResponse(AccountWithTagsResponse):
 
 class AccountHubListResponse(BaseModel):
     """Paginated accounts hub list."""
-    items: List[AccountHubRowResponse]
+    items: list[AccountHubRowResponse]
     total: int
     skip: int
     limit: int

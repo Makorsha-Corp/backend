@@ -1,11 +1,12 @@
 """Production Batch DAO operations"""
-from typing import List, Optional
 from datetime import date, datetime
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
-from app.models.production_line import ProductionLine
+
 from app.dao.base import BaseDAO
 from app.models.production_batch import ProductionBatch
+from app.models.production_line import ProductionLine
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
 
 
@@ -17,7 +18,7 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """
         Get all production batches for a workspace (SECURITY-CRITICAL)
 
@@ -39,33 +40,10 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
             .all()
         )
 
-    def get_by_batch_number(
-        self, db: Session, *, batch_number: str, workspace_id: int
-    ) -> Optional[ProductionBatch]:
-        """
-        Get batch by batch number (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            batch_number: Batch number (e.g., "BATCH-2025-001")
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            Production batch or None
-        """
-        return (
-            db.query(ProductionBatch)
-            .filter(
-                ProductionBatch.workspace_id == workspace_id,
-                ProductionBatch.batch_number == batch_number
-            )
-            .first()
-        )
-
     def get_by_production_line(
         self, db: Session, *, production_line_id: int, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """
         Get batches by production line (SECURITY-CRITICAL)
 
@@ -94,7 +72,7 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
     def get_by_formula(
         self, db: Session, *, formula_id: int, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """
         Get batches by formula (SECURITY-CRITICAL)
 
@@ -123,7 +101,7 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
     def get_by_status(
         self, db: Session, *, status: str, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """
         Get batches by status (SECURITY-CRITICAL)
 
@@ -155,7 +133,7 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
         *,
         workspace_id: int,
         status: str,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
     ) -> int:
         query = db.query(func.count(ProductionBatch.id)).filter(
             ProductionBatch.workspace_id == workspace_id,
@@ -170,7 +148,7 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
     def get_by_date_range(
         self, db: Session, *, start_date: date, end_date: date, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """
         Get batches by date range (SECURITY-CRITICAL)
 
@@ -198,59 +176,9 @@ class ProductionBatchDAO(BaseDAO[ProductionBatch, ProductionBatchCreate, Product
             .all()
         )
 
-    def get_in_progress_batches(
-        self, db: Session, *, workspace_id: int
-    ) -> List[ProductionBatch]:
-        """
-        Get all in-progress batches (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-
-        Returns:
-            List of in-progress production batches
-        """
-        return (
-            db.query(ProductionBatch)
-            .filter(
-                ProductionBatch.workspace_id == workspace_id,
-                ProductionBatch.status == 'in_progress'
-            )
-            .order_by(ProductionBatch.batch_date.desc())
-            .all()
-        )
-
-    def get_completed_batches(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ProductionBatch]:
-        """
-        Get completed batches (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of completed production batches
-        """
-        return (
-            db.query(ProductionBatch)
-            .filter(
-                ProductionBatch.workspace_id == workspace_id,
-                ProductionBatch.status == 'completed'
-            )
-            .order_by(ProductionBatch.completed_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ProductionBatch]:
+    ) -> ProductionBatch | None:
         """
         Get batch by ID with workspace validation (SECURITY-CRITICAL)
 

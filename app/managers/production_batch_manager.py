@@ -1,28 +1,31 @@
 """Production Batch Manager for business logic"""
 from collections import defaultdict
-from typing import List, Optional
-from datetime import datetime
 from decimal import Decimal
+
 from sqlalchemy.orm import Session
-from app.managers.base_manager import BaseManager
-from app.models.production_batch import ProductionBatch
-from app.models.production_batch_item import ProductionBatchItem
-from app.models.production_batch_stage_log import ProductionBatchStageLog
+
+from app.dao.inventory import inventory_dao
+from app.dao.inventory_ledger import inventory_ledger_dao
+from app.dao.item import item_dao
+from app.dao.product_ledger import product_ledger_dao
 from app.dao.production_batch import production_batch_dao
 from app.dao.production_batch_item import production_batch_item_dao
-from app.dao.production_line import production_line_dao
+from app.dao.production_batch_stage_log import production_batch_stage_log_dao
 from app.dao.production_formula import production_formula_dao
 from app.dao.production_formula_item import production_formula_item_dao
 from app.dao.production_formula_stage import production_formula_stage_dao
-from app.dao.production_batch_stage_log import production_batch_stage_log_dao
-from app.dao.item import item_dao
-from app.dao.inventory import inventory_dao
-from app.dao.inventory_ledger import inventory_ledger_dao
-from app.dao.product_ledger import product_ledger_dao
+from app.dao.production_line import production_line_dao
+from app.managers.base_manager import BaseManager
 from app.managers.product_manager import product_manager
 from app.models.enums import InventoryTypeEnum
+from app.models.production_batch import ProductionBatch
+from app.models.production_batch_item import ProductionBatchItem
+from app.models.production_batch_stage_log import ProductionBatchStageLog
 from app.schemas.production_batch import ProductionBatchCreate, ProductionBatchUpdate
-from app.schemas.production_batch_item import ProductionBatchItemCreate, ProductionBatchItemUpdate
+from app.schemas.production_batch_item import (
+    ProductionBatchItemCreate,
+    ProductionBatchItemUpdate,
+)
 from app.schemas.production_batch_stage_log import (
     ProductionBatchStageLogCreate,
     ProductionBatchStageLogUpdate,
@@ -156,7 +159,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         session: Session,
         batch_id: int,
         workspace_id: int
-    ) -> Optional[ProductionBatch]:
+    ) -> ProductionBatch | None:
         """Get batch by ID within workspace."""
         return self.batch_dao.get_by_id_and_workspace(
             session, id=batch_id, workspace_id=workspace_id
@@ -166,12 +169,12 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         self,
         session: Session,
         workspace_id: int,
-        production_line_id: Optional[int] = None,
-        formula_id: Optional[int] = None,
-        status: Optional[str] = None,
+        production_line_id: int | None = None,
+        formula_id: int | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionBatch]:
+    ) -> list[ProductionBatch]:
         """Get batches with optional filtering."""
         if production_line_id is not None:
             return self.batch_dao.get_by_production_line(
@@ -197,7 +200,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
     ) -> dict:
         in_progress = self.batch_dao.count_by_status(
             session,
@@ -242,7 +245,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        target_output_quantity: Optional[int] = None,
+        target_output_quantity: int | None = None,
     ) -> ProductionBatch:
         """
         Start a production batch (draft → in_progress).
@@ -326,7 +329,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
             )
             old_qty = inv.qty
             new_qty = old_qty - qty_to_deduct
-            avg_price = inv.avg_price if inv.avg_price is not None else Decimal('0')
+            avg_price = inv.avg_price if inv.avg_price is not None else Decimal(0)
 
             inv.qty = new_qty
             session.flush()
@@ -369,9 +372,9 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        actual_output_quantity: Optional[int] = None,
-        actual_duration_minutes: Optional[int] = None,
-        notes: Optional[str] = None
+        actual_output_quantity: int | None = None,
+        actual_duration_minutes: int | None = None,
+        notes: str | None = None
     ) -> ProductionBatch:
         """
         Complete a production batch (in_progress → completed).
@@ -502,7 +505,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         batch_id: int,
         workspace_id: int,
         user_id: int,
-        notes: Optional[str] = None
+        notes: str | None = None
     ) -> ProductionBatch:
         """
         Cancel a production batch (draft or in_progress → cancelled).
@@ -623,8 +626,8 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         session: Session,
         batch_id: int,
         workspace_id: int,
-        item_role: Optional[str] = None
-    ) -> List[ProductionBatchItem]:
+        item_role: str | None = None
+    ) -> list[ProductionBatchItem]:
         """Get items for a batch with optional role filter."""
         batch = self.batch_dao.get_by_id_and_workspace(
             session, id=batch_id, workspace_id=workspace_id
@@ -779,7 +782,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
 
     def get_batch_stage_logs(
         self, session: Session, batch_id: int, workspace_id: int
-    ) -> List[ProductionBatchStageLog]:
+    ) -> list[ProductionBatchStageLog]:
         batch = self.batch_dao.get_by_id_and_workspace(
             session, id=batch_id, workspace_id=workspace_id
         )
@@ -854,7 +857,7 @@ class ProductionBatchManager(BaseManager[ProductionBatch]):
         update_dict["logged_by"] = user_id
         return self.stage_log_dao.update(session, db_obj=log, obj_in=update_dict)
 
-    def _validate_stage_log_completion(self, status: str, output_quantity: Optional[int]) -> None:
+    def _validate_stage_log_completion(self, status: str, output_quantity: int | None) -> None:
         if status == "completed" and output_quantity is None:
             raise ValueError("Completed stage logs require output_quantity")
         if status == "skipped":

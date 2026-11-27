@@ -1,7 +1,7 @@
 """Invoice item model — frozen snapshot of an order line item on an invoice."""
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.orm import backref, relationship
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

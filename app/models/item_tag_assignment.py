@@ -1,7 +1,7 @@
 """Item tag assignment model"""
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

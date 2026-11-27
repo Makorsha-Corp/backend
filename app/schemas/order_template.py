@@ -1,7 +1,7 @@
 """Order template schemas - reusable expense order templates"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -53,7 +53,7 @@ class OrderTemplateCreate(BaseModel):
     requires_approval: bool = True
     default_approver_id: int | None = None
     notes: str | None = None
-    items: List[OrderTemplateItemCreate] | None = None
+    items: list[OrderTemplateItemCreate] | None = None
 
 
 class OrderTemplateUpdate(BaseModel):

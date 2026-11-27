@@ -1,7 +1,7 @@
 """Production Batch Item schemas"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProductionBatchItemBase(BaseModel):
@@ -9,30 +9,29 @@ class ProductionBatchItemBase(BaseModel):
     batch_id: int
     item_id: int
     item_role: str = Field(..., pattern=r'^(input|output|waste|byproduct)$')
-    expected_quantity: Optional[int] = Field(None, gt=0)
-    actual_quantity: Optional[int] = Field(None, gt=0)
-    source_location_type: Optional[str] = Field(None, max_length=50)
-    source_location_id: Optional[int] = None
-    destination_location_type: Optional[str] = Field(None, max_length=50)
-    destination_location_id: Optional[int] = None
-    notes: Optional[str] = None
+    expected_quantity: int | None = Field(None, gt=0)
+    actual_quantity: int | None = Field(None, gt=0)
+    source_location_type: str | None = Field(None, max_length=50)
+    source_location_id: int | None = None
+    destination_location_type: str | None = Field(None, max_length=50)
+    destination_location_id: int | None = None
+    notes: str | None = None
 
 
 class ProductionBatchItemCreate(ProductionBatchItemBase):
     """Production batch item creation schema (workspace_id injected by service)"""
-    pass
 
 
 class ProductionBatchItemUpdate(BaseModel):
     """Production batch item update schema"""
-    item_role: Optional[str] = Field(None, pattern=r'^(input|output|waste|byproduct)$')
-    expected_quantity: Optional[int] = Field(None, gt=0)
-    actual_quantity: Optional[int] = Field(None, gt=0)
-    source_location_type: Optional[str] = Field(None, max_length=50)
-    source_location_id: Optional[int] = None
-    destination_location_type: Optional[str] = Field(None, max_length=50)
-    destination_location_id: Optional[int] = None
-    notes: Optional[str] = None
+    item_role: str | None = Field(None, pattern=r'^(input|output|waste|byproduct)$')
+    expected_quantity: int | None = Field(None, gt=0)
+    actual_quantity: int | None = Field(None, gt=0)
+    source_location_type: str | None = Field(None, max_length=50)
+    source_location_id: int | None = None
+    destination_location_type: str | None = Field(None, max_length=50)
+    destination_location_id: int | None = None
+    notes: str | None = None
 
 
 class ProductionBatchItemInDB(ProductionBatchItemBase):
@@ -41,10 +40,9 @@ class ProductionBatchItemInDB(ProductionBatchItemBase):
 
     id: int
     workspace_id: int
-    variance_quantity: Optional[int] = None
-    variance_percentage: Optional[Decimal] = None
+    variance_quantity: int | None = None
+    variance_percentage: Decimal | None = None
 
 
 class ProductionBatchItemResponse(ProductionBatchItemInDB):
     """Production batch item response schema"""
-    pass

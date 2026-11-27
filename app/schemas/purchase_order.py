@@ -1,7 +1,7 @@
 """Purchase order schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Literal
 
 PurchaseOrderSection = Literal['supplier', 'details', 'items', 'invoice']
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,9 +47,9 @@ class PurchaseOrderItemSyncUpdate(BaseModel):
 
 
 class PurchaseOrderItemSyncRequest(BaseModel):
-    remove_ids: List[int] = []
-    updates: List[PurchaseOrderItemSyncUpdate] = []
-    additions: List[PurchaseOrderItemCreate] = []
+    remove_ids: list[int] = []
+    updates: list[PurchaseOrderItemSyncUpdate] = []
+    additions: list[PurchaseOrderItemCreate] = []
 
 
 class PurchaseOrderItemResponse(BaseModel):
@@ -62,10 +62,10 @@ class PurchaseOrderItemResponse(BaseModel):
     item_unit: str | None = None
     quantity_ordered: Decimal
     quantity_received: Decimal
-    quantity_returned: Decimal = Decimal('0')
-    quantity_refunded: Decimal = Decimal('0')
-    quantity_available_to_return: Decimal = Decimal('0')
-    quantity_remaining: Decimal = Decimal('0')
+    quantity_returned: Decimal = Decimal(0)
+    quantity_refunded: Decimal = Decimal(0)
+    quantity_available_to_return: Decimal = Decimal(0)
+    quantity_remaining: Decimal = Decimal(0)
     unit_price: Decimal | None = None
     line_subtotal: Decimal | None = None
     notes: str | None = None
@@ -83,7 +83,7 @@ class PurchaseOrderCreate(BaseModel):
     current_status_id: int | None = None
     order_workflow_id: int | None = None
     required_approvals: int | None = None
-    items: List[PurchaseOrderItemCreate] | None = None
+    items: list[PurchaseOrderItemCreate] | None = None
 
 
 class PurchaseOrderSectionConfirmRequest(BaseModel):
@@ -147,9 +147,9 @@ class PurchaseOrderResponse(BaseModel):
     items_updated_at: datetime | None = None
     invoice_payment_status: str | None = None
     item_count: int = 0
-    quantity_ordered_total: Decimal = Decimal("0")
-    quantity_received_total: Decimal = Decimal("0")
-    item_names_preview: List[str] = Field(default_factory=list, max_length=4)
+    quantity_ordered_total: Decimal = Decimal(0)
+    quantity_received_total: Decimal = Decimal(0)
+    item_names_preview: list[str] = Field(default_factory=list, max_length=4)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -160,16 +160,16 @@ class PurchaseOrderHubStatsResponse(BaseModel):
     open_count: int
     open_value: Decimal
     not_invoiced_count: int
-    recent_orders: List[OrderHubRecentSummary] = []
+    recent_orders: list[OrderHubRecentSummary] = []
     pending_planning_count: int = 0
-    pending_planning: List[OrderHubPendingHighlight] = []
+    pending_planning: list[OrderHubPendingHighlight] = []
     missing_invoice_count: int = 0
-    missing_invoice: List[OrderHubPendingHighlight] = []
-    oldest_drafts: List[OrderHubPendingHighlight] = []
+    missing_invoice: list[OrderHubPendingHighlight] = []
+    oldest_drafts: list[OrderHubPendingHighlight] = []
 
 
 class PurchaseOrderListResponse(BaseModel):
-    items: List[PurchaseOrderResponse]
+    items: list[PurchaseOrderResponse]
     total: int
     skip: int
     limit: int
@@ -203,7 +203,7 @@ class ApprovalSummaryResponse(BaseModel):
 
 
 class PurchaseOrderApproversList(BaseModel):
-    approvers: List[PurchaseOrderApproverResponse]
+    approvers: list[PurchaseOrderApproverResponse]
     summary: ApprovalSummaryResponse
 
 

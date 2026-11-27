@@ -1,8 +1,9 @@
 """Unified inventory schemas (STORAGE, DAMAGED, WASTE, SCRAP)"""
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict, Field
+
 from app.models.enums import InventoryTypeEnum
 
 
@@ -51,7 +52,7 @@ class InventoryResponse(BaseModel):
 
 class InventoryListResponse(BaseModel):
     """Paginated inventory list for Storage and other list views."""
-    items: List[InventoryResponse] = Field(default_factory=list)
+    items: list[InventoryResponse] = Field(default_factory=list)
     total: int = 0
     skip: int = 0
     limit: int = 0
@@ -67,5 +68,5 @@ class InventoryStatsByTypeRow(BaseModel):
 class InventoryStatsResponse(BaseModel):
     records: int = 0
     total_qty: int = 0
-    estimated_value: Decimal = Decimal("0")
-    by_type: List[InventoryStatsByTypeRow] = Field(default_factory=list)
+    estimated_value: Decimal = Decimal(0)
+    by_type: list[InventoryStatsByTypeRow] = Field(default_factory=list)

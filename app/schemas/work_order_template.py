@@ -1,15 +1,16 @@
 """Work order template schemas"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import WorkOrderPriorityEnum
 from app.schemas.work_order_item import WorkOrderItemActionType
 
 
 class WorkOrderTemplateItemCreate(BaseModel):
     item_id: int
-    quantity: Decimal = Decimal("1")
+    quantity: Decimal = Decimal(1)
     action_type: WorkOrderItemActionType = 'CONSUME'
     replaced_item_id: int | None = None
     notes: str | None = None
@@ -48,8 +49,8 @@ class WorkOrderTemplateCreate(BaseModel):
     cost: Decimal | None = None
     requires_approval: bool = False
     notes: str | None = None
-    items: List[WorkOrderTemplateItemCreate] | None = None
-    approver_user_ids: List[int] | None = None
+    items: list[WorkOrderTemplateItemCreate] | None = None
+    approver_user_ids: list[int] | None = None
     is_recurring: bool = False
     recurrence_type: str | None = None
     recurrence_day: int | None = None
@@ -73,7 +74,7 @@ class WorkOrderTemplateUpdate(BaseModel):
     requires_approval: bool | None = None
     notes: str | None = None
     is_active: bool | None = None
-    approver_user_ids: List[int] | None = None
+    approver_user_ids: list[int] | None = None
     is_recurring: bool | None = None
     recurrence_type: str | None = None
     recurrence_day: int | None = None

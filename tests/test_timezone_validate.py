@@ -1,5 +1,4 @@
 """Tests for IANA timezone validation."""
-import pytest
 
 from app.utils.timezone_validate import is_valid_iana_timezone
 

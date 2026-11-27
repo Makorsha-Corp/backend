@@ -1,7 +1,7 @@
 """Emit approval-related notifications for PO / TO / EXP workflows."""
 from __future__ import annotations
 
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ def format_order_ref(entity_type: str, entity_id: int) -> str:
     return f"{entity_type.replace('_', ' ')} #{entity_id}"
 
 
-def _active_member_ids(db: Session, workspace_id: int) -> Set[int]:
+def _active_member_ids(db: Session, workspace_id: int) -> set[int]:
     members = workspace_member_dao.get_workspace_members(
         db, workspace_id=workspace_id, status="active"
     )
@@ -80,7 +80,7 @@ def _actor_name(db: Session, user_id: int | None) -> str:
 
 def _approval_summary(
     db: Session, entity_type: str, entity_id: int, workspace_id: int
-) -> Tuple[int, int, bool]:
+) -> tuple[int, int, bool]:
     if entity_type == "purchase_order":
         from app.managers.purchase_order_manager import purchase_order_manager
 
@@ -137,7 +137,7 @@ def _section_gap_preview(db: Session, entity_type: str, order: Any) -> str:
     if entity_type == "purchase_order":
         from app.managers.purchase_order_manager import SECTION_CONFIRM_FIELDS
 
-        gaps: List[str] = []
+        gaps: list[str] = []
         for field, (_key, label) in SECTION_CONFIRM_FIELDS.items():
             if field == "invoice_confirmed":
                 continue
@@ -162,7 +162,7 @@ def _section_gap_preview(db: Session, entity_type: str, order: Any) -> str:
         return "Add at least one item before approvals can proceed"
 
 
-def _pending_approver_ids(db: Session, entity_type: str, entity_id: int, workspace_id: int) -> List[int]:
+def _pending_approver_ids(db: Session, entity_type: str, entity_id: int, workspace_id: int) -> list[int]:
     if entity_type == "purchase_order":
         from app.dao.purchase_order_approver import purchase_order_approver_dao
 
@@ -237,7 +237,7 @@ def notify_approval_pending_for_order(
     entity_type: str,
     entity_id: int,
     actor_user_id: int | None,
-    exclude_user_ids: Optional[Set[int]] = None,
+    exclude_user_ids: set[int] | None = None,
 ) -> None:
     exclude = exclude_user_ids or set()
     preview = build_approval_preview(db, entity_type, entity_id, workspace_id)
@@ -305,7 +305,7 @@ def notify_invoice_action(
         preview = f"Invoice confirmed on {ref} — order locked"
         title_hint = "confirmed"
 
-    recipient_ids: Set[int] = set(_pending_approver_ids(db, entity_type, entity_id, workspace_id))
+    recipient_ids: set[int] = set(_pending_approver_ids(db, entity_type, entity_id, workspace_id))
     approved_count, required, _ = _approval_summary(db, entity_type, entity_id, workspace_id)
     if required > 0:
         if entity_type == "purchase_order":

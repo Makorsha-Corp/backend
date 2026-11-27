@@ -1,7 +1,9 @@
 """Machine maintenance log schemas"""
 from datetime import date, datetime
 from decimal import Decimal
+
 from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import MaintenanceTypeEnum
 
 

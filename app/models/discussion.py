@@ -1,7 +1,9 @@
 """Universal discussion model — threaded messages on any entity."""
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Index
-from sqlalchemy.orm import relationship, backref as orm_backref
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import backref as orm_backref
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.db.base_class import Base
 
 

@@ -4,9 +4,8 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All inherited BaseDAO methods automatically
 filter by workspace_id via get_by_workspace() and get_by_id_and_workspace().
 """
-from typing import List
-from datetime import datetime
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.delivery_method import DeliveryMethod
 from app.schemas.delivery_method import DeliveryMethodCreate, DeliveryMethodUpdate
@@ -21,22 +20,6 @@ class DAODeliveryMethod(BaseDAO[DeliveryMethod, DeliveryMethodCreate, DeliveryMe
     - get_by_workspace() - Get all delivery methods in workspace
     - get_by_id_and_workspace() - Get specific delivery method in workspace
     """
-
-    def get_active_delivery_methods(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[DeliveryMethod]:
-        """Get all active, non-deleted delivery methods for a workspace (SECURITY-CRITICAL: workspace-filtered)"""
-        return (
-            db.query(DeliveryMethod)
-            .filter(
-                DeliveryMethod.workspace_id == workspace_id,  # SECURITY: workspace isolation
-                DeliveryMethod.is_active == True,
-                DeliveryMethod.is_deleted == False
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
 
     def soft_delete(
         self, db: Session, *, db_obj: DeliveryMethod, deleted_by: int

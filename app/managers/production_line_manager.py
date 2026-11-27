@@ -1,11 +1,12 @@
 """Production Line Manager for business logic"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.managers.base_manager import BaseManager
-from app.models.production_line import ProductionLine
-from app.dao.production_line import production_line_dao
+
 from app.dao.factory import factory_dao
 from app.dao.machine import machine_dao
+from app.dao.production_line import production_line_dao
+from app.managers.base_manager import BaseManager
+from app.models.production_line import ProductionLine
 from app.schemas.production_line import ProductionLineCreate, ProductionLineUpdate
 
 
@@ -142,7 +143,7 @@ class ProductionLineManager(BaseManager[ProductionLine]):
         session: Session,
         line_id: int,
         workspace_id: int
-    ) -> Optional[ProductionLine]:
+    ) -> ProductionLine | None:
         """
         Get production line by ID within workspace.
 
@@ -165,11 +166,11 @@ class ProductionLineManager(BaseManager[ProductionLine]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
         active_only: bool = False,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProductionLine]:
+    ) -> list[ProductionLine]:
         """
         Get production lines with optional filtering.
 

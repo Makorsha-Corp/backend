@@ -1,20 +1,22 @@
 """Transfer Order Service - transaction orchestration"""
 from datetime import date
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.transfer_order_manager import transfer_order_manager
 from app.models.transfer_order import TransferOrder
 from app.models.transfer_order_item import TransferOrderItem
 from app.schemas.transfer_order import (
-    TransferOrderCreate, TransferOrderUpdate,
-    TransferOrderItemCreate, TransferOrderItemUpdate,
+    TransferOrderCreate,
+    TransferOrderItemCreate,
+    TransferOrderItemUpdate,
+    TransferOrderUpdate,
 )
 from app.services.approval_notification_service import (
     handle_add_approver,
     handle_order_update_notifications,
 )
+from app.services.base_service import BaseService
 
 
 class TransferOrderService(BaseService):
@@ -79,13 +81,13 @@ class TransferOrderService(BaseService):
     def _hub_filter_kwargs(
         self,
         *,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        source_location_type: Optional[str] = None,
-        destination_location_type: Optional[str] = None,
-        search: Optional[str] = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        source_location_type: str | None = None,
+        destination_location_type: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
     ) -> dict:
         return {
@@ -110,13 +112,13 @@ class TransferOrderService(BaseService):
         *,
         skip: int = 0,
         limit: int = 50,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        source_location_type: Optional[str] = None,
-        destination_location_type: Optional[str] = None,
-        search: Optional[str] = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        source_location_type: str | None = None,
+        destination_location_type: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
     ):
         from app.schemas.transfer_order import TransferOrderListResponse
@@ -148,13 +150,13 @@ class TransferOrderService(BaseService):
         db: Session,
         workspace_id: int,
         *,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        status_ids: Optional[List[int]] = None,
-        factory_id: Optional[int] = None,
-        source_location_type: Optional[str] = None,
-        destination_location_type: Optional[str] = None,
-        search: Optional[str] = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        status_ids: list[int] | None = None,
+        factory_id: int | None = None,
+        source_location_type: str | None = None,
+        destination_location_type: str | None = None,
+        search: str | None = None,
         exclude_complete: bool = False,
     ):
         from app.schemas.transfer_order import TransferOrderHubStatsResponse
@@ -281,7 +283,7 @@ class TransferOrderService(BaseService):
             self._rollback_transaction(db)
             raise
 
-    def get_items(self, db: Session, to_id: int, workspace_id: int) -> List[TransferOrderItem]:
+    def get_items(self, db: Session, to_id: int, workspace_id: int) -> list[TransferOrderItem]:
         return self.manager.get_items(db, to_id, workspace_id)
 
     # ─── Events ────────────────────────────────────────────────
@@ -320,7 +322,7 @@ class TransferOrderService(BaseService):
             raise
 
     def remove_approver(
-        self, db: Session, to_id: int, user_id: int, workspace_id: int, performed_by: Optional[int] = None
+        self, db: Session, to_id: int, user_id: int, workspace_id: int, performed_by: int | None = None
     ) -> None:
         try:
             self.manager.remove_approver(

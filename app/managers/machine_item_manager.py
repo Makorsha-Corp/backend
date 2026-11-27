@@ -1,19 +1,20 @@
 """Machine item manager - business logic for machine item operations"""
-from typing import Any, Dict, List, Optional
 from decimal import Decimal
-from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from typing import Any
 
-from app.models.machine_item import MachineItem
-from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from app.dao.item import item_dao
+from app.dao.machine import machine_dao
 from app.dao.machine_item import machine_item_dao
 from app.dao.machine_item_ledger import machine_item_ledger_dao
-from app.dao.machine import machine_dao
-from app.dao.item import item_dao
 from app.managers.machine_activity_manager import (
-    machine_activity_manager,
     MACHINE_ITEM_LOG_FIELDS,
+    machine_activity_manager,
 )
+from app.models.machine_item import MachineItem
+from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate
 
 
 class MachineItemManager:
@@ -44,9 +45,9 @@ class MachineItemManager:
 
     def list_machine_items(
         self, session: Session, workspace_id: int,
-        machine_id: Optional[int] = None,
+        machine_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[MachineItem]:
+    ) -> list[MachineItem]:
         """List machine items with optional machine filter"""
         if machine_id:
             return self.machine_item_dao.get_by_machine(
@@ -79,7 +80,7 @@ class MachineItemManager:
         of `MachineItemLedgerCreate`.
         """
         zero = Decimal("0.00")
-        ledger_payload: Dict[str, Any] = {
+        ledger_payload: dict[str, Any] = {
             "workspace_id": workspace_id,
             "machine_id": machine_id,
             "item_id": item_id,

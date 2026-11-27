@@ -1,7 +1,17 @@
 """Product model - finished goods available for sale"""
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Text, Numeric, Boolean, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.db.base_class import Base
 
 

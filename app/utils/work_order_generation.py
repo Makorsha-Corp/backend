@@ -1,8 +1,6 @@
 """Shared machine expansion for template-based work order generation."""
 from __future__ import annotations
 
-from typing import List, Optional
-
 from sqlalchemy.orm import Session
 
 from app.dao.machine import machine_dao
@@ -14,9 +12,9 @@ def resolve_template_machine_ids(
     *,
     template: WorkOrderTemplate,
     workspace_id: int,
-    factory_section_id: Optional[int] = None,
-    factory_id: Optional[int] = None,
-) -> List[int]:
+    factory_section_id: int | None = None,
+    factory_id: int | None = None,
+) -> list[int]:
     """Machines a template applies to for a generate/stage run."""
     section_id = template.default_factory_section_id or factory_section_id
     if template.default_machine_id:

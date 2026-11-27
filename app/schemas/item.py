@@ -1,7 +1,8 @@
 """Item schemas (renamed from Part)"""
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import List, Literal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ItemBase(BaseModel):
@@ -15,7 +16,7 @@ class ItemBase(BaseModel):
 
 class ItemCreate(ItemBase):
     """Item creation schema - workspace_id injected by service layer"""
-    tag_ids: List[int] = []  # List of tag IDs to assign
+    tag_ids: list[int] = []  # List of tag IDs to assign
 
 
 class ItemUpdate(BaseModel):
@@ -26,7 +27,7 @@ class ItemUpdate(BaseModel):
     sku: str | None = None
     item_type: Literal["physical", "service"] | None = None
     is_active: bool | None = None
-    tag_ids: List[int] | None = None  # Update tags if provided
+    tag_ids: list[int] | None = None  # Update tags if provided
 
 
 class ItemResponse(ItemBase):
@@ -51,14 +52,14 @@ class ItemWithTagsResponse(ItemBase):
     created_by: int | None = None
     updated_by: int | None = None
     is_active: bool
-    tags: List[dict] = []  # List of tag objects with id, name, tag_code, color, icon
+    tags: list[dict] = []  # List of tag objects with id, name, tag_code, color, icon
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ItemListResponse(BaseModel):
     """Paginated active items with tags for catalog list views."""
-    items: List[ItemWithTagsResponse] = Field(default_factory=list)
+    items: list[ItemWithTagsResponse] = Field(default_factory=list)
     total: int = 0
     skip: int = 0
     limit: int = 0

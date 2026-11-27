@@ -1,8 +1,9 @@
 """Sales order schemas"""
-from typing import List, Literal
-from pydantic import BaseModel, ConfigDict
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
 
 
 class SalesOrderBase(BaseModel):
@@ -104,7 +105,7 @@ class SalesOrderApprovalSummaryResponse(BaseModel):
 
 
 class SalesOrderApproversList(BaseModel):
-    approvers: List[SalesOrderApproverResponse]
+    approvers: list[SalesOrderApproverResponse]
     summary: SalesOrderApprovalSummaryResponse
 
 

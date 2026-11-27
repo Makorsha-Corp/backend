@@ -1,16 +1,17 @@
 """Item DAO operations (renamed from Part)"""
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import func, or_, desc
-from typing import List, Optional, Tuple
+
+from sqlalchemy import desc, func, or_
+from sqlalchemy.orm import Query, Session
+
 from app.dao.base import BaseDAO
 from app.models.item import Item
 from app.models.item_tag import ItemTag
 from app.models.item_tag_assignment import ItemTagAssignment
 from app.schemas.item import ItemCreate, ItemUpdate
 from app.utils.item_name_normalize import (
-    normalize_item_name,
     MIN_SIMILAR_NAME_LENGTH,
     SIMILARITY_THRESHOLD,
+    normalize_item_name,
 )
 
 
@@ -18,9 +19,9 @@ def _apply_item_catalog_filters(
     query: Query,
     *,
     workspace_id: int,
-    search: Optional[str] = None,
-    unit: Optional[str] = None,
-    tag_ids: Optional[List[int]] = None,
+    search: str | None = None,
+    unit: str | None = None,
+    tag_ids: list[int] | None = None,
 ) -> Query:
     """Shared filters for paginated item catalog list/count."""
     query = query.filter(
@@ -71,7 +72,7 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
 
     def search_by_name_in_workspace(
         self, db: Session, *, workspace_id: int, name: str, skip: int = 0, limit: int = 100
-    ) -> List[Item]:
+    ) -> list[Item]:
         """
         Search items by name within a workspace (SECURITY-CRITICAL)
 
@@ -97,32 +98,9 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
             .all()
         )
 
-    def get_by_sku_in_workspace(
-        self, db: Session, *, workspace_id: int, sku: str
-    ) -> Optional[Item]:
-        """
-        Get item by SKU within workspace (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            workspace_id: Workspace ID to filter by
-            sku: SKU to search for
-
-        Returns:
-            Item with matching SKU or None
-        """
-        return (
-            db.query(Item)
-            .filter(
-                Item.workspace_id == workspace_id,
-                Item.sku == sku
-            )
-            .first()
-        )
-
     def get_active_items_in_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Item]:
+    ) -> list[Item]:
         """
         Get only active items within workspace
 
@@ -153,10 +131,10 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-        search: Optional[str] = None,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
-    ) -> List[Item]:
+        search: str | None = None,
+        unit: str | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> list[Item]:
         query = db.query(Item)
         query = _apply_item_catalog_filters(
             query,
@@ -172,9 +150,9 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        search: Optional[str] = None,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
+        search: str | None = None,
+        unit: str | None = None,
+        tag_ids: list[int] | None = None,
     ) -> int:
         filtered_ids = (
             _apply_item_catalog_filters(
@@ -189,7 +167,7 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
         )
         return int(db.query(func.count()).select_from(filtered_ids).scalar() or 0)
 
-    def distinct_units_in_workspace(self, db: Session, *, workspace_id: int) -> List[str]:
+    def distinct_units_in_workspace(self, db: Session, *, workspace_id: int) -> list[str]:
         rows = (
             db.query(Item.unit)
             .filter(
@@ -209,8 +187,8 @@ class ItemDAO(BaseDAO[Item, ItemCreate, ItemUpdate]):
         workspace_id: int,
         name: str,
         limit: int = 5,
-        exclude_item_id: Optional[int] = None,
-    ) -> List[Tuple[Item, float]]:
+        exclude_item_id: int | None = None,
+    ) -> list[tuple[Item, float]]:
         """
         Find active items with similar normalized names (SECURITY-CRITICAL).
 

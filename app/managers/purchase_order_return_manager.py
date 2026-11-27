@@ -1,13 +1,16 @@
 """Purchase Order Return Manager - business logic for returning received PO goods"""
-from typing import List
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.purchase_order import purchase_order_item_dao
+from app.dao.purchase_order_return import (
+    purchase_order_return_dao,
+    purchase_order_return_item_dao,
+)
 from app.managers.base_manager import BaseManager
 from app.models.purchase_order_return import PurchaseOrderReturn
-from app.dao.purchase_order_return import purchase_order_return_dao, purchase_order_return_item_dao
-from app.dao.purchase_order import purchase_order_item_dao
-from app.dao.account_invoice import account_invoice_dao
 from app.schemas.purchase_order_return import PurchaseOrderReturnCreate
 
 
@@ -32,7 +35,7 @@ class PurchaseOrderReturnManager(BaseManager[PurchaseOrderReturn]):
         purchase_order_id: int,
         workspace_id: int,
         data: PurchaseOrderReturnCreate,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Validate requested return quantities against quantity_available_to_return."""
         item_map = {
             it.id: it
@@ -40,7 +43,7 @@ class PurchaseOrderReturnManager(BaseManager[PurchaseOrderReturn]):
                 session, purchase_order_id=purchase_order_id, workspace_id=workspace_id
             )
         }
-        built: List[dict] = []
+        built: list[dict] = []
         for line in data.items:
             po_line = item_map.get(line.po_item_id)
             if po_line is None:
@@ -79,7 +82,7 @@ class PurchaseOrderReturnManager(BaseManager[PurchaseOrderReturn]):
 
     def list_returns(
         self, session: Session, purchase_order_id: int, workspace_id: int
-    ) -> List[PurchaseOrderReturn]:
+    ) -> list[PurchaseOrderReturn]:
         return self.return_dao.get_by_purchase_order(
             session, purchase_order_id=purchase_order_id, workspace_id=workspace_id
         )

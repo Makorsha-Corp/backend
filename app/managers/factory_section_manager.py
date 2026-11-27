@@ -3,16 +3,18 @@ Factory Section Manager
 
 Business logic for factory section operations.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory import factory_dao
+from app.dao.factory_section import factory_section_dao
 from app.managers.base_manager import BaseManager
+from app.managers.machine_section_assignment_manager import (
+    machine_section_assignment_manager,
+)
 from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
-from app.dao.factory_section import factory_section_dao
-from app.dao.factory import factory_dao
-from app.managers.machine_section_assignment_manager import machine_section_assignment_manager
 
 
 class FactorySectionManager(BaseManager[FactorySection]):
@@ -205,12 +207,12 @@ class FactorySectionManager(BaseManager[FactorySection]):
         self,
         session: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        search: Optional[str] = None,
+        factory_id: int | None = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False
-    ) -> List[FactorySection]:
+    ) -> list[FactorySection]:
         """
         Search factory sections in workspace.
 
@@ -306,7 +308,7 @@ class FactorySectionManager(BaseManager[FactorySection]):
         workspace_id: int,
         factory_id: int,
         name: str,
-        exclude_id: Optional[int] = None
+        exclude_id: int | None = None
     ) -> bool:
         """
         Check if section with given name exists in factory (excluding deleted).

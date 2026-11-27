@@ -1,7 +1,8 @@
 """Financial audit log schemas"""
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 
 class FinancialAuditLogResponse(BaseModel):
@@ -13,11 +14,11 @@ class FinancialAuditLogResponse(BaseModel):
     entity_type: str
     entity_id: int
     action_type: str
-    related_entity_type: Optional[str] = None
-    related_entity_id: Optional[int] = None
-    changes: Optional[Dict[str, Any]] = None
-    description: Optional[str] = None
+    related_entity_type: str | None = None
+    related_entity_id: int | None = None
+    changes: dict[str, Any] | None = None
+    description: str | None = None
     performed_by: int
     performed_at: datetime
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None

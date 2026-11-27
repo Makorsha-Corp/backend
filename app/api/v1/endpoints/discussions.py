@@ -1,13 +1,16 @@
 """Universal discussion endpoints."""
-from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
+from app.models.enums import DiscussionEntityType
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.models.enums import DiscussionEntityType
-from app.schemas.discussion import DiscussionCreate, DiscussionListResponse, DiscussionResponse
+from app.schemas.discussion import (
+    DiscussionCreate,
+    DiscussionListResponse,
+    DiscussionResponse,
+)
 from app.services.discussion_service import discussion_service
 
 router = APIRouter()

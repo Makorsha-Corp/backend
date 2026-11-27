@@ -1,26 +1,29 @@
 """Work order template DAO. SECURITY: All queries MUST filter by workspace_id."""
 from datetime import date
-from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.work_order_template import WorkOrderTemplate
-from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.models.work_order_template_approver import WorkOrderTemplateApprover
+from app.models.work_order_template_item import WorkOrderTemplateItem
 from app.schemas.work_order_template import (
-    WorkOrderTemplateCreate, WorkOrderTemplateUpdate,
-    WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate,
     WorkOrderTemplateApproverCreate,
+    WorkOrderTemplateCreate,
+    WorkOrderTemplateItemCreate,
+    WorkOrderTemplateItemUpdate,
+    WorkOrderTemplateUpdate,
 )
 
 
 class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, WorkOrderTemplateUpdate]):
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        is_active: Optional[bool] = None,
-        work_order_type_id: Optional[int] = None,
+        is_active: bool | None = None,
+        work_order_type_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[WorkOrderTemplate]:
+    ) -> list[WorkOrderTemplate]:
         query = db.query(WorkOrderTemplate).filter(WorkOrderTemplate.workspace_id == workspace_id)
         if is_active is not None:
             query = query.filter(WorkOrderTemplate.is_active == is_active)
@@ -32,7 +35,7 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
         self, db: Session, *, workspace_id: int, target_date: date,
         factory_section_id: int | None = None,
         factory_id: int | None = None,
-    ) -> List[WorkOrderTemplate]:
+    ) -> list[WorkOrderTemplate]:
         query = db.query(WorkOrderTemplate).filter(
             WorkOrderTemplate.workspace_id == workspace_id,
             WorkOrderTemplate.is_active == True,
@@ -41,7 +44,6 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
         if factory_section_id is not None:
             query = query.filter(WorkOrderTemplate.default_factory_section_id == factory_section_id)
         if factory_id is not None:
-            from app.models.machine import Machine
             from app.models.factory_section import FactorySection
             query = query.join(
                 FactorySection, WorkOrderTemplate.default_factory_section_id == FactorySection.id, isouter=True
@@ -57,27 +59,27 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
             and (t.recurrence_end_date is None or target_date <= t.recurrence_end_date)
         ]
 
-    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[WorkOrderTemplate]:
+    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> WorkOrderTemplate | None:
         return db.query(WorkOrderTemplate).filter(
             WorkOrderTemplate.id == id, WorkOrderTemplate.workspace_id == workspace_id,
         ).first()
 
 
 class WorkOrderTemplateItemDAO(BaseDAO[WorkOrderTemplateItem, WorkOrderTemplateItemCreate, WorkOrderTemplateItemUpdate]):
-    def get_by_template(self, db: Session, *, work_order_template_id: int, workspace_id: int) -> List[WorkOrderTemplateItem]:
+    def get_by_template(self, db: Session, *, work_order_template_id: int, workspace_id: int) -> list[WorkOrderTemplateItem]:
         return db.query(WorkOrderTemplateItem).filter(
             WorkOrderTemplateItem.work_order_template_id == work_order_template_id,
             WorkOrderTemplateItem.workspace_id == workspace_id,
         ).order_by(WorkOrderTemplateItem.id).all()
 
-    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> Optional[WorkOrderTemplateItem]:
+    def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> WorkOrderTemplateItem | None:
         return db.query(WorkOrderTemplateItem).filter(
             WorkOrderTemplateItem.id == id, WorkOrderTemplateItem.workspace_id == workspace_id,
         ).first()
 
 
 class WorkOrderTemplateApproverDAO(BaseDAO[WorkOrderTemplateApprover, WorkOrderTemplateApproverCreate, WorkOrderTemplateApproverCreate]):
-    def get_by_template(self, db: Session, *, work_order_template_id: int, workspace_id: int) -> List[WorkOrderTemplateApprover]:
+    def get_by_template(self, db: Session, *, work_order_template_id: int, workspace_id: int) -> list[WorkOrderTemplateApprover]:
         return db.query(WorkOrderTemplateApprover).filter(
             WorkOrderTemplateApprover.work_order_template_id == work_order_template_id,
             WorkOrderTemplateApprover.workspace_id == workspace_id,

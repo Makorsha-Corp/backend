@@ -1,7 +1,8 @@
 """Notification schemas."""
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -22,18 +23,18 @@ class NotificationResponse(BaseModel):
     entity_label:      str
     source_type:       str
     source_id:         int
-    preview:           Optional[str]
+    preview:           str | None
     is_read:           bool
-    read_at:           Optional[datetime]
+    read_at:           datetime | None
     created_at:        datetime
-    actor:             Optional[NotificationActor] = None
+    actor:             NotificationActor | None = None
 
 
 class NotificationListResponse(BaseModel):
-    items:        List[NotificationResponse]
+    items:        list[NotificationResponse]
     total:        int
     unread_count: int
 
 
 class MarkReadRequest(BaseModel):
-    ids: Optional[List[int]] = None   # null/omitted = mark all as read
+    ids: list[int] | None = None   # null/omitted = mark all as read

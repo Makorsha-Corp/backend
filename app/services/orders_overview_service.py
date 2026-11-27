@@ -4,10 +4,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
-from sqlalchemy import and_, func, or_, cast, Date, case
-from sqlalchemy.orm import Session, Query, aliased
+from sqlalchemy import Date, and_, case, cast, func, or_
+from sqlalchemy.orm import Query, Session, aliased
 
 from app.models.account import Account
 from app.models.expense_order import ExpenseOrder
@@ -33,7 +32,7 @@ from app.schemas.orders_overview import (
 
 def _dec(value) -> Decimal:
     if value is None:
-        return Decimal('0')
+        return Decimal(0)
     return Decimal(str(value))
 
 
@@ -135,7 +134,7 @@ class OrdersOverviewService:
     def _accumulate_factory(
         self,
         factory_map: dict[int, dict],
-        factory_id: Optional[int],
+        factory_id: int | None,
         amount: Decimal,
         order_kind: str,
     ) -> None:
@@ -164,7 +163,7 @@ class OrdersOverviewService:
         factory_map: dict[int, dict] = defaultdict(
             lambda: {
                 'order_count': 0,
-                'total_value': Decimal('0'),
+                'total_value': Decimal(0),
                 'purchase_count': 0,
                 'transfer_count': 0,
                 'sales_count': 0,
@@ -251,7 +250,7 @@ class OrdersOverviewService:
             .all()
         )
         for (fid,) in to_rows:
-            self._accumulate_factory(factory_map, fid, Decimal('0'), 'transfer')
+            self._accumulate_factory(factory_map, fid, Decimal(0), 'transfer')
 
         so_rows = (
             db.query(SalesOrder.factory_id, SalesOrder.total_amount)
@@ -310,7 +309,7 @@ class OrdersOverviewService:
         workspace_id: int,
         from_date: date,
         to_date: date,
-        factory_id: Optional[int] = None,
+        factory_id: int | None = None,
         limit: int = 5,
     ) -> OrdersOverviewStatsResponse:
         limit = max(1, min(limit, 10))
@@ -318,12 +317,12 @@ class OrdersOverviewService:
             lambda: {
                 'item_name': '',
                 'item_unit': None,
-                'total_quantity': Decimal('0'),
-                'total_spend': Decimal('0'),
+                'total_quantity': Decimal(0),
+                'total_spend': Decimal(0),
                 'line_count': 0,
-                'purchase_qty': Decimal('0'),
-                'transfer_qty': Decimal('0'),
-                'sales_qty': Decimal('0'),
+                'purchase_qty': Decimal(0),
+                'transfer_qty': Decimal(0),
+                'sales_qty': Decimal(0),
             }
         )
 
@@ -431,7 +430,7 @@ class OrdersOverviewService:
             for item_id, data in top_items
         ]
 
-        vendor_map: dict[int, dict] = defaultdict(lambda: {'name': '', 'spend': Decimal('0'), 'count': 0})
+        vendor_map: dict[int, dict] = defaultdict(lambda: {'name': '', 'spend': Decimal(0), 'count': 0})
 
         po_vendor_q = (
             db.query(

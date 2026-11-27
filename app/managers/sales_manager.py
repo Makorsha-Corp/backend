@@ -1,24 +1,25 @@
 """Sales Manager for sales order business logic"""
-from typing import List, Optional, Tuple
 from datetime import date, datetime
-from sqlalchemy.orm import Session
+
 from fastapi import HTTPException, status
-from app.managers.base_manager import BaseManager
-from app.models.sales_order import SalesOrder
-from app.models.sales_order_item import SalesOrderItem
-from app.models.sales_order_approver import SalesOrderApprover
-from app.models.sales_order_event import SalesOrderEvent
-from app.models.sales_delivery import SalesDelivery
-from app.models.profile import Profile
-from app.dao.sales_order import sales_order_dao
-from app.dao.sales_order_item import sales_order_item_dao
-from app.dao.sales_order_approver import sales_order_approver_dao
-from app.dao.sales_order_event import sales_order_event_dao
+from sqlalchemy.orm import Session
+
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.profile import profile_dao
 from app.dao.sales_delivery import sales_delivery_dao
 from app.dao.sales_delivery_item import sales_delivery_item_dao
+from app.dao.sales_order import sales_order_dao
+from app.dao.sales_order_approver import sales_order_approver_dao
+from app.dao.sales_order_event import sales_order_event_dao
+from app.dao.sales_order_item import sales_order_item_dao
 from app.dao.workspace_member import workspace_member_dao
-from app.dao.profile import profile_dao
-from app.dao.account_invoice import account_invoice_dao
+from app.managers.base_manager import BaseManager
+from app.models.profile import Profile
+from app.models.sales_delivery import SalesDelivery
+from app.models.sales_order import SalesOrder
+from app.models.sales_order_approver import SalesOrderApprover
+from app.models.sales_order_event import SalesOrderEvent
+from app.models.sales_order_item import SalesOrderItem
 
 SECTION_CONFIRM_FIELDS = {
     'order_info_confirmed': ('order_info', 'Order info'),
@@ -36,7 +37,7 @@ DELIVERY_EDIT_FIELD_LABELS = {
 }
 
 
-def all_deliverable_items_delivered(items: List[SalesOrderItem]) -> bool:
+def all_deliverable_items_delivered(items: list[SalesOrderItem]) -> bool:
     """True if every requires_delivery=True line has been fully delivered. Vacuously true if none.
 
     A refunded quantity counts toward satisfying the ordered amount — it doesn't need
@@ -49,7 +50,7 @@ def all_deliverable_items_delivered(items: List[SalesOrderItem]) -> bool:
     )
 
 
-def all_fulfilment_items_fulfilled(items: List[SalesOrderItem]) -> bool:
+def all_fulfilment_items_fulfilled(items: list[SalesOrderItem]) -> bool:
     """True if every requires_delivery=False line has been fulfilled. Vacuously true if none.
 
     A refunded quantity counts toward satisfying the ordered amount — it doesn't need
@@ -93,7 +94,7 @@ class SalesManager(BaseManager[SalesOrder]):
         self,
         session: Session,
         order_data: dict,
-        items_data: List[dict],
+        items_data: list[dict],
         workspace_id: int,
         user_id: int
     ) -> SalesOrder:
@@ -118,8 +119,8 @@ class SalesManager(BaseManager[SalesOrder]):
             raise ValueError("Sales order must have at least one item")
 
         from app.utils.order_catalog_items import (
-            assert_unique_catalog_item_ids,
             assert_meets_minimum_order_quantities,
+            assert_unique_catalog_item_ids,
         )
 
         assert_unique_catalog_item_ids(
@@ -172,7 +173,7 @@ class SalesManager(BaseManager[SalesOrder]):
         self,
         session: Session,
         delivery_data: dict,
-        delivery_items_data: List[dict],
+        delivery_items_data: list[dict],
         workspace_id: int,
         user_id: int
     ) -> tuple:
@@ -276,8 +277,8 @@ class SalesManager(BaseManager[SalesOrder]):
         delivery_id: int,
         workspace_id: int,
         user_id: int,
-        actual_delivery_date: Optional[date] = None,
-        completion_code: Optional[str] = None,
+        actual_delivery_date: date | None = None,
+        completion_code: str | None = None,
     ) -> SalesOrder:
         """
         Mark delivery as completed and deduct sellable product stock.
@@ -372,7 +373,7 @@ class SalesManager(BaseManager[SalesOrder]):
         session: Session,
         delivery_id: int,
         workspace_id: int,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> SalesDelivery:
         """
         Cancel a planned delivery, freeing up the quantity it had committed
@@ -411,7 +412,7 @@ class SalesManager(BaseManager[SalesOrder]):
         delivery_id: int,
         workspace_id: int,
         data,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> SalesDelivery:
         """
         Edit a still-planned delivery (schedule/delivery method/tracking number/notes).
@@ -455,7 +456,7 @@ class SalesManager(BaseManager[SalesOrder]):
         order_item_id: int,
         workspace_id: int,
         user_id: int,
-        completion_code: Optional[str] = None,
+        completion_code: str | None = None,
     ) -> SalesOrder:
         """
         Mark a sales order line that doesn't require delivery as fulfilled directly:
@@ -608,7 +609,7 @@ class SalesManager(BaseManager[SalesOrder]):
         return order
 
     def reset_approvals(
-        self, session: Session, order_id: int, workspace_id: int, user_id: Optional[int],
+        self, session: Session, order_id: int, workspace_id: int, user_id: int | None,
         reason: str = 'Cleared approvals',
     ) -> None:
         approvers = self.approver_dao.get_by_order(session, sales_order_id=order_id, workspace_id=workspace_id)
@@ -704,21 +705,21 @@ class SalesManager(BaseManager[SalesOrder]):
 
     # ─── Payment sync ──────────────────────────────────────────
 
-    def _invoice_payment_status(self, session: Session, order: SalesOrder) -> Optional[str]:
+    def _invoice_payment_status(self, session: Session, order: SalesOrder) -> str | None:
         if order.invoice_id is None:
             return None
         invoice = account_invoice_dao.get_by_id_and_workspace(session, id=order.invoice_id, workspace_id=order.workspace_id)
         return invoice.payment_status if invoice else None
 
     def sync_so_for_linked_invoice(
-        self, session: Session, invoice_id: int, workspace_id: int, user_id: Optional[int],
+        self, session: Session, invoice_id: int, workspace_id: int, user_id: int | None,
     ) -> None:
         order = self.sales_order_dao.get_by_invoice_id(session, invoice_id=invoice_id, workspace_id=workspace_id)
         if order:
             self.sync_so_paid(session, order, workspace_id, user_id)
 
     def sync_so_paid(
-        self, session: Session, order: SalesOrder, workspace_id: int, user_id: Optional[int],
+        self, session: Session, order: SalesOrder, workspace_id: int, user_id: int | None,
     ) -> bool:
         """Sync denormalized paid flag from linked invoice payment status."""
         new_paid = False
@@ -740,20 +741,20 @@ class SalesManager(BaseManager[SalesOrder]):
 
     def list_approvers(
         self, session: Session, order_id: int, workspace_id: int
-    ) -> List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[SalesOrderApprover, Profile | None, str | None]]:
         """Approvers for an order, enriched with profile + workspace position."""
         order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
         if not order:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")
         approvers = self.approver_dao.get_by_order(session, sales_order_id=order_id, workspace_id=workspace_id)
-        result: List[Tuple[SalesOrderApprover, Optional[Profile], Optional[str]]] = []
+        result: list[tuple[SalesOrderApprover, Profile | None, str | None]] = []
         for a in approvers:
             profile = profile_dao.get(session, id=a.user_id)
             member = workspace_member_dao.get_by_workspace_and_user(session, workspace_id=workspace_id, user_id=a.user_id)
             result.append((a, profile, member.position if member else None))
         return result
 
-    def approval_summary(self, session: Session, order: SalesOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, session: Session, order: SalesOrder) -> tuple[int, int, bool]:
         """(approved_count, required, met). required null -> all assigned must approve."""
         approvers = self.approver_dao.get_by_order(session, sales_order_id=order.id, workspace_id=order.workspace_id)
         approved_count = sum(1 for a in approvers if a.approved)
@@ -796,7 +797,7 @@ class SalesManager(BaseManager[SalesOrder]):
 
     def remove_approver(
         self, session: Session, order_id: int, user_id: int, workspace_id: int,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
     ) -> None:
         rec = self.approver_dao.get_by_order_and_user(session, sales_order_id=order_id, user_id=user_id, workspace_id=workspace_id)
         if not rec:
@@ -843,8 +844,8 @@ class SalesManager(BaseManager[SalesOrder]):
 
     def log_event(
         self, session: Session, order_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None,
-        metadata: Optional[dict] = None,
+        event_type: str, description: str, performed_by: int | None = None,
+        metadata: dict | None = None,
     ) -> SalesOrderEvent:
         ev = SalesOrderEvent(
             workspace_id=workspace_id,
@@ -860,7 +861,7 @@ class SalesManager(BaseManager[SalesOrder]):
 
     def list_events(
         self, session: Session, order_id: int, workspace_id: int
-    ) -> List[Tuple[SalesOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[SalesOrderEvent, Profile | None]]:
         order = self.sales_order_dao.get_by_id_and_workspace(session, id=order_id, workspace_id=workspace_id)
         if not order:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sales order with ID {order_id} not found")

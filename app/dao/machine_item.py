@@ -1,6 +1,7 @@
 """Machine item DAO operations"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.machine_item import MachineItem
 from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate
@@ -11,7 +12,7 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineItem]:
+    ) -> list[MachineItem]:
         """Get all machine items in workspace"""
         return (
             db.query(MachineItem)
@@ -21,7 +22,7 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[MachineItem]:
+    ) -> MachineItem | None:
         """Get machine item by ID with workspace isolation"""
         return (
             db.query(MachineItem)
@@ -34,7 +35,7 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
 
     def get_by_machine(
         self, db: Session, *, machine_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MachineItem]:
+    ) -> list[MachineItem]:
         """Get machine items by machine ID (workspace-filtered)"""
         return (
             db.query(MachineItem)
@@ -47,7 +48,7 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
 
     def get_by_machine_and_item(
         self, db: Session, *, machine_id: int, item_id: int, workspace_id: int
-    ) -> Optional[MachineItem]:
+    ) -> MachineItem | None:
         """Get machine item by machine and item ID (workspace-filtered)"""
         return (
             db.query(MachineItem)
@@ -61,7 +62,7 @@ class DAOMachineItem(BaseDAO[MachineItem, MachineItemCreate, MachineItemUpdate])
 
     def get_by_item(
         self, db: Session, *, item_id: int, workspace_id: int, skip: int = 0, limit: int = 500
-    ) -> List[MachineItem]:
+    ) -> list[MachineItem]:
         """Get all machine placements for a catalog item."""
         return (
             db.query(MachineItem)

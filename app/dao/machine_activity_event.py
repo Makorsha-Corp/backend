@@ -1,6 +1,5 @@
 """Machine activity event DAO. SECURITY: All queries MUST filter by workspace_id."""
 from datetime import date, datetime
-from typing import Dict, List, Optional
 
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
@@ -21,10 +20,10 @@ class MachineActivityEventDAO(
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-        from_date: Optional[date] = None,
-        to_date: Optional[date] = None,
-        event_type: Optional[str] = None,
-    ) -> List[MachineActivityEvent]:
+        from_date: date | None = None,
+        to_date: date | None = None,
+        event_type: str | None = None,
+    ) -> list[MachineActivityEvent]:
         query = db.query(MachineActivityEvent).filter(
             MachineActivityEvent.machine_id == machine_id,
             MachineActivityEvent.workspace_id == workspace_id,
@@ -48,7 +47,7 @@ class MachineActivityEventDAO(
         *,
         machine_id: int,
         workspace_id: int,
-    ) -> Optional[MachineActivityEvent]:
+    ) -> MachineActivityEvent | None:
         return (
             db.query(MachineActivityEvent)
             .filter(
@@ -65,8 +64,8 @@ class MachineActivityEventDAO(
         db: Session,
         *,
         workspace_id: int,
-        machine_ids: List[int],
-    ) -> Dict[int, MachineActivityEvent]:
+        machine_ids: list[int],
+    ) -> dict[int, MachineActivityEvent]:
         if not machine_ids:
             return {}
 

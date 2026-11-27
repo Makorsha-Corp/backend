@@ -3,11 +3,13 @@ Audit logging utility for financial operations.
 
 Provides a simple interface for logging audit events across the financial system.
 """
-from typing import Optional, Dict, Any
+from datetime import date, datetime
 from decimal import Decimal
-from datetime import datetime, date
+from typing import Any
+
 from sqlalchemy.orm import Session
-from app.dao.financial_audit_log import financial_audit_log_dao, FinancialAuditLogCreate
+
+from app.dao.financial_audit_log import FinancialAuditLogCreate, financial_audit_log_dao
 from app.utils.time import utcnow
 
 
@@ -19,12 +21,12 @@ def log_financial_audit(
     entity_id: int,
     action_type: str,
     performed_by: int,
-    changes: Optional[Dict[str, Any]] = None,
-    description: Optional[str] = None,
-    related_entity_type: Optional[str] = None,
-    related_entity_id: Optional[int] = None,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None
+    changes: dict[str, Any] | None = None,
+    description: str | None = None,
+    related_entity_type: str | None = None,
+    related_entity_id: int | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None
 ) -> None:
     """
     Log a financial audit event.
@@ -107,7 +109,7 @@ def log_financial_audit(
     financial_audit_log_dao.create(session, obj_in=log_dict)
 
 
-def create_change_dict(before: Optional[Dict[str, Any]] = None, after: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def create_change_dict(before: dict[str, Any] | None = None, after: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Helper to create a changes dict with before/after values.
 
@@ -132,7 +134,7 @@ def create_change_dict(before: Optional[Dict[str, Any]] = None, after: Optional[
     return result
 
 
-def extract_relevant_fields(obj: Any, fields: list) -> Dict[str, Any]:
+def extract_relevant_fields(obj: Any, fields: list) -> dict[str, Any]:
     """
     Extract specific fields from an object for audit logging.
 

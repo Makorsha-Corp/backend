@@ -1,7 +1,8 @@
 """Sales order return DAO operations"""
 from datetime import datetime
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.sales_order_return import SalesOrderReturn, SalesOrderReturnItem
 from app.schemas.sales_order_return import SalesOrderReturnCreate
@@ -25,7 +26,7 @@ class DAOSalesOrderReturn(BaseDAO[SalesOrderReturn, SalesOrderReturnCreate, Sale
 
     def create_with_user(
         self, db: Session, *, workspace_id: int, sales_order_id: int, user_id: int,
-        return_type: str, reason: Optional[str] = None, notes: Optional[str] = None,
+        return_type: str, reason: str | None = None, notes: str | None = None,
     ) -> SalesOrderReturn:
         return_number = self.generate_return_number(
             db, workspace_id=workspace_id, year=datetime.now().year
@@ -46,7 +47,7 @@ class DAOSalesOrderReturn(BaseDAO[SalesOrderReturn, SalesOrderReturnCreate, Sale
 
     def get_by_sales_order(
         self, db: Session, *, sales_order_id: int, workspace_id: int
-    ) -> List[SalesOrderReturn]:
+    ) -> list[SalesOrderReturn]:
         return (
             db.query(SalesOrderReturn)
             .filter(
@@ -59,7 +60,7 @@ class DAOSalesOrderReturn(BaseDAO[SalesOrderReturn, SalesOrderReturnCreate, Sale
 
     def get_open_by_sales_order(
         self, db: Session, *, sales_order_id: int, workspace_id: int
-    ) -> List[SalesOrderReturn]:
+    ) -> list[SalesOrderReturn]:
         return (
             db.query(SalesOrderReturn)
             .filter(
@@ -72,7 +73,7 @@ class DAOSalesOrderReturn(BaseDAO[SalesOrderReturn, SalesOrderReturnCreate, Sale
 
     def get_by_invoice_id(
         self, db: Session, *, invoice_id: int, workspace_id: int
-    ) -> Optional[SalesOrderReturn]:
+    ) -> SalesOrderReturn | None:
         return (
             db.query(SalesOrderReturn)
             .filter(
@@ -88,7 +89,7 @@ class DAOSalesOrderReturnItem(BaseDAO[SalesOrderReturnItem, SalesOrderReturnCrea
 
     def get_by_return(
         self, db: Session, *, return_id: int, workspace_id: int
-    ) -> List[SalesOrderReturnItem]:
+    ) -> list[SalesOrderReturnItem]:
         return (
             db.query(SalesOrderReturnItem)
             .filter(

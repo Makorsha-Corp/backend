@@ -1,14 +1,15 @@
 """Account invoice DAO operations"""
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import or_, and_, func, case
-from typing import List, Optional, Tuple, Type
 from datetime import date
 from decimal import Decimal
+
+from sqlalchemy import and_, case, func, or_
+from sqlalchemy.orm import Query, Session
+
 from app.dao.base import BaseDAO
-from app.models.account_invoice import AccountInvoice
 from app.models.account import Account
-from app.models.purchase_order import PurchaseOrder
+from app.models.account_invoice import AccountInvoice
 from app.models.expense_order import ExpenseOrder
+from app.models.purchase_order import PurchaseOrder
 from app.models.sales_order import SalesOrder
 from app.models.work_order import WorkOrder
 from app.schemas.account_invoice import AccountInvoiceCreate, AccountInvoiceUpdate
@@ -46,7 +47,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         term: str,
     ):
         """Match invoices linked to orders whose number ILIKE term (forward + reverse FK)."""
-        order_specs: List[Tuple[str, Type, object]] = [
+        order_specs: list[tuple[str, type, object]] = [
             ("purchase_order", PurchaseOrder, PurchaseOrder.po_number),
             ("expense_order", ExpenseOrder, ExpenseOrder.expense_number),
             ("sales_order", SalesOrder, SalesOrder.sales_order_number),
@@ -77,18 +78,18 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         db: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
-        invoice_date_from: Optional[date] = None,
-        invoice_date_to: Optional[date] = None,
-        due_date_from: Optional[date] = None,
-        due_date_to: Optional[date] = None,
-        amount_min: Optional[Decimal] = None,
-        amount_max: Optional[Decimal] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
+        invoice_date_from: date | None = None,
+        invoice_date_to: date | None = None,
+        due_date_from: date | None = None,
+        due_date_to: date | None = None,
+        amount_min: Decimal | None = None,
+        amount_max: Decimal | None = None,
         open_balance_only: bool = False,
     ) -> Query:
         """
@@ -154,21 +155,21 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         db: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
-        invoice_date_from: Optional[date] = None,
-        invoice_date_to: Optional[date] = None,
-        due_date_from: Optional[date] = None,
-        due_date_to: Optional[date] = None,
-        amount_min: Optional[Decimal] = None,
-        amount_max: Optional[Decimal] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
+        invoice_date_from: date | None = None,
+        invoice_date_to: date | None = None,
+        due_date_from: date | None = None,
+        due_date_to: date | None = None,
+        amount_min: Decimal | None = None,
+        amount_max: Decimal | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[AccountInvoice]:
+    ) -> list[AccountInvoice]:
         """Unified invoice listing with all filters."""
         query = self._build_filtered_query(
             db,
@@ -201,10 +202,10 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         workspace_id: int,
         account_id: int,
         open_balance_only: bool = False,
-        prioritize_purchase_order_id: Optional[int] = None,
+        prioritize_purchase_order_id: int | None = None,
         skip: int = 0,
         limit: int = 10,
-    ) -> Tuple[List[AccountInvoice], int]:
+    ) -> tuple[list[AccountInvoice], int]:
         """Paginated invoice listing with total count."""
         return self.list_invoices_page_filtered(
             db,
@@ -246,10 +247,10 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         *,
         workspace_id: int,
         section: str = "overview",
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[tuple], int]:
+    ) -> tuple[list[tuple], int]:
         """
         Paginated accounts for the accounts hub with open-balance rollups.
         section: overview | payable | receivable
@@ -310,7 +311,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         *,
         workspace_id: int,
         invoice_type: str,
-    ) -> Tuple[int, Decimal, int, int]:
+    ) -> tuple[int, Decimal, int, int]:
         """Open-balance aggregates for one invoice type across the workspace."""
         query = self._build_filtered_query(
             db,
@@ -350,23 +351,23 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         db: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
-        invoice_date_from: Optional[date] = None,
-        invoice_date_to: Optional[date] = None,
-        due_date_from: Optional[date] = None,
-        due_date_to: Optional[date] = None,
-        amount_min: Optional[Decimal] = None,
-        amount_max: Optional[Decimal] = None,
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
+        invoice_date_from: date | None = None,
+        invoice_date_to: date | None = None,
+        due_date_from: date | None = None,
+        due_date_to: date | None = None,
+        amount_min: Decimal | None = None,
+        amount_max: Decimal | None = None,
         open_balance_only: bool = False,
-        prioritize_purchase_order_id: Optional[int] = None,
+        prioritize_purchase_order_id: int | None = None,
         skip: int = 0,
         limit: int = 10,
-    ) -> Tuple[List[AccountInvoice], int]:
+    ) -> tuple[list[AccountInvoice], int]:
         """Paginated invoice listing with filters and total count."""
         query = self._build_filtered_query(
             db,
@@ -415,19 +416,19 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         db: Session,
         *,
         workspace_id: int,
-        account_id: Optional[int] = None,
-        invoice_type: Optional[str] = None,
-        payment_status: Optional[str] = None,
-        invoice_status: Optional[str] = None,
-        invoice_number_search: Optional[str] = None,
-        account_name_search: Optional[str] = None,
-        invoice_date_from: Optional[date] = None,
-        invoice_date_to: Optional[date] = None,
-        due_date_from: Optional[date] = None,
-        due_date_to: Optional[date] = None,
-        amount_min: Optional[Decimal] = None,
-        amount_max: Optional[Decimal] = None,
-    ) -> Tuple[int, Decimal, Decimal, Decimal]:
+        account_id: int | None = None,
+        invoice_type: str | None = None,
+        payment_status: str | None = None,
+        invoice_status: str | None = None,
+        invoice_number_search: str | None = None,
+        account_name_search: str | None = None,
+        invoice_date_from: date | None = None,
+        invoice_date_to: date | None = None,
+        due_date_from: date | None = None,
+        due_date_to: date | None = None,
+        amount_min: Decimal | None = None,
+        amount_max: Decimal | None = None,
+    ) -> tuple[int, Decimal, Decimal, Decimal]:
         """
         Aggregate invoice counts and amounts for matching filters.
         Financial totals exclude voided invoices (matches frontend rollups).
@@ -466,7 +467,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
 
     def get_by_order(
         self, db: Session, *, order_id: int, workspace_id: int
-    ) -> List[AccountInvoice]:
+    ) -> list[AccountInvoice]:
         """Get all invoices for an order (SECURITY-CRITICAL)"""
         return (
             db.query(AccountInvoice)
@@ -492,48 +493,5 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
 
             db.flush()
         return invoice
-
-    def get_overdue_invoices(
-        self, db: Session, *, workspace_id: int, as_of_date: date = None
-    ) -> List[AccountInvoice]:
-        """
-        Get all overdue invoices (SECURITY-CRITICAL)
-
-        TODO: Replace with a cron job that updates payment_status to 'overdue'
-              nightly for confirmed invoices past their due_date with unpaid/partial status.
-        """
-        if as_of_date is None:
-            as_of_date = date.today()
-
-        return (
-            db.query(AccountInvoice)
-            .join(Account, AccountInvoice.account_id == Account.id)
-            .filter(
-                AccountInvoice.workspace_id == workspace_id,
-                Account.is_deleted == False,
-                AccountInvoice.payment_status.in_(['unpaid', 'partial']),
-                AccountInvoice.invoice_status != 'voided',
-                AccountInvoice.due_date < as_of_date
-            )
-            .order_by(AccountInvoice.due_date)
-            .all()
-        )
-
-    def get_invoices_with_payments_enabled(
-        self, db: Session, *, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccountInvoice]:
-        """Get invoices that have payments enabled"""
-        return (
-            db.query(AccountInvoice)
-            .filter(
-                AccountInvoice.workspace_id == workspace_id,
-                AccountInvoice.allow_payments == True
-            )
-            .order_by(AccountInvoice.invoice_date.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
 
 account_invoice_dao = AccountInvoiceDAO(AccountInvoice)

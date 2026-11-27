@@ -99,12 +99,12 @@ def test_incoming_summary_po_partial_and_transfer(
     summary = result[0]
     assert summary.factory_id == 5
     assert summary.item_id == 50
-    assert summary.total_pending_qty == Decimal("120")
+    assert summary.total_pending_qty == Decimal(120)
     assert summary.order_count == 2
     kinds = {line.order_kind for line in summary.orders}
     assert kinds == {"purchase", "transfer"}
     po_line = next(o for o in summary.orders if o.order_kind == "purchase")
-    assert po_line.pending_qty == Decimal("50")
+    assert po_line.pending_qty == Decimal(50)
     assert po_line.order_number == "PO-2026-004"
 
 
@@ -193,4 +193,4 @@ def test_incoming_summary_workspace_wide(
     assert len(result) == 1
     assert result[0].factory_id == 5
     assert result[0].item_id == 50
-    assert result[0].total_pending_qty == Decimal("20")
+    assert result[0].total_pending_qty == Decimal(20)

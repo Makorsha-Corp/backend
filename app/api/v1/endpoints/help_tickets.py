@@ -1,5 +1,4 @@
 """Help ticket API — workspace-scoped support requests."""
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -15,7 +14,11 @@ from app.managers.help_ticket_manager import (
 from app.models.enums import HelpTicketStatusEnum, HelpTicketTypeEnum
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.help_ticket import HelpTicketCreate, HelpTicketResponse, HelpTicketUpdate
+from app.schemas.help_ticket import (
+    HelpTicketCreate,
+    HelpTicketResponse,
+    HelpTicketUpdate,
+)
 from app.services.help_ticket_service import help_ticket_service
 
 router = APIRouter()
@@ -47,12 +50,12 @@ def create_help_ticket(
 
 @router.get(
     "/tickets",
-    response_model=List[HelpTicketResponse],
+    response_model=list[HelpTicketResponse],
     summary="List workspace help tickets",
 )
 def list_help_tickets(
-    status_filter: Optional[HelpTicketStatusEnum] = Query(None, alias="status"),
-    type_filter: Optional[HelpTicketTypeEnum] = Query(None, alias="type"),
+    status_filter: HelpTicketStatusEnum | None = Query(None, alias="status"),
+    type_filter: HelpTicketTypeEnum | None = Query(None, alias="type"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
     workspace: Workspace = Depends(get_current_workspace),

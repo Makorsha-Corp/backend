@@ -1,22 +1,31 @@
 """Expense order API endpoints"""
 from datetime import date
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
-from app.models.workspace import Workspace
 from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.expense_order import (
-    ExpenseOrderCreate, ExpenseOrderUpdate, ExpenseOrderResponse,
-    ExpenseOrderListResponse, ExpenseOrderHubStatsResponse,
-    ExpenseOrderFromTemplateCreate, ExpenseOrderVoidRequest,
-    ExpenseOrderItemCreate, ExpenseOrderItemUpdate, ExpenseOrderItemResponse,
-    ExpenseOrderApproverCreate, ExpenseOrderApproverResponse,
-    ApprovalSummaryResponse, ExpenseOrderApproversList,
-    ExpenseOrderEventMetadata, ExpenseOrderEventResponse,
+    ApprovalSummaryResponse,
+    ExpenseOrderApproverCreate,
+    ExpenseOrderApproverResponse,
+    ExpenseOrderApproversList,
+    ExpenseOrderCreate,
+    ExpenseOrderEventMetadata,
+    ExpenseOrderEventResponse,
+    ExpenseOrderFromTemplateCreate,
+    ExpenseOrderHubStatsResponse,
+    ExpenseOrderItemCreate,
+    ExpenseOrderItemResponse,
+    ExpenseOrderItemUpdate,
+    ExpenseOrderListResponse,
+    ExpenseOrderResponse,
+    ExpenseOrderUpdate,
+    ExpenseOrderVoidRequest,
 )
 from app.services.expense_order_service import expense_order_service
 
@@ -41,14 +50,14 @@ router = APIRouter()
 
 
 def _read_expense_order_hub_filters(
-    expense_category: Optional[str] = Query(None),
-    account_id: Optional[int] = Query(None),
-    invoice_id: Optional[int] = Query(None),
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
-    status_ids: Optional[List[int]] = Query(None),
-    invoice_filter: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    expense_category: str | None = Query(None),
+    account_id: int | None = Query(None),
+    invoice_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    status_ids: list[int] | None = Query(None),
+    invoice_filter: str | None = Query(None),
+    search: str | None = Query(None),
     exclude_complete: bool = Query(False),
     exclude_voided: bool = Query(False),
 ) -> dict:
@@ -357,7 +366,7 @@ def unapprove_expense_order(
 
 @router.get(
     "/{eo_id}/events/",
-    response_model=List[ExpenseOrderEventResponse],
+    response_model=list[ExpenseOrderEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List expense order activity events"
 )
@@ -391,7 +400,7 @@ def list_expense_order_events(
 
 @router.get(
     "/{eo_id}/items/",
-    response_model=List[ExpenseOrderItemResponse],
+    response_model=list[ExpenseOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get expense order items"
 )

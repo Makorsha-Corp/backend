@@ -1,7 +1,7 @@
 """Production Formula model - production recipes/BOM"""
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, DateTime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

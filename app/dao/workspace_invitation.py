@@ -1,7 +1,7 @@
 """WorkspaceInvitation DAO"""
-from typing import Optional, List
-from datetime import datetime
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.schemas.workspace_invitation import WorkspaceInvitationCreate
@@ -11,26 +11,13 @@ from app.utils.time import utcnow
 class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCreate, dict]):
     """DAO for workspace invitation operations"""
 
-    def get_by_token(self, db: Session, *, token: str) -> Optional[WorkspaceInvitation]:
+    def get_by_token(self, db: Session, *, token: str) -> WorkspaceInvitation | None:
         """Get invitation by token"""
         return db.query(WorkspaceInvitation).filter(WorkspaceInvitation.token == token).first()
 
-    def get_by_workspace_and_email(
-        self, db: Session, *, workspace_id: int, email: str
-    ) -> Optional[WorkspaceInvitation]:
-        """Get invitation by workspace and email"""
-        return (
-            db.query(WorkspaceInvitation)
-            .filter(
-                WorkspaceInvitation.workspace_id == workspace_id,
-                WorkspaceInvitation.email == email
-            )
-            .first()
-        )
-
     def get_pending_invitations(
         self, db: Session, *, workspace_id: int
-    ) -> List[WorkspaceInvitation]:
+    ) -> list[WorkspaceInvitation]:
         """Get all pending invitations for workspace"""
         return (
             db.query(WorkspaceInvitation)
@@ -42,7 +29,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             .all()
         )
 
-    def get_user_invitations(self, db: Session, *, email: str) -> List[WorkspaceInvitation]:
+    def get_user_invitations(self, db: Session, *, email: str) -> list[WorkspaceInvitation]:
         """Get all pending invitations for user email"""
         return (
             db.query(WorkspaceInvitation)
@@ -53,31 +40,6 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
             )
             .all()
         )
-
-    def mark_as_accepted(
-        self, db: Session, *, invitation: WorkspaceInvitation
-    ) -> WorkspaceInvitation:
-        """Mark invitation as accepted"""
-        invitation.status = 'accepted'
-        invitation.accepted_at = utcnow()
-        db.flush()
-        return invitation
-
-    def mark_as_expired(
-        self, db: Session, *, invitation: WorkspaceInvitation
-    ) -> WorkspaceInvitation:
-        """Mark invitation as expired"""
-        invitation.status = 'expired'
-        db.flush()
-        return invitation
-
-    def mark_as_cancelled(
-        self, db: Session, *, invitation: WorkspaceInvitation
-    ) -> WorkspaceInvitation:
-        """Mark invitation as cancelled"""
-        invitation.status = 'cancelled'
-        db.flush()
-        return invitation
 
     def count_pending_invitations(self, db: Session, *, workspace_id: int) -> int:
         """Get count of pending non-expired invitations for workspace"""
@@ -93,26 +55,12 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
 
     def get_all_invitations(
         self, db: Session, *, workspace_id: int
-    ) -> List[WorkspaceInvitation]:
+    ) -> list[WorkspaceInvitation]:
         """Get all invitations for workspace regardless of status"""
         return (
             db.query(WorkspaceInvitation)
             .filter(WorkspaceInvitation.workspace_id == workspace_id)
             .all()
         )
-
-    def cleanup_expired_invitations(self, db: Session) -> int:
-        """Mark expired invitations as expired (returns count)"""
-        count = (
-            db.query(WorkspaceInvitation)
-            .filter(
-                WorkspaceInvitation.status == 'pending',
-                WorkspaceInvitation.expires_at <= utcnow()
-            )
-            .update({'status': 'expired'})
-        )
-        db.flush()
-        return count
-
 
 workspace_invitation_dao = WorkspaceInvitationDAO(WorkspaceInvitation)

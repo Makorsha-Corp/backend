@@ -1,7 +1,7 @@
 """Item tag model"""
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

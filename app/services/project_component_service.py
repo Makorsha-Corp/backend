@@ -1,5 +1,6 @@
 """Project component service for business orchestration"""
 from sqlalchemy.orm import Session
+
 from app.dao.project_component import project_component_dao
 from app.managers.project_manager import project_manager
 from app.schemas.project_component import ProjectComponentCreate, ProjectComponentUpdate

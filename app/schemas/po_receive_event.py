@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, model_validator
 
 
@@ -14,7 +15,7 @@ class PoReceiveEventCreate(BaseModel):
     rcc: str | None = None
     received_by: str | None = None
     correction_note: str | None = None
-    items: List[PoReceiveEventItemCreate]
+    items: list[PoReceiveEventItemCreate]
 
     @model_validator(mode='after')
     def validate_event(self) -> 'PoReceiveEventCreate':
@@ -51,6 +52,6 @@ class PoReceiveEventResponse(BaseModel):
     performed_by: int | None = None
     performer_name: str | None = None
     created_at: datetime
-    items: List[PoReceiveEventItemResponse] = []
+    items: list[PoReceiveEventItemResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

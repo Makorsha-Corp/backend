@@ -1,11 +1,11 @@
 """Saved stamp schemas — user-level draw or upload stamp for attachment markup."""
 from __future__ import annotations
 
-from typing import List, Literal, Union
+from typing import Literal, Union
 
 from pydantic import BaseModel, Field
 
-from app.schemas.attachment_markup import MarkupPoint, MarkupStroke
+from app.schemas.attachment_markup import MarkupStroke
 
 
 class SavedStampViewBox(BaseModel):
@@ -15,7 +15,7 @@ class SavedStampViewBox(BaseModel):
 
 class SavedStampVector(BaseModel):
     kind: Literal["vector"] = "vector"
-    strokes: List[MarkupStroke] = Field(default_factory=list)
+    strokes: list[MarkupStroke] = Field(default_factory=list)
     viewBox: SavedStampViewBox
 
 

@@ -1,6 +1,7 @@
 """Item tag assignment schemas"""
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class ItemTagAssignmentBase(BaseModel):
@@ -11,7 +12,6 @@ class ItemTagAssignmentBase(BaseModel):
 
 class ItemTagAssignmentCreate(ItemTagAssignmentBase):
     """Item tag assignment creation schema - workspace_id injected by service layer"""
-    pass
 
 
 class ItemTagAssignmentResponse(ItemTagAssignmentBase):

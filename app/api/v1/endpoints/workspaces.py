@@ -11,32 +11,31 @@ Provides workspace operations:
 - Accept invitations (for existing users)
 - List and cancel invitations
 """
-from fastapi import APIRouter, Depends, status, Query
-from sqlalchemy.orm import Session
-from typing import List
 
-from app.core.deps import get_db, get_current_active_user
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_current_active_user, get_db
 from app.models.profile import Profile
 from app.schemas.workspace import (
     WorkspaceCreate,
-    WorkspaceUpdate,
-    WorkspaceResponse,
     WorkspaceListItem,
+    WorkspaceResponse,
+    WorkspaceUpdate,
     WorkspaceWithPlan,
 )
-from app.schemas.workspace_member import (
-    WorkspaceMemberResponse,
-    WorkspaceMemberWithUser,
-    RoleChangeRequest,
-)
 from app.schemas.workspace_invitation import (
+    AcceptInvitationRequest,
+    InviteUserRequest,
     WorkspaceInvitationResponse,
     WorkspaceInvitationWithDetails,
-    InviteUserRequest,
-    AcceptInvitationRequest,
+)
+from app.schemas.workspace_member import (
+    RoleChangeRequest,
+    WorkspaceMemberResponse,
+    WorkspaceMemberWithUser,
 )
 from app.services.workspace_service import workspace_service
-
 
 router = APIRouter()
 
@@ -47,7 +46,7 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[WorkspaceListItem],
+    response_model=list[WorkspaceListItem],
     summary="List user's workspaces",
     description="Get all workspaces the current user is a member of"
 )
@@ -143,7 +142,7 @@ def update_workspace(
 
 @router.get(
     "/{workspace_id}/members/",
-    response_model=List[WorkspaceMemberWithUser],
+    response_model=list[WorkspaceMemberWithUser],
     summary="List workspace members",
     description="Get all members of a workspace with user details"
 )
@@ -253,7 +252,7 @@ def send_invitation(
 
 @router.get(
     "/{workspace_id}/invitations/",
-    response_model=List[WorkspaceInvitationWithDetails],
+    response_model=list[WorkspaceInvitationWithDetails],
     summary="List workspace invitations",
     description="Get all pending invitations for workspace"
 )
@@ -332,7 +331,7 @@ def cancel_invitation(
 
 @router.get(
     "/me/invitations/",
-    response_model=List[WorkspaceInvitationWithDetails],
+    response_model=list[WorkspaceInvitationWithDetails],
     summary="Get my pending invitations",
     description="Get all pending invitations for current user's email"
 )

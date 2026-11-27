@@ -1,7 +1,9 @@
 """Order workflow model"""
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey, UniqueConstraint
-from sqlalchemy.types import TypeDecorator, Text
 import json
+
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy.types import Text, TypeDecorator
+
 from app.db.base_class import Base
 
 

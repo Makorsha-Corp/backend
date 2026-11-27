@@ -1,6 +1,5 @@
 """Tests for paginated purchase order hub list."""
 
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from app.schemas.purchase_order import PurchaseOrderListResponse

@@ -1,5 +1,6 @@
 """Orders overview aggregation schemas"""
 from decimal import Decimal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,9 +11,9 @@ class TopItemRow(BaseModel):
     total_quantity: Decimal
     total_spend: Decimal
     line_count: int
-    purchase_qty: Decimal = Decimal('0')
-    transfer_qty: Decimal = Decimal('0')
-    sales_qty: Decimal = Decimal('0')
+    purchase_qty: Decimal = Decimal(0)
+    transfer_qty: Decimal = Decimal(0)
+    sales_qty: Decimal = Decimal(0)
 
 
 class TopAccountRow(BaseModel):

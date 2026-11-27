@@ -1,23 +1,23 @@
 """Project endpoints"""
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_active_user, get_current_workspace
-from app.models.profile import Profile
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.project import (
     ProjectCreate,
-    ProjectUpdate,
-    ProjectResponse,
+    ProjectEventMetadata,
+    ProjectEventResponse,
     ProjectMemberCreate,
     ProjectMemberResponse,
     ProjectMembersListResponse,
+    ProjectResponse,
+    ProjectUpdate,
     ProjectVisibilityUpdate,
-    ProjectEventMetadata,
-    ProjectEventResponse,
 )
 from app.services.project_service import project_service
 
@@ -41,7 +41,7 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[ProjectResponse],
+    response_model=list[ProjectResponse],
     status_code=status.HTTP_200_OK,
     summary="List all projects",
     description="Get all projects in the workspace with optional filters",
@@ -49,8 +49,8 @@ router = APIRouter()
 def get_projects(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    project_status: Optional[str] = Query(None, description="Filter by project status"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    project_status: str | None = Query(None, description="Filter by project status"),
     workspace: Workspace = Depends(get_current_workspace),
     current_user: Profile = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -262,7 +262,7 @@ def update_project_visibility(
 
 @router.get(
     "/{project_id}/events/",
-    response_model=List[ProjectEventResponse],
+    response_model=list[ProjectEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List project activity events",
 )

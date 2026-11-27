@@ -3,10 +3,7 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.dao.item import _apply_item_catalog_filters
-from app.models.item import Item
 from app.schemas.item import ItemListResponse
 from app.services.item_service import ItemService
 

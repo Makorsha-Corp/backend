@@ -1,6 +1,7 @@
 """Production Batch Stage Log DAO"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.production_batch_stage_log import ProductionBatchStageLog
 from app.schemas.production_batch_stage_log import (
@@ -14,7 +15,7 @@ class ProductionBatchStageLogDAO(
 ):
     def get_by_batch(
         self, db: Session, *, batch_id: int, workspace_id: int
-    ) -> List[ProductionBatchStageLog]:
+    ) -> list[ProductionBatchStageLog]:
         return (
             db.query(ProductionBatchStageLog)
             .filter(
@@ -27,7 +28,7 @@ class ProductionBatchStageLogDAO(
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[ProductionBatchStageLog]:
+    ) -> ProductionBatchStageLog | None:
         return (
             db.query(ProductionBatchStageLog)
             .filter(ProductionBatchStageLog.id == id, ProductionBatchStageLog.workspace_id == workspace_id)

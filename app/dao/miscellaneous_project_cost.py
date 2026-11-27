@@ -4,11 +4,15 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.miscellaneous_project_cost import MiscellaneousProjectCost
-from app.schemas.miscellaneous_project_cost import MiscellaneousProjectCostCreate, MiscellaneousProjectCostUpdate
+from app.schemas.miscellaneous_project_cost import (
+    MiscellaneousProjectCostCreate,
+    MiscellaneousProjectCostUpdate,
+)
 
 
 class DAOMiscellaneousProjectCost(BaseDAO[MiscellaneousProjectCost, MiscellaneousProjectCostCreate, MiscellaneousProjectCostUpdate]):
@@ -16,7 +20,7 @@ class DAOMiscellaneousProjectCost(BaseDAO[MiscellaneousProjectCost, Miscellaneou
 
     def get_by_project(
         self, db: Session, *, project_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MiscellaneousProjectCost]:
+    ) -> list[MiscellaneousProjectCost]:
         """
         Get costs by project ID (SECURITY-CRITICAL: workspace-filtered)
 
@@ -43,7 +47,7 @@ class DAOMiscellaneousProjectCost(BaseDAO[MiscellaneousProjectCost, Miscellaneou
 
     def get_by_component(
         self, db: Session, *, project_component_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[MiscellaneousProjectCost]:
+    ) -> list[MiscellaneousProjectCost]:
         """
         Get costs by project component ID (SECURITY-CRITICAL: workspace-filtered)
 

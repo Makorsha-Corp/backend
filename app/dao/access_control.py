@@ -1,10 +1,11 @@
 """DAO operations for AccessControl model (workspace-scoped RBAC)"""
-from typing import List
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.access_control import AccessControl
+from app.models.enums import AccessControlTypeEnum, RoleEnum
 from app.schemas.access_control import AccessControlCreate, AccessControlUpdate
-from app.models.enums import RoleEnum, AccessControlTypeEnum
 
 
 class DAOAccessControl(BaseDAO[AccessControl, AccessControlCreate, AccessControlUpdate]):
@@ -17,7 +18,7 @@ class DAOAccessControl(BaseDAO[AccessControl, AccessControlCreate, AccessControl
 
     def get_by_role(
         self, db: Session, *, role: RoleEnum, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccessControl]:
+    ) -> list[AccessControl]:
         """
         Get access controls by role (SECURITY-CRITICAL: workspace-filtered)
 
@@ -48,7 +49,7 @@ class DAOAccessControl(BaseDAO[AccessControl, AccessControlCreate, AccessControl
 
     def get_by_type(
         self, db: Session, *, access_type: AccessControlTypeEnum, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccessControl]:
+    ) -> list[AccessControl]:
         """
         Get access controls by type (SECURITY-CRITICAL: workspace-filtered)
 

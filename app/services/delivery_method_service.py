@@ -1,11 +1,11 @@
 """Delivery Method Service for orchestrating delivery method workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.delivery_method_manager import delivery_method_manager
 from app.models.delivery_method import DeliveryMethod
 from app.schemas.delivery_method import DeliveryMethodCreate, DeliveryMethodUpdate
+from app.services.base_service import BaseService
 
 
 class DeliveryMethodService(BaseService):
@@ -47,7 +47,7 @@ class DeliveryMethodService(BaseService):
 
             return delivery_method
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -68,10 +68,10 @@ class DeliveryMethodService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[DeliveryMethod]:
+    ) -> list[DeliveryMethod]:
         """Get delivery methods in workspace."""
         return self.delivery_method_manager.search_delivery_methods(
             session=db,
@@ -108,7 +108,7 @@ class DeliveryMethodService(BaseService):
 
             return delivery_method
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -137,7 +137,7 @@ class DeliveryMethodService(BaseService):
 
             return delivery_method
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

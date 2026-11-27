@@ -8,7 +8,6 @@ language as the official docs (https://developer.sslcommerz.com/doc/v4/).
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
 
 @dataclass
@@ -30,9 +29,9 @@ class InitSessionRequest:
 @dataclass
 class InitSessionResult:
     status: str  # 'SUCCESS' | 'FAILED'
-    session_key: Optional[str] = None
-    gateway_page_url: Optional[str] = None
-    failed_reason: Optional[str] = None
+    session_key: str | None = None
+    gateway_page_url: str | None = None
+    failed_reason: str | None = None
 
 
 @dataclass
@@ -42,15 +41,15 @@ class ValidationResult:
     the same fields from either endpoint."""
     status: str  # 'VALID' | 'VALIDATED' | 'FAILED' | 'CANCELLED' | 'EXPIRED' | 'UNATTEMPTED' | 'INVALID_TRANSACTION'
     tran_id: str
-    val_id: Optional[str] = None
-    amount: Optional[Decimal] = None
-    currency: Optional[str] = None
-    risk_level: Optional[int] = None  # 0 = safe, 1 = risky
-    risk_title: Optional[str] = None
-    bank_tran_id: Optional[str] = None
-    card_type: Optional[str] = None
-    verify_sign: Optional[str] = None
-    verify_key: Optional[str] = None
+    val_id: str | None = None
+    amount: Decimal | None = None
+    currency: str | None = None
+    risk_level: int | None = None  # 0 = safe, 1 = risky
+    risk_title: str | None = None
+    bank_tran_id: str | None = None
+    card_type: str | None = None
+    verify_sign: str | None = None
+    verify_key: str | None = None
 
 
 class SSLCommerzClient(ABC):
@@ -71,7 +70,7 @@ class SSLCommerzClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def query_by_tran_id(self, tran_id: str, val_id_hint: Optional[str] = None) -> ValidationResult:
+    def query_by_tran_id(self, tran_id: str, val_id_hint: str | None = None) -> ValidationResult:
         """GET validator/api/merchantTransIDvalidationAPI.php — used by the
         reconciliation sweep to resolve a tran_id that never received a
         redirect or IPN callback."""

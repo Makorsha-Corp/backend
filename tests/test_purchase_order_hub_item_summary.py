@@ -19,8 +19,8 @@ def test_attach_item_summaries_sets_transient_fields() -> None:
         return_value={
             1: {
                 "item_count": 2,
-                "quantity_ordered_total": Decimal("15"),
-                "quantity_received_total": Decimal("5"),
+                "quantity_ordered_total": Decimal(15),
+                "quantity_received_total": Decimal(5),
             },
         },
     ), patch(
@@ -30,12 +30,12 @@ def test_attach_item_summaries_sets_transient_fields() -> None:
         service._attach_item_summaries(db, workspace_id=10, orders=[po1, po2])
 
     assert po1.item_count == 2
-    assert po1.quantity_ordered_total == Decimal("15")
-    assert po1.quantity_received_total == Decimal("5")
+    assert po1.quantity_ordered_total == Decimal(15)
+    assert po1.quantity_received_total == Decimal(5)
     assert po1.item_names_preview == ["Cotton Yarn", "Bearing Seal"]
     assert po2.item_count == 0
-    assert po2.quantity_ordered_total == Decimal("0")
-    assert po2.quantity_received_total == Decimal("0")
+    assert po2.quantity_ordered_total == Decimal(0)
+    assert po2.quantity_received_total == Decimal(0)
     assert po2.item_names_preview == []
 
 

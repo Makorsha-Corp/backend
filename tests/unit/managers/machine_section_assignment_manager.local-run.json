@@ -1,0 +1,488 @@
+{
+ "model": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+ "n_ctx": 16384,
+ "cases_file": "tests/unit/managers/machine_section_assignment_manager.cases.md",
+ "think": false,
+ "cases": [
+  {
+   "id": "MSM-SET-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 73.5,
+   "prompt_tokens": 5861,
+   "completion_tokens": 294,
+   "reason": "",
+   "test": "test_msm_set_02__moving_a_machine_to_another_section_of_its_factory_replaces_its_link"
+  },
+  {
+   "id": "MSM-SET-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.9,
+   "prompt_tokens": 5784,
+   "completion_tokens": 228,
+   "reason": "",
+   "test": "test_msm_set_04__clearing_validates_nothing_an_unknown_factory_id_and_an_unknown_user"
+  },
+  {
+   "id": "MSM-SET-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.4,
+   "prompt_tokens": 5778,
+   "completion_tokens": 223,
+   "reason": "",
+   "test": "test_msm_set_05__clearing_a_machine_without_a_link_returns_none_and_writes_nothing"
+  },
+  {
+   "id": "MSM-SET-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 36.2,
+   "prompt_tokens": 5807,
+   "completion_tokens": 255,
+   "reason": "",
+   "test": "test_msm_set_07__clearing_with_an_unknown_workspace_id_leaves_the_machine_s_link_of_w1"
+  },
+  {
+   "id": "MSM-SET-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.6,
+   "prompt_tokens": 5820,
+   "completion_tokens": 281,
+   "reason": "",
+   "test": "test_msm_set_11__section_id_0_is_looked_up_not_taken_as_clear_and_answered_with_404"
+  },
+  {
+   "id": "MSM-SET-19",
+   "expect": "xfail",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 80.3,
+   "prompt_tokens": 12053,
+   "completion_tokens": 587,
+   "reason": "",
+   "test": "test_msm_set_19__a_live_section_of_a_soft_deleted_factory_is_refused_like_a_deleted",
+   "last_code": "def test_msm_set_19__a_live_section_of_a_soft_deleted_factory_is_refused_like_a_deleted(db, w1, u2, fd, mf, sf, mk_assignment):\n    \"\"\"MSM-SET-19 \u2014 a live section of a soft-deleted factory is refused like a deleted section.\n    Rules: `set_assignment` R9 [BUG-910] (P1), Errors row 4\"\"\"\n    sg = mk_section(of=fd, name=\"Dry Store\")\n    af = mk_assignment(of=mf, to=sg)\n    before_af = snap(db, af)\n    before = written(db)\n\n    # Then 1\n    with pytest.raises(HTTPException) as exc:\n        mgr.set_assignment(db, machine_id=mf.id, factory_id=fd.id, factory_section_id=sf.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 2\n    assert exc.value.status_code == 400\n    # Then 3\n    assert exc.value.detail == \"Cannot assign a machine to a deleted factory section\"\n    # Then 4\n    assert written(db) == before\n    # Then 5\n    assert snap(db, af) == before_af\n    # Then 6\n    assert len(rows_of(db, mf)) == 1",
+   "rejections": [
+    "You use the fixture(s) mk_section but they are not in the function's argument list. Add them."
+   ],
+   "fails_on": "E   Failed: DID NOT RAISE HTTPException",
+   "fails_in_then": 1
+  },
+  {
+   "id": "MSM-SET-21",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 36.8,
+   "prompt_tokens": 5839,
+   "completion_tokens": 256,
+   "reason": "",
+   "test": "test_msm_set_21__a_section_of_a_live_but_inactive_factory_is_accepted"
+  },
+  {
+   "id": "MSM-SET-23",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 57.8,
+   "prompt_tokens": 11822,
+   "completion_tokens": 427,
+   "reason": "",
+   "test": "test_msm_set_23__an_inactive_section_of_a_live_factory_is_accepted_like_an_active_one",
+   "last_code": "def test_msm_set_23__an_inactive_section_of_a_live_factory_is_accepted_like_an_active_one(db, w1, u2, f1, m1):\n    \"\"\"MSM-SET-23 \u2014 an inactive section of a live factory is accepted like an active one.\n    Rules: `set_assignment` R9a\"\"\"\n    si = mk_section(of=f1, name=\"Spare Bay\", is_active=False)\n    before_si = snap(db, si)\n\n    result = mgr.set_assignment(db, machine_id=m1.id, factory_id=f1.id, factory_section_id=si.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.factory_section_id == si.id\n    # Then 3\n    assert snap(db, si) == before_si",
+   "rejections": [
+    "You use the fixture(s) mk_section but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "MSM-SET-27",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 38.2,
+   "prompt_tokens": 5807,
+   "completion_tokens": 270,
+   "reason": "",
+   "test": "test_msm_set_27__a_machine_id_that_is_no_machine_fails_on_flush_and_nothing_changes"
+  },
+  {
+   "id": "MSM-SET-30",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.9,
+   "prompt_tokens": 5772,
+   "completion_tokens": 176,
+   "reason": "",
+   "test": "test_msm_set_30__user_id_none_is_stored_as_null"
+  },
+  {
+   "id": "MSM-SET-31",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 33.4,
+   "prompt_tokens": 5834,
+   "completion_tokens": 227,
+   "reason": "",
+   "test": "test_msm_set_31__a_machine_whose_section_was_already_read_still_reports_the_old"
+  },
+  {
+   "id": "MSM-SET-36",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 54.1,
+   "prompt_tokens": 5860,
+   "completion_tokens": 399,
+   "reason": "",
+   "test": "test_msm_set_36__a_move_touches_only_the_machine_s_own_link"
+  },
+  {
+   "id": "MSM-CLR-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.6,
+   "prompt_tokens": 5793,
+   "completion_tokens": 219,
+   "reason": "",
+   "test": "test_msm_clr_04__a_link_of_another_workspace_pointing_at_the_same_section_is_not"
+  },
+  {
+   "id": "MSM-CLR-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 40.1,
+   "prompt_tokens": 5935,
+   "completion_tokens": 275,
+   "reason": "",
+   "test": "test_msm_clr_10__machines_whose_section_was_already_read_report_no_section_right_after"
+  },
+  {
+   "id": "MSM-CLR-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.3,
+   "prompt_tokens": 5832,
+   "completion_tokens": 204,
+   "reason": "",
+   "test": "test_msm_clr_11__a_name_changed_in_memory_before_the_call_keeps_its_new_value"
+  },
+  {
+   "id": "MSM-CLR-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.1,
+   "prompt_tokens": 5868,
+   "completion_tokens": 276,
+   "reason": "",
+   "test": "test_msm_clr_12__machines_not_loaded_in_the_session_before_the_call_report_no_section"
+  },
+  {
+   "id": "MSM-SET-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 63.6,
+   "prompt_tokens": 5776,
+   "completion_tokens": 192,
+   "reason": "",
+   "test": "test_msm_set_03__clearing_a_machine_s_section_deletes_its_link_and_returns_none"
+  },
+  {
+   "id": "MSM-SET-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.8,
+   "prompt_tokens": 5758,
+   "completion_tokens": 198,
+   "reason": "",
+   "test": "test_msm_set_06__clearing_an_unknown_machine_id_returns_none_and_writes_nothing"
+  },
+  {
+   "id": "MSM-SET-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 40.9,
+   "prompt_tokens": 5844,
+   "completion_tokens": 277,
+   "reason": "",
+   "test": "test_msm_set_09__re_saving_the_same_section_keeps_exactly_one_link_of_that_machine_to"
+  },
+  {
+   "id": "MSM-SET-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.1,
+   "prompt_tokens": 5817,
+   "completion_tokens": 277,
+   "reason": "",
+   "test": "test_msm_set_10__a_section_id_that_no_section_has_is_answered_with_404_and_the_machine"
+  },
+  {
+   "id": "MSM-SET-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 35.5,
+   "prompt_tokens": 5799,
+   "completion_tokens": 248,
+   "reason": "",
+   "test": "test_msm_set_12__a_negative_section_id_is_answered_with_404"
+  },
+  {
+   "id": "MSM-SET-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.8,
+   "prompt_tokens": 5811,
+   "completion_tokens": 207,
+   "reason": "",
+   "test": "test_msm_set_14__the_same_section_is_accepted_from_its_own_workspace"
+  },
+  {
+   "id": "MSM-SET-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 35.1,
+   "prompt_tokens": 5835,
+   "completion_tokens": 243,
+   "reason": "",
+   "test": "test_msm_set_16__a_soft_deleted_section_of_another_factory_gets_the_deleted_message"
+  },
+  {
+   "id": "MSM-SET-17",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 38.8,
+   "prompt_tokens": 5818,
+   "completion_tokens": 273,
+   "reason": "",
+   "test": "test_msm_set_17__a_live_section_of_another_factory_is_refused_with_400_and_the_machine"
+  },
+  {
+   "id": "MSM-SET-18",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 36.8,
+   "prompt_tokens": 5804,
+   "completion_tokens": 258,
+   "reason": "",
+   "test": "test_msm_set_18__a_factory_id_that_names_no_factory_is_refused_with_the_factory_message"
+  },
+  {
+   "id": "MSM-SET-20",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.9,
+   "prompt_tokens": 5820,
+   "completion_tokens": 225,
+   "reason": "",
+   "test": "test_msm_set_20__a_section_of_the_soft_deleted_factory_with_another_factory_id_gets"
+  },
+  {
+   "id": "MSM-SET-22",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.9,
+   "prompt_tokens": 5784,
+   "completion_tokens": 228,
+   "reason": "",
+   "test": "test_msm_set_22__clearing_the_section_of_a_machine_of_the_soft_deleted_factory_is"
+  },
+  {
+   "id": "MSM-SET-24",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.8,
+   "prompt_tokens": 5787,
+   "completion_tokens": 193,
+   "reason": "",
+   "test": "test_msm_set_24__a_soft_deleted_machine_is_not_refused"
+  },
+  {
+   "id": "MSM-SET-25",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.2,
+   "prompt_tokens": 5799,
+   "completion_tokens": 213,
+   "reason": "",
+   "test": "test_msm_set_25__a_machine_whose_own_factory_differs_from_factory_id_is_not_refused"
+  },
+  {
+   "id": "MSM-SET-26",
+   "expect": "pass",
+   "outcome": "escalated",
+   "attempts": 3,
+   "seconds": 86.0,
+   "prompt_tokens": 18315,
+   "completion_tokens": 684,
+   "reason": "did not end as designed after 3 attempts",
+   "test": "",
+   "last_code": "def test_msm_set_26__a_machine_of_another_workspace_is_not_refused_and_the_link_is_stored(db, w1, u2, f1, m9, s1):\n    \"\"\"MSM-SET-26 \u2014 a machine of another workspace is not refused and the link is stored in the caller's workspace.\n    Rules: `set_assignment` R10 (Q1)\"\"\"\n    before = written(db)\n\n    result = mgr.set_assignment(db, machine_id=m9.id, factory_id=f1.id, factory_section_id=s1.id, workspace_id=w1.id, user_id=u2.id)\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.machine_id == m9.id\n    assert row.factory_section_id == s1.id\n    # Then 3\n    assert row.workspace_id == w1.id\n    # Then 4\n    assert written(db) == before",
+   "rejections": [
+    "The card has 3 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3` - each exactly once, in order.",
+    "The card has 3 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3` - each exactly once, in order.",
+    "The card has 3 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1`, `# Then 2`, `# Then 3` - each exactly once, in order."
+   ]
+  },
+  {
+   "id": "MSM-SET-28",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 87.0,
+   "prompt_tokens": 12105,
+   "completion_tokens": 673,
+   "reason": "",
+   "test": "test_msm_set_28__a_user_id_that_is_no_profile_fails_on_flush_and_the_machine_s",
+   "last_code": "def test_msm_set_28__a_user_id_that_is_no_profile_fails_on_flush_and_the_machine_s(db, w1, u2, f1, m1, s1, s2, mk_assignment):\n    \"\"\"MSM-SET-28 \u2014 a user_id that is no profile fails on flush and the machine's previous link is back.\n    Rules: `set_assignment` R11, Errors row 6\"\"\"\n    a1 = mk_assignment(of=m1, to=s1)\n    before_a1 = snap(db, a1)\n    before = written(db)\n\n    # Then 1\n    with pytest.raises(IntegrityError) as exc:\n        with db.begin_nested():\n            mgr.set_assignment(db, machine_id=m1.id, factory_id=f1.id, factory_section_id=s2.id, workspace_id=w1.id, user_id=MISSING)\n\n    # Then 2\n    assert isinstance(exc.value.orig, ForeignKeyViolation)\n    # Then 3\n    assert \"machine_section_assignments_created_by_fkey\" in str(exc.value.orig)\n    # Then 4\n    assert snap(db, a1) == before_a1\n    # Then 5\n    row = reread(db, a1)\n    assert row.factory_section_id == s1.id\n    assert row.created_by == u2.id\n    # Then 6\n    assert len(rows_of(db, m1)) == 1\n    # Then 7\n    assert written(db) == before",
+   "rejections": [
+    "The card names U1, but the test never uses `u1`. Build every Given row with exactly the rows the card names, and make the When call with exactly the card's arguments."
+   ]
+  },
+  {
+   "id": "MSM-SET-32",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.3,
+   "prompt_tokens": 5825,
+   "completion_tokens": 204,
+   "reason": "",
+   "test": "test_msm_set_32__a_machine_whose_section_was_already_read_still_reports_it_after"
+  },
+  {
+   "id": "MSM-SET-33",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.0,
+   "prompt_tokens": 5824,
+   "completion_tokens": 193,
+   "reason": "",
+   "test": "test_msm_set_33__a_machine_read_without_a_section_still_reports_no_section_after_a"
+  },
+  {
+   "id": "MSM-SET-37",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 42.7,
+   "prompt_tokens": 5817,
+   "completion_tokens": 309,
+   "reason": "",
+   "test": "test_msm_set_37__clearing_touches_only_the_machine_s_own_link"
+  },
+  {
+   "id": "MSM-CLR-02",
+   "expect": "pass",
+   "outcome": "escalated",
+   "attempts": 3,
+   "seconds": 96.9,
+   "prompt_tokens": 18896,
+   "completion_tokens": 709,
+   "reason": "did not end as designed after 3 attempts",
+   "test": "",
+   "last_code": "def test_msm_clr_02__the_link_of_a_soft_deleted_machine_is_deleted_and_listed_too(db, w1, m1, md, s1, mk_assignment):\n    \"\"\"MSM-CLR-02 \u2014 the link of a soft-deleted machine is deleted and listed too.\n    Rules: `clear_for_section` R1, R4\"\"\"\n    mk_assignment(of=m1, to=s1)\n    ad = mk_assignment(of=md, to=s1)\n    before_ad = snap(db, ad)\n\n    result = mgr.clear_for_section(db, factory_section_id=s1.id, workspace_id=w1.id)\n\n    # Then 1\n    assert sorted(result) == [m1.id, md.id]\n    # Then 2\n    assert count_rows(db, \"machine_section_assignments\") == 0\n    # Then 3\n    assert snap(db, ad) == before_ad",
+   "last_output": "============================= test session starts =============================\ncollected 1 item\n\ntests\\unit\\managers\\test_machine_section_assignment_manager.py F         [100%]\n\n================================== FAILURES ===================================\n_ test_msm_clr_02__the_link_of_a_soft_deleted_machine_is_deleted_and_listed_too _\ntests\\unit\\managers\\test_machine_section_assignment_manager.py:1149: in test_msm_clr_02__the_link_of_a_soft_deleted_machine_is_deleted_and_listed_too\n    assert snap(db, ad) == before_ad\nE   AssertionError: assert None == {'id': 742751, 'workspace_id': 794603, 'machine_id': 1071020, 'factory_section_id': 232555, ...}\nE    +  where None = snap(<sqlalchemy.orm.session.Session object at 0x000002552B2955E0>, <app.models.machine_section_assignment.MachineSectionAssignment object at 0x000002552C20BB00>)\n=========================== short test summary info ===========================\nFAILED tests/unit/managers/test_machine_section_assignment_manager.py::test_msm_clr_02__the_link_of_a_soft_deleted_machine_is_deleted_and_listed_too\n============================== 1 failed in 2.23s ==============================\n",
+   "rejections": [
+    "The test ran and ended as `failed`. It must PASS.",
+    "The variable `before_ad` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it.",
+    "The test ran and ended as `failed`. It must PASS."
+   ]
+  },
+  {
+   "id": "MSM-CLR-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 53.8,
+   "prompt_tokens": 11809,
+   "completion_tokens": 397,
+   "reason": "",
+   "test": "test_msm_clr_03__the_links_of_a_soft_deleted_section_are_deleted_and_the_section_is",
+   "last_code": "def test_msm_clr_03__the_links_of_a_soft_deleted_section_are_deleted_and_the_section_is(db, w1, m1, sx, mk_assignment):\n    \"\"\"MSM-CLR-03 \u2014 the links of a soft-deleted section are deleted and the section is not written.\n    Rules: `clear_for_section` R1, R4\"\"\"\n    mk_assignment(of=m1, to=sx)\n    before = written(db)\n    before_sx = snap(db, sx)\n\n    result = mgr.clear_for_section(db, factory_section_id=sx.id, workspace_id=w1.id)\n\n    # Then 1\n    assert result == [m1.id]\n    # Then 2\n    assert len(rows_of(db, m1)) == 0\n    # Then 3\n    assert snap(db, sx) == before_sx",
+   "rejections": [
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "MSM-CLR-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.8,
+   "prompt_tokens": 5793,
+   "completion_tokens": 210,
+   "reason": "",
+   "test": "test_msm_clr_05__the_other_workspace_s_call_removes_only_its_own_link"
+  },
+  {
+   "id": "MSM-CLR-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.7,
+   "prompt_tokens": 5745,
+   "completion_tokens": 185,
+   "reason": "",
+   "test": "test_msm_clr_06__an_unknown_section_id_returns_an_empty_list_and_writes_nothing"
+  },
+  {
+   "id": "MSM-CLR-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.7,
+   "prompt_tokens": 5752,
+   "completion_tokens": 185,
+   "reason": "",
+   "test": "test_msm_clr_07__a_section_without_links_returns_an_empty_list_and_writes_nothing"
+  },
+  {
+   "id": "MSM-CLR-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.6,
+   "prompt_tokens": 5763,
+   "completion_tokens": 192,
+   "reason": "",
+   "test": "test_msm_clr_08__a_section_whose_only_link_is_in_another_workspace_returns_an_empty"
+  }
+ ],
+ "totals": {
+  "cases": 40,
+  "accepted": 38,
+  "escalated": 2,
+  "accepted_first_try": 34,
+  "seconds": 1702.9,
+  "prompt_tokens": 282561,
+  "completion_tokens": 11570
+ }
+}

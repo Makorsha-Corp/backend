@@ -1,11 +1,11 @@
 """Custom exceptions and exception handlers"""
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
-from typing import Optional, List, Any
-import uuid
 import logging
+import uuid
+
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from app.core.config import settings
 
@@ -27,7 +27,7 @@ class APIException(Exception):
         error_type: str,
         title: str,
         detail: str,
-        errors: Optional[List[dict]] = None
+        errors: list[dict] | None = None
     ):
         self.status_code = status_code
         self.error_type = error_type
@@ -41,7 +41,7 @@ class APIException(Exception):
 
 class ValidationError(APIException):
     """400 - Request validation failed"""
-    def __init__(self, detail: str, errors: Optional[List[dict]] = None):
+    def __init__(self, detail: str, errors: list[dict] | None = None):
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             error_type="validation_error",
@@ -97,7 +97,7 @@ class ConflictError(APIException):
 
 class BusinessRuleError(APIException):
     """422 - Business rule violation"""
-    def __init__(self, detail: str, errors: Optional[List[dict]] = None):
+    def __init__(self, detail: str, errors: list[dict] | None = None):
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             error_type="business_rule_violation",
@@ -107,40 +107,7 @@ class BusinessRuleError(APIException):
         )
 
 
-class RateLimitError(APIException):
-    """429 - Too many requests"""
-    def __init__(self, detail: str = "Rate limit exceeded. Please try again later."):
-        super().__init__(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error_type="rate_limit_exceeded",
-            title="Rate Limit Exceeded",
-            detail=detail
-        )
-
-
 # Server Errors (5xx)
-
-class InternalServerError(APIException):
-    """500 - Internal server error"""
-    def __init__(self, detail: str = "An unexpected error occurred"):
-        super().__init__(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_type="internal_error",
-            title="Internal Server Error",
-            detail=detail
-        )
-
-
-class ServiceUnavailableError(APIException):
-    """503 - Service temporarily unavailable"""
-    def __init__(self, detail: str = "Service temporarily unavailable"):
-        super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error_type="service_unavailable",
-            title="Service Unavailable",
-            detail=detail
-        )
-
 
 # ==================== EXCEPTION HANDLERS ====================
 

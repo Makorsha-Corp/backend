@@ -1,7 +1,7 @@
 """Transfer Order Manager - business logic for transfer orders"""
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -82,7 +82,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
 
     def _order_items(
         self, session: Session, to: TransferOrder, workspace_id: int
-    ) -> List[TransferOrderItem]:
+    ) -> list[TransferOrderItem]:
         return self.item_dao.get_by_order(
             session, transfer_order_id=to.id, workspace_id=workspace_id
         )
@@ -121,11 +121,6 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             session, transfer_order_id=to.id, workspace_id=to.workspace_id
         )
         return any(a.approved for a in approvers)
-
-    def _all_items_transferred(self, items: List[TransferOrderItem]) -> bool:
-        if not items:
-            return False
-        return all(i.transferred_at is not None for i in items)
 
     def _format_scalar_value(self, field: str, value: Any) -> str:
         if value is None:
@@ -188,8 +183,8 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         workspace_id: int,
         record: TransferOrder,
         update_dict: dict,
-    ) -> List[dict]:
-        changes: List[dict] = []
+    ) -> list[dict]:
+        changes: list[dict] = []
         src_type = update_dict.get('source_location_type', record.source_location_type)
         dest_type = update_dict.get('destination_location_type', record.destination_location_type)
         for field, label in ORDER_UPDATE_LOG_FIELDS.items():
@@ -223,7 +218,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         user_id: int,
         event_type: str,
         description: str,
-        changes: List[dict],
+        changes: list[dict],
     ) -> None:
         if not changes:
             return
@@ -353,7 +348,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
     def list_transfer_orders(
         self, session: Session, workspace_id: int,
         skip: int = 0, limit: int = 100
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         return self.to_dao.get_by_workspace(
             session, workspace_id=workspace_id,
             skip=skip, limit=limit
@@ -367,7 +362,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         skip: int = 0,
         limit: int = 50,
         **filters,
-    ) -> List[TransferOrder]:
+    ) -> list[TransferOrder]:
         return self.to_dao.list_for_hub(
             session,
             workspace_id=workspace_id,
@@ -492,7 +487,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         item_id: int,
         workspace_id: int,
         *,
-        exclude_item_id: Optional[int] = None,
+        exclude_item_id: int | None = None,
     ) -> None:
         from app.utils.order_catalog_items import catalog_item_already_on_order_detail
 
@@ -598,19 +593,19 @@ class TransferOrderManager(BaseManager[TransferOrder]):
         )
         return record
 
-    def get_items(self, session: Session, to_id: int, workspace_id: int) -> List[TransferOrderItem]:
+    def get_items(self, session: Session, to_id: int, workspace_id: int) -> list[TransferOrderItem]:
         self.get_transfer_order(session, to_id, workspace_id)
         return self.item_dao.get_by_order(session, transfer_order_id=to_id, workspace_id=workspace_id)
 
     # ─── Approvers ─────────────────────────────────────────────
     def list_approvers(
         self, session: Session, to_id: int, workspace_id: int
-    ) -> List[Tuple[TransferOrderApprover, Optional[Profile], Optional[str]]]:
+    ) -> list[tuple[TransferOrderApprover, Profile | None, str | None]]:
         self.get_transfer_order(session, to_id, workspace_id)
         approvers = self.approver_dao.get_by_order(
             session, transfer_order_id=to_id, workspace_id=workspace_id
         )
-        result: List[Tuple[TransferOrderApprover, Optional[Profile], Optional[str]]] = []
+        result: list[tuple[TransferOrderApprover, Profile | None, str | None]] = []
         for approver in approvers:
             profile = profile_dao.get(session, id=approver.user_id)
             member = workspace_member_dao.get_by_workspace_and_user(
@@ -619,7 +614,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
             result.append((approver, profile, member.position if member else None))
         return result
 
-    def approval_summary(self, session: Session, to: TransferOrder) -> Tuple[int, int, bool]:
+    def approval_summary(self, session: Session, to: TransferOrder) -> tuple[int, int, bool]:
         approvers = self.approver_dao.get_by_order(
             session, transfer_order_id=to.id, workspace_id=to.workspace_id
         )
@@ -676,7 +671,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
 
     def remove_approver(
         self, session: Session, to_id: int, user_id: int, workspace_id: int,
-        performed_by: Optional[int] = None,
+        performed_by: int | None = None,
     ) -> None:
         rec = self.approver_dao.get_by_order_and_user(
             session, transfer_order_id=to_id, user_id=user_id, workspace_id=workspace_id
@@ -722,7 +717,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
     # ─── Events ────────────────────────────────────────────────
     def log_event(
         self, session: Session, to_id: int, workspace_id: int,
-        event_type: str, description: str, performed_by: Optional[int] = None,
+        event_type: str, description: str, performed_by: int | None = None,
         metadata: dict | None = None,
     ) -> TransferOrderEvent:
         ev = TransferOrderEvent(
@@ -739,7 +734,7 @@ class TransferOrderManager(BaseManager[TransferOrder]):
 
     def list_events(
         self, session: Session, to_id: int, workspace_id: int
-    ) -> List[Tuple[TransferOrderEvent, Optional[Profile]]]:
+    ) -> list[tuple[TransferOrderEvent, Profile | None]]:
         self.get_transfer_order(session, to_id, workspace_id)
         events = self.event_dao.get_by_order(
             session, transfer_order_id=to_id, workspace_id=workspace_id

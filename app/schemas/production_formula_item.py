@@ -1,7 +1,7 @@
 """Production Formula Item schemas"""
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProductionFormulaItemBase(BaseModel):
@@ -10,23 +10,22 @@ class ProductionFormulaItemBase(BaseModel):
     item_id: int
     item_role: str = Field(..., pattern=r'^(input|output|waste|byproduct)$')
     quantity: int = Field(..., gt=0)
-    unit: Optional[str] = Field(None, max_length=20)
+    unit: str | None = Field(None, max_length=20)
     is_optional: bool = False
-    tolerance_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    tolerance_percentage: Decimal | None = Field(None, ge=0, le=100)
 
 
 class ProductionFormulaItemCreate(ProductionFormulaItemBase):
     """Production formula item creation schema (workspace_id injected by service)"""
-    pass
 
 
 class ProductionFormulaItemUpdate(BaseModel):
     """Production formula item update schema"""
-    item_role: Optional[str] = Field(None, pattern=r'^(input|output|waste|byproduct)$')
-    quantity: Optional[int] = Field(None, gt=0)
-    unit: Optional[str] = Field(None, max_length=20)
-    is_optional: Optional[bool] = None
-    tolerance_percentage: Optional[Decimal] = Field(None, ge=0, le=100)
+    item_role: str | None = Field(None, pattern=r'^(input|output|waste|byproduct)$')
+    quantity: int | None = Field(None, gt=0)
+    unit: str | None = Field(None, max_length=20)
+    is_optional: bool | None = None
+    tolerance_percentage: Decimal | None = Field(None, ge=0, le=100)
 
 
 class ProductionFormulaItemInDB(ProductionFormulaItemBase):
@@ -39,4 +38,3 @@ class ProductionFormulaItemInDB(ProductionFormulaItemBase):
 
 class ProductionFormulaItemResponse(ProductionFormulaItemInDB):
     """Production formula item response schema"""
-    pass

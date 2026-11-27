@@ -1,7 +1,9 @@
 """Sales order approver model - assigned workspace members who approve a sales order."""
-from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

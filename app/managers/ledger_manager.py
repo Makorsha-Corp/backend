@@ -1,23 +1,24 @@
 """Ledger Manager for ledger queries and reconciliation"""
-from typing import List, Optional, Dict, Any, Tuple
-from sqlalchemy.orm import Session
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal
-from app.managers.base_manager import BaseManager
-from app.models.machine_item_ledger import MachineItemLedger
-from app.models.project_component_item_ledger import ProjectComponentItemLedger
-from app.models.inventory_ledger import InventoryLedger
-from app.models.attachment_ledger import AttachmentLedger
-from app.models.enums import InventoryTypeEnum
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.dao.attachment_ledger import attachment_ledger_dao
+from app.dao.inventory import inventory_dao
+from app.dao.inventory_ledger import inventory_ledger_dao
+from app.dao.item import item_dao
+from app.dao.machine_item import machine_item_dao
 from app.dao.machine_item_ledger import machine_item_ledger_dao
 from app.dao.project_component_item_ledger import project_component_item_ledger_dao
-from app.dao.inventory_ledger import inventory_ledger_dao
-from app.dao.attachment_ledger import attachment_ledger_dao
-from app.dao.machine_item import machine_item_dao
-from app.dao.inventory import inventory_dao
-from app.dao.item import item_dao
+from app.managers.base_manager import BaseManager
 from app.managers.machine_activity_manager import machine_activity_manager
-from app.schemas.inventory_ledger import InventoryLedgerCreate
+from app.models.attachment_ledger import AttachmentLedger
+from app.models.enums import InventoryTypeEnum
+from app.models.inventory_ledger import InventoryLedger
+from app.models.machine_item_ledger import MachineItemLedger
+from app.models.project_component_item_ledger import ProjectComponentItemLedger
 
 
 class LedgerManager(BaseManager[MachineItemLedger]):
@@ -52,13 +53,13 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         session: Session,
         machine_id: int,
         workspace_id: int,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[MachineItemLedger]:
+    ) -> list[MachineItemLedger]:
         """
         Get machine ledger entries with optional filters.
 
@@ -112,7 +113,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         machine_id: int,
         item_id: int,
         workspace_id: int
-    ) -> Tuple[int, Decimal]:
+    ) -> tuple[int, Decimal]:
         """
         Calculate current machine balance from ledger.
 
@@ -139,7 +140,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         item_id: int,
         workspace_id: int,
         user_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Reconcile machine ledger vs machine_items snapshot.
 
@@ -212,7 +213,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         # NOTE: Build as a dict (bypassing MachineItemLedgerCreate) so that
         # workspace_id and performed_by actually persist — they're not part of
         # the Pydantic schema and would otherwise be silently dropped.
-        adjustment_payload: Dict[str, Any] = {
+        adjustment_payload: dict[str, Any] = {
             'workspace_id': workspace_id,
             'machine_id': machine_id,
             'item_id': item_id,
@@ -279,10 +280,10 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         session: Session,
         project_component_id: int,
         workspace_id: int,
-        item_id: Optional[int] = None,
+        item_id: int | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[ProjectComponentItemLedger]:
+    ) -> list[ProjectComponentItemLedger]:
         """
         Get project component consumption ledger.
 
@@ -350,15 +351,15 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         self,
         session: Session,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[InventoryLedger]:
+    ) -> list[InventoryLedger]:
         """
         Get unified inventory ledger entries with optional filters.
 
@@ -421,7 +422,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         item_id: int,
         inventory_type: InventoryTypeEnum,
         workspace_id: int
-    ) -> Tuple[int, Decimal]:
+    ) -> tuple[int, Decimal]:
         """
         Calculate current inventory balance from ledger for a single
         (factory, item, inventory_type) bucket.
@@ -452,7 +453,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         inventory_type: InventoryTypeEnum,
         workspace_id: int,
         user_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Reconcile inventory ledger vs the matching inventory snapshot
         for one (factory, item, inventory_type) bucket.
@@ -521,7 +522,7 @@ class LedgerManager(BaseManager[MachineItemLedger]):
 
         # Build dict directly so we can inject workspace_id + performed_by,
         # which are NOT part of InventoryLedgerCreate.
-        adjustment_payload: Dict[str, Any] = {
+        adjustment_payload: dict[str, Any] = {
             'workspace_id': workspace_id,
             'inventory_type': inventory_type,
             'factory_id': factory_id,
@@ -564,14 +565,14 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         self,
         session: Session,
         workspace_id: int,
-        attachment_id: Optional[int] = None,
-        entity_type: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        transaction_type: Optional[str] = None,
+        attachment_id: int | None = None,
+        entity_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        transaction_type: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[AttachmentLedger]:
+    ) -> list[AttachmentLedger]:
         """List attachment ledger entries for a workspace (newest first)."""
         return self.attachment_ledger_dao.get_by_workspace(
             session,
@@ -594,9 +595,9 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         session: Session,
         item_id: int,
         workspace_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> Dict[str, List]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
+    ) -> dict[str, list]:
         """
         Get item movement across all ledgers.
 
@@ -648,11 +649,11 @@ class LedgerManager(BaseManager[MachineItemLedger]):
         session: Session,
         user_id: int,
         workspace_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> Dict[str, List]:
+    ) -> dict[str, list]:
         """
         Get all transactions performed by a user across all ledgers.
 

@@ -1,0 +1,807 @@
+{
+ "model": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+ "n_ctx": 16384,
+ "cases_file": "tests/unit/dao/item_tag_assignment.cases.md",
+ "think": false,
+ "cases": [
+  {
+   "id": "ITA-TFS-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 79.2,
+   "prompt_tokens": 5972,
+   "completion_tokens": 286,
+   "reason": "",
+   "test": "test_ita_tfs_01__returns_a_dict_of_the_active_tags_per_requested_item_and_writes"
+  },
+  {
+   "id": "ITA-TFS-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.8,
+   "prompt_tokens": 5885,
+   "completion_tokens": 171,
+   "reason": "",
+   "test": "test_ita_tfs_07__an_unknown_item_id_maps_to_an_empty_list"
+  },
+  {
+   "id": "ITA-TFS-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 67.8,
+   "prompt_tokens": 12109,
+   "completion_tokens": 455,
+   "reason": "",
+   "test": "test_ita_tfs_09__a_deleted_tag_is_never_listed_an_item_with_only_a_deleted_tag_maps_to",
+   "last_code": "def test_ita_tfs_09__a_deleted_tag_is_never_listed_an_item_with_only_a_deleted_tag_maps_to(db, w1, i1, i2, td, mk_link):\n    \"\"\"ITA-TFS-09 \u2014 a deleted tag is never listed; an item with only a deleted tag maps to an empty list.\n    Rules: `get_tags_for_items` R2, R3\"\"\"\n    mk_link(of=i1, to=t1)\n    mk_link(of=i1, to=td)\n    mk_link(of=i2, to=td)\n    before_td = snap(db, td)\n\n    result = dao.get_tags_for_items(db, item_ids=[i1.id, i2.id], workspace_id=w1.id)\n\n    # Then 1\n    assert ids(result[i1.id]) == [t1.id]\n    # Then 2\n    assert result[i2.id] == []\n    # Then 3\n    assert snap(db, td) == before_td",
+   "rejections": [
+    "You use the fixture(s) t1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITA-TFS-15",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.3,
+   "prompt_tokens": 5906,
+   "completion_tokens": 196,
+   "reason": "",
+   "test": "test_ita_tfs_15__a_tag_on_two_items_is_the_same_object_in_both_lists"
+  },
+  {
+   "id": "ITA-TFI-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.7,
+   "prompt_tokens": 5880,
+   "completion_tokens": 177,
+   "reason": "",
+   "test": "test_ita_tfi_09__the_tags_of_a_deleted_item_are_returned"
+  },
+  {
+   "id": "ITA-EX-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.9,
+   "prompt_tokens": 5871,
+   "completion_tokens": 144,
+   "reason": "",
+   "test": "test_ita_ex_06__the_link_s_own_workspace_decides_asked_under_the_link_s_workspace"
+  },
+  {
+   "id": "ITA-EX-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 25.1,
+   "prompt_tokens": 5877,
+   "completion_tokens": 147,
+   "reason": "",
+   "test": "test_ita_ex_10__a_link_added_but_not_flushed_gives_false"
+  },
+  {
+   "id": "ITA-CNT-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.1,
+   "prompt_tokens": 5893,
+   "completion_tokens": 183,
+   "reason": "",
+   "test": "test_ita_cnt_02__links_to_a_deleted_item_are_not_counted_a_tag_only_on_deleted_items"
+  },
+  {
+   "id": "ITA-CNT-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.4,
+   "prompt_tokens": 5860,
+   "completion_tokens": 142,
+   "reason": "",
+   "test": "test_ita_cnt_05__the_other_workspace_gets_only_its_own_count"
+  },
+  {
+   "id": "ITA-RM-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 36.1,
+   "prompt_tokens": 5907,
+   "completion_tokens": 226,
+   "reason": "",
+   "test": "test_ita_rm_02__a_link_to_a_deleted_tag_is_deleted_and_counted_too_the_tag_stays"
+  },
+  {
+   "id": "ITA-RM-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 3,
+   "seconds": 129.6,
+   "prompt_tokens": 18955,
+   "completion_tokens": 917,
+   "reason": "",
+   "test": "test_ita_rm_06__the_item_and_tag_rows_are_not_written_and_the_tag_counter_stays",
+   "last_code": "def test_ita_rm_06__the_item_and_tag_rows_are_not_written_and_the_tag_counter_stays(db, w1, i1, mk_tag, mk_link):\n    \"\"\"ITA-RM-06 \u2014 the item and tag rows are not written and the tag counter stays.\n    Rules: `remove_all_tags_from_item` R3\"\"\"\n    k1 = mk_tag(name=\"Gasket\", tag_code=\"gasket\", usage_count=4)\n    mk_link(of=i1, to=k1)\n    before_k1 = snap(db, k1)\n    before_i1 = snap(db, i1)\n    before_items = count_rows(db, \"items\")\n    before_item_tags = count_rows(db, \"item_tags\")\n\n    result = dao.remove_all_tags_from_item(db, item_id=i1.id, workspace_id=w1.id)\n\n    # Then 1\n    assert result == 1\n    # Then 2\n    row_k1 = reread(db, k1)\n    assert row_k1.usage_count == 4\n    # Then 3\n    assert snap(db, k1) == before_k1\n    # Then 4\n    assert snap(db, i1) == before_i1\n    # Then 5\n    assert count_rows(db, \"items\") == before_items\n    # Then 6\n    assert count_rows(db, \"item_tags\") == before_item_tags",
+   "rejections": [
+    "The variable `before_items` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it.",
+    "Then 5 says the table has 4 row(s): assert `== 4` with the count helper - the card's number itself, not a value computed from a `before` variable."
+   ]
+  },
+  {
+   "id": "ITA-RM-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 34.3,
+   "prompt_tokens": 5934,
+   "completion_tokens": 214,
+   "reason": "",
+   "test": "test_ita_rm_10__a_link_added_but_not_flushed_is_not_deleted_and_is_saved_by_the"
+  },
+  {
+   "id": "ITA-RM-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 35.0,
+   "prompt_tokens": 5918,
+   "completion_tokens": 219,
+   "reason": "",
+   "test": "test_ita_rm_11__the_deleted_link_objects_leave_the_session_a_link_of_another_item"
+  },
+  {
+   "id": "ITA-RM-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 33.1,
+   "prompt_tokens": 5932,
+   "completion_tokens": 201,
+   "reason": "",
+   "test": "test_ita_rm_12__an_item_whose_tag_links_were_already_loaded_still_lists_them"
+  },
+  {
+   "id": "ITA-INH-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 38.8,
+   "prompt_tokens": 5954,
+   "completion_tokens": 244,
+   "reason": "",
+   "test": "test_ita_inh_01__create_with_a_dict_stores_a_link_with_assigned_at_set_and_assigned_by"
+  },
+  {
+   "id": "ITA-INH-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 34.7,
+   "prompt_tokens": 5919,
+   "completion_tokens": 215,
+   "reason": "",
+   "test": "test_ita_inh_03__create_with_an_itemtagassignmentcreate_schema_fails_on_flush_and"
+  },
+  {
+   "id": "ITA-INH-16",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.4,
+   "prompt_tokens": 5891,
+   "completion_tokens": 190,
+   "reason": "",
+   "test": "test_ita_inh_16__remove_deletes_one_link_for_good"
+  },
+  {
+   "id": "ITA-INH-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 66.3,
+   "prompt_tokens": 5957,
+   "completion_tokens": 190,
+   "reason": "",
+   "test": "test_ita_inh_13__get_by_workspace_returns_the_links_of_that_workspace_only"
+  },
+  {
+   "id": "ITA-TFS-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 56.4,
+   "prompt_tokens": 5894,
+   "completion_tokens": 118,
+   "reason": "",
+   "test": "test_ita_tfs_02__an_empty_list_of_item_ids_returns_an_empty_dict"
+  },
+  {
+   "id": "ITA-TFS-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.8,
+   "prompt_tokens": 5892,
+   "completion_tokens": 113,
+   "reason": "",
+   "test": "test_ita_tfs_03__item_ids_none_returns_an_empty_dict"
+  },
+  {
+   "id": "ITA-TFS-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 33.7,
+   "prompt_tokens": 5967,
+   "completion_tokens": 206,
+   "reason": "",
+   "test": "test_ita_tfs_05__the_keys_follow_the_order_of_the_request_not_the_order_of_the_ids"
+  },
+  {
+   "id": "ITA-TFS-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.9,
+   "prompt_tokens": 5960,
+   "completion_tokens": 190,
+   "reason": "",
+   "test": "test_ita_tfs_06__an_id_given_twice_is_one_key_and_its_tag_is_listed_once"
+  },
+  {
+   "id": "ITA-TFS-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.7,
+   "prompt_tokens": 5910,
+   "completion_tokens": 129,
+   "reason": "",
+   "test": "test_ita_tfs_08__an_item_without_tags_maps_to_an_empty_list"
+  },
+  {
+   "id": "ITA-TFS-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.5,
+   "prompt_tokens": 5930,
+   "completion_tokens": 142,
+   "reason": "",
+   "test": "test_ita_tfs_10__a_link_recorded_under_another_workspace_is_ignored"
+  },
+  {
+   "id": "ITA-TFS-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.2,
+   "prompt_tokens": 5943,
+   "completion_tokens": 163,
+   "reason": "",
+   "test": "test_ita_tfs_11__the_link_s_own_workspace_decides_asked_under_the_link_s_workspace_the"
+  },
+  {
+   "id": "ITA-TFS-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.9,
+   "prompt_tokens": 5930,
+   "completion_tokens": 169,
+   "reason": "",
+   "test": "test_ita_tfs_12__the_tags_of_a_deleted_item_are_listed_like_those_of_a_live_one"
+  },
+  {
+   "id": "ITA-TFS-13",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 47.3,
+   "prompt_tokens": 12092,
+   "completion_tokens": 310,
+   "reason": "",
+   "test": "test_ita_tfs_13__a_tag_of_another_workspace_reached_through_a_link_of_this_workspace",
+   "last_code": "def test_ita_tfs_13__a_tag_of_another_workspace_reached_through_a_link_of_this_workspace(db, w1, i1, t9, mk_link):\n    \"\"\"ITA-TFS-13 \u2014 a tag of another workspace reached through a link of this workspace is listed.\n    Rules: `get_tags_for_items` R4 (P1)\"\"\"\n    mk_link(of=i1, to=t9, workspace_id=w1.id)\n\n    result = dao.get_tags_for_items(db, item_ids=[i1.id], workspace_id=w1.id)\n\n    # Then 1\n    assert ids(result[i1.id]) == [t9.id]",
+   "rejections": [
+    "`mk_link(of=i1, to=t9, workspace_id=w1.id)` sets `workspace_id`, which the card's Given does not mention. Build each row with exactly the values the card lists - do not copy extra values from an example."
+   ]
+  },
+  {
+   "id": "ITA-TFS-14",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.9,
+   "prompt_tokens": 5938,
+   "completion_tokens": 161,
+   "reason": "",
+   "test": "test_ita_tfs_14__an_item_of_another_workspace_reached_through_a_link_of_this_workspace"
+  },
+  {
+   "id": "ITA-TFS-20",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.8,
+   "prompt_tokens": 5955,
+   "completion_tokens": 175,
+   "reason": "",
+   "test": "test_ita_tfs_20__a_link_added_but_not_flushed_is_not_seen"
+  },
+  {
+   "id": "ITA-TFI-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 39.6,
+   "prompt_tokens": 6005,
+   "completion_tokens": 255,
+   "reason": "",
+   "test": "test_ita_tfi_01__returns_a_list_of_the_item_s_active_tags_system_and_user_alike_and"
+  },
+  {
+   "id": "ITA-TFI-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.2,
+   "prompt_tokens": 5903,
+   "completion_tokens": 120,
+   "reason": "",
+   "test": "test_ita_tfi_02__an_item_without_links_returns_an_empty_list"
+  },
+  {
+   "id": "ITA-TFI-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.7,
+   "prompt_tokens": 5895,
+   "completion_tokens": 117,
+   "reason": "",
+   "test": "test_ita_tfi_03__an_unknown_item_id_returns_an_empty_list"
+  },
+  {
+   "id": "ITA-TFI-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.5,
+   "prompt_tokens": 5900,
+   "completion_tokens": 131,
+   "reason": "",
+   "test": "test_ita_tfi_04__asked_under_another_workspace_the_item_s_links_are_not_used"
+  },
+  {
+   "id": "ITA-TFI-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 22.9,
+   "prompt_tokens": 5922,
+   "completion_tokens": 133,
+   "reason": "",
+   "test": "test_ita_tfi_05__a_link_recorded_under_another_workspace_is_not_used"
+  },
+  {
+   "id": "ITA-TFI-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.1,
+   "prompt_tokens": 5940,
+   "completion_tokens": 157,
+   "reason": "",
+   "test": "test_ita_tfi_06__the_link_s_own_workspace_decides_asked_under_the_link_s_workspace_the"
+  },
+  {
+   "id": "ITA-TFI-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 27.8,
+   "prompt_tokens": 5932,
+   "completion_tokens": 171,
+   "reason": "",
+   "test": "test_ita_tfi_07__a_deleted_tag_is_not_returned_and_left_as_it_was"
+  },
+  {
+   "id": "ITA-TFI-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.5,
+   "prompt_tokens": 5906,
+   "completion_tokens": 123,
+   "reason": "",
+   "test": "test_ita_tfi_08__an_item_whose_only_tag_is_deleted_returns_an_empty_list"
+  },
+  {
+   "id": "ITA-TFI-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 45.9,
+   "prompt_tokens": 12082,
+   "completion_tokens": 302,
+   "reason": "",
+   "test": "test_ita_tfi_10__a_tag_of_another_workspace_reached_through_a_link_of_this_workspace",
+   "last_code": "def test_ita_tfi_10__a_tag_of_another_workspace_reached_through_a_link_of_this_workspace(db, w1, i1, t9, mk_link):\n    \"\"\"ITA-TFI-10 \u2014 a tag of another workspace reached through a link of this workspace is returned.\n    Rules: `get_tags_for_item` R3 (P1)\"\"\"\n    mk_link(of=i1, to=t9, workspace_id=w1.id)\n\n    result = dao.get_tags_for_item(db, item_id=i1.id, workspace_id=w1.id)\n\n    # Then 1\n    assert ids(result) == [t9.id]",
+   "rejections": [
+    "`mk_link(of=i1, to=t9, workspace_id=w1.id)` sets `workspace_id`, which the card's Given does not mention. Build each row with exactly the values the card lists - do not copy extra values from an example."
+   ]
+  },
+  {
+   "id": "ITA-TFI-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 26.0,
+   "prompt_tokens": 5935,
+   "completion_tokens": 157,
+   "reason": "",
+   "test": "test_ita_tfi_11__an_item_of_another_workspace_reached_through_a_link_of_this_workspace"
+  },
+  {
+   "id": "ITA-EX-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.7,
+   "prompt_tokens": 5895,
+   "completion_tokens": 125,
+   "reason": "",
+   "test": "test_ita_ex_02__another_tag_of_the_same_item_gives_false"
+  },
+  {
+   "id": "ITA-EX-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.5,
+   "prompt_tokens": 5895,
+   "completion_tokens": 123,
+   "reason": "",
+   "test": "test_ita_ex_03__the_same_tag_on_another_item_gives_false"
+  },
+  {
+   "id": "ITA-EX-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.3,
+   "prompt_tokens": 5890,
+   "completion_tokens": 114,
+   "reason": "",
+   "test": "test_ita_ex_04__unknown_ids_give_false"
+  },
+  {
+   "id": "ITA-EX-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.2,
+   "prompt_tokens": 5921,
+   "completion_tokens": 135,
+   "reason": "",
+   "test": "test_ita_ex_05__a_link_recorded_only_under_another_workspace_gives_false"
+  },
+  {
+   "id": "ITA-EX-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.8,
+   "prompt_tokens": 5906,
+   "completion_tokens": 125,
+   "reason": "",
+   "test": "test_ita_ex_07__a_link_to_a_deleted_tag_gives_true"
+  },
+  {
+   "id": "ITA-EX-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 21.7,
+   "prompt_tokens": 5905,
+   "completion_tokens": 125,
+   "reason": "",
+   "test": "test_ita_ex_08__a_link_of_a_deleted_item_gives_true"
+  },
+  {
+   "id": "ITA-EX-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 43.7,
+   "prompt_tokens": 12058,
+   "completion_tokens": 286,
+   "reason": "",
+   "test": "test_ita_ex_09__a_link_of_this_workspace_to_a_tag_of_another_workspace_gives_true",
+   "last_code": "def test_ita_ex_09__a_link_of_this_workspace_to_a_tag_of_another_workspace_gives_true(db, w1, i1, t9, mk_link):\n    \"\"\"ITA-EX-09 \u2014 a link of this workspace to a tag of another workspace gives True.\n    Rules: `assignment_exists` R3 (P1)\"\"\"\n    mk_link(of=i1, to=t9, workspace_id=w1.id)\n\n    result = dao.assignment_exists(db, item_id=i1.id, tag_id=t9.id, workspace_id=w1.id)\n\n    # Then 1\n    assert result is True",
+   "rejections": [
+    "`mk_link(of=i1, to=t9, workspace_id=w1.id)` sets `workspace_id`, which the card's Given does not mention. Build each row with exactly the values the card lists - do not copy extra values from an example."
+   ]
+  },
+  {
+   "id": "ITA-CNT-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 23.1,
+   "prompt_tokens": 5917,
+   "completion_tokens": 135,
+   "reason": "",
+   "test": "test_ita_cnt_03__a_tag_without_links_has_no_entry"
+  },
+  {
+   "id": "ITA-CNT-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 3,
+   "seconds": 66.3,
+   "prompt_tokens": 18412,
+   "completion_tokens": 454,
+   "reason": "",
+   "test": "test_ita_cnt_04__links_of_another_workspace_are_not_counted",
+   "last_code": "def test_ita_cnt_04__links_of_another_workspace_are_not_counted(db, w1, i1, i9, t1, t9, mk_link):\n    \"\"\"ITA-CNT-04 \u2014 links of another workspace are not counted.\n    Rules: `count_active_items_per_tag` R3\"\"\"\n    mk_link(of=i1, to=t1)\n    mk_link(of=i9, to=t9)\n    before = written(db)\n\n    result = dao.count_active_items_per_tag(db, workspace_id=w1.id)\n\n    # Then 1\n    assert result == {t1.id: 1}",
+   "rejections": [
+    "The card has 1 Then line(s). Write the comment `# Then N` directly before the assertions of each one: `# Then 1` - each exactly once, in order.",
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "ITA-CNT-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.1,
+   "prompt_tokens": 5890,
+   "completion_tokens": 113,
+   "reason": "",
+   "test": "test_ita_cnt_06__an_unknown_workspace_returns_an_empty_dict"
+  },
+  {
+   "id": "ITA-CNT-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 20.4,
+   "prompt_tokens": 5898,
+   "completion_tokens": 115,
+   "reason": "",
+   "test": "test_ita_cnt_07__a_workspace_without_links_returns_an_empty_dict"
+  },
+  {
+   "id": "ITA-CNT-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.4,
+   "prompt_tokens": 5923,
+   "completion_tokens": 145,
+   "reason": "",
+   "test": "test_ita_cnt_08__an_item_of_another_workspace_linked_under_this_workspace_is_counted"
+  },
+  {
+   "id": "ITA-CNT-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 24.0,
+   "prompt_tokens": 5921,
+   "completion_tokens": 142,
+   "reason": "",
+   "test": "test_ita_cnt_09__a_deleted_tag_with_links_to_live_items_has_an_entry"
+  },
+  {
+   "id": "ITA-CNT-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 43.1,
+   "prompt_tokens": 12060,
+   "completion_tokens": 282,
+   "reason": "",
+   "test": "test_ita_cnt_10__a_tag_of_another_workspace_linked_under_this_workspace_has_an_entry",
+   "last_code": "def test_ita_cnt_10__a_tag_of_another_workspace_linked_under_this_workspace_has_an_entry(db, w1, i1, t9, mk_link):\n    \"\"\"ITA-CNT-10 \u2014 a tag of another workspace linked under this workspace has an entry.\n    Rules: `count_active_items_per_tag` R5 (P1)\"\"\"\n    mk_link(of=i1, to=t9, workspace_id=w1.id)\n\n    result = dao.count_active_items_per_tag(db, workspace_id=w1.id)\n\n    # Then 1\n    assert result == {t9.id: 1}",
+   "rejections": [
+    "`mk_link(of=i1, to=t9, workspace_id=w1.id)` sets `workspace_id`, which the card's Given does not mention. Build each row with exactly the values the card lists - do not copy extra values from an example."
+   ]
+  },
+  {
+   "id": "ITA-CNT-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 50.5,
+   "prompt_tokens": 12111,
+   "completion_tokens": 339,
+   "reason": "",
+   "test": "test_ita_cnt_11__a_link_added_but_not_flushed_is_not_counted",
+   "last_code": "def test_ita_cnt_11__a_link_added_but_not_flushed_is_not_counted(db, w1, w2, i1, i2, t1, mk_link):\n    \"\"\"ITA-CNT-11 \u2014 a link added but not flushed is not counted.\n    Rules: `count_active_items_per_tag` R6\"\"\"\n    mk_link(of=i1, to=t1)\n    p1 = ItemTagAssignment(workspace_id=w1.id, item_id=i2.id, tag_id=t1.id, assigned_by=u1.id)\n    db.add(p1)\n\n    result = dao.count_active_items_per_tag(db, workspace_id=w1.id)\n\n    # Then 1\n    assert result == {t1.id: 1}",
+   "rejections": [
+    "You use the fixture(s) u1 but they are not in the function's argument list. Add them."
+   ]
+  },
+  {
+   "id": "ITA-RM-01",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.1,
+   "prompt_tokens": 5961,
+   "completion_tokens": 203,
+   "reason": "",
+   "test": "test_ita_rm_01__every_link_of_the_item_is_deleted_and_their_number_returned"
+  },
+  {
+   "id": "ITA-RM-03",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 30.8,
+   "prompt_tokens": 5946,
+   "completion_tokens": 194,
+   "reason": "",
+   "test": "test_ita_rm_03__the_links_of_a_deleted_item_are_deleted_the_item_is_not_touched"
+  },
+  {
+   "id": "ITA-RM-04",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 38.7,
+   "prompt_tokens": 5975,
+   "completion_tokens": 254,
+   "reason": "",
+   "test": "test_ita_rm_04__the_links_of_other_items_stay"
+  },
+  {
+   "id": "ITA-RM-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.8,
+   "prompt_tokens": 5930,
+   "completion_tokens": 187,
+   "reason": "",
+   "test": "test_ita_rm_07__an_item_without_links_returns_0_and_nothing_is_written"
+  },
+  {
+   "id": "ITA-RM-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 29.0,
+   "prompt_tokens": 5922,
+   "completion_tokens": 181,
+   "reason": "",
+   "test": "test_ita_rm_08__an_unknown_item_id_returns_0_and_nothing_is_written"
+  },
+  {
+   "id": "ITA-INH-02",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 50.2,
+   "prompt_tokens": 12115,
+   "completion_tokens": 337,
+   "reason": "",
+   "test": "test_ita_inh_02__create_with_assigned_by_stores_it",
+   "last_code": "def test_ita_inh_02__create_with_assigned_by_stores_it(db, w1, u2, i1, t1):\n    \"\"\"ITA-INH-02 \u2014 create with assigned_by stores it.\n    Rules: inherited R1\"\"\"\n    before = written(db)\n\n    result = dao.create(db, obj_in={\"workspace_id\": w1.id, \"item_id\": i1.id, \"tag_id\": t1.id, \"assigned_by\": u2.id})\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.assigned_by == u2.id\n    # Then 3\n    assert row.assigned_at is not None",
+   "rejections": [
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "ITA-INH-05",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 38.2,
+   "prompt_tokens": 5978,
+   "completion_tokens": 249,
+   "reason": "",
+   "test": "test_ita_inh_05__a_second_link_for_the_same_item_and_tag_fails_also_under_another"
+  },
+  {
+   "id": "ITA-INH-06",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.5,
+   "prompt_tokens": 5955,
+   "completion_tokens": 199,
+   "reason": "",
+   "test": "test_ita_inh_06__create_with_an_unknown_item_id_fails_on_flush_and_saves_nothing"
+  },
+  {
+   "id": "ITA-INH-07",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.2,
+   "prompt_tokens": 5955,
+   "completion_tokens": 196,
+   "reason": "",
+   "test": "test_ita_inh_07__create_with_an_unknown_tag_id_fails_on_flush_and_saves_nothing"
+  },
+  {
+   "id": "ITA-INH-08",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 31.2,
+   "prompt_tokens": 5955,
+   "completion_tokens": 196,
+   "reason": "",
+   "test": "test_ita_inh_08__create_with_an_unknown_workspace_id_fails_on_flush_and_saves_nothing"
+  },
+  {
+   "id": "ITA-INH-09",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 32.2,
+   "prompt_tokens": 5963,
+   "completion_tokens": 204,
+   "reason": "",
+   "test": "test_ita_inh_09__create_with_an_unknown_assigned_by_fails_on_flush_and_saves_nothing"
+  },
+  {
+   "id": "ITA-INH-10",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 2,
+   "seconds": 48.4,
+   "prompt_tokens": 12108,
+   "completion_tokens": 323,
+   "reason": "",
+   "test": "test_ita_inh_10__create_saves_a_link_to_a_deleted_tag",
+   "last_code": "def test_ita_inh_10__create_saves_a_link_to_a_deleted_tag(db, w1, i1, td):\n    \"\"\"ITA-INH-10 \u2014 create saves a link to a deleted tag.\n    Rules: inherited R3\"\"\"\n    before = written(db)\n\n    result = dao.create(db, obj_in={\"workspace_id\": w1.id, \"item_id\": i1.id, \"tag_id\": td.id})\n\n    # Then 1\n    assert result.id is not None\n    # Then 2\n    row = reread(db, result)\n    assert row.tag_id == td.id\n    # Then 3\n    assert len(links_of(db, i1)) == 1",
+   "rejections": [
+    "The variable `before` is assigned but never used. Either a check from the card is missing (compare it in an assert), or the line is not needed: remove it."
+   ]
+  },
+  {
+   "id": "ITA-INH-11",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.9,
+   "prompt_tokens": 5941,
+   "completion_tokens": 178,
+   "reason": "",
+   "test": "test_ita_inh_11__create_saves_a_link_of_a_deleted_item"
+  },
+  {
+   "id": "ITA-INH-12",
+   "expect": "pass",
+   "outcome": "accepted",
+   "attempts": 1,
+   "seconds": 28.6,
+   "prompt_tokens": 5955,
+   "completion_tokens": 176,
+   "reason": "",
+   "test": "test_ita_inh_12__create_saves_a_link_between_an_item_and_a_tag_of_different_workspaces"
+  }
+ ],
+ "totals": {
+  "cases": 68,
+  "accepted": 68,
+  "escalated": 0,
+  "accepted_first_try": 58,
+  "seconds": 2329.5,
+  "prompt_tokens": 477712,
+  "completion_tokens": 13894
+ }
+}

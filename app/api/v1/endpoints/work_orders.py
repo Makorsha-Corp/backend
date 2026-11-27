@@ -3,31 +3,41 @@ Work order API endpoints
 
 Provides operations for managing work orders, their approvals, lifecycle, and items.
 """
-from typing import List, Optional
 from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
-from app.models.workspace import Workspace
-from app.models.profile import Profile
 from app.models.enums import WorkOrderPriorityEnum, WorkOrderStatusEnum
+from app.models.profile import Profile
+from app.models.workspace import Workspace
 from app.schemas.work_order import (
-    WorkOrderCreate, WorkOrderUpdate, WorkOrderResponse, WorkOrderVoidRequest,
-    WorkOrderCompleteRequest,
-    WorkOrderCompleteAsPlannedRequest,
-    WorkOrderApproverCreate, WorkOrderApproverResponse,
-    ApprovalSummaryResponse, WorkOrderApproversList,
-    WorkOrderEventMetadata, WorkOrderEventResponse,
-    WorkOrderSheetEntryCreate, WorkOrderSheetBundle,
-    WorkOrderSheetListResponse,
-    WorkOrderSheetDailyCountsResponse,
+    ApprovalSummaryResponse,
     BulkDeleteFutureRecurrenceDraftsRequest,
     BulkDeleteFutureRecurrenceDraftsResponse,
+    WorkOrderApproverCreate,
+    WorkOrderApproverResponse,
+    WorkOrderApproversList,
+    WorkOrderCompleteAsPlannedRequest,
+    WorkOrderCompleteRequest,
+    WorkOrderCreate,
+    WorkOrderEventMetadata,
+    WorkOrderEventResponse,
+    WorkOrderResponse,
+    WorkOrderSheetDailyCountsResponse,
+    WorkOrderSheetEntryCreate,
+    WorkOrderSheetListResponse,
+    WorkOrderUpdate,
+    WorkOrderVoidRequest,
 )
-from app.schemas.work_order_item import WorkOrderItemCreate, WorkOrderItemUpdate, WorkOrderItemResponse
+from app.schemas.work_order_item import (
+    WorkOrderItemCreate,
+    WorkOrderItemResponse,
+    WorkOrderItemUpdate,
+)
 from app.schemas.work_order_template import WorkOrderFromTemplateCreate
 from app.services.work_order_service import work_order_service
 
@@ -60,21 +70,21 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=List[WorkOrderResponse],
+    response_model=list[WorkOrderResponse],
     status_code=status.HTTP_200_OK,
     summary="List work orders"
 )
 def list_work_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    work_order_type_id: Optional[int] = Query(None),
-    wo_status: Optional[WorkOrderStatusEnum] = Query(None, alias="status"),
-    priority: Optional[WorkOrderPriorityEnum] = Query(None),
-    factory_id: Optional[int] = Query(None),
-    machine_id: Optional[int] = Query(None),
-    work_order_template_id: Optional[int] = Query(None),
-    planned_date_from: Optional[date] = Query(None),
-    planned_date_to: Optional[date] = Query(None),
+    work_order_type_id: int | None = Query(None),
+    wo_status: WorkOrderStatusEnum | None = Query(None, alias="status"),
+    priority: WorkOrderPriorityEnum | None = Query(None),
+    factory_id: int | None = Query(None),
+    machine_id: int | None = Query(None),
+    work_order_template_id: int | None = Query(None),
+    planned_date_from: date | None = Query(None),
+    planned_date_to: date | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):
@@ -120,16 +130,16 @@ def bulk_delete_future_recurrence_drafts(
     summary="List work orders with embedded items for sheet view",
 )
 def list_work_orders_sheet(
-    factory_id: Optional[int] = Query(None),
-    machine_id: Optional[int] = Query(None),
-    planned_date_from: Optional[date] = Query(None),
-    planned_date_to: Optional[date] = Query(None),
-    wo_status: Optional[WorkOrderStatusEnum] = Query(None, alias="status"),
-    status_scope: Optional[str] = Query(None, description="Special scope, e.g. planned for future drafts"),
-    work_order_type_id: Optional[int] = Query(None),
-    priority: Optional[WorkOrderPriorityEnum] = Query(None),
+    factory_id: int | None = Query(None),
+    machine_id: int | None = Query(None),
+    planned_date_from: date | None = Query(None),
+    planned_date_to: date | None = Query(None),
+    wo_status: WorkOrderStatusEnum | None = Query(None, alias="status"),
+    status_scope: str | None = Query(None, description="Special scope, e.g. planned for future drafts"),
+    work_order_type_id: int | None = Query(None),
+    priority: WorkOrderPriorityEnum | None = Query(None),
     exclude_completed: bool = Query(False),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     workspace: Workspace = Depends(get_current_workspace),
@@ -160,13 +170,13 @@ def list_work_orders_sheet(
     summary="Daily work-order counts for sheet calendar dots",
 )
 def list_work_orders_sheet_daily_counts(
-    factory_id: Optional[int] = Query(None),
-    machine_id: Optional[int] = Query(None),
-    planned_date_from: Optional[date] = Query(None),
-    planned_date_to: Optional[date] = Query(None),
-    wo_status: Optional[WorkOrderStatusEnum] = Query(None, alias="status"),
-    work_order_type_id: Optional[int] = Query(None),
-    priority: Optional[WorkOrderPriorityEnum] = Query(None),
+    factory_id: int | None = Query(None),
+    machine_id: int | None = Query(None),
+    planned_date_from: date | None = Query(None),
+    planned_date_to: date | None = Query(None),
+    wo_status: WorkOrderStatusEnum | None = Query(None, alias="status"),
+    work_order_type_id: int | None = Query(None),
+    priority: WorkOrderPriorityEnum | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -479,7 +489,7 @@ def unapprove_work_order(
 
 @router.get(
     "/{wo_id}/events/",
-    response_model=List[WorkOrderEventResponse],
+    response_model=list[WorkOrderEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List work order activity events"
 )
@@ -509,7 +519,7 @@ def list_work_order_events(
 
 @router.get(
     "/{wo_id}/items/",
-    response_model=List[WorkOrderItemResponse],
+    response_model=list[WorkOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get work order items"
 )

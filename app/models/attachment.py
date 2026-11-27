@@ -1,7 +1,17 @@
 """Attachment model"""
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, BigInteger
-from sqlalchemy.sql import func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.db.base_class import Base
 
 

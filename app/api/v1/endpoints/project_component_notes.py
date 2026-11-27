@@ -1,19 +1,22 @@
 """Project component note endpoints"""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
 from app.models.workspace import Workspace
-from app.schemas.project_component_note import ProjectComponentNoteCreate, ProjectComponentNoteUpdate, ProjectComponentNoteResponse
+from app.schemas.project_component_note import (
+    ProjectComponentNoteCreate,
+    ProjectComponentNoteResponse,
+    ProjectComponentNoteUpdate,
+)
 from app.services.project_component_note_service import project_component_note_service
-
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectComponentNoteResponse])
+@router.get("/", response_model=list[ProjectComponentNoteResponse])
 def get_project_component_notes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, le=100),

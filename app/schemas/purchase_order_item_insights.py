@@ -1,7 +1,6 @@
 """Schemas for purchase order line item price history insights."""
 from datetime import date
 from decimal import Decimal
-from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,4 +30,4 @@ class ItemPriceInsightRow(BaseModel):
 
 
 class PoItemPriceInsightsResponse(BaseModel):
-    items: List[ItemPriceInsightRow] = Field(default_factory=list)
+    items: list[ItemPriceInsightRow] = Field(default_factory=list)

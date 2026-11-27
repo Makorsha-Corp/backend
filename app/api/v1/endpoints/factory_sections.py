@@ -3,23 +3,26 @@ Factory Section API endpoints
 
 Provides operations for managing factory sections (areas within factories).
 """
-from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
-from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate, FactorySectionResponse
+from app.models.workspace import Workspace
+from app.schemas.factory_section import (
+    FactorySectionCreate,
+    FactorySectionResponse,
+    FactorySectionUpdate,
+)
 from app.services.factory_section_service import factory_section_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[FactorySectionResponse],
+    response_model=list[FactorySectionResponse],
     status_code=status.HTTP_200_OK,
     summary="List all factory sections",
     description="Get all factory sections in the workspace, optionally filtered by factory"
@@ -27,8 +30,8 @@ router = APIRouter()
 def get_factory_sections(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    factory_id: Optional[int] = Query(None, description="Filter by factory ID"),
-    search: Optional[str] = Query(None, description="Search by name"),
+    factory_id: int | None = Query(None, description="Filter by factory ID"),
+    search: str | None = Query(None, description="Search by name"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

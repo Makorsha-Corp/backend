@@ -1,36 +1,45 @@
 """Purchase order API endpoints"""
 from datetime import date
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
-from app.models.profile import Profile
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.dao.profile import profile_dao
 from app.dao.workspace_member import workspace_member_dao
+from app.models.profile import Profile
+from app.models.workspace import Workspace
+from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse
 from app.schemas.purchase_order import (
-    PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse,
-    PurchaseOrderListResponse, PurchaseOrderHubStatsResponse,
-    PurchaseOrderItemCreate, PurchaseOrderItemUpdate, PurchaseOrderItemResponse,
-    PurchaseOrderItemSyncRequest,
-    PurchaseOrderVoidRequest,
     ActiveOrderRow,
-    PurchaseOrderApproverCreate, PurchaseOrderApproverResponse,
-    ApprovalSummaryResponse, PurchaseOrderApproversList,
+    ApprovalSummaryResponse,
+    PurchaseOrderApproverCreate,
+    PurchaseOrderApproverResponse,
+    PurchaseOrderApproversList,
+    PurchaseOrderCreate,
     PurchaseOrderEventMetadata,
     PurchaseOrderEventResponse,
+    PurchaseOrderHubStatsResponse,
+    PurchaseOrderItemCreate,
+    PurchaseOrderItemResponse,
+    PurchaseOrderItemSyncRequest,
+    PurchaseOrderItemUpdate,
+    PurchaseOrderListResponse,
+    PurchaseOrderResponse,
     PurchaseOrderSectionConfirmRequest,
+    PurchaseOrderUpdate,
+    PurchaseOrderVoidRequest,
 )
-from app.services.purchase_order_service import purchase_order_service
-from app.services.purchase_order_item_insights_service import purchase_order_item_insights_service
-from app.schemas.po_receive_event import PoReceiveEventCreate, PoReceiveEventResponse
 from app.schemas.purchase_order_item_insights import PoItemPriceInsightsResponse
 from app.schemas.purchase_order_return import (
     PurchaseOrderReturnCreate,
     PurchaseOrderReturnResponse,
     PurchaseOrderReturnVoidRequest,
 )
+from app.services.purchase_order_item_insights_service import (
+    purchase_order_item_insights_service,
+)
+from app.services.purchase_order_service import purchase_order_service
 
 
 def _approver_response(record, profile=None, position=None) -> PurchaseOrderApproverResponse:
@@ -53,15 +62,15 @@ router = APIRouter()
 
 
 def _read_purchase_order_hub_filters(
-    account_id: Optional[int] = Query(None),
-    invoice_id: Optional[int] = Query(None),
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
-    status_ids: Optional[List[int]] = Query(None),
-    factory_id: Optional[int] = Query(None),
-    destination_type: Optional[str] = Query(None),
-    invoice_filter: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    account_id: int | None = Query(None),
+    invoice_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    status_ids: list[int] | None = Query(None),
+    factory_id: int | None = Query(None),
+    destination_type: str | None = Query(None),
+    invoice_filter: str | None = Query(None),
+    search: str | None = Query(None),
     exclude_complete: bool = Query(False),
     exclude_voided: bool = Query(False),
 ) -> dict:
@@ -116,15 +125,15 @@ def list_purchase_orders(
 
 @router.get(
     "/active/",
-    response_model=List[ActiveOrderRow],
+    response_model=list[ActiveOrderRow],
     status_code=status.HTTP_200_OK,
     summary="Active orders for a machine, factory storage, or project component",
     description="Exactly one of machine_id, factory_id, or project_component_id must be set.",
 )
 def list_active_orders_for_context(
-    machine_id: Optional[int] = Query(None),
-    factory_id: Optional[int] = Query(None),
-    project_component_id: Optional[int] = Query(None),
+    machine_id: int | None = Query(None),
+    factory_id: int | None = Query(None),
+    project_component_id: int | None = Query(None),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
@@ -340,7 +349,7 @@ def create_receive_event(
 
 @router.get(
     "/{po_id}/receive-events/",
-    response_model=List[PoReceiveEventResponse],
+    response_model=list[PoReceiveEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List receive events for a purchase order",
 )
@@ -376,7 +385,7 @@ def start_purchase_order_return(
 
 @router.get(
     "/{po_id}/returns/",
-    response_model=List[PurchaseOrderReturnResponse],
+    response_model=list[PurchaseOrderReturnResponse],
     status_code=status.HTTP_200_OK,
     summary="List returns for a purchase order",
 )
@@ -553,7 +562,7 @@ def unapprove_purchase_order(
 
 @router.get(
     "/{po_id}/events/",
-    response_model=List[PurchaseOrderEventResponse],
+    response_model=list[PurchaseOrderEventResponse],
     status_code=status.HTTP_200_OK,
     summary="List purchase order activity events"
 )
@@ -587,7 +596,7 @@ def list_purchase_order_events(
 
 @router.get(
     "/{po_id}/items/",
-    response_model=List[PurchaseOrderItemResponse],
+    response_model=list[PurchaseOrderItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get purchase order items"
 )

@@ -1,5 +1,4 @@
 """Invoice Payment Service for orchestrating payment workflows"""
-from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,7 +17,7 @@ from app.services.base_service import BaseService
 
 def to_payment_response(
     payment: InvoicePayment,
-    created_by_name: Optional[str] = None,
+    created_by_name: str | None = None,
 ) -> InvoicePaymentResponse:
     base = InvoicePaymentInDB.model_validate(payment)
     return InvoicePaymentResponse(**base.model_dump(), created_by_name=created_by_name)
@@ -97,7 +96,7 @@ class InvoicePaymentService(BaseService):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[InvoicePaymentResponse]:
+    ) -> list[InvoicePaymentResponse]:
         rows = self.invoice_payment_manager.list_payments_by_invoice(
             session=db,
             invoice_id=invoice_id,

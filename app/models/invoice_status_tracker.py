@@ -1,6 +1,7 @@
 """Invoice status tracker — append-only log of invoice lifecycle transitions"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

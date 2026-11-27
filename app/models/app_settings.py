@@ -1,5 +1,6 @@
 """App settings model"""
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+
 from app.db.base_class import Base
 
 

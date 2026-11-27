@@ -1,7 +1,16 @@
 """Order template model - reusable expense order templates"""
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, Date
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

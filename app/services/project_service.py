@@ -3,17 +3,17 @@ Project Service
 
 Orchestrates project operations with transaction management.
 """
-from typing import List, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.project_manager import project_manager
+from app.models.enums import ProjectVisibilityEnum
+from app.models.profile import Profile
 from app.models.project import Project
 from app.models.project_event import ProjectEvent
 from app.models.project_member import ProjectMember
-from app.models.enums import ProjectVisibilityEnum
-from app.models.profile import Profile
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from app.services.base_service import BaseService
 
 
 class ProjectService(BaseService):
@@ -63,11 +63,11 @@ class ProjectService(BaseService):
         db: Session,
         workspace_id: int,
         user_id: int,
-        factory_id: Optional[int] = None,
-        status: Optional[str] = None,
+        factory_id: int | None = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Project]:
+    ) -> list[Project]:
         return self.project_manager.list_projects(
             session=db,
             workspace_id=workspace_id,
@@ -128,7 +128,7 @@ class ProjectService(BaseService):
         project_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> List[Tuple[ProjectEvent, Optional[Profile]]]:
+    ) -> list[tuple[ProjectEvent, Profile | None]]:
         return self.project_manager.list_events(
             session=db,
             project_id=project_id,
@@ -142,7 +142,7 @@ class ProjectService(BaseService):
         project_id: int,
         workspace_id: int,
         user_id: int,
-    ) -> List[ProjectMember]:
+    ) -> list[ProjectMember]:
         return self.project_manager.list_members(
             session=db,
             project_id=project_id,

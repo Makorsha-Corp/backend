@@ -1,13 +1,13 @@
 """Item Service for orchestrating item workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
-from app.services.base_service import BaseService
+
+from app.core.exceptions import NotFoundError
 from app.managers.item_manager import item_manager
 from app.models.item import Item
-from app.models.profile import Profile
-from app.schemas.item import ItemCreate, ItemUpdate, ItemWithTagsResponse, ItemListResponse
+from app.schemas.item import ItemCreate, ItemListResponse, ItemUpdate
 from app.schemas.item_similar import SimilarItemsResponse
-from app.core.exceptions import NotFoundError
+from app.services.base_service import BaseService
 from app.utils.item_name_normalize import normalize_item_name
 
 
@@ -62,7 +62,7 @@ class ItemService(BaseService):
 
             return item
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -95,10 +95,10 @@ class ItemService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Item]:
+    ) -> list[Item]:
         """
         Get all items with optional search and pagination.
 
@@ -120,38 +120,15 @@ class ItemService(BaseService):
             limit=limit
         )
 
-    def get_items_with_tags(
-        self,
-        db: Session,
-        workspace_id: int,
-        search: Optional[str] = None,
-        skip: int = 0,
-        limit: int = 100,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
-    ) -> ItemListResponse:
-        """
-        Get paginated active items with their tags included.
-        """
-        return self.get_items_page(
-            db,
-            workspace_id=workspace_id,
-            search=search,
-            skip=skip,
-            limit=limit,
-            unit=unit,
-            tag_ids=tag_ids,
-        )
-
     def get_items_page(
         self,
         db: Session,
         workspace_id: int,
-        search: Optional[str] = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
-        unit: Optional[str] = None,
-        tag_ids: Optional[List[int]] = None,
+        unit: str | None = None,
+        tag_ids: list[int] | None = None,
     ) -> ItemListResponse:
         items = self.item_manager.list_items_filtered(
             session=db,
@@ -215,7 +192,7 @@ class ItemService(BaseService):
             has_more=skip + len(items_with_tags) < total,
         )
 
-    def get_distinct_units(self, db: Session, workspace_id: int) -> List[str]:
+    def get_distinct_units(self, db: Session, workspace_id: int) -> list[str]:
         return self.item_manager.distinct_units(db, workspace_id)
 
     def get_similar_items(
@@ -224,7 +201,7 @@ class ItemService(BaseService):
         workspace_id: int,
         name: str,
         limit: int = 5,
-        exclude_item_id: Optional[int] = None,
+        exclude_item_id: int | None = None,
     ) -> SimilarItemsResponse:
         """Find items with names similar to the proposed catalog name."""
         matches = self.item_manager.find_similar_items(
@@ -286,7 +263,7 @@ class ItemService(BaseService):
         except NotFoundError:
             self._rollback_transaction(db)
             raise
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -329,7 +306,7 @@ class ItemService(BaseService):
         except NotFoundError:
             self._rollback_transaction(db)
             raise
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 

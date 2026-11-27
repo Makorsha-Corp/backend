@@ -2,50 +2,24 @@
 
 from __future__ import annotations
 
-
-
-from typing import List, Optional, Tuple
-
-
-
 from sqlalchemy.orm import Session
 
-
-
 from app.dao.attachment import attachment_dao
-
 from app.dao.attachment_markup import attachment_markup_dao
-
 from app.dao.attachment_markup_event import attachment_markup_event_dao
-
 from app.dao.profile import profile_dao
-
 from app.managers.attachment_manager import (
-
     AttachmentNotFoundError,
-
     AttachmentValidationError,
-
 )
-
 from app.models.attachment import Attachment
-
 from app.models.enums import UploadStatusEnum
-
 from app.schemas.attachment_markup import (
-
     AttachmentMarkupEventResponse,
-
     AttachmentMarkupLayerResponse,
-
     MarkupPayload,
-
     is_markup_payload_empty,
-
 )
-
-
-
 
 
 class AttachmentMarkupManager:
@@ -132,9 +106,9 @@ class AttachmentMarkupManager:
 
     @staticmethod
 
-    def _summarize_payload(payload: MarkupPayload) -> Tuple[dict, str]:
+    def _summarize_payload(payload: MarkupPayload) -> tuple[dict, str]:
 
-        pages: List[int | str] = []
+        pages: list[int | str] = []
 
 
 
@@ -200,9 +174,9 @@ class AttachmentMarkupManager:
 
         description: str,
 
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
 
-        metadata_json: Optional[dict] = None,
+        metadata_json: dict | None = None,
 
     ) -> None:
 
@@ -314,7 +288,7 @@ class AttachmentMarkupManager:
 
         current_user_id: int,
 
-    ) -> List[AttachmentMarkupLayerResponse]:
+    ) -> list[AttachmentMarkupLayerResponse]:
 
         self._get_ready_attachment(
 
@@ -352,7 +326,7 @@ class AttachmentMarkupManager:
 
         current_user_id: int,
 
-    ) -> List[AttachmentMarkupEventResponse]:
+    ) -> list[AttachmentMarkupEventResponse]:
 
         self._get_ready_attachment(
 
@@ -392,9 +366,9 @@ class AttachmentMarkupManager:
 
         payload: MarkupPayload,
 
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
 
-    ) -> Optional[AttachmentMarkupLayerResponse]:
+    ) -> AttachmentMarkupLayerResponse | None:
 
         self._get_ready_attachment(
 
@@ -520,7 +494,7 @@ class AttachmentMarkupManager:
 
         user_id: int,
 
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
 
     ) -> None:
 

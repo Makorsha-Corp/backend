@@ -4,9 +4,9 @@ SECURITY NOTICE:
 This DAO handles workspace-scoped data. All query methods MUST filter by workspace_id
 to prevent unauthorized cross-workspace data access.
 """
-from typing import List
-from datetime import datetime
+
 from sqlalchemy.orm import Session
+
 from app.dao.base import BaseDAO
 from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
@@ -18,7 +18,7 @@ class DAOFactorySection(BaseDAO[FactorySection, FactorySectionCreate, FactorySec
 
     def get_by_factory(
         self, db: Session, *, factory_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[FactorySection]:
+    ) -> list[FactorySection]:
         """
         Get factory sections by factory ID (SECURITY-CRITICAL: workspace-filtered)
 

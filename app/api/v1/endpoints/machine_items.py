@@ -3,23 +3,26 @@ Machine item API endpoints
 
 Provides operations for managing items assigned to machines.
 """
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, get_current_workspace, get_current_active_user
-from app.models.workspace import Workspace
+from app.core.deps import get_current_active_user, get_current_workspace, get_db
 from app.models.profile import Profile
-from app.schemas.machine_item import MachineItemCreate, MachineItemUpdate, MachineItemResponse
+from app.models.workspace import Workspace
+from app.schemas.machine_item import (
+    MachineItemCreate,
+    MachineItemResponse,
+    MachineItemUpdate,
+)
 from app.services.machine_item_service import machine_item_service
-
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[MachineItemResponse],
+    response_model=list[MachineItemResponse],
     status_code=status.HTTP_200_OK,
     summary="List machine items",
     description="Get all machine items in the workspace, optionally filtered by machine"
@@ -27,7 +30,7 @@ router = APIRouter()
 def get_machine_items(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    machine_id: Optional[int] = Query(None, description="Filter by machine ID"),
+    machine_id: int | None = Query(None, description="Filter by machine ID"),
     workspace: Workspace = Depends(get_current_workspace),
     db: Session = Depends(get_db)
 ):

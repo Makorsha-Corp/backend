@@ -61,8 +61,14 @@ htmlcov/
 # Alembic
 alembic/versions/*.pyc
 
-#Claude
-.claude
+#Claude (local notes/settings ignored; the shared test-pipeline skills are tracked)
+.claude/*
+!.claude/skills/
+!.claude/workflows/
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/bug-fixer.md
+!.claude/hooks/
 
 # Planning
 .plan/

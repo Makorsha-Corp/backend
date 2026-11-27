@@ -6,9 +6,18 @@ SSLCommerz's own custom-metadata fields (echoed back unchanged by the gateway on
 every callback) so a caller (e.g. future subscription-renewal logic) can stash
 its own correlation data there without this table needing to know about it.
 """
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric, Text, JSON
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 from app.utils.time import utcnow
 

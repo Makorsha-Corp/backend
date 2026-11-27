@@ -6,8 +6,8 @@ when the database is first initialized. Unlike workspace-scoped seeds,
 subscription plans are global (not per-workspace).
 """
 from sqlalchemy.orm import Session
-from app.models.subscription_plan import SubscriptionPlan
 
+from app.models.subscription_plan import SubscriptionPlan
 
 DEFAULT_PLANS = [
     {

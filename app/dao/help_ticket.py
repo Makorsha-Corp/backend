@@ -1,6 +1,5 @@
 """Help ticket DAO operations."""
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -63,7 +62,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         db: Session,
         *,
         ticket_id: int,
-    ) -> Optional[HelpTicket]:
+    ) -> HelpTicket | None:
         return (
             db.query(HelpTicket)
             .options(joinedload(HelpTicket.creator))
@@ -77,7 +76,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         *,
         id: int,
         workspace_id: int,
-    ) -> Optional[HelpTicket]:
+    ) -> HelpTicket | None:
         return (
             db.query(HelpTicket)
             .options(joinedload(HelpTicket.creator))
@@ -90,12 +89,12 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        status: Optional[str] = None,
-        ticket_type: Optional[str] = None,
-        created_by: Optional[int] = None,
+        status: str | None = None,
+        ticket_type: str | None = None,
+        created_by: int | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[HelpTicket]:
+    ) -> list[HelpTicket]:
         query = (
             db.query(HelpTicket)
             .options(joinedload(HelpTicket.creator))
@@ -118,12 +117,12 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         self,
         db: Session,
         *,
-        status: Optional[str] = None,
-        ticket_type: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        ticket_type: str | None = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Tuple[HelpTicket, str, Optional[str]]]:
+    ) -> list[tuple[HelpTicket, str, str | None]]:
         """Return (ticket, workspace_name, creator_name) across all workspaces."""
         query = (
             db.query(HelpTicket, Workspace.name, Profile.name)
@@ -156,7 +155,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         db: Session,
         *,
         ticket_id: int,
-    ) -> Optional[Tuple[HelpTicket, str, Optional[str]]]:
+    ) -> tuple[HelpTicket, str, str | None] | None:
         row = (
             db.query(HelpTicket, Workspace.name, Profile.name)
             .options(joinedload(HelpTicket.creator))

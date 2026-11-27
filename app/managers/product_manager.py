@@ -1,15 +1,15 @@
 """Product Manager - business logic for finished goods"""
-from typing import List, Optional
 from decimal import Decimal
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.factory import factory_dao
+from app.dao.product import product_dao
+from app.dao.product_ledger import product_ledger_dao
 from app.managers.base_manager import BaseManager
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
-from app.dao.product import product_dao
-from app.dao.product_ledger import product_ledger_dao
-from app.dao.factory import factory_dao
 
 
 def _quantity_to_int(quantity: Decimal | int, *, label: str) -> int:
@@ -146,10 +146,10 @@ class ProductManager(BaseManager[Product]):
 
     def list_products(
         self, session: Session, workspace_id: int,
-        factory_id: Optional[int] = None,
-        is_available_for_sale: Optional[bool] = None,
+        factory_id: int | None = None,
+        is_available_for_sale: bool | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Product]:
+    ) -> list[Product]:
         """List product records with optional filters."""
         return self.product_dao.get_by_workspace(
             session, workspace_id=workspace_id,
@@ -177,8 +177,8 @@ class ProductManager(BaseManager[Product]):
         item_id: int,
         quantity: int,
         batch_id: int,
-        unit_cost: Optional[Decimal] = None,
-        notes: Optional[str] = None,
+        unit_cost: Decimal | None = None,
+        notes: str | None = None,
     ) -> Product:
         """
         Increase finished-goods (products) quantity from a completed batch.
@@ -211,7 +211,7 @@ class ProductManager(BaseManager[Product]):
         old_avg = record.avg_cost
         new_qty = old_qty + quantity
 
-        new_avg: Optional[Decimal]
+        new_avg: Decimal | None
         if unit_cost is not None:
             if old_qty > 0 and old_avg is not None:
                 numer = Decimal(old_qty) * old_avg + Decimal(quantity) * unit_cost
@@ -261,8 +261,8 @@ class ProductManager(BaseManager[Product]):
         item_id: int,
         quantity: Decimal | int,
         delivery_id: int,
-        account_id: Optional[int] = None,
-        notes: Optional[str] = None,
+        account_id: int | None = None,
+        notes: str | None = None,
     ) -> Product:
         """
         Decrease sellable finished-goods (products) quantity for a physical sales delivery.
@@ -332,8 +332,8 @@ class ProductManager(BaseManager[Product]):
         item_id: int,
         quantity: Decimal | int,
         return_id: int,
-        account_id: Optional[int] = None,
-        notes: Optional[str] = None,
+        account_id: int | None = None,
+        notes: str | None = None,
     ) -> Product:
         """
         Increase sellable finished-goods (products) quantity from a customer return.

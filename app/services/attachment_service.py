@@ -2,9 +2,9 @@
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.dao.attachment_link import attachment_link_dao
 from app.managers.attachment_manager import (
     AttachmentConfirmError,
-    AttachmentLimitError,
     AttachmentManager,
     AttachmentNotFoundError,
     AttachmentValidationError,
@@ -21,7 +21,6 @@ from app.schemas.attachment import (
     AttachmentSignResponse,
 )
 from app.services.base_service import BaseService
-from app.dao.attachment_link import attachment_link_dao
 
 
 class AttachmentService(BaseService):
@@ -196,8 +195,8 @@ attachment_service = AttachmentService()
 
 # Re-export for endpoints
 __all__ = [
-    "attachment_service",
-    "AttachmentValidationError",
-    "AttachmentNotFoundError",
     "AttachmentConfirmError",
+    "AttachmentNotFoundError",
+    "AttachmentValidationError",
+    "attachment_service",
 ]

@@ -1,5 +1,6 @@
 """Access control model"""
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String
+
 from app.db.base_class import Base
 from app.models.enums import AccessControlTypeEnum, RoleEnum
 

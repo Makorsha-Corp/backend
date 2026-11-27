@@ -1,13 +1,16 @@
 """Sales Order Return Manager - business logic for accepting returned SO goods"""
-from typing import List
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.dao.account_invoice import account_invoice_dao
+from app.dao.sales_order_item import sales_order_item_dao
+from app.dao.sales_order_return import (
+    sales_order_return_dao,
+    sales_order_return_item_dao,
+)
 from app.managers.base_manager import BaseManager
 from app.models.sales_order_return import SalesOrderReturn
-from app.dao.sales_order_return import sales_order_return_dao, sales_order_return_item_dao
-from app.dao.sales_order_item import sales_order_item_dao
-from app.dao.account_invoice import account_invoice_dao
 from app.schemas.sales_order_return import SalesOrderReturnCreate
 
 
@@ -32,7 +35,7 @@ class SalesOrderReturnManager(BaseManager[SalesOrderReturn]):
         sales_order_id: int,
         workspace_id: int,
         data: SalesOrderReturnCreate,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Validate requested return quantities against quantity_available_to_return."""
         item_map = {
             it.id: it
@@ -40,7 +43,7 @@ class SalesOrderReturnManager(BaseManager[SalesOrderReturn]):
                 session, sales_order_id=sales_order_id, workspace_id=workspace_id
             )
         }
-        built: List[dict] = []
+        built: list[dict] = []
         for line in data.items:
             so_line = item_map.get(line.so_item_id)
             if so_line is None:
@@ -79,7 +82,7 @@ class SalesOrderReturnManager(BaseManager[SalesOrderReturn]):
 
     def list_returns(
         self, session: Session, sales_order_id: int, workspace_id: int
-    ) -> List[SalesOrderReturn]:
+    ) -> list[SalesOrderReturn]:
         return self.return_dao.get_by_sales_order(
             session, sales_order_id=sales_order_id, workspace_id=workspace_id
         )

@@ -3,20 +3,22 @@ Invoice Payment Manager
 
 Business logic for invoice payment operations with auto-status updates.
 """
-from typing import List, Optional, Tuple
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
-from decimal import Decimal
 
-from datetime import datetime
-from app.managers.base_manager import BaseManager
-from app.models.invoice_payment import InvoicePayment
-from app.models.account_invoice import AccountInvoice
-from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate, VoidPaymentRequest
-from app.dao.invoice_payment import invoice_payment_dao
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.dao.account_invoice import account_invoice_dao
+from app.dao.invoice_payment import invoice_payment_dao
 from app.managers.account_invoice_manager import account_invoice_manager
-from app.utils.audit_logger import log_financial_audit, create_change_dict, extract_relevant_fields
+from app.managers.base_manager import BaseManager
+from app.models.account_invoice import AccountInvoice
+from app.models.invoice_payment import InvoicePayment
+from app.schemas.invoice_payment import InvoicePaymentCreate, InvoicePaymentUpdate
+from app.utils.audit_logger import (
+    create_change_dict,
+    extract_relevant_fields,
+    log_financial_audit,
+)
 from app.utils.time import utcnow
 
 
@@ -241,7 +243,7 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         workspace_id: int,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Tuple[InvoicePayment, Optional[str]]]:
+    ) -> list[tuple[InvoicePayment, str | None]]:
         """
         List all payments for an invoice.
 
@@ -466,7 +468,9 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
         # never be picked up by the branches below — check for it first.
         if invoice.order_type == 'purchase_order':
             from app.dao.purchase_order_return import purchase_order_return_dao
-            from app.managers.purchase_order_return_manager import purchase_order_return_manager
+            from app.managers.purchase_order_return_manager import (
+                purchase_order_return_manager,
+            )
 
             po_return = purchase_order_return_dao.get_by_invoice_id(
                 session, invoice_id=invoice.id, workspace_id=invoice.workspace_id
@@ -476,7 +480,9 @@ class InvoicePaymentManager(BaseManager[InvoicePayment]):
                 return
         elif invoice.order_type == 'sales_order':
             from app.dao.sales_order_return import sales_order_return_dao
-            from app.managers.sales_order_return_manager import sales_order_return_manager
+            from app.managers.sales_order_return_manager import (
+                sales_order_return_manager,
+            )
 
             so_return = sales_order_return_dao.get_by_invoice_id(
                 session, invoice_id=invoice.id, workspace_id=invoice.workspace_id

@@ -1,6 +1,7 @@
 """Sales order item schemas"""
-from pydantic import BaseModel, ConfigDict, model_validator
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class _CatalogOrFreeTextMixin(BaseModel):
@@ -72,8 +73,8 @@ class SalesOrderItemListResponse(SalesOrderItemResponse):
     quantity_remaining: Decimal | None = None
     quantity_planned: Decimal | None = None
     quantity_available_to_plan: Decimal | None = None
-    quantity_returned: Decimal = Decimal('0')
-    quantity_refunded: Decimal = Decimal('0')
-    quantity_available_to_return: Decimal = Decimal('0')
+    quantity_returned: Decimal = Decimal(0)
+    quantity_refunded: Decimal = Decimal(0)
+    quantity_available_to_return: Decimal = Decimal(0)
 
     model_config = ConfigDict(from_attributes=True)

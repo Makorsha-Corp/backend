@@ -1,8 +1,10 @@
 """Discussion schemas."""
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional, List
+
 from pydantic import BaseModel, ConfigDict, field_validator
+
 from app.models.enums import DiscussionEntityType
 
 
@@ -10,7 +12,7 @@ class DiscussionCreate(BaseModel):
     entity_type: DiscussionEntityType
     entity_id:   int
     message:     str
-    parent_id:   Optional[int] = None
+    parent_id:   int | None = None
 
     @field_validator("message")
     @classmethod
@@ -34,12 +36,12 @@ class DiscussionResponse(BaseModel):
     entity_type: str
     entity_id:   int
     message:     str
-    parent_id:   Optional[int]
+    parent_id:   int | None
     created_at:  datetime
-    author:      Optional[DiscussionAuthor] = None
-    replies:     List[DiscussionResponse] = []
+    author:      DiscussionAuthor | None = None
+    replies:     list[DiscussionResponse] = []
 
 
 class DiscussionListResponse(BaseModel):
-    items: List[DiscussionResponse]
+    items: list[DiscussionResponse]
     total: int

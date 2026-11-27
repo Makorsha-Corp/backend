@@ -1,7 +1,7 @@
 """Item summary schemas for catalog detail hub."""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,7 +27,7 @@ class ItemSummaryItem(BaseModel):
     updated_at: datetime | None = None
     created_by: int | None = None
     updated_by: int | None = None
-    tags: List[ItemSummaryTag] = Field(default_factory=list)
+    tags: list[ItemSummaryTag] = Field(default_factory=list)
 
 
 class ItemSummaryKpis(BaseModel):
@@ -70,11 +70,11 @@ class ItemSummaryMachinePlacement(BaseModel):
 
 
 class ItemSummaryOrderStats(BaseModel):
-    purchase_qty: Decimal = Decimal('0')
-    transfer_qty: Decimal = Decimal('0')
-    sales_qty: Decimal = Decimal('0')
-    total_quantity: Decimal = Decimal('0')
-    total_spend: Decimal = Decimal('0')
+    purchase_qty: Decimal = Decimal(0)
+    transfer_qty: Decimal = Decimal(0)
+    sales_qty: Decimal = Decimal(0)
+    total_quantity: Decimal = Decimal(0)
+    total_spend: Decimal = Decimal(0)
     line_count: int = 0
 
 
@@ -99,7 +99,7 @@ class ItemSummaryPricingPeriod(BaseModel):
 class ItemSummaryPricing(BaseModel):
     last_unit_price: Decimal | None = None
     open_po_line_count: int = 0
-    open_qty_outstanding: Decimal = Decimal('0')
+    open_qty_outstanding: Decimal = Decimal(0)
     period: ItemSummaryPricingPeriod = Field(default_factory=ItemSummaryPricingPeriod)
 
 
@@ -123,7 +123,7 @@ class ItemSummarySupplierPeriod(BaseModel):
     highlights: ItemSummarySupplierHighlights = Field(
         default_factory=ItemSummarySupplierHighlights
     )
-    suppliers: List[ItemSummarySupplierRow] = Field(default_factory=list)
+    suppliers: list[ItemSummarySupplierRow] = Field(default_factory=list)
 
 
 class ItemSummarySupplierStatsPeriod(BaseModel):
@@ -173,10 +173,10 @@ class ItemSummaryWorkOrderUsage(BaseModel):
 
 
 class ItemSummaryUsageDetails(BaseModel):
-    formulas: List[ItemSummaryFormulaUsage] = Field(default_factory=list)
-    batches: List[ItemSummaryBatchUsage] = Field(default_factory=list)
-    projects: List[ItemSummaryProjectUsage] = Field(default_factory=list)
-    work_orders: List[ItemSummaryWorkOrderUsage] = Field(default_factory=list)
+    formulas: list[ItemSummaryFormulaUsage] = Field(default_factory=list)
+    batches: list[ItemSummaryBatchUsage] = Field(default_factory=list)
+    projects: list[ItemSummaryProjectUsage] = Field(default_factory=list)
+    work_orders: list[ItemSummaryWorkOrderUsage] = Field(default_factory=list)
 
 
 class ItemSummaryRecentActivity(BaseModel):
@@ -199,12 +199,12 @@ class ItemSummaryRecentActivity(BaseModel):
 class ItemSummaryResponse(BaseModel):
     item: ItemSummaryItem
     kpis: ItemSummaryKpis
-    inventory_rows: List[ItemSummaryInventoryRow] = Field(default_factory=list)
-    product_rows: List[ItemSummaryProductRow] = Field(default_factory=list)
-    machine_placements: List[ItemSummaryMachinePlacement] = Field(default_factory=list)
+    inventory_rows: list[ItemSummaryInventoryRow] = Field(default_factory=list)
+    product_rows: list[ItemSummaryProductRow] = Field(default_factory=list)
+    machine_placements: list[ItemSummaryMachinePlacement] = Field(default_factory=list)
     order_stats: ItemSummaryOrderStatsPeriod
     pricing: ItemSummaryPricing
     supplier_stats: ItemSummarySupplierStats
     usage_counts: ItemSummaryUsageCounts
     usage_details: ItemSummaryUsageDetails = Field(default_factory=ItemSummaryUsageDetails)
-    recent_activity: List[ItemSummaryRecentActivity] = Field(default_factory=list)
+    recent_activity: list[ItemSummaryRecentActivity] = Field(default_factory=list)

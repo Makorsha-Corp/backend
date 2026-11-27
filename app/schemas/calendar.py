@@ -1,7 +1,7 @@
 """Calendar event schemas — normalized cross-entity date feed."""
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -25,11 +25,11 @@ class CalendarEventResponse(BaseModel):
     date: date
     date_label: str
     title: str
-    subtitle: Optional[str] = None
+    subtitle: str | None = None
     link: str
-    meta: Dict[str, Any] = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class CalendarEventsResponse(BaseModel):
-    events: List[CalendarEventResponse]
+    events: list[CalendarEventResponse]
     total: int

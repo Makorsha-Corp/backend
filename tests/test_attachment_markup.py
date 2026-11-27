@@ -6,7 +6,10 @@ import pytest
 from fastapi import Response
 
 from app.dao.attachment_markup import attachment_markup_dao
-from app.managers.attachment_manager import AttachmentNotFoundError, AttachmentValidationError
+from app.managers.attachment_manager import (
+    AttachmentNotFoundError,
+    AttachmentValidationError,
+)
 from app.managers.attachment_markup_manager import AttachmentMarkupManager
 from app.models.enums import UploadStatusEnum
 from app.schemas.attachment_markup import MarkupPayload, MarkupStamp, PageMarks
@@ -78,11 +81,10 @@ def test_manager_list_layers_not_found() -> None:
     with patch(
         "app.managers.attachment_markup_manager.attachment_dao.get_active",
         return_value=None,
-    ):
-        with pytest.raises(AttachmentNotFoundError):
-            manager.list_layers(
-                session, workspace_id=1, attachment_id=99, current_user_id=5
-            )
+    ), pytest.raises(AttachmentNotFoundError):
+        manager.list_layers(
+            session, workspace_id=1, attachment_id=99, current_user_id=5
+        )
 
 
 def test_manager_rejects_non_image_pdf() -> None:
@@ -92,15 +94,14 @@ def test_manager_rejects_non_image_pdf() -> None:
     with patch(
         "app.managers.attachment_markup_manager.attachment_dao.get_active",
         return_value=_docx_attachment(),
-    ):
-        with pytest.raises(AttachmentValidationError, match="images and PDFs"):
-            manager.put_own_layer(
-                session,
-                workspace_id=1,
-                attachment_id=1,
-                user_id=5,
-                payload=_sample_payload(),
-            )
+    ), pytest.raises(AttachmentValidationError, match="images and PDFs"):
+        manager.put_own_layer(
+            session,
+            workspace_id=1,
+            attachment_id=1,
+            user_id=5,
+            payload=_sample_payload(),
+        )
 
 
 def test_manager_empty_payload_deletes_row() -> None:

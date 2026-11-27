@@ -2,15 +2,17 @@
 
 SECURITY: All queries MUST filter by workspace_id.
 """
-from typing import Any, List, Optional, Tuple
+from typing import Any
+
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import desc, func, or_
+from sqlalchemy.orm import Query, Session
+
 from app.dao.base import BaseDAO
 from app.dao.inventory_ledger import inventory_ledger_dao
+from app.models.enums import InventoryTypeEnum
 from app.models.inventory import Inventory
 from app.models.item import Item
-from app.models.enums import InventoryTypeEnum
 from app.schemas.inventory import InventoryCreate, InventoryUpdate
 
 
@@ -22,10 +24,10 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
     ) -> Query:
         query = (
@@ -60,14 +62,14 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Inventory]:
+    ) -> list[Inventory]:
         return (
             self._filtered_query(
                 db,
@@ -89,10 +91,10 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
     ) -> int:
         return self._filtered_query(
@@ -110,12 +112,12 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
         db: Session,
         *,
         workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
-        item_id: Optional[int] = None,
-        search: Optional[str] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
+        item_id: int | None = None,
+        search: str | None = None,
         include_zero_qty: bool = False,
-    ) -> Tuple[int, int, Any, List[Tuple[Any, int, int]]]:
+    ) -> tuple[int, int, Any, list[tuple[Any, int, int]]]:
         base = self._filtered_query(
             db,
             workspace_id=workspace_id,
@@ -143,10 +145,10 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
 
     def get_by_workspace(
         self, db: Session, *, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None,
-        factory_id: Optional[int] = None,
+        inventory_type: InventoryTypeEnum | None = None,
+        factory_id: int | None = None,
         skip: int = 0, limit: int = 100
-    ) -> List[Inventory]:
+    ) -> list[Inventory]:
         """Get inventory records with optional type/factory filter (includes zero-qty rows)."""
         return self.list_filtered(
             db,
@@ -160,7 +162,7 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
 
     def get_by_id_and_workspace(
         self, db: Session, *, id: int, workspace_id: int
-    ) -> Optional[Inventory]:
+    ) -> Inventory | None:
         """Get record by ID with workspace isolation."""
         return db.query(Inventory).filter(
             Inventory.id == id,
@@ -170,7 +172,7 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
     def get_by_factory_item_type(
         self, db: Session, *, factory_id: int, item_id: int,
         inventory_type: InventoryTypeEnum, workspace_id: int
-    ) -> Optional[Inventory]:
+    ) -> Inventory | None:
         """Get specific record by factory/item/type combo (unique constraint lookup)."""
         return db.query(Inventory).filter(
             Inventory.workspace_id == workspace_id,
@@ -183,7 +185,7 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
     def _get_any_by_factory_item_type(
         self, db: Session, *, factory_id: int, item_id: int,
         inventory_type: InventoryTypeEnum, workspace_id: int
-    ) -> Optional[Inventory]:
+    ) -> Inventory | None:
         """Lookup by unique key, including soft-deleted rows."""
         return db.query(Inventory).filter(
             Inventory.workspace_id == workspace_id,
@@ -198,7 +200,7 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
         *,
         inv: Inventory,
         workspace_id: int,
-        updated_by: Optional[int] = None,
+        updated_by: int | None = None,
     ) -> Inventory:
         """Align snapshot qty/avg_price with the latest ledger entry (ledger wins)."""
         latest = inventory_ledger_dao.get_latest_entry(
@@ -292,8 +294,8 @@ class InventoryDAO(BaseDAO[Inventory, InventoryCreate, InventoryUpdate]):
 
     def get_by_item(
         self, db: Session, *, item_id: int, workspace_id: int,
-        inventory_type: Optional[InventoryTypeEnum] = None
-    ) -> List[Inventory]:
+        inventory_type: InventoryTypeEnum | None = None
+    ) -> list[Inventory]:
         """Get all records for an item across factories."""
         query = db.query(Inventory).filter(
             Inventory.workspace_id == workspace_id,

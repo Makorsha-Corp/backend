@@ -1,7 +1,8 @@
 """Work order template approver model - default approvers copied onto orders generated
 from a template that requires approval"""
-from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint, String
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

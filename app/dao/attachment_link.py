@@ -1,8 +1,7 @@
 """Attachment link DAO operations"""
-from typing import List, Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
 from app.models.attachment import Attachment
@@ -49,7 +48,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
         entity_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[AttachmentLink]:
+    ) -> list[AttachmentLink]:
         return (
             db.query(AttachmentLink)
             .filter(
@@ -73,7 +72,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
         entity_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Attachment]:
+    ) -> list[Attachment]:
         return (
             db.query(Attachment)
             .join(AttachmentLink, AttachmentLink.attachment_id == Attachment.id)
@@ -123,7 +122,7 @@ class AttachmentLinkDAO(BaseDAO[AttachmentLink, AttachmentLinkCreateSchema, Atta
         *,
         workspace_id: int,
         attachment_id: int,
-    ) -> List[AttachmentLink]:
+    ) -> list[AttachmentLink]:
         return (
             db.query(AttachmentLink)
             .filter(

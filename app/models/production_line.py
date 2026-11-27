@@ -1,6 +1,7 @@
 """Production Line model - where production happens"""
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base
 
 

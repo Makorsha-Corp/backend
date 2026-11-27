@@ -9,7 +9,6 @@ class DeliveryMethodBase(BaseModel):
 
 class DeliveryMethodCreate(DeliveryMethodBase):
     """Delivery method creation schema"""
-    pass
 
 
 class DeliveryMethodUpdate(BaseModel):

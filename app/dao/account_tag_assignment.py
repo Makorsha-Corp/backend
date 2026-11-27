@@ -1,9 +1,10 @@
 """Account tag assignment DAO operations"""
+
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.dao.base import BaseDAO
-from app.models.account_tag_assignment import AccountTagAssignment
 from app.models.account_tag import AccountTag
+from app.models.account_tag_assignment import AccountTagAssignment
 from app.schemas.account_tag_assignment import AccountTagAssignmentCreate
 
 # Forward declaration to avoid circular import
@@ -23,7 +24,7 @@ class AccountTagAssignmentDAO(BaseDAO[AccountTagAssignment, AccountTagAssignment
 
     def get_tags_for_account(
         self, db: Session, *, account_id: int, workspace_id: int
-    ) -> List[AccountTag]:
+    ) -> list[AccountTag]:
         """
         Get all tags for an account (SECURITY-CRITICAL)
 
@@ -45,36 +46,9 @@ class AccountTagAssignmentDAO(BaseDAO[AccountTagAssignment, AccountTagAssignment
             .all()
         )
 
-    def get_accounts_for_tag(
-        self, db: Session, *, tag_id: int, workspace_id: int, skip: int = 0, limit: int = 100
-    ) -> List[AccountTagAssignment]:
-        """
-        Get all account assignments for a tag (SECURITY-CRITICAL)
-
-        Args:
-            db: Database session
-            tag_id: Tag ID
-            workspace_id: Workspace ID to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List of account assignments for the tag
-        """
-        return (
-            db.query(AccountTagAssignment)
-            .filter(
-                AccountTagAssignment.workspace_id == workspace_id,
-                AccountTagAssignment.tag_id == tag_id
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
     def get_assignment(
         self, db: Session, *, account_id: int, tag_id: int, workspace_id: int
-    ) -> Optional[AccountTagAssignment]:
+    ) -> AccountTagAssignment | None:
         """
         Get specific tag assignment (SECURITY-CRITICAL)
 

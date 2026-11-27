@@ -2,17 +2,20 @@
 
 Business logic for machine maintenance log operations.
 """
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
-from app.managers.base_manager import BaseManager
-from app.models.machine_maintenance_log import MachineMaintenanceLog
-from app.models.enums import MaintenanceTypeEnum
-from app.schemas.machine_maintenance_log import MachineMaintenanceLogCreate, MachineMaintenanceLogUpdate
-from app.dao.machine_maintenance_log import machine_maintenance_log_dao
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.dao.machine import machine_dao
+from app.dao.machine_maintenance_log import machine_maintenance_log_dao
+from app.managers.base_manager import BaseManager
 from app.managers.machine_activity_manager import machine_activity_manager
+from app.models.enums import MaintenanceTypeEnum
+from app.models.machine_maintenance_log import MachineMaintenanceLog
+from app.schemas.machine_maintenance_log import (
+    MachineMaintenanceLogCreate,
+    MachineMaintenanceLogUpdate,
+)
 
 MAINTENANCE_LOG_FIELDS = {
     "maintenance_type": "Maintenance type",
@@ -132,11 +135,11 @@ class MachineMaintenanceLogManager(BaseManager[MachineMaintenanceLog]):
         self,
         session: Session,
         workspace_id: int,
-        machine_id: Optional[int] = None,
-        maintenance_type: Optional[MaintenanceTypeEnum] = None,
+        machine_id: int | None = None,
+        maintenance_type: MaintenanceTypeEnum | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[MachineMaintenanceLog]:
+    ) -> list[MachineMaintenanceLog]:
         """List maintenance logs with optional filters."""
         if machine_id and maintenance_type:
             return self.log_dao.get_by_machine_and_type(

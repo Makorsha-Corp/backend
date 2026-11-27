@@ -13,6 +13,7 @@ Work order types are NOT seeded by default - each workspace starts with an
 empty list and users define their own vocabulary via the Maintenance wizard.
 """
 from sqlalchemy.orm import Session
+
 from app.db.seed_default_subscription_plans import seed_default_subscription_plans
 
 

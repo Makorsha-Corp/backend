@@ -1,7 +1,8 @@
 """Workspace schemas"""
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.utils.timezone_validate import is_valid_iana_timezone
 

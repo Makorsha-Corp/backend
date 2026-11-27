@@ -1,11 +1,11 @@
 """Factory Section Service for orchestrating factory section workflows"""
-from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.services.base_service import BaseService
 from app.managers.factory_section_manager import factory_section_manager
 from app.models.factory_section import FactorySection
 from app.schemas.factory_section import FactorySectionCreate, FactorySectionUpdate
+from app.services.base_service import BaseService
 
 
 class FactorySectionService(BaseService):
@@ -60,7 +60,7 @@ class FactorySectionService(BaseService):
 
             return section
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -90,11 +90,11 @@ class FactorySectionService(BaseService):
         self,
         db: Session,
         workspace_id: int,
-        factory_id: Optional[int] = None,
-        search: Optional[str] = None,
+        factory_id: int | None = None,
+        search: str | None = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[FactorySection]:
+    ) -> list[FactorySection]:
         """
         Get factory sections in workspace.
 
@@ -158,7 +158,7 @@ class FactorySectionService(BaseService):
 
             return section
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
@@ -199,7 +199,7 @@ class FactorySectionService(BaseService):
 
             return section
 
-        except Exception as e:
+        except Exception:
             self._rollback_transaction(db)
             raise
 
