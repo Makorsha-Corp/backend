@@ -77,15 +77,37 @@ In the unit's worktree:
    the attribution lines the session requires.
 3. `git push -u origin bugfix/<unit>`.
 4. Open the PR if the GitHub CLI is logged in:
-   `gh pr create --base main --head bugfix/<unit> --title "fix(<module>): <ids>" --body-file docs/bugfix/units/<unit>/pr.md`.
+   `gh pr create --base main --head bugfix/<unit> --title "<human title>" --body-file docs/bugfix/units/<unit>/pr.md`.
    If it isn't, write `pr.md` and list the branch for the owner to open.
-   `pr.md` has:
-   - the bugs (id, title, intended);
-   - the change in plain words;
-   - the systems engineer's impact summary and contract note;
-   - the flip-check result (n flipped as intended, 0 other changes);
-   - any data-check script;
-   - a link to the frontend PR, if there is one.
+
+   **Write `pr.md` for a human reviewer (owner, 2026-11-27):** someone who knows the
+   product but hasn't read the spec, the bug register or the code should understand
+   it in two minutes. Plain language, real examples, no test jargon above the fold.
+   Model: `docs/bugfix/units/dao-attachment_link/pr.md`. Structure:
+
+   1. **Title:** what the user gets, not the function name. "Fix: failed uploads no
+      longer use up a record's 25 attachment places", not "fix(attachment_link): BUG-1434".
+      Then one line: which bugs, how many files, database change yes/no, API change yes/no.
+   2. For trivial units, the **"Good to auto-merge"** box with the reason in one sentence.
+   3. **What was wrong:** one short section per bug, most user-visible first.
+      Explain it as a user or the business would meet it, then give a **concrete
+      example** with real-looking names and numbers (taka for money). Mark the bug
+      that matters most.
+   4. **What changed:** the file, then a small `diff` block of only the changed
+      lines, each with a short comment saying what it does. Name the house rule
+      or owner answer behind it in words (for example "house rule HR-6: every
+      list ends its sort with id").
+   5. **What you'll notice:** the visible effects, including "fewer X than before"
+      kinds of changes, and what is deliberately unchanged.
+   6. **What to look at when reviewing:** the 2–4 places where judgement was used:
+      delegated decisions, side effects accepted, gaps left for another PR (with
+      their bug ids). Say plainly what the reviewer should object to if they disagree.
+   7. A collapsed `<details>` block, **Pipeline checks**: callers checked, the
+      contract note, the flip-check result in one sentence ("the N tests for these
+      bugs now pass; every other test unchanged"), any data-check script, the
+      frontend PR link, commits.
+
+   Don't paste the brief, the spec text or the tester's notes, and don't list test ids.
 5. **Trivial units** (pipeline.md §7): add a PR comment, or a line in `pr.md` if
    there's no PR, saying **"Good to auto-merge"** plus why: trivial pattern,
    one file, no migration, no contract change, flip check exact, CI green. **Never

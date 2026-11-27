@@ -9127,10 +9127,10 @@ So the line's source (F1), the machine's factory (F2) and the order's factory (F
 
 ## `WorkOrderManager.get_items`
 
-### WOM-GI-01 — the live lines of the order, in id order
-- **Rules:** `get_items` R1, R2
+### WOM-GI-01 — the live lines of the order, in id order *(revised 2026-11-27)*
+- **Rules:** `get_items` R1, R2 [BUG-1272]
 - **Kind:** happy
-- **Expect:** pass
+- **Expect:** xfail BUG-1272 (non-strict): the line query has no `ORDER BY` (BUG-1272), so id order holds only when the physical order happens to match. It passed on Windows and failed on the first Linux CI run. WOM-GI-04 is the strict proof.
 
 **Given**
 1. O = order "1".
