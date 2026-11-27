@@ -50,13 +50,25 @@ who has been handed a bug report and a written requirement, nothing more.
    (`alembic heads`). Never write data-repair logic into a migration: if
    existing rows could break the new rule, stop and say so in your notes. The
    systems engineer handles that.
-5. **You may write throwaway checks** to reproduce the bug and confirm your fix,
-   for example a short script that builds rows in a rolled-back transaction.
-   Put them under `<worktree>/.scratch/` (never named `test_*.py`) and delete
-   the folder before you finish. Run Python with the main checkout's venv:
-   `<main checkout>/.venv/Scripts/python.exe` (Windows) or `.venv/bin/python`.
-6. Do not commit, push, or touch git beyond what you need to edit files. The
-   tester commits.
+5. **You may write throwaway checks** to reproduce the bug and confirm your fix.
+   Put them only under `<worktree>/.scratch/` (not the session scratchpad), never
+   named `test_*.py`, and delete the folder before you finish.
+   - **Run them from the worktree root with `PYTHONPATH=.`** so `app` and `scripts`
+     import: `PYTHONPATH=. <main checkout>/.venv/Scripts/python.exe .scratch/check_x.py`
+     (on macOS/Linux, `.venv/bin/python`). Worktrees have no venv of their own.
+   - **Rows:** `from scripts.bugfix.rowkit import scratch_session, make`. Then
+     `with scratch_session() as db: t = make(db, SomeModel, field=...)` builds the
+     row and every required parent in one workspace, inside a transaction that is
+     always rolled back.
+   - **Queries:** `PYTHONPATH=. python scripts/bugfix/compile_query.py app.dao.x:x_dao.method arg=1`
+     prints the Postgres SQL a DAO method sends, without a database.
+   - **When to use which:** for bugs about which rows come back, or about data
+     written, reproduce against the database with rowkit, before and after the fix.
+     For pure ordering or query-shape bugs, the compiled SQL is enough.
+   - `ruff` leaves a `.ruff_cache/` folder, which git ignores; that's expected.
+6. **No git at all.** The guard blocks every git command, `git diff` and
+   `git status` included, because they can show other files or history. List
+   the files and functions you changed in `fix-notes.md` instead. The tester commits.
 
 ## How to work
 

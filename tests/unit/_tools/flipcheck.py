@@ -106,20 +106,40 @@ def cmd_run(args: argparse.Namespace) -> int:
             cmd += ["-n", str(args.workers)]
         cmd += args.pytest_args
         print("flipcheck:", " ".join(cmd), flush=True)
-        proc = subprocess.run(cmd, cwd=BACKEND_ROOT, env=env)
+        proc = subprocess.run(cmd, cwd=BACKEND_ROOT, env=env, check=False)
     if not out.exists():
         print("flipcheck: no results written (pytest crashed?)", file=sys.stderr)
         return 2
     data = json.loads(out.read_text(encoding="utf-8"))
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=BACKEND_ROOT,
-                          capture_output=True, text=True).stdout.strip()
-    data = {"_meta": {"commit": head, "pytest_exit": proc.returncode}, "tests": data}
+                          capture_output=True, text=True, check=False).stdout.strip()
+    import platform
+    env_meta = {
+        "platform": platform.system(),
+        "python": platform.python_version(),
+        "test_db": make_db_name(env.get("TEST_DATABASE_URL", "")),
+        "cloudinary_set": all(env.get(k) for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")),
+    }
+    data = {"_meta": {"commit": head, "pytest_exit": proc.returncode, "env": env_meta}, "tests": data}
     out.write_text(json.dumps(data, indent=0, sort_keys=True), encoding="utf-8")
     counts: dict[str, int] = {}
     for e in data["tests"].values():
         counts[e["outcome"]] = counts.get(e["outcome"], 0) + 1
     print(f"flipcheck: recorded {len(data['tests'])} tests at {head[:10]}: {counts}")
     return 0
+
+
+def make_db_name(url: str) -> str:
+    return url.rsplit("/", 1)[-1] if url else "(default marker_test)"
+
+
+def _env_warnings(before: dict, after: dict) -> list[str]:
+    eb, ea = before.get("_meta", {}).get("env", {}), after.get("_meta", {}).get("env", {})
+    out = []
+    for k in ("platform", "python", "cloudinary_set"):
+        if k in eb and k in ea and eb[k] != ea[k]:
+            out.append(f"environment differs: {k} {eb[k]!r} (before) vs {ea[k]!r} (after) - a REJECT may be the environment, not the fix")
+    return out
 
 
 def _bugs_of(entry: dict | None) -> set[str]:
@@ -183,6 +203,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     rep["before_commit"] = before.get("_meta", {}).get("commit")
     rep["after_commit"] = after.get("_meta", {}).get("commit")
     rep["bugs"] = sorted(bugs)
+    rep["env_warnings"] = _env_warnings(before, after)
     if args.json:
         Path(args.json).write_text(json.dumps(rep, indent=2), encoding="utf-8")
     print(f"flipcheck: {'CLEAN' if rep['ok'] else 'REJECTED'} for {', '.join(sorted(bugs))}")
@@ -191,6 +212,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(f"  REJECT {r['test']}: {r['why']}")
     if len(rep["rejections"]) > 50:
         print(f"  ... {len(rep['rejections']) - 50} more")
+    for w in rep["env_warnings"]:
+        print(f"  WARNING {w}")
     for n in rep["notes"]:
         print(f"  note {n['test']}: {n['note']}")
     return 0 if rep["ok"] else 1
