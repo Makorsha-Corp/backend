@@ -29,7 +29,9 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
             query = query.filter(WorkOrderTemplate.is_active == is_active)
         if work_order_type_id:
             query = query.filter(WorkOrderTemplate.work_order_type_id == work_order_type_id)
-        return query.order_by(desc(WorkOrderTemplate.created_at)).offset(skip).limit(limit).all()
+        return query.order_by(
+            desc(WorkOrderTemplate.created_at), desc(WorkOrderTemplate.id)
+        ).offset(skip).limit(limit).all()
 
     def list_recurring_due(
         self, db: Session, *, workspace_id: int, target_date: date,
@@ -42,14 +44,19 @@ class WorkOrderTemplateDAO(BaseDAO[WorkOrderTemplate, WorkOrderTemplateCreate, W
             WorkOrderTemplate.is_recurring == True,
         )
         if factory_section_id is not None:
-            query = query.filter(WorkOrderTemplate.default_factory_section_id == factory_section_id)
+            from app.models.factory_section import FactorySection
+            live_section_ids = db.query(FactorySection.id).filter(FactorySection.is_deleted == False)
+            query = query.filter(
+                WorkOrderTemplate.default_factory_section_id == factory_section_id,
+                WorkOrderTemplate.default_factory_section_id.in_(live_section_ids),
+            )
         if factory_id is not None:
             from app.models.factory_section import FactorySection
             query = query.join(
                 FactorySection, WorkOrderTemplate.default_factory_section_id == FactorySection.id, isouter=True
             ).filter(
                 (WorkOrderTemplate.default_factory_section_id.is_(None))
-                | (FactorySection.factory_id == factory_id)
+                | ((FactorySection.factory_id == factory_id) & (FactorySection.is_deleted == False))
             )
         rows = query.all()
         return [
@@ -83,7 +90,7 @@ class WorkOrderTemplateApproverDAO(BaseDAO[WorkOrderTemplateApprover, WorkOrderT
         return db.query(WorkOrderTemplateApprover).filter(
             WorkOrderTemplateApprover.work_order_template_id == work_order_template_id,
             WorkOrderTemplateApprover.workspace_id == workspace_id,
-        ).all()
+        ).order_by(WorkOrderTemplateApprover.id).all()
 
     def delete_all_for_template(self, db: Session, *, work_order_template_id: int, workspace_id: int) -> None:
         db.query(WorkOrderTemplateApprover).filter(
