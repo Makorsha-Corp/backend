@@ -719,7 +719,6 @@ def test_alk_ga_27__three_sharing_one_time_come_first_the_day_older_one_last(db,
 
 
 # [claude] ALK-GA-28
-@pytest.mark.xfail(strict=False, reason="BUG-1432: Attachments with one upload time come back in no fixed order")
 def test_alk_ga_28__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated(db, w1, mk_attachment, mk_link):
     """ALK-GA-28 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `get_attachments_for_entity` R6 [BUG-1432]"""
@@ -744,7 +743,6 @@ def test_alk_ga_28__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_u
 
 
 # [claude] ALK-GA-29
-@pytest.mark.xfail(strict=False, reason="BUG-1432: Attachments with one upload time come back in no fixed order")
 def test_alk_ga_29__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row(db, w1, mk_attachment, mk_link):
     """ALK-GA-29 — tied rows paged one at a time neither repeat nor miss a row.
     Rules: `get_attachments_for_entity` R6 [BUG-1432]"""
@@ -769,7 +767,6 @@ def test_alk_ga_29__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row(
 
 
 # [claude] ALK-GA-30
-@pytest.mark.xfail(strict=True, reason="BUG-1432: Attachments with one upload time come back in no fixed order")
 def test_alk_ga_30__the_query_orders_by_uploaded_at_then_id_both_descending(db, w1, mk_attachment, mk_link):
     """ALK-GA-30 — the query orders by uploaded_at, then id, both descending.
     Rules: `get_attachments_for_entity` R6 [BUG-1432]"""
@@ -845,7 +842,6 @@ def test_alk_ga_32__writes_nothing_a_pending_row_stays_pending_an_unflushed_edit
 
 
 # [claude] ALK-CN-01
-@pytest.mark.xfail(strict=True, reason="BUG-1434: A failed upload keeps using up one of the record's 25 attachment places")
 def test_alk_cn_01__failed_attachments_do_not_count_ready_and_pending_do(db, w1, mk_attachment, mk_deleted_attachment, mk_link):
     """ALK-CN-01 — failed attachments do not count; ready and pending do.
     Rules: `count_linked_attachments_for_entity` R1 [BUG-1434], Returns"""
@@ -1205,7 +1201,6 @@ def test_alk_gl_06__attachment_id_0_returns_an_empty_list(db, w1, mk_attachment,
 
 
 # [claude] ALK-GL-07
-@pytest.mark.xfail(strict=False, reason="BUG-1433: The links of one attachment have no order")
 def test_alk_gl_07__links_come_in_the_order_they_were_made_also_after_the_first_was_updated(db, w1, mk_attachment, mk_link):
     """ALK-GL-07 — links come in the order they were made, also after the first was updated.
     Rules: `get_links_for_attachment` R4 [BUG-1433]"""
@@ -1225,7 +1220,6 @@ def test_alk_gl_07__links_come_in_the_order_they_were_made_also_after_the_first_
 
 
 # [claude] ALK-GL-08
-@pytest.mark.xfail(strict=True, reason="BUG-1433: The links of one attachment have no order")
 def test_alk_gl_08__the_query_orders_by_id_ascending(db, w1, mk_attachment, mk_link):
     """ALK-GL-08 — the query orders by id ascending.
     Rules: `get_links_for_attachment` R4 [BUG-1433]"""
@@ -1309,7 +1303,6 @@ def test_alk_gl_11__asked_for_w2_only_the_w2_link_is_returned_though_the_w1_link
 
 
 # [claude] ALK-GL-12
-@pytest.mark.xfail(strict=False, reason="BUG-1433: The links of one attachment have no order")
 def test_alk_gl_12__links_come_in_id_order_not_entity_order(db, w1, mk_attachment, mk_link):
     """ALK-GL-12 — links come in id order, not entity order.
     Rules: `get_links_for_attachment` R4 [BUG-1433]"""
