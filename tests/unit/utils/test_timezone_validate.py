@@ -155,11 +155,27 @@ def test_tzv_v_12__metadata_files_are_false(value):
     assert is_valid_iana_timezone(value) is False
 
 
+def _system_tzdb_loads(name: str) -> bool:
+    """True where the OS timezone files include `name` (Linux /usr/share/zoneinfo does;
+    Windows has no system database and uses the `tzdata` package, which does not)."""
+    try:
+        zoneinfo.ZoneInfo(name)
+    except (zoneinfo.ZoneInfoNotFoundError, ValueError, OSError):
+        return False
+    return True
+
+
+# BUG-3301: on Linux (production, CI) ZoneInfo loads these OS files, so they are accepted.
+X3301 = "BUG-3301: 'localtime' and 'posixrules' are accepted as timezones on Linux"
+
+
 @pytest.mark.parametrize(
     "value",
     [
-        pytest.param("localtime", id="TZV-V-13-localtime"),
-        pytest.param("posixrules", id="TZV-V-13-posixrules"),
+        pytest.param("localtime", id="TZV-V-13-localtime",
+                     marks=pytest.mark.xfail(_system_tzdb_loads("localtime"), strict=True, reason=X3301)),
+        pytest.param("posixrules", id="TZV-V-13-posixrules",
+                     marks=pytest.mark.xfail(_system_tzdb_loads("posixrules"), strict=True, reason=X3301)),
     ],
 )
 def test_tzv_v_13__localtime_posixrules_are_false(value):

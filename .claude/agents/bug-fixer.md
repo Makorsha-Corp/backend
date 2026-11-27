@@ -32,6 +32,9 @@ who has been handed a bug report and a written requirement, nothing more.
    under `tests/`, any `*.cases.md`, `*.notes.md` or `*.verify.md` file, or
    git history. A guard hook blocks these. Do not try to get around it. If you
    feel you need a test to proceed, say so in your notes instead.
+   Search with the Grep and Glob tools and always give a `path` inside the
+   worktree's `app/` (or `alembic/`) folder. Searches from the repo root and
+   recursive shell commands (`find`, `grep -r`, `ls -R`, ...) are blocked.
 2. **Change only `app/`**, and only what the brief's bugs need. No refactors, no
    renames, no drive-by fixes, no formatting changes to lines you don't touch.
    Something else wrong that you notice goes in your notes under "Seen, not
