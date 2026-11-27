@@ -591,7 +591,6 @@ def test_atcm_cp_02__25_live_refused(db, S):
     assert state == CLEAN
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-1434: failed attachments still count toward the per-entity limit")
 def test_atcm_cp_03__failed_not_counted(db, S):
     """ATCM-CP-03 — failed attachments are not counted.
     Rules: assert_entity_attachment_capacity R1 [BUG-1434]."""
@@ -1194,7 +1193,6 @@ def test_atcm_lg_07__no_link_both_null(db, S):
     assert row.transaction_type == "deleted"
 
 
-@pytest.mark.xfail(strict=False, reason="BUG-1433: attachment links are read with no ORDER BY")
 def test_atcm_lg_08__first_link_is_lowest_link_id(db, S):
     """ATCM-LG-08 — entity missing: the first link is the lowest link id, not the first built.
     Rules: _append_attachment_ledger R3 [BUG-1433]."""
@@ -1210,7 +1208,6 @@ def test_atcm_lg_08__first_link_is_lowest_link_id(db, S):
     assert rows[0].entity_id == 60
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-1433: attachment links are read with no ORDER BY")
 def test_atcm_lg_09__links_query_is_ordered(db, S):
     """ATCM-LG-09 — the links query of an attachment is ordered.
     Rules: _append_attachment_ledger R3 [BUG-1433]; to_response R1."""
@@ -2388,7 +2385,6 @@ def test_atcm_tr_06__pending_urls_none(db, S):
 # get_pdf_page_image — pass cards (through pg)
 # =========================================================================== #
 
-@pytest.mark.xfail(strict=False, reason="BUG-1433: attachment links are read with no ORDER BY")
 def test_atcm_tr_07__w1_links_in_link_id_order(db, S):
     """ATCM-TR-07 — W1 links are listed in link id order, not build order.
     Rules: to_response R1 [BUG-1433]."""
