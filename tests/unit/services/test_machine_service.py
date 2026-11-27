@@ -1252,7 +1252,7 @@ def test_mcs_l_12__pass_through_bug_886_latest_event_type_filters_the_list(db, w
     mk_status(ma, T1, "IDLE")
     mk_status(mz, T1, "RUNNING")
     commit_point(db)
-    result = svc.get_machines(db, workspace_id=w1.id, latest_event_type="IDLE")
+    result = svc.get_machines(db, workspace_id=w1.id, latest_event_type=IDLE)
 
     # Then 1
     assert names(result) == ["Alpha"]

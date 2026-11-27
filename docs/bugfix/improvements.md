@@ -167,3 +167,33 @@ test pipeline), T13 (record the test environment in the baseline metadata), C4 s
 | A19 | Concurrency bugs: single-session stale-object tests can't tell a real relative UPDATE from a re-read-then-write shortcut (item_tag BUG-931). | Pre-check: for atomic-update bugs, require a SQL check on the UPDATE. Applied: ITG-INC-11 and DEC-13 got a Then 4 (cards revised). Same gap expected in account_tag BUG-1484. | open (skill) |
 | A20 | "Would a correct fix pass?" is best answered by running candidate fixes (one correct, one plausible-but-wrong, one shortcut) through a scratch plugin, not by reasoning. | Make it the standard §A method, together with A15. | open |
 | A21 | The "conditional keep" route (BUG-1101, BUG-931): when a test correction only adds checks and doesn't change today's outcome, the bug stays in the unit if the correction lands before the baseline. | Write it into §A.4. | open |
+
+### Batch 2 fix round (2026-11-27)
+
+| Id | Seen | Fix |
+|---|---|---|
+| A22 | machine_maintenance_log fixer fixed without reproducing the bugs first (the SE had to confirm the old code really had them). | Fixer rule: reproduce before changing, or say "not reproduced" and why. |
+| A23 | Fixers' "Seen, not fixed" lists real candidates: `app/dao/machine.py` pages with no ORDER BY; account_tag BUG-1484 has the same counter pattern as BUG-931. | Planner: read fix-notes "Seen, not fixed" when planning the next batch. |
+| T15 | `flipcheck.py run --out .scratch-flip/after.json` does not create the folder; the run (~7 min) is lost with FileNotFoundError at session finish. | flipcheck: `out.parent.mkdir(parents=True, exist_ok=True)`.  **Done 2026-11-27.** |
+| T16 | `compare --bugs` takes a comma list; space-separated ids are rejected. | Skill C.4: show the comma form.  **Done 2026-11-27.** |
+| T17 | Removing a unit's markers was done by an ad-hoc script each time (one-line and multi-line decorators, shared reasons). | Tool `scripts/bugfix/remove_markers.py`: drop a decorator only when every BUG id in it belongs to the unit. |
+| O2 | PowerShell `Set-Content -Encoding utf8` adds a BOM to state.md; `ConvertFrom-Json` can't read the baseline (case-only duplicate test ids). | Orchestrator: edit docs with the Edit tool or Python; read JSON with Python. |
+| T18 | `compare` stays silent about non-strict tests it let move (xfailed <-> xpassed); confirming the pre-check's predicted XPASSes needed a hand diff. | flipcheck: list "ignored non-strict changes" in the output and JSON.  **Done 2026-11-27.** |
+| O3 | Orchestrator prompt used `bf_factory_section_test`; the skill's naming rule gives `bf_dao_factory_section_test`. Harmless. | Orchestrator: take the db name from the skill rule (`bf_<unit>_test`). |
+| T19 | Hand-written marker regexes missed two single-line markers (caught by re-grepping). | Skill C.3: always re-grep `xfail(.*BUG-<ids>` after removal (covered by T17's tool). |
+| P17 | Pre-check guessed caller test file paths wrong (`test_item_tag_assignment.py` is under dao/). | Pre-check lists caller test files by full path, found with Grep, not guessed. |
+
+### Batch 2 result
+
+All 3 units CLEAN on the first round, no fixer feedback rounds, no contract changes: dao-machine_maintenance_log (46 flipped, `5966805`), dao-factory_section (16 flipped, `cab794a`), dao-item_tag (11 flipped, `10ac8de`). All three testers lost one full run to T15.
+| R1 | Fixers write bug ids into code comments/docstrings (both reviewers flagged it as a minor: nothing else in `app/` does). | Fixer rule: explain the why in comments, never cite BUG ids; ids go in fix-notes and the commit. |
+| R2 | Parallel reviewers overwrote each other's `chk.py` in the shared session scratchpad. | Orchestrator prompts give each agent its own scratch subfolder (`scratchpad/<unit>/`). |
+
+### Planner and pre-check (batch 3)
+
+| Id | Seen | Fix |
+|---|---|---|
+| P18 | Rows that name a DAO only through a "via" mention (BUG-342/343 → `machine.py`) get excluded by the two-file rule even when the fix belongs in the DAO. | Planner skill: say which file owns a row (the file the fix changes, not the file the title names). |
+| P19 | Clock-bug tests that patch the old `<module>.datetime` name without `create=True` break when the clean fix drops that import (BUG-1441: 33 errors). | Pre-check: for clock bugs, check every patched name survives the clean fix; test designer: patch old and new names with `create=True`. |
+| P20 | Unclear whether a fixer may leave a now-unused import to keep tests green. | Fixer rule: remove imports the fix makes unused (ruff F401); the pre-check must make tests tolerate that. |
+| P21 | Caller tests passed a plain string where the contract is an enum (BUG-886), so a correct fix failed them. | Pre-check: compare each caller test's argument types against the spec signature. |

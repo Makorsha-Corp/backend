@@ -90,7 +90,7 @@ In the unit's worktree:
    the flip check:
    ```
    <python> tests/unit/_tools/flipcheck.py run --out .scratch-flip/after.json
-   <python> tests/unit/_tools/flipcheck.py compare <main>\docs\bugfix\baseline-<sha>.json .scratch-flip/after.json --bugs <ids> --json <main>\docs\bugfix\units\<unit>\flipcheck.json
+   <python> tests/unit/_tools/flipcheck.py compare <main>\docs\bugfix\baseline-<sha>.json .scratch-flip/after.json --bugs BUG-1,BUG-2 --json <main>\docs\bugfix\units\<unit>\flipcheck.json
    ```
    Only the compare verdict counts. Raw totals, especially `xpassed`, move between
    runs because of non-strict ties.

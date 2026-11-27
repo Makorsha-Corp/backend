@@ -864,7 +864,7 @@
 4. status row of MZ at T1, `"RUNNING"`.
 
 **When**
-- `result = svc.get_machines(db, workspace_id=W1.id, latest_event_type="IDLE")`.
+- `result = svc.get_machines(db, workspace_id=W1.id, latest_event_type=IDLE)`.
 
 **Then**
 1. returns: `names(result) == ["Alpha"]`.

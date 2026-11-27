@@ -4576,7 +4576,7 @@ def test_mcm_s_12__latest_event_type_is_handed_to_the_list(db, w1, mk_machine, m
     mz = mk_machine("MZ")
     mk_status_row(ma, T1, "IDLE")
     mk_status_row(mz, T1, "RUNNING")
-    result = M.search_machines(db, workspace_id=w1.id, latest_event_type="IDLE")
+    result = M.search_machines(db, workspace_id=w1.id, latest_event_type=IDLE)
 
     # Then 1
     assert names(result) == ["Alpha"]
@@ -4924,7 +4924,7 @@ def test_mcm_s_39__latest_event_type_works_on_the_maintenance_path(db, w1, mk_ma
     mz = mk_machine("MZ")
     mk_status_row(ma, T1, "IDLE")
     mk_status_row(mz, T1, "RUNNING")
-    result = M.search_machines(db, workspace_id=w1.id, latest_event_type="IDLE", maintenance_window="bogus")
+    result = M.search_machines(db, workspace_id=w1.id, latest_event_type=IDLE, maintenance_window="bogus")
 
     # Then 1
     assert names(result) == ["Alpha"]

@@ -19,11 +19,12 @@ the same format. Status: **design for owner review**. No skills are built yet.
 ## 2. Agents and flow
 
 ```
-            ┌─────────── per batch of 3 units ───────────┐
- Planner ──►│ Fixer ─► Systems engineer ─► Tester ─pass─► Frontend ─► PR
- (briefs)   │   ▲           │      ▲          │                       │
-            │   └─feedback──┘      └───fail───┘              trivial? comment "good to auto-merge"
-            └────────────────────────────────────────────┘     owner always merges
+            ┌──────────────── per batch of 3 units ────────────────┐
+ Planner ──►│ Fixer ─► Systems engineer ─► Tester ─pass─► Reviewer ─pass─► Frontend ─► PR
+ (briefs)   │   ▲           │      ▲          │              │                         │
+            │   └─feedback──┘      ├───fail───┘              │          trivial? comment "good to auto-merge"
+            │                      └──────changes────────────┘            owner always merges
+            └──────────────────────────────────────────────────────┘
 ```
 
 ### 2.1 Planner (once per batch)
@@ -87,13 +88,30 @@ For every fix:
    1. Remove the xfail markers for this unit's bugs.
    2. Run the unit's test files. All must pass.
    3. Run the **flip check** (§4) over the full suite.
-   4. **Pass** → frontend agent (if there's a contract note), then PR.
+   4. **Pass** → code reviewer (§2.4b), then frontend agent (if there's a
+      contract note), then PR.
    5. **Fail** → a failure report to the **systems engineer only**, written as
       behaviour ("when X, the system must Y (spec R3c); today it does Z").
       The systems engineer weighs whether the failure points to a wider
       effect, then writes its own feedback to the fixer. Back to 2.2.
 
-### 2.5 Frontend agent (only after the tester passes)
+### 2.4b Code reviewer (strict, independent; skill `bug-reviewer`)
+
+- Runs on the final diff after the flip check is CLEAN (owner, 2026-11-27:
+  "extra strict ... make sure things are actually good and not just biased").
+- **Unanchored:** sees the brief, the diff and the codebase, but not the
+  fixer's notes, the systems engineer's verdict or the test results. It writes
+  down what a correct fix must do *before* reading the diff.
+- Checks correctness on every input class, root cause vs symptom, SQL/ORM
+  (paging, joins, races, indexes), workspace scoping, house rules, codebase
+  consistency, minimality and cleanliness, migrations.
+- Every finding needs evidence (a reproducing check or a cited convention).
+  Unproven worries are questions, not findings.
+- **PASS** = zero blockers and majors; minors are listed in the PR for the
+  owner. **CHANGES** → the systems engineer turns it into firewall-clean
+  feedback → fixer → systems engineer → tester → reviewer again.
+
+### 2.5 Frontend agent (only after the reviewer passes)
 
 - Runs only when the systems engineer wrote a contract note. Sorting, locking
   and validation-only fixes usually need no frontend change.
@@ -158,7 +176,7 @@ test pipeline (designer → executor → verifier), then the bug is fixed.
   `bugfix/dao-department`. It's cut from `main`.
 - **PR per unit**, titled `fix(<module>): BUG-001, BUG-002, …`. The body
   lists the bugs, the systems engineer's impact summary, the flip-check
-  result, and a link to the frontend PR if there is one.
+  result, the code review verdict, and a link to the frontend PR if there is one.
 - On merge, the tester's commit marks the bugs **Fixed** in `bugs.md` with the
   PR number.
 - **No agent ever merges.** Every PR waits for the owner.
@@ -170,7 +188,7 @@ test pipeline (designer → executor → verifier), then the bug is fixed.
     `tied-timestamp-no-tiebreak`, `blank-name-accepted`,
     `audit-stamp-on-noop`, `falsy-zero-treated-as-missing`,
     `local-clock-instead-of-utc` (the list can grow as patterns prove safe);
-  - the flip check is exact and CI is green.
+  - the flip check is exact, the code review is PASS with no minors, and CI is green.
 
 ## 8. Before the first batch
 

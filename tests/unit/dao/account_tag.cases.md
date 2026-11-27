@@ -43,7 +43,9 @@
 
 **Stored value changed behind the object.** `db.execute(text("UPDATE account_tags SET usage_count = <n> WHERE id = :i"), {"i": T1.id})` after T1 was flushed, without expiring T1: the object keeps its old `usage_count`. One session, never a second connection.
 
-**Statement recorder.** The SQL statements the session sends during the When are recorded. `sql` = the text of the one `SELECT` from `account_tags`; `order_part` = the text of `sql` after `ORDER BY` (`""` when there is none); `written` = every recorded `INSERT`, `UPDATE` or `DELETE`.
+**Statement recorder.** The SQL statements the session sends during the When are recorded. `sql` = the text of the one `SELECT` from `account_tags`; `order_part` = the text of `sql` after `ORDER BY` (`""` when there is none); `written` = every recorded `INSERT`, `UPDATE` or `DELETE`; `updates` = every recorded `UPDATE`.
+
+**Relative update** (BUG-1484). An `UPDATE` of `account_tags` whose `SET` computes the counter from the stored column (`usage_count = usage_count + ...` or `usage_count - ...`); for the decrease the same statement's `WHERE` also tests the stored column (`usage_count >`).
 
 **xfail cards.** `Expect: xfail BUG-n` = `pytest.mark.xfail(strict=True, reason="BUG-n")`; `(non-strict)` = `strict=False`. The assertion is never weakened.
 
@@ -692,12 +694,13 @@
 2. `db.execute(text("UPDATE account_tags SET usage_count = 10 WHERE id = :i"), {"i": T1.id})` — T1 is not expired.
 
 **When**
-- `result = dao.increment_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
+- with the statement recorder: `result = dao.increment_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
 
 **Then**
 1. returns: `result is T1`.
 2. returns: `result.usage_count == 11` (read on the object, before any re-read).
 3. returns: `stored_count(T1) == 11`.
+4. sql: one of `updates` is a relative update that adds (`usage_count + ...`).
 
 ### ATG-INC-07 — with the object expired first, the increase starts from the stored value
 - **Rules:** `increment_usage_count` R5 (control that holds today), R1
@@ -876,12 +879,13 @@
 2. `db.execute(text("UPDATE account_tags SET usage_count = 10 WHERE id = :i"), {"i": T1.id})` — T1 is not expired.
 
 **When**
-- `result = dao.decrement_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
+- with the statement recorder: `result = dao.decrement_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
 
 **Then**
 1. returns: `result is T1`.
 2. returns: `result.usage_count == 9` (read on the object, before any re-read).
 3. returns: `stored_count(T1) == 9`.
+4. sql: one of `updates` is a relative update that subtracts (`usage_count - ...`) and its `WHERE` tests `usage_count >`.
 
 ### ATG-DEC-09 — the "not below 0" check uses the stored value: stored 0 stays 0
 - **Rules:** `decrement_usage_count` R6 [BUG-1484]
