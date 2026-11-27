@@ -675,11 +675,6 @@ def test_itg_sys_07__all_101_system_tags_are_returned_no_limit(db, w1):
 
 
 # [claude] ITG-SYS-08
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-929: System tag list has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_itg_sys_08__system_tags_come_back_by_name_case_insensitive_ascending(db, w1, mk_system_tag):
     """ITG-SYS-08 — system tags come back by name, case-insensitive ascending.
     Rules: `get_system_tags_in_workspace` R3 [BUG-929]"""
@@ -696,11 +691,6 @@ def test_itg_sys_08__system_tags_come_back_by_name_case_insensitive_ascending(db
 
 
 # [claude] ITG-SYS-09
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-929: System tag list has no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_itg_sys_09__system_tags_whose_names_differ_only_in_case_come_back_in_id_order(db, w1, mk_system_tag):
     """ITG-SYS-09 — system tags whose names differ only in case come back in id order.
     Rules: `get_system_tags_in_workspace` R3 [BUG-929]"""
@@ -718,7 +708,6 @@ def test_itg_sys_09__system_tags_whose_names_differ_only_in_case_come_back_in_id
 
 
 # [claude] ITG-SYS-10
-@pytest.mark.xfail(strict=True, reason="BUG-929: System tag list has no sort order")
 def test_itg_sys_10__the_system_tag_query_asks_the_database_for_name_case_insensitive_then_id(db, w1, mk_system_tag):
     """ITG-SYS-10 — the system-tag query asks the database for name case-insensitive, then id.
     Rules: `get_system_tags_in_workspace` R3 [BUG-929]"""
@@ -870,11 +859,6 @@ def test_itg_act_10__within_each_group_lower_case_names_come_back_in_alphabetica
 
 
 # [claude] ITG-ACT-11
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-930: Active tag list sorted by collation name with no tie-break "
-    "(non-strict: the outcome depends on the server's collation, not on this code alone)",
-)
 def test_itg_act_11__names_that_differ_only_in_case_come_back_in_id_order_then_the_other_names(db, w1, mk_tag):
     """ITG-ACT-11 — names that differ only in case come back in id order, then the other names case-insensitively.
     Rules: `get_active_tags_in_workspace` R4 [BUG-930]"""
@@ -892,11 +876,6 @@ def test_itg_act_11__names_that_differ_only_in_case_come_back_in_id_order_then_t
 
 
 # [claude] ITG-ACT-12
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-930: Active tag list sorted by collation name with no tie-break "
-    "(non-strict: today's order of equal names is the physical row order, which can match by accident)",
-)
 def test_itg_act_12__two_tags_with_the_same_name_come_back_lower_id_first(db, w1, mk_tag):
     """ITG-ACT-12 — two tags with the same name come back lower id first.
     Rules: `get_active_tags_in_workspace` R4 [BUG-930]"""
@@ -914,7 +893,6 @@ def test_itg_act_12__two_tags_with_the_same_name_come_back_lower_id_first(db, w1
 
 
 # [claude] ITG-ACT-13
-@pytest.mark.xfail(strict=True, reason="BUG-930: Active tag list sorted by collation name with no tie-break")
 def test_itg_act_13__the_active_tag_query_asks_for_system_first_then_name_case_insensitive(db, w1, mk_tag, mk_system_tag):
     """ITG-ACT-13 — the active-tag query asks for system first, then name case-insensitive, then id.
     Rules: `get_active_tags_in_workspace` R3, R4 [BUG-930]"""
@@ -1108,7 +1086,6 @@ def test_itg_inc_10__the_flush_also_saves_another_pending_change_of_the_same_tag
 
 
 # [claude] ITG-INC-11
-@pytest.mark.xfail(strict=True, reason="BUG-931: Tag usage counter can lose concurrent changes")
 def test_itg_inc_11__the_increase_is_applied_to_the_stored_value_not_to_the_loaded_one(db, w1, mk_tag):
     """ITG-INC-11 — the increase is applied to the stored value, not to the loaded one.
     Rules: `increment_usage_count` R5 [BUG-931]"""
@@ -1377,7 +1354,6 @@ def test_itg_dec_12__when_a_value_is_written_the_flush_also_saves_another_pendin
 
 
 # [claude] ITG-DEC-13
-@pytest.mark.xfail(strict=True, reason="BUG-931: Tag usage counter can lose concurrent changes")
 def test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_loaded_one(db, w1, mk_tag):
     """ITG-DEC-13 — the decrease is applied to the stored value, not to the loaded one.
     Rules: `decrement_usage_count` R6 [BUG-931]"""
@@ -1398,7 +1374,6 @@ def test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_load
 
 
 # [claude] ITG-DEC-14
-@pytest.mark.xfail(strict=True, reason="BUG-931: Tag usage counter can lose concurrent changes")
 def test_itg_dec_14__the_not_below_0_check_uses_the_stored_value_stored_0_stays_0(db, w1, mk_tag):
     """ITG-DEC-14 — the "not below 0" check uses the stored value: stored 0 stays 0.
     Rules: `decrement_usage_count` R6 [BUG-931]"""
