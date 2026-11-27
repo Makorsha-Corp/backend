@@ -25,10 +25,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TESTS = ROOT / "tests"
 
-WORDS = re.compile(r"\b(xfail|xpass\w*|assert\w*|pytest|fixtures?|conftest|monkeypatch|parametri[sz]e)\b", re.I)
-PATHS = re.compile(r"(^|[\s`'\"(\[\\/])tests[\\/]|\btest_[\w-]+\.py\b|\.(cases|notes|verify|helpers)\.md\b", re.I)
-CARD_HEADING = re.compile(r"^###\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b", re.M)
-TEST_DEF = re.compile(r"^\s*(?:async\s+)?def\s+(test_\w+)", re.M)
+WORDS = re.compile(r"\b(xfail|xpass\w*|assert\w*|pytest|fixtures?|conftest|monkeypatch|parametri[sz]e)\b", re.IGNORECASE)
+PATHS = re.compile(r"(^|[\s`'\"(\[\\/])tests[\\/]|\btest_[\w-]+\.py\b|\.(cases|notes|verify|helpers)\.md\b", re.IGNORECASE)
+CARD_HEADING = re.compile(r"^###\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b", re.MULTILINE)
+TEST_DEF = re.compile(r"^\s*(?:async\s+)?def\s+(test_\w+)", re.MULTILINE)
 MIN_COPY = 30
 
 

@@ -399,10 +399,10 @@
 **Then**
 1. returns: `idset(result) == {AC.id}`.
 
-### PJS-L-07 — hidden private projects ahead of the page do not use its places (pass-through)
+### PJS-L-07 — hidden private projects ahead of the page do not use its places (pass-through) *(revised 2026-11-27, order sweep)*
 - **Rules:** `list_projects` R1 (manager R7 [BUG-1958])
 - **Kind:** bug
-- **Expect:** xfail BUG-1958
+- **Expect:** xfail BUG-1958 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PJS-L-08 (skip).
 - **Fails today on:** Then 1 (the page of the first two rows is filtered after paging: `[]`)
 
 **Given**

@@ -20,17 +20,40 @@ the fixer may describe a test.** Read `docs/bugfix/pipeline.md` first.
 
 Work through each changed function:
 
-- **Upstream:** find every caller (`grep -rn "<name>(" app/`), up through
-  services to the API endpoint. Does any caller rely on the old behaviour:
-  return shape, raised errors, None vs [], ordering, a commit happening
-  inside? Check `app/api/v1/endpoints/*` for how errors map to HTTP codes.
+- **Upstream:** find every caller. Grep the method name **and** the DAO or
+  manager instance name (for example `order_template_item_dao`), because the same
+  method name exists on other classes. Follow it up through services to the API
+  endpoint. Does any caller rely on the old behaviour: return shape, raised
+  errors, None vs [], ordering, a commit happening inside? Check
+  `app/api/v1/endpoints/*` for how errors map to HTTP codes. Then:
+  - **Callers that re-sort or re-filter the result.** A stable `sorted()` keeps
+    the new tie-break; an unstable re-sort or a set conversion throws it away.
+  - **Sibling fallbacks.** When a caller merges the fixed result with another,
+    unfiltered path, check that the intended behaviour still holds **at the
+    endpoint** (batch 1: the work order template manager's section fallback,
+    BUG-3300).
+  - **Paths around a guard.** For a capacity or permission guard, find every path
+    that reaches the guarded state without going through the guard (batch 1:
+    re-confirming a failed upload skips the attachment limit).
 - **Downstream:** what the changed code calls (DAOs, locks, other managers).
   Does the fix assume something they don't do? Locks: `FOR UPDATE OF <table>`
   when the read joins or eager-loads, never NOWAIT/SKIP LOCKED. Transactions:
   the service contract TC1–TC6 (`tests/unit/services/base_service.spec.md`).
+- **Query shape:** for a changed query, compile it with the Postgres dialect,
+  without a database (`python scripts/bugfix/compile_query.py <module>:<expr>`, or
+  stub `Query.all` and print `str(q.statement.compile(dialect=postgresql.dialect()))`
+  with `PYTHONPATH=<worktree>`). Check the joins, subquery correlation, AND/OR
+  precedence, NULL branches, and that every ORDER BY uses ORM columns (strict tests
+  check the SQL text).
+- **Workspace bound (HR-16):** is every new subquery or join bounded by
+  workspace, directly or through the outer filter?
 - **API contract:** list every change a client could see: status codes, error
-  messages, response fields, blocker lists, new required inputs. This becomes
-  `contract.md` for the frontend agent. Write "No contract change" if there is none.
+  messages, response fields, blocker lists, new required inputs, **and a field
+  whose shape stays the same but whose value or meaning changes** (for example
+  `slot_count` now excluding failed uploads). For each changed field, grep
+  `../frontend/src` to see how it's shown. **Always write `contract.md`**: either the
+  changes with a worked example each, or "No contract change" (the frontend
+  stage is skipped).
 - **Database:** for a new constraint or index, can existing rows break it? Write
   a **read-only** check script `scripts/bugfix/checks/<unit>.py` that counts
   offending rows (model it on `scripts/find_cross_workspace_rows.py`), and a
@@ -39,6 +62,11 @@ Work through each changed function:
   to `docs/bugfix/questions.md`.
 - **Neighbouring bugs:** does the change clash with, or partly fix, another open
   bug in `bugs.md`? Note which.
+- **New bugs you find:** don't add them to `bugs.md` yourself. List each under
+  "New bugs found" in `impact-<n>.md` (pattern, file, title, today, intended). The
+  orchestrator logs them from the owner's id range.
+- **Notes for `docs/future/*.md`:** grep the file before saying a note is missing.
+  You may append a dated line yourself.
 - **Shortcuts:** special-cased inputs, a rule fixed in one caller but not its
   siblings, swallowed errors, copied logic instead of a shared helper.
 - **Scope:** anything changed that no bug in the brief asked for.
@@ -78,5 +106,8 @@ python scripts/bugfix/firewall.py docs/bugfix/units/<unit>/feedback-<n>.md
   instead of a third round: write `parked.md` (what was tried, why it fails,
   your best guess at the cause) and update `docs/bugfix/state.md`.
 - Before every fixer round: `python scripts/bugfix/worktree.py blind <unit>`.
+  Don't run `blind` on APPROVE: the tester unblinds the worktree for its run.
+- Update the unit's `docs/bugfix/state.md` row on **every** verdict (`approved`,
+  `fixing` for a revise round, `parked`). Re-read the file right before a single one-row edit.
 
 Report: the verdict, the contract summary, and any question raised.

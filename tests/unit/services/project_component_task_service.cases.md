@@ -328,10 +328,10 @@
 **Then**
 1. returns: `idset(result) == {TA.id}`.
 
-### PCTS-L-17 — hidden tasks ahead of the page do not shorten it (limit)
+### PCTS-L-17 — hidden tasks ahead of the page do not shorten it (limit) *(revised 2026-11-27, order sweep)*
 - **Rules:** `get_tasks` R5 [BUG-2298]
 - **Kind:** bug
-- **Expect:** xfail BUG-2298
+- **Expect:** xfail BUG-2298 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PCTS-L-19, which checks the statement count only; no strict card proves the paging itself.
 - **Fails today on:** Then 1 (the page is two hidden tasks, filtered away: `[]`)
 
 **Given**

@@ -247,10 +247,10 @@
 **Then**
 1. returns: `idset(result) == {NA.id}`.
 
-### PCNS-L-12 — hidden notes ahead of the page do not shorten it (limit)
+### PCNS-L-12 — hidden notes ahead of the page do not shorten it (limit) *(revised 2026-11-27, order sweep)*
 - **Rules:** `get_notes` R4 [BUG-2293]
 - **Kind:** bug
-- **Expect:** xfail BUG-2293
+- **Expect:** xfail BUG-2293 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PCNS-L-14, which checks the statement count only; no strict card proves the paging itself.
 - **Fails today on:** Then 1 (the page is the three hidden notes' first two, filtered away: `[]`)
 
 **Given**

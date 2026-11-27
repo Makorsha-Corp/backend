@@ -541,7 +541,7 @@ def test_pcis_l_11__deleted_projects_lines_not_listed(db, S):
 
 
 # [claude] PCIS-L-12
-@pytest.mark.xfail(strict=True, reason=BUG_2308)
+@pytest.mark.xfail(strict=False, reason=BUG_2308) # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pcis_l_12__hidden_lines_do_not_shorten_the_page(db, S):
     """PCIS-L-12 — hidden lines ahead of the page do not shorten it (limit).
     Rules: `get_items` R4 [BUG-2308]"""

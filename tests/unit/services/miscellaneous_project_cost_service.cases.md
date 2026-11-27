@@ -431,10 +431,10 @@
 **Then**
 1. returns: `idset(result) == {KA.id}`.
 
-### MPCSV-L-12 — hidden costs take no place on the page
+### MPCSV-L-12 — hidden costs take no place on the page *(revised 2026-11-27, order sweep)*
 - **Rules:** `get_costs` R4 [BUG-2611]
 - **Kind:** bug
-- **Expect:** xfail BUG-2611
+- **Expect:** xfail BUG-2611 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is MPCSV-L-13, which checks the statement count only; no strict card proves the paging itself.
 - **Fails today on:** Then 1 (the page is taken first: `[]`)
 
 **Given**

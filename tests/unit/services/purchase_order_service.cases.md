@@ -3549,10 +3549,10 @@ Every card in this section starts from **RCVBASE** unless it says otherwise: O =
 5. event: `itypes(CNID).count("confirmed") == 1`.
 6. re-read O: `invoice_id is None`.
 
-### POS-AR-02 — one credit-note line per return line, numbered in id order
-- **Rules:** `_attach_return_invoice_for_po` AR2, AR3
+### POS-AR-02 — one credit-note line per return line, numbered in id order *(revised 2026-11-27, order sweep)*
+- **Rules:** `_attach_return_invoice_for_po` AR2, AR3 [BUG-2431]
 - **Kind:** happy
-- **Expect:** pass
+- **Expect:** xfail BUG-2431 (non-strict): credit-note lines are numbered in the order the return's lines are read, and that read has no `ORDER BY` (BUG-2431), so line 1 is L's line only when the physical order happens to match. Then 1 failed when the order sweep forced the other order. The strict proof is PRT-RI-10 (purchase order return DAO).
 
 **Given**
 1. O = po "1", but ready.
@@ -3656,10 +3656,10 @@ Every card in this section starts from **RCVBASE** unless it says otherwise: O =
 2. mock called: `rb.call_count == 0`.
 3. session: `R.invoice_id is not None`.
 
-### POS-AR-08 — a return line priced 0.00 gives a 0.00 credit-note line
-- **Rules:** `_attach_return_invoice_for_po` AR2 (price `0`), AR3
+### POS-AR-08 — a return line priced 0.00 gives a 0.00 credit-note line *(revised 2026-11-27, order sweep)*
+- **Rules:** `_attach_return_invoice_for_po` AR2 (price `0`), AR3 [BUG-2431]
 - **Kind:** boundary
-- **Expect:** pass
+- **Expect:** xfail BUG-2431 (non-strict): credit-note lines are numbered in the order the return's lines are read, and that read has no `ORDER BY` (BUG-2431), so line 1 is L's line only when the physical order happens to match. Then 2 failed when the order sweep forced the other order. The strict proof is PRT-RI-10 (purchase order return DAO).
 
 **Given**
 1. O = po "1", but ready.

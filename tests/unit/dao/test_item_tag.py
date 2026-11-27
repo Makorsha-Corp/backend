@@ -11,6 +11,7 @@ tests/unit/dao/item_tag.helpers.md as its only view of this file; tests below a
 finishing.
 """
 # ruff: noqa: SIM117  (Conventions prescribe `with pytest.raises(...)` around `with db.begin_nested()`)
+import re
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -203,6 +204,17 @@ class StatementRecorder:
 
     def selects(self):
         return [s for s in self.statements if s.lstrip().upper().startswith("SELECT")]
+
+    def updates(self):
+        return [s for s in self.statements if s.lstrip().upper().startswith("UPDATE")]
+
+
+# Convention "relative update" (BUG-931, ITG-INC-11, DEC-13): an UPDATE of item_tags whose
+# SET computes the counter from the stored column (`usage_count = usage_count + / - ...`);
+# for the decrease, the same statement's WHERE also tests the stored column (`usage_count >`).
+_REL_INC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:item_tags\.)?usage_count\s*\+", re.IGNORECASE)
+_REL_DEC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:item_tags\.)?usage_count\s*-", re.IGNORECASE)
+_DEC_GUARD = re.compile(r"WHERE.*usage_count\s*>", re.IGNORECASE | re.DOTALL)
 
 
 # Convention "order_part": the text of `sql` after `ORDER BY` ("" when there is none)
@@ -1103,7 +1115,8 @@ def test_itg_inc_11__the_increase_is_applied_to_the_stored_value_not_to_the_load
     t1 = mk_tag(name="Hex Bolt", tag_code="hex_bolt", usage_count=3)
     db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": t1.id})
 
-    result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+    with StatementRecorder(db) as recorder:
+        result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
 
     # Then 1
     assert result is t1
@@ -1111,6 +1124,8 @@ def test_itg_inc_11__the_increase_is_applied_to_the_stored_value_not_to_the_load
     assert result.usage_count == 11
     # Then 3
     assert stored_count(db, t1) == 11
+    # Then 4
+    assert any(_REL_INC.search(s) for s in recorder.updates())
 
 
 # [claude] ITG-INC-12
@@ -1369,7 +1384,8 @@ def test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_load
     t1 = mk_tag(name="Hex Bolt", tag_code="hex_bolt", usage_count=3)
     db.execute(text("update item_tags set usage_count = 10 where id = :i"), {"i": t1.id})
 
-    result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+    with StatementRecorder(db) as recorder:
+        result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
 
     # Then 1
     assert result is t1
@@ -1377,6 +1393,8 @@ def test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_load
     assert result.usage_count == 9
     # Then 3
     assert stored_count(db, t1) == 9
+    # Then 4
+    assert any(_REL_DEC.search(s) and _DEC_GUARD.search(s) for s in recorder.updates())
 
 
 # [claude] ITG-DEC-14

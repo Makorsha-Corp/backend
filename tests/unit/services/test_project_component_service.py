@@ -755,7 +755,7 @@ def test_pcs_l_19__deleted_project_components_left_out(db, S):
 
 
 # [claude] PCS-L-20
-@xfail("BUG-2277")
+@xfail("BUG-2277", strict=False) # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pcs_l_20__hidden_rows_do_not_empty_page(db, S):
     """PCS-L-20 — hidden components ahead of the page do not empty it.
     Rules: get_components R5 [BUG-2277]."""
@@ -789,7 +789,7 @@ def test_pcs_l_21__hidden_row_not_skipped(db, S):
 
 
 # [claude] PCS-L-22
-@xfail("BUG-1278")
+@xfail("BUG-1278", strict=False) # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pcs_l_22__deleted_project_takes_no_place(db, S):
     """PCS-L-22 — a deleted project's components take no place on the page.
     Rules: get_components R4, R5 [BUG-1278]."""

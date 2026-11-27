@@ -27,7 +27,7 @@ BLIND_PATTERNS = ["/*", "!/tests/", "!/docs/bugfix/units/", "!/docs/bugfix/wrong
 
 
 def git(*args: str, cwd: Path = ROOT) -> str:
-    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
     if r.returncode != 0:
         sys.exit(f"git {' '.join(args)} failed:\n{r.stderr}")
     return r.stdout.strip()
