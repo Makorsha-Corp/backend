@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_work_order_template.py::test_wotp_ag_08__out_of_order_ids_come_back_by_id",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_ag_09__order_is_by_id_not_by_user",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_ag_10__query_orders_by_id_ascending",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_gw_15__tie_highest_id_first_after_lowest_updated",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_gw_16__tie_id_decides_over_other_columns",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_gw_17__tied_rows_paged_neither_repeat_nor_miss",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_gw_18__query_orders_by_created_at_then_id_desc",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_rd_13__factory_run_skips_deleted_default_section",
+    "tests/unit/dao/test_work_order_template.py::test_wotp_rd_14__section_run_naming_deleted_section_returns_nothing"
+  ],
+  "rejections": [],
+  "notes": [],
+  "before_commit": "8d0150ca49e5dd2ab977b98db13d5ad6b4aef39d",
+  "after_commit": "d5fea1c222541262b17c0226f46f62e340702eb7",
+  "bugs": [
+    "BUG-2330",
+    "BUG-2331",
+    "BUG-2332"
+  ]
+}

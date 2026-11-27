@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_order_template.py::test_otp_gt_08__on_a_tie_the_lowest_id_comes_first_when_the_lowest_id_was_updated",
+    "tests/unit/dao/test_order_template.py::test_otp_gt_09__on_a_tie_the_id_decides_when_quantity_and_price_would_each_sort_otherw",
+    "tests/unit/dao/test_order_template.py::test_otp_gt_10__the_query_orders_by_line_number_then_id_ascending",
+    "tests/unit/dao/test_order_template.py::test_otp_gw_17__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated",
+    "tests/unit/dao/test_order_template.py::test_otp_gw_18__on_a_tie_the_id_decides_when_name_flag_and_category_would_each_sort_ot",
+    "tests/unit/dao/test_order_template.py::test_otp_gw_19__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row",
+    "tests/unit/dao/test_order_template.py::test_otp_gw_20__the_query_orders_by_created_at_then_id_both_descending"
+  ],
+  "rejections": [],
+  "notes": [],
+  "before_commit": "8d0150ca49e5dd2ab977b98db13d5ad6b4aef39d",
+  "after_commit": "d5fea1c222541262b17c0226f46f62e340702eb7",
+  "bugs": [
+    "BUG-1210",
+    "BUG-1211"
+  ]
+}
