@@ -748,9 +748,6 @@ def test_mls_g_04__include_deleted_true_returns_a_soft_deleted_log(db, w1, u1, m
 
 
 # [claude] MLS-G-05
-@pytest.mark.xfail(
-    strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id",
-)
 def test_mls_g_05__pass_through_bug_1101_a_log_on_another_workspaces_machine_gets_the_404(db, w1, m9, mk_log):
     """MLS-G-05 — pass-through BUG-1101: a log on another workspace's machine gets the 404.
     Rules: `get_log` R1 [BUG-1101]"""
@@ -898,7 +895,6 @@ def test_mls_l_07__pass_through_bug_1152_machine_id_0_returns_nothing(db, w1, mk
 
 
 # [claude] MLS-L-08
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mls_l_08__pass_through_bug_1100_logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
     """MLS-L-08 — pass-through BUG-1100: logs on one date come back highest id first.
     Rules: `list_logs` R1 [BUG-1100]"""
@@ -998,7 +994,6 @@ def test_mls_d_03__an_unknown_id_the_404_passes_unchanged(db, w1, u2, mk_log):
 
 
 # [claude] MLS-D-04
-@pytest.mark.xfail(strict=True, reason="BUG-1102: A maintenance log's delete time depends on the database's time zone")
 def test_mls_d_04__pass_through_bug_1102_deleted_at_is_the_application_clock(db, w1, u2, mk_log):
     """MLS-D-04 — pass-through BUG-1102: deleted_at is the application clock.
     Rules: `delete_log` R1 [BUG-1102]"""

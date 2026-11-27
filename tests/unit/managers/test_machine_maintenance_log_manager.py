@@ -1794,7 +1794,6 @@ def test_mmlm_u_08__a_soft_deleted_log_is_refused_with_an_empty_body_too(db, w1,
 
 
 # [claude] MMLM-U-09
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_u_09__a_log_on_another_workspace_s_machine_gets_the_404_and_that_machine_no(db, w1, u2, m9, mk_log):
     """MMLM-U-09 — a log on another workspace's machine gets the 404 and that machine no entry.
     Rules: `update_log` R3 [BUG-1101], `update_log` Errors row 1"""
@@ -1819,7 +1818,6 @@ def test_mmlm_u_09__a_log_on_another_workspace_s_machine_gets_the_404_and_that_m
 
 
 # [claude] MMLM-U-10
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_u_10__the_same_row_with_an_empty_body_gets_the_404_too(db, w1, u2, m9, mk_log):
     """MMLM-U-10 — the same row with an empty body gets the 404 too.
     Rules: `update_log` R3 [BUG-1101], `update_log` Errors row 1"""
@@ -1842,7 +1840,6 @@ def test_mmlm_u_10__the_same_row_with_an_empty_body_gets_the_404_too(db, w1, u2,
 
 
 # [claude] MMLM-U-11
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_u_11__a_soft_deleted_log_on_another_workspace_s_machine_answers_404_not_400(db, w1, u2, m9, mk_log):
     """MMLM-U-11 — a soft-deleted log on another workspace's machine answers 404, not 400.
     Rules: `update_log` R3 [BUG-1101], `update_log` Errors row 1"""
@@ -4353,7 +4350,6 @@ def test_mmlm_g_19__a_log_of_a_machine_in_an_inactive_factory_is_returned_histor
 
 
 # [claude] MMLM-G-20
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_g_20__a_log_on_another_workspace_s_machine_gets_the_404(db, w1, m9, mk_log):
     """MMLM-G-20 — a log on another workspace's machine gets the 404.
     Rules: `get_log` R6 [BUG-1101], `get_log` Errors row 1"""
@@ -5007,7 +5003,6 @@ def test_mmlm_l_45__a_log_of_a_soft_deleted_machine_takes_its_place_in_the_page(
 
 
 # [claude] MMLM-L-46
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_46__no_filter_a_log_on_another_workspace_s_machine_is_left_out(db, w1, m9, mk_log):
     """MMLM-L-46 — no filter: a log on another workspace's machine is left out.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -5025,7 +5020,6 @@ def test_mmlm_l_46__no_filter_a_log_on_another_workspace_s_machine_is_left_out(d
 
 
 # [claude] MMLM-L-47
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_47__by_type_a_log_on_another_workspace_s_machine_is_left_out(db, w1, m9, mk_log):
     """MMLM-L-47 — by type: a log on another workspace's machine is left out.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -5043,7 +5037,6 @@ def test_mmlm_l_47__by_type_a_log_on_another_workspace_s_machine_is_left_out(db,
 
 
 # [claude] MMLM-L-48
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_48__by_machine_asked_for_that_machine_nothing_comes_back(db, w1, m9, mk_log):
     """MMLM-L-48 — by machine: asked for that machine, nothing comes back.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -5060,7 +5053,6 @@ def test_mmlm_l_48__by_machine_asked_for_that_machine_nothing_comes_back(db, w1,
 
 
 # [claude] MMLM-L-49
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_49__by_machine_and_type_asked_for_that_machine_nothing_comes_back(db, w1, m9, mk_log):
     """MMLM-L-49 — by machine and type: asked for that machine, nothing comes back.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -5077,7 +5069,6 @@ def test_mmlm_l_49__by_machine_and_type_asked_for_that_machine_nothing_comes_bac
 
 
 # [claude] MMLM-L-50
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_50__no_filter_a_log_on_another_workspace_s_machine_ahead_of_the_skipped_ro(db, w1, m9, mk_log):
     """MMLM-L-50 — no filter: a log on another workspace's machine ahead of the skipped row uses up no skip.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -5095,7 +5086,6 @@ def test_mmlm_l_50__no_filter_a_log_on_another_workspace_s_machine_ahead_of_the_
 
 
 # [claude] MMLM-L-51
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_l_51__by_type_a_log_on_another_workspace_s_machine_ahead_of_the_skipped_row(db, w1, m9, mk_log):
     """MMLM-L-51 — by type: a log on another workspace's machine ahead of the skipped row uses up no skip.
     Rules: `list_logs` R12 [BUG-1101]"""
@@ -6002,7 +5992,6 @@ def test_mmlm_l_119__by_machine_and_type_different_dates_come_back_latest_first(
 
 
 # [claude] MMLM-L-120
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_120__no_filter_logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
     """MMLM-L-120 — no filter: logs on one date come back highest id first.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6021,7 +6010,6 @@ def test_mmlm_l_120__no_filter_logs_on_one_date_come_back_highest_id_first(db, w
 
 
 # [claude] MMLM-L-121
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_121__by_machine_logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_log):
     """MMLM-L-121 — by machine: logs on one date come back highest id first.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6040,7 +6028,6 @@ def test_mmlm_l_121__by_machine_logs_on_one_date_come_back_highest_id_first(db, 
 
 
 # [claude] MMLM-L-122
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_122__by_type_logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
     """MMLM-L-122 — by type: logs on one date come back highest id first.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6059,7 +6046,6 @@ def test_mmlm_l_122__by_type_logs_on_one_date_come_back_highest_id_first(db, w1,
 
 
 # [claude] MMLM-L-123
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_123__by_machine_and_type_logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_log):
     """MMLM-L-123 — by machine and type: logs on one date come back highest id first.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6078,7 +6064,6 @@ def test_mmlm_l_123__by_machine_and_type_logs_on_one_date_come_back_highest_id_f
 
 
 # [claude] MMLM-L-124
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_124__no_filter_the_tie_break_applies_before_skip_and_limit(db, w1, mk_log):
     """MMLM-L-124 — no filter: the tie-break applies before skip and limit.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6097,7 +6082,6 @@ def test_mmlm_l_124__no_filter_the_tie_break_applies_before_skip_and_limit(db, w
 
 
 # [claude] MMLM-L-125
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_125__by_machine_the_tie_break_applies_before_skip_and_limit(db, w1, m1, mk_log):
     """MMLM-L-125 — by machine: the tie-break applies before skip and limit.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6116,7 +6100,6 @@ def test_mmlm_l_125__by_machine_the_tie_break_applies_before_skip_and_limit(db, 
 
 
 # [claude] MMLM-L-126
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_126__by_type_the_tie_break_applies_before_skip_and_limit(db, w1, mk_log):
     """MMLM-L-126 — by type: the tie-break applies before skip and limit.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6135,7 +6118,6 @@ def test_mmlm_l_126__by_type_the_tie_break_applies_before_skip_and_limit(db, w1,
 
 
 # [claude] MMLM-L-127
-@pytest.mark.xfail(strict=False, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_127__by_machine_and_type_the_tie_break_applies_before_skip_and_limit(db, w1, m1, mk_log):
     """MMLM-L-127 — by machine and type: the tie-break applies before skip and limit.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6154,7 +6136,6 @@ def test_mmlm_l_127__by_machine_and_type_the_tie_break_applies_before_skip_and_l
 
 
 # [claude] MMLM-L-128
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_128__no_filter_the_query_asks_for_date_descending_then_id_descending(db, w1, mk_log):
     """MMLM-L-128 — no filter: the query asks for date descending, then id descending.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6177,7 +6158,6 @@ def test_mmlm_l_128__no_filter_the_query_asks_for_date_descending_then_id_descen
 
 
 # [claude] MMLM-L-129
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_129__by_machine_the_query_asks_for_date_descending_then_id_descending(db, w1, m1, mk_log):
     """MMLM-L-129 — by machine: the query asks for date descending, then id descending.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6200,7 +6180,6 @@ def test_mmlm_l_129__by_machine_the_query_asks_for_date_descending_then_id_desce
 
 
 # [claude] MMLM-L-130
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_130__by_type_the_query_asks_for_date_descending_then_id_descending(db, w1, mk_log):
     """MMLM-L-130 — by type: the query asks for date descending, then id descending.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6223,7 +6202,6 @@ def test_mmlm_l_130__by_type_the_query_asks_for_date_descending_then_id_descendi
 
 
 # [claude] MMLM-L-131
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mmlm_l_131__by_machine_and_type_the_query_asks_for_date_descending_then_id_descend(db, w1, m1, mk_log):
     """MMLM-L-131 — by machine and type: the query asks for date descending, then id descending.
     Rules: `list_logs` R10 [BUG-1100]"""
@@ -6535,7 +6513,6 @@ def test_mmlm_d_07__an_already_deleted_log_is_refused_the_first_stamps_stay_no_e
 
 
 # [claude] MMLM-D-08
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_d_08__a_log_on_another_workspace_s_machine_gets_the_404_and_stays_live(db, w1, u2, m9, mk_log):
     """MMLM-D-08 — a log on another workspace's machine gets the 404 and stays live.
     Rules: `delete_log` R3 [BUG-1101], `delete_log` Errors row 1"""
@@ -6560,7 +6537,6 @@ def test_mmlm_d_08__a_log_on_another_workspace_s_machine_gets_the_404_and_stays_
 
 
 # [claude] MMLM-D-09
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mmlm_d_09__a_soft_deleted_log_on_another_workspace_s_machine_answers_404_not_400(db, w1, u2, m9, mk_log):
     """MMLM-D-09 — a soft-deleted log on another workspace's machine answers 404, not 400.
     Rules: `delete_log` R3 [BUG-1101], `delete_log` Errors row 1"""
@@ -6780,7 +6756,6 @@ def test_mmlm_d_18__a_delete_by_the_user_already_in_updated_by_stamps_deleted_by
 
 
 # [claude] MMLM-D-19
-@pytest.mark.xfail(strict=True, reason="BUG-1102: A maintenance log's delete time depends on the database's time zone")
 def test_mmlm_d_19__deleted_at_is_the_application_clock(db, w1, u2, mk_log):
     """MMLM-D-19 — deleted_at is the application clock.
     Rules: `delete_log` R6a [BUG-1102]"""

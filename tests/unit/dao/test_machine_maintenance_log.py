@@ -449,10 +449,6 @@ def test_mml_gw_08__logs_with_different_dates_come_back_latest_date_first_whatev
 
 
 # [claude] MML-GW-09
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1100: Maintenance logs on the same date have no order (non-strict: with no tie-break the plan and the heap decide the order of ties)",
-)
 def test_mml_gw_09__logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
     """MML-GW-09 — logs on one date come back highest id first.
     Rules: `get_by_workspace` R4a [BUG-1100]"""
@@ -471,7 +467,6 @@ def test_mml_gw_09__logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
 
 
 # [claude] MML-GW-10
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mml_gw_10__the_query_asks_for_date_descending_then_id_descending(db, w1, mk_log):
     """MML-GW-10 — the query asks for date descending, then id descending.
     Rules: `get_by_workspace` R4a [BUG-1100]"""
@@ -495,10 +490,6 @@ def test_mml_gw_10__the_query_asks_for_date_descending_then_id_descending(db, w1
 
 
 # [claude] MML-GW-11
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1100: Maintenance logs on the same date have no order (non-strict: with no tie-break the plan and the heap decide the order of ties)",
-)
 def test_mml_gw_11__paging_one_log_at_a_time_over_one_date_shows_each_log_once(db, w1, mk_log):
     """MML-GW-11 — paging one log at a time over one date shows each log once.
     Rules: `get_by_workspace` R4a [BUG-1100], R5"""
@@ -697,7 +688,6 @@ def test_mml_gw_23__a_negative_skip_is_rejected_by_postgres(db, w1, mk_log):
 
 
 # [claude] MML-GW-24
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gw_24__a_log_linked_to_another_workspace_s_machine_is_not_returned(db, w1, m9, mk_log):
     """MML-GW-24 — a log linked to another workspace's machine is not returned.
     Rules: `get_by_workspace` R8 [BUG-1101]"""
@@ -715,7 +705,6 @@ def test_mml_gw_24__a_log_linked_to_another_workspace_s_machine_is_not_returned(
 
 
 # [claude] MML-GW-25
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gw_25__a_log_linked_to_another_workspace_s_machine_takes_no_place_in_the_page(db, w1, m9, mk_log):
     """MML-GW-25 — a log linked to another workspace's machine takes no place in the page.
     Rules: `get_by_workspace` R8 [BUG-1101]"""
@@ -877,7 +866,6 @@ def test_mml_gi_08__a_log_of_a_machine_in_a_soft_deleted_factory_is_found(db, w1
 
 
 # [claude] MML-GI-09
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gi_09__a_log_linked_to_another_workspace_s_machine_is_not_found(db, w1, m9, mk_log):
     """MML-GI-09 — a log linked to another workspace's machine is not found.
     Rules: `get_by_id_and_workspace` R6 [BUG-1101]"""
@@ -1055,10 +1043,6 @@ def test_mml_gm_09__logs_with_different_dates_come_back_latest_date_first_whatev
 
 
 # [claude] MML-GM-10
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1100: Maintenance logs on the same date have no order (non-strict: with no tie-break the plan and the heap decide the order of ties)",
-)
 def test_mml_gm_10__logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_log):
     """MML-GM-10 — logs on one date come back highest id first.
     Rules: `get_by_machine` R5 [BUG-1100]"""
@@ -1077,7 +1061,6 @@ def test_mml_gm_10__logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_l
 
 
 # [claude] MML-GM-11
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mml_gm_11__the_query_asks_for_date_descending_then_id_descending(db, w1, m1, mk_log):
     """MML-GM-11 — the query asks for date descending, then id descending.
     Rules: `get_by_machine` R5 [BUG-1100]"""
@@ -1205,7 +1188,6 @@ def test_mml_gm_19__limit_0_returns_an_empty_list(db, w1, m1, mk_log):
 
 
 # [claude] MML-GM-20
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gm_20__a_log_linked_to_another_workspace_s_machine_is_not_returned(db, w1, m9, mk_log):
     """MML-GM-20 — a log linked to another workspace's machine is not returned.
     Rules: `get_by_machine` R8 [BUG-1101]"""
@@ -1511,10 +1493,6 @@ def test_mml_gt_11__logs_with_different_dates_come_back_latest_date_first_whatev
 
 
 # [claude] MML-GT-12
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1100: Maintenance logs on the same date have no order (non-strict: with no tie-break the plan and the heap decide the order of ties)",
-)
 def test_mml_gt_12__logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
     """MML-GT-12 — logs on one date come back highest id first.
     Rules: `get_by_type` R3 [BUG-1100]"""
@@ -1533,7 +1511,6 @@ def test_mml_gt_12__logs_on_one_date_come_back_highest_id_first(db, w1, mk_log):
 
 
 # [claude] MML-GT-13
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mml_gt_13__the_query_asks_for_date_descending_then_id_descending(db, w1, mk_log):
     """MML-GT-13 — the query asks for date descending, then id descending.
     Rules: `get_by_type` R3 [BUG-1100]"""
@@ -1683,7 +1660,6 @@ def test_mml_gt_21__a_negative_skip_is_rejected_by_postgres(db, w1, mk_log):
 
 
 # [claude] MML-GT-22
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gt_22__a_log_linked_to_another_workspace_s_machine_is_not_returned(db, w1, m9, mk_log):
     """MML-GT-22 — a log linked to another workspace's machine is not returned.
     Rules: `get_by_type` R5 [BUG-1101]"""
@@ -1730,7 +1706,6 @@ def test_mml_gt_24__limit_1000_gives_all_101_logs(db, w1, mk_dated_logs):
 
 
 # [claude] MML-GT-25
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gt_25__a_log_linked_to_another_workspace_s_machine_takes_no_place_in_the_page(db, w1, m9, mk_log):
     """MML-GT-25 — a log linked to another workspace's machine takes no place in the page.
     Rules: `get_by_type` R5 [BUG-1101]"""
@@ -1965,10 +1940,6 @@ def test_mml_gp_14__logs_with_different_dates_come_back_latest_date_first_whatev
 
 
 # [claude] MML-GP-15
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1100: Maintenance logs on the same date have no order (non-strict: with no tie-break the plan and the heap decide the order of ties)",
-)
 def test_mml_gp_15__logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_log):
     """MML-GP-15 — logs on one date come back highest id first.
     Rules: `get_by_machine_and_type` R3 [BUG-1100]"""
@@ -1987,7 +1958,6 @@ def test_mml_gp_15__logs_on_one_date_come_back_highest_id_first(db, w1, m1, mk_l
 
 
 # [claude] MML-GP-16
-@pytest.mark.xfail(strict=True, reason="BUG-1100: Maintenance logs on the same date have no order")
 def test_mml_gp_16__the_query_asks_for_date_descending_then_id_descending(db, w1, m1, mk_log):
     """MML-GP-16 — the query asks for date descending, then id descending.
     Rules: `get_by_machine_and_type` R3 [BUG-1100]"""
@@ -2133,7 +2103,6 @@ def test_mml_gp_24__a_negative_skip_is_rejected_by_postgres(db, w1, m1, mk_log):
 
 
 # [claude] MML-GP-25
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
 def test_mml_gp_25__a_log_linked_to_another_workspace_s_machine_is_not_returned(db, w1, m9, mk_log):
     """MML-GP-25 — a log linked to another workspace's machine is not returned.
     Rules: `get_by_machine_and_type` R5 [BUG-1101]"""
@@ -2218,7 +2187,6 @@ def test_mml_sd_01__a_live_log_is_marked_deleted_by_the_given_user(db, p1, mk_lo
 
 
 # [claude] MML-SD-02
-@pytest.mark.xfail(strict=True, reason="BUG-1102: A maintenance log's delete time depends on the database's time zone")
 def test_mml_sd_02__deleted_at_comes_from_utcnow_not_the_database_clock(db, p1, mk_log):
     """MML-SD-02 — deleted_at comes from utcnow, not the database clock.
     Rules: `soft_delete` R1a [BUG-1102]"""
@@ -2287,7 +2255,6 @@ def test_mml_sd_04__an_already_deleted_log_is_stamped_again_with_no_error(db, p2
 
 
 # [claude] MML-SD-05
-@pytest.mark.xfail(strict=True, reason="BUG-1102: A maintenance log's delete time depends on the database's time zone")
 def test_mml_sd_05__an_already_deleted_log_gets_deleted_at_from_utcnow(db, p2, mk_log):
     """MML-SD-05 — an already deleted log gets deleted_at from utcnow.
     Rules: `soft_delete` R3, R1a [BUG-1102]"""
