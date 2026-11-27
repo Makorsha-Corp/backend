@@ -109,3 +109,11 @@ _Notes collected while the batch runs._
 | dao-work_order_template | BUG-2330, 2331, 2332 | 9 | 0 | 23cb9e5 | bugfix/dao-work_order_template |
 
 There were no feedback rounds and no wrong tests. The guard never blocked legitimate fixer work except git (F4). A new bug was found: BUG-3300.
+
+### First CI run on GitHub (2026-11-27)
+
+| # | Finding | Change made | Status |
+|---|---|---|---|
+| C1 | 5 tests expect Postgres 18's error code 23001 (`ON DELETE RESTRICT`); CI ran Postgres 16, which reports 23503. Production (Railway) is 18.6. | CI uses `postgres:18`, matching production and local. | done |
+| C2 | `is_valid_iana_timezone("localtime")` is True on Linux (OS timezone files) and False on Windows (`tzdata` package). It's a real production bug hidden by Windows-only test runs. | BUG-3301 logged. The 2 tests are strict xfail wherever the OS timezone files include those names. | done |
+| C3 | Every baseline and tester run was on Windows, so platform differences only show up in CI. | Treat CI (Linux, PG 18) as the reference. A tester's PR isn't "green" until GitHub CI passes. Consider running the baseline in CI too. | open |
