@@ -408,11 +408,6 @@ def test_otp_gw_16__on_a_tie_both_rows_are_returned_between_the_newer_and_the_ol
 
 
 # [claude] OTP-GW-17
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1210: Template list repeats and misses rows when timestamps tie "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_otp_gw_17__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated(db, w1, mk_template):
     """OTP-GW-17 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `OrderTemplateDAO.get_by_workspace` R5 [BUG-1210]"""
@@ -432,11 +427,6 @@ def test_otp_gw_17__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_u
 
 
 # [claude] OTP-GW-18
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1210: Template list repeats and misses rows when timestamps tie "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_otp_gw_18__on_a_tie_the_id_decides_when_name_flag_and_category_would_each_sort_ot(db, w1, mk_template):
     """OTP-GW-18 — on a tie the id decides, when name, flag and category would each sort otherwise.
     Rules: `OrderTemplateDAO.get_by_workspace` R5 [BUG-1210]"""
@@ -454,11 +444,6 @@ def test_otp_gw_18__on_a_tie_the_id_decides_when_name_flag_and_category_would_ea
 
 
 # [claude] OTP-GW-19
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1210: Template list repeats and misses rows when timestamps tie "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_otp_gw_19__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row(db, w1, mk_template):
     """OTP-GW-19 — tied rows paged one at a time neither repeat nor miss a row.
     Rules: `OrderTemplateDAO.get_by_workspace` R5 [BUG-1210]"""
@@ -480,7 +465,6 @@ def test_otp_gw_19__tied_rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row(
 
 
 # [claude] OTP-GW-20
-@pytest.mark.xfail(strict=True, reason="BUG-1210: Template list repeats and misses rows when timestamps tie")
 def test_otp_gw_20__the_query_orders_by_created_at_then_id_both_descending(db, w1, mk_template):
     """OTP-GW-20 — the query orders by created_at, then id, both descending.
     Rules: `OrderTemplateDAO.get_by_workspace` R5 [BUG-1210]"""
@@ -1091,11 +1075,6 @@ def test_otp_gt_07__on_a_tie_both_lines_are_returned_between_the_lower_and_the_h
 
 
 # [claude] OTP-GT-08
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1211: Template lines of one line number have no order "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_otp_gt_08__on_a_tie_the_lowest_id_comes_first_when_the_lowest_id_was_updated(db, w1, mk_template, mk_line):
     """OTP-GT-08 — on a tie the lowest id comes first, when the lowest id was updated.
     Rules: `OrderTemplateItemDAO.get_by_template` R2 [BUG-1211]"""
@@ -1116,11 +1095,6 @@ def test_otp_gt_08__on_a_tie_the_lowest_id_comes_first_when_the_lowest_id_was_up
 
 
 # [claude] OTP-GT-09
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1211: Template lines of one line number have no order "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_otp_gt_09__on_a_tie_the_id_decides_when_quantity_and_price_would_each_sort_otherw(db, w1, mk_template, mk_line):
     """OTP-GT-09 — on a tie the id decides, when quantity and price would each sort otherwise.
     Rules: `OrderTemplateItemDAO.get_by_template` R2 [BUG-1211]"""
@@ -1139,7 +1113,6 @@ def test_otp_gt_09__on_a_tie_the_id_decides_when_quantity_and_price_would_each_s
 
 
 # [claude] OTP-GT-10
-@pytest.mark.xfail(strict=True, reason="BUG-1211: Template lines of one line number have no order")
 def test_otp_gt_10__the_query_orders_by_line_number_then_id_ascending(db, w1, mk_template, mk_line):
     """OTP-GT-10 — the query orders by line_number, then id, ascending.
     Rules: `OrderTemplateItemDAO.get_by_template` R2 [BUG-1211]"""
