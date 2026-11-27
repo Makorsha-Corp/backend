@@ -65,6 +65,10 @@ alembic/versions/*.pyc
 .claude/*
 !.claude/skills/
 !.claude/workflows/
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/bug-fixer.md
+!.claude/hooks/
 
 # Planning
 .plan/

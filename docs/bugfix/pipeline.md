@@ -181,7 +181,24 @@ test pipeline (designer → executor → verifier), then the bug is fixed.
 2. **Install and log in to the GitHub CLI** on this machine, so agents can open PRs:
    `winget install GitHub.cli`, then `gh auth login`.
 3. **GitHub settings:** protect `main` with the required checks `legacy`, `unit` and `migrations`.
-4. Build `flipcheck.py`, the firewall script, and the skills: `bug-planner`,
+4. ~~Build the tools and skills~~ **done 2026-11-26**:
+
+   | Piece | File |
+   |---|---|
+   | Planner | `.claude/skills/bug-planner/SKILL.md` |
+   | Fixer (agent with a guard hook) | `.claude/agents/bug-fixer.md`, `.claude/hooks/fixer_guard.py` |
+   | Systems engineer | `.claude/skills/bug-systems-engineer/SKILL.md` |
+   | Tester | `.claude/skills/bug-tester/SKILL.md` |
+   | Frontend | `.claude/skills/bug-frontend/SKILL.md` |
+   | Flip check | `tests/unit/_tools/flipcheck.py` |
+   | Feedback firewall | `scripts/bugfix/firewall.py` |
+   | Blind worktrees | `scripts/bugfix/worktree.py` |
+
+   Unit folders: `docs/bugfix/units/<unit>/` in the main checkout. The fixer may
+   open only `brief.md`, `feedback-<n>.md` and its own `fix-notes.md` there. The
+   guard hook blocks everything else, plus `tests/`, test plans, test reports
+   and git history. Batch state is in `docs/bugfix/state.md`, owner questions
+   in `docs/bugfix/questions.md`, wrong tests in `docs/bugfix/wrong-tests.md`.
    `bug-fixer`, `bug-systems-engineer`, `bug-tester`, `bug-frontend`.
 
 ## 9. Decisions log
