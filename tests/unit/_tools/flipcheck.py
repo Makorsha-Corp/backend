@@ -93,6 +93,7 @@ def pytest_sessionfinish(session):
 
 def cmd_run(args: argparse.Namespace) -> int:
     out = Path(args.out).resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         Path(tmp, "flipcheck_plugin.py").write_text(PLUGIN_SOURCE, encoding="utf-8")
         env = {**os.environ, "FLIPCHECK_OUT": str(out),
@@ -150,7 +151,7 @@ def _bugs_of(entry: dict | None) -> set[str]:
 
 def compare(before: dict, after: dict, bugs: set[str]) -> dict:
     b, a = before["tests"], after["tests"]
-    report = {"ok": True, "flipped_as_intended": [], "rejections": [], "notes": []}
+    report = {"ok": True, "flipped_as_intended": [], "rejections": [], "notes": [], "ignored_nonstrict": []}
 
     def reject(nid, why):
         report["ok"] = False
@@ -175,6 +176,8 @@ def compare(before: dict, after: dict, bugs: set[str]) -> dict:
             continue
         nonstrict = eb.get("xfail") is not None and not eb["xfail"].get("strict", True)
         if nonstrict and {ob, oa} <= {"xfailed", "xpassed"}:
+            if ob != oa:
+                report["ignored_nonstrict"].append({"test": nid, "change": f"{ob} -> {oa}", "bugs": sorted(named)})
             continue
         if ob != oa:
             reject(nid, f"{ob} -> {oa} (not a target of {sorted(bugs)})")
@@ -216,6 +219,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(f"  WARNING {w}")
     for n in rep["notes"]:
         print(f"  note {n['test']}: {n['note']}")
+    ign = rep["ignored_nonstrict"]
+    if ign:
+        print(f"  ignored non-strict changes (physical-order ties): {len(ign)}")
+        for i in ign[:50]:
+            print(f"    {i['change']:<20} {i['test']}  {','.join(i['bugs'])}")
     return 0 if rep["ok"] else 1
 
 

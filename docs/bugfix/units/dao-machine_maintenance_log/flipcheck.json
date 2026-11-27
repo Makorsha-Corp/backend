@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gi_09__a_log_linked_to_another_workspace_s_machine_is_not_found",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gm_10__logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gm_11__the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gm_20__a_log_linked_to_another_workspace_s_machine_is_not_returned",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gp_15__logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gp_16__the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gp_25__a_log_linked_to_another_workspace_s_machine_is_not_returned",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gt_12__logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gt_13__the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gt_22__a_log_linked_to_another_workspace_s_machine_is_not_returned",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gt_25__a_log_linked_to_another_workspace_s_machine_takes_no_place_in_the_page",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gw_09__logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gw_10__the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gw_11__paging_one_log_at_a_time_over_one_date_shows_each_log_once",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gw_24__a_log_linked_to_another_workspace_s_machine_is_not_returned",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_gw_25__a_log_linked_to_another_workspace_s_machine_takes_no_place_in_the_page",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_sd_02__deleted_at_comes_from_utcnow_not_the_database_clock",
+    "tests/unit/dao/test_machine_maintenance_log.py::test_mml_sd_05__an_already_deleted_log_gets_deleted_at_from_utcnow",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_d_08__a_log_on_another_workspace_s_machine_gets_the_404_and_stays_live",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_d_09__a_soft_deleted_log_on_another_workspace_s_machine_answers_404_not_400",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_d_19__deleted_at_is_the_application_clock",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_g_20__a_log_on_another_workspace_s_machine_gets_the_404",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_120__no_filter_logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_121__by_machine_logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_122__by_type_logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_123__by_machine_and_type_logs_on_one_date_come_back_highest_id_first",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_124__no_filter_the_tie_break_applies_before_skip_and_limit",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_125__by_machine_the_tie_break_applies_before_skip_and_limit",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_126__by_type_the_tie_break_applies_before_skip_and_limit",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_127__by_machine_and_type_the_tie_break_applies_before_skip_and_limit",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_128__no_filter_the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_129__by_machine_the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_130__by_type_the_query_asks_for_date_descending_then_id_descending",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_131__by_machine_and_type_the_query_asks_for_date_descending_then_id_descend",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_46__no_filter_a_log_on_another_workspace_s_machine_is_left_out",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_47__by_type_a_log_on_another_workspace_s_machine_is_left_out",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_48__by_machine_asked_for_that_machine_nothing_comes_back",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_49__by_machine_and_type_asked_for_that_machine_nothing_comes_back",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_50__no_filter_a_log_on_another_workspace_s_machine_ahead_of_the_skipped_ro",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_l_51__by_type_a_log_on_another_workspace_s_machine_ahead_of_the_skipped_row",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_u_09__a_log_on_another_workspace_s_machine_gets_the_404_and_that_machine_no",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_u_10__the_same_row_with_an_empty_body_gets_the_404_too",
+    "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_u_11__a_soft_deleted_log_on_another_workspace_s_machine_answers_404_not_400",
+    "tests/unit/services/test_machine_maintenance_log_service.py::test_mls_d_04__pass_through_bug_1102_deleted_at_is_the_application_clock",
+    "tests/unit/services/test_machine_maintenance_log_service.py::test_mls_g_05__pass_through_bug_1101_a_log_on_another_workspaces_machine_gets_the_404",
+    "tests/unit/services/test_machine_maintenance_log_service.py::test_mls_l_08__pass_through_bug_1100_logs_on_one_date_come_back_highest_id_first"
+  ],
+  "rejections": [],
+  "notes": [
+    {
+      "test": "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_g_21__the_same_row_gets_the_404_with_include_deleted_true_too",
+      "note": "also needs ['BUG-1150']; still xfailed"
+    },
+    {
+      "test": "tests/unit/managers/test_machine_maintenance_log_manager.py::test_mmlm_g_22__a_soft_deleted_log_on_another_workspace_s_machine_gets_the_404_with_in",
+      "note": "also needs ['BUG-1150']; still xfailed"
+    }
+  ],
+  "before_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "after_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "bugs": [
+    "BUG-1100",
+    "BUG-1101",
+    "BUG-1102"
+  ],
+  "env_warnings": []
+}

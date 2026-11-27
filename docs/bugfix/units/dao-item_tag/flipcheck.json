@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_item_tag.py::test_itg_act_11__names_that_differ_only_in_case_come_back_in_id_order_then_the_other_names",
+    "tests/unit/dao/test_item_tag.py::test_itg_act_12__two_tags_with_the_same_name_come_back_lower_id_first",
+    "tests/unit/dao/test_item_tag.py::test_itg_act_13__the_active_tag_query_asks_for_system_first_then_name_case_insensitive",
+    "tests/unit/dao/test_item_tag.py::test_itg_dec_13__the_decrease_is_applied_to_the_stored_value_not_to_the_loaded_one",
+    "tests/unit/dao/test_item_tag.py::test_itg_dec_14__the_not_below_0_check_uses_the_stored_value_stored_0_stays_0",
+    "tests/unit/dao/test_item_tag.py::test_itg_inc_11__the_increase_is_applied_to_the_stored_value_not_to_the_loaded_one",
+    "tests/unit/dao/test_item_tag.py::test_itg_sys_08__system_tags_come_back_by_name_case_insensitive_ascending",
+    "tests/unit/dao/test_item_tag.py::test_itg_sys_09__system_tags_whose_names_differ_only_in_case_come_back_in_id_order",
+    "tests/unit/dao/test_item_tag.py::test_itg_sys_10__the_system_tag_query_asks_the_database_for_name_case_insensitive_then_id",
+    "tests/unit/services/test_item_tag_service.py::test_its_t_08__pass_through_bug_930_names_come_case_insensitive_ascending",
+    "tests/unit/services/test_item_tag_service.py::test_its_y_04__pass_through_bug_929_system_tags_come_by_name_case_insensitive_ascending"
+  ],
+  "rejections": [],
+  "notes": [],
+  "before_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "after_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "bugs": [
+    "BUG-929",
+    "BUG-930",
+    "BUG-931"
+  ],
+  "env_warnings": []
+}

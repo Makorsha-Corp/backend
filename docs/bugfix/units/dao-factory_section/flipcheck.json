@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_10__a_soft_deleted_section_is_not_returned",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_11__100_soft_deleted_sections_in_front_of_one_live_section_do_not_fill_the_default_page",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_12__soft_deleted_sections_do_not_use_up_a_place_under_limit",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_13__a_soft_deleted_section_does_not_count_toward_skip",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_15__the_live_section_of_a_soft_deleted_factory_is_hidden",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_32__sections_come_back_by_name_case_insensitive_ascending",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_33__names_that_differ_only_in_case_come_back_in_id_order",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_34__a_middle_window_holds_the_second_and_third_section_by_name",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_35__the_first_window_holds_the_first_two_sections_by_name",
+    "tests/unit/dao/test_factory_section.py::test_fsd_gf_36__the_by_factory_query_asks_the_database_for_an_order",
+    "tests/unit/dao/test_factory_section.py::test_fsd_rs_16__a_section_restored_inside_a_soft_deleted_factory_stays_hidden_from_the_by_factory_list",
+    "tests/unit/managers/test_factory_section_manager.py::test_fsm_s_20__with_the_soft_deleted_factory_as_filter_its_live_section_is_hidden",
+    "tests/unit/managers/test_factory_section_manager.py::test_fsm_s_64__with_a_factory_the_list_is_ordered_by_name_ignoring_case",
+    "tests/unit/managers/test_factory_section_manager.py::test_fsm_s_66__with_a_factory_the_list_query_asks_the_database_for_a_name_order",
+    "tests/unit/services/test_factory_section_service.py::test_fss_l_09__pass_through_bug_903_with_a_factory_names_come_case_insensitive_ascending",
+    "tests/unit/services/test_factory_section_service.py::test_fss_l_10__pass_through_bug_904_filtered_by_a_soft_deleted_factory_its_live_section_is_hidden"
+  ],
+  "rejections": [],
+  "notes": [],
+  "before_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "after_commit": "f27d6caa6703fb8734a3ed732fd6c454b4f517c7",
+  "bugs": [
+    "BUG-903",
+    "BUG-904",
+    "BUG-905"
+  ],
+  "env_warnings": []
+}
