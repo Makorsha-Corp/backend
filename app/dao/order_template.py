@@ -21,7 +21,7 @@ class OrderTemplateDAO(BaseDAO[OrderTemplate, OrderTemplateCreate, OrderTemplate
             query = query.filter(OrderTemplate.is_active == is_active)
         if expense_category:
             query = query.filter(OrderTemplate.expense_category == expense_category)
-        return query.order_by(desc(OrderTemplate.created_at)).offset(skip).limit(limit).all()
+        return query.order_by(desc(OrderTemplate.created_at), desc(OrderTemplate.id)).offset(skip).limit(limit).all()
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> OrderTemplate | None:
         return db.query(OrderTemplate).filter(OrderTemplate.id == id, OrderTemplate.workspace_id == workspace_id).first()
@@ -29,7 +29,7 @@ class OrderTemplateDAO(BaseDAO[OrderTemplate, OrderTemplateCreate, OrderTemplate
 
 class OrderTemplateItemDAO(BaseDAO[OrderTemplateItem, OrderTemplateItemCreate, OrderTemplateItemUpdate]):
     def get_by_template(self, db: Session, *, order_template_id: int, workspace_id: int) -> list[OrderTemplateItem]:
-        return db.query(OrderTemplateItem).filter(OrderTemplateItem.order_template_id == order_template_id, OrderTemplateItem.workspace_id == workspace_id).order_by(OrderTemplateItem.line_number).all()
+        return db.query(OrderTemplateItem).filter(OrderTemplateItem.order_template_id == order_template_id, OrderTemplateItem.workspace_id == workspace_id).order_by(OrderTemplateItem.line_number, OrderTemplateItem.id).all()
 
     def get_by_id_and_workspace(self, db: Session, *, id: int, workspace_id: int) -> OrderTemplateItem | None:
         return db.query(OrderTemplateItem).filter(OrderTemplateItem.id == id, OrderTemplateItem.workspace_id == workspace_id).first()
