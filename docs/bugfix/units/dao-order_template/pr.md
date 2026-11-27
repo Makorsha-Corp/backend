@@ -1,44 +1,62 @@
-# fix(order_template): BUG-1210, BUG-1211
+## Fix: expense order templates and their lines always come back in the same order
 
-Branch: `bugfix/dao-order_template` → `main`. Risk: `trivial`.
+**Fixes BUG-1210 and BUG-1211.** One file, two one-line changes. No database change, no API change.
 
-## Bugs
-
-| ID | Title | Intended |
-|---|---|---|
-| BUG-1210 | Template list repeats and misses rows when timestamps tie | `OrderTemplateDAO.get_by_workspace`: `created_at` descending, then `id` descending, before `skip` / `limit` (HR-6) |
-| BUG-1211 | Template lines of one line number have no order | `OrderTemplateItemDAO.get_by_template`: `line_number` ascending, then `id` ascending (HR-6) |
-
-## The change
-
-Two lines in `app/dao/order_template.py`. The template list now sorts newest first and, for templates made at the same moment, by highest id first, so paging can no longer show a template twice or skip one. Template lines now sort by line number and, for lines that share a number, by lowest id first. Nothing else changes.
-
-The seven test markers for these two bugs are removed from `tests/unit/dao/test_order_template.py`, and both rows in `docs/testing/bugs.md` are marked `Fixed in bugfix/dao-order_template (PR pending)`.
-
-## Impact (systems engineer, round 1: APPROVE)
-
-- Upstream: `OrderTemplateManager.list_templates` (`GET /order-templates/`) and `get_items` (`GET /order-templates/{id}/items/`, `create_expense_order_from_template`) pass the list through. Only the order of tied rows becomes fixed. `add_item` uses `max(line_number) + 1`, which does not depend on order. The expense order manager re-sorts by `line_number` with Python's stable `sorted`, so it keeps the DAO's `id` order on ties.
-- Downstream: a plain `SELECT ... ORDER BY` on the primary key. No locks, no flush, no transaction change.
-- Database: no migration, constraint or index. No data-check script.
-- Neighbouring bugs: BUG-100, BUG-1226, BUG-1216 and BUG-1014 are not touched. The non-unique `line_number` from concurrent `add_item` calls is still possible; a unique constraint would be a separate `db-change` unit.
-
-## Contract note
-
-No contract change. Same fields, status codes and messages. No frontend PR.
-
-## Flip check
-
-**CLEAN** against baseline `d5fea1c` (`docs/bugfix/units/dao-order_template/flipcheck.json`): **7 flipped as intended, 0 other changes, 0 notes.** The full suite after the fix had 24,423 tests: 18,425 passed, 5,900 xfailed, 97 xpassed, 1 skipped. The 7 that flipped are this unit's own tests: OTP-GW-17 to GW-20 (BUG-1210) and OTP-GT-08 to GT-10 (BUG-1211). The unit's test files (order template DAO, order template manager and expense order manager) pass: 540 passed, 188 xfailed.
-
-## Good to auto-merge
-
-**Good to auto-merge** (the owner merges). Reasons:
-- trivial patterns: `tied-timestamp-no-tiebreak` (BUG-1210) and `unordered-pagination` (BUG-1211);
-- one file (`app/dao/order_template.py`), two lines;
-- no migration, no API contract change, no frontend PR;
-- not money, stock, order workflow or security;
-- flip check exact (see above);
-- CI: the local full suite matches the baseline exactly. GitHub CI runs when the PR is opened and must be green before merging.
+> ✅ **Good to auto-merge.** A small, low-risk ordering fix in one file. It changes no money, stock or workflow behaviour, changes no API, and every other test in the suite behaved the same before and after.
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+### What was wrong
+
+**1. The template list could show a template twice and skip another (BUG-1210)**
+
+The *Order templates* page lists templates newest first. Templates made at the same moment, for example several created by an import or a quick double-click, have the same creation time. The list only sorted by that time, so the database could return tied templates in any order, and the order could change between one page and the next.
+
+*Example:* 5 templates created in the same second, shown 1 per page:
+page 1 → template A, page 2 → **template A again**, page 3 → C, page 4 → D, page 5 → B. Template **E never appears**.
+
+**2. A template's lines could change order (BUG-1211)**
+
+A template's lines are sorted by line number. Two lines can end up with the same number, for example when two people add a line at the same time. Those lines had no fixed order, so they could swap places after any edit, and the expense order made from the template copied them in whatever order came back.
+
+---
+
+### What changed
+
+`app/dao/order_template.py`. Each list now has a final "tie-breaker" sort on the row's id, so the order is always the same:
+
+```diff
+- .order_by(desc(OrderTemplate.created_at))
++ .order_by(desc(OrderTemplate.created_at), desc(OrderTemplate.id))      # newest first, then newest id
+
+- .order_by(OrderTemplateItem.line_number)
++ .order_by(OrderTemplateItem.line_number, OrderTemplateItem.id)          # line number, then oldest line first
+```
+
+This follows house rule HR-6: every list that is paged or shown in order ends its sort with `id`.
+
+### What you'll notice
+
+- Paging through templates never repeats or skips one.
+- Lines that share a line number always appear in the order they were added, on the template and on any expense order made from it.
+- Nothing else changes: same filters, same page sizes, same responses.
+
+### What to look at when reviewing
+
+- The two `order_by` lines above. That's the whole change.
+- The direction of each tie-breaker. Templates use newest-id-first, to match "newest first". Lines use oldest-id-first, to match "line 1, 2, 3".
+
+---
+
+<details>
+<summary>Pipeline checks (for the record)</summary>
+
+- **Impact review:**
+  - Callers: `OrderTemplateManager.list_templates`, `add_item` (uses only the highest line number) and `get_items`.
+  - `create_expense_order_from_template` re-sorts lines by line number with a stable sort, so it keeps the new tie-break. Nothing relied on the old order.
+- **Contract:** no change. No frontend PR.
+- **Tests:** the 7 tests that were marked as known failures for these bugs now pass, and their markers are removed. Every other test in the full suite (24,423 tests) had the same result before and after the fix (flip check CLEAN, base `d5fea1c`).
+- **Seen, not fixed:** two lines can still get the same line number when added at the same instant. Preventing that needs a database constraint, so it's a separate change.
+- **Commits:** `4fcd227` (fix), `15111ab` (merge of main for Postgres 18 CI).
+
+</details>

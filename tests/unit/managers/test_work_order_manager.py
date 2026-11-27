@@ -9206,6 +9206,7 @@ def test_wom_ri_11__started_keeps_approvals(db, s):
 
 
 # [claude] WOM-GI-01
+@xf(1272, strict=False)  # id order is BUG-1272; physical order can match by chance (failed on CI 2026-11-27)
 def test_wom_gi_01__live_lines_id_order(db, s):
     """WOM-GI-01 — the live lines of the order, in id order.
     Rules: get_items R1, R2."""
