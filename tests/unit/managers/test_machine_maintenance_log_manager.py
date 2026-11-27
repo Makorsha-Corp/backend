@@ -4376,7 +4376,7 @@ def test_mmlm_g_20__a_log_on_another_workspace_s_machine_gets_the_404(db, w1, m9
 
 
 # [claude] MMLM-G-21
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
+@pytest.mark.xfail(strict=True, reason="BUG-1101, BUG-1150: needs both fixes. BUG-1150 adds include_deleted to get_log; BUG-1101 hides a log on another workspace's machine")
 def test_mmlm_g_21__the_same_row_gets_the_404_with_include_deleted_true_too(db, w1, m9, mk_log):
     """MMLM-G-21 — the same row gets the 404 with include_deleted=True too.
     Rules: `get_log` R6 [BUG-1101], `get_log` Errors row 1"""
@@ -4396,7 +4396,7 @@ def test_mmlm_g_21__the_same_row_gets_the_404_with_include_deleted_true_too(db, 
 
 
 # [claude] MMLM-G-22
-@pytest.mark.xfail(strict=True, reason="BUG-1101: A stored maintenance log linked to another workspace's machine shows that machine's id")
+@pytest.mark.xfail(strict=True, reason="BUG-1101, BUG-1150: needs both fixes. BUG-1150 adds include_deleted to get_log; BUG-1101 hides a log on another workspace's machine")
 def test_mmlm_g_22__a_soft_deleted_log_on_another_workspace_s_machine_gets_the_404_with_in(db, w1, m9, mk_log):
     """MMLM-G-22 — a soft-deleted log on another workspace's machine gets the 404 with include_deleted=True.
     Rules: `get_log` R6 [BUG-1101], `get_log` Errors row 1"""

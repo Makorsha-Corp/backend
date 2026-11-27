@@ -523,7 +523,7 @@ def test_pcns_l_11__deleted_projects_notes_not_listed(db, S):
 
 
 # [claude] PCNS-L-12
-@pytest.mark.xfail(strict=True, reason=BUG_2293)
+@pytest.mark.xfail(strict=False, reason=BUG_2293) # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pcns_l_12__hidden_notes_do_not_shorten_the_page(db, S):
     """PCNS-L-12 — hidden notes ahead of the page do not shorten it (limit).
     Rules: `get_notes` R4 [BUG-2293]"""

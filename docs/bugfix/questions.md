@@ -6,6 +6,6 @@ Record every answer in `docs/testing/owner-questions.md` too.
 
 ## Open
 
-(none — batch 1, 2026-11-27: no bug needed an owner decision)
+(none — batch 1 and batch 2, 2026-11-27: no bug needed an owner decision)
 
 ## Answered

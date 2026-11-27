@@ -141,6 +141,7 @@ _BUGS = {
     639: "A draft that once had (voided) payments cannot be deleted",
     801: "Fractional return quantity is accepted when a return starts, then permanently blocks its completion",
     1195: "Deleted purchase order vanishes without trace",
+    2431: "A return's lines have no sort order",
     2641: "PO list's received progress ignores refunded quantity",
     2734: "Voiding a purchase order voids its confirmed invoice and cancels payments even when the PO is completed / has goods received",
     2754: "Return read before complete / void is not locked",
@@ -4550,6 +4551,7 @@ def test_pos_ar_01__one_finalized_credit_note(db, s):
     assert reread(db, PurchaseOrder, O.id).invoice_id is None
 
 
+@xfail(2431, strict=False)  # credit-note numbering follows the return-line read, no ORDER BY (BUG-2431); order sweep 2026-11-27
 def test_pos_ar_02__one_line_per_return_line(db, s):
     """POS-AR-02 — one credit-note line per return line, numbered in id order.
     Rules: _attach_return_invoice_for_po AR2, AR3."""
@@ -4680,6 +4682,7 @@ def test_pos_ar_07__helper_flushes_only(db, s):
     assert R.invoice_id is not None
 
 
+@xfail(2431, strict=False)  # credit-note numbering follows the return-line read, no ORDER BY (BUG-2431); order sweep 2026-11-27
 def test_pos_ar_08__zero_priced_line(db, s):
     """POS-AR-08 — a return line priced 0.00 gives a 0.00 credit-note line.
     Rules: _attach_return_invoice_for_po AR2 (price 0), AR3."""

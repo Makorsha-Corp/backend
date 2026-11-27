@@ -621,7 +621,7 @@ def test_pcts_l_16__without_component_open_only(db, S):
 
 
 # [claude] PCTS-L-17
-@pytest.mark.xfail(strict=True, reason=BUG_2298)
+@pytest.mark.xfail(strict=False, reason=BUG_2298) # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pcts_l_17__hidden_tasks_do_not_shorten_the_page(db, S):
     """PCTS-L-17 — hidden tasks ahead of the page do not shorten it (limit).
     Rules: `get_tasks` R5 [BUG-2298]"""

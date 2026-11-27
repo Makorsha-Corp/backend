@@ -3728,10 +3728,10 @@
 **Then**
 1. returns: `idset(result) == {PA.id}`.
 
-### PRJM-L-07 — hidden private projects ahead of the page do not use its places
+### PRJM-L-07 — hidden private projects ahead of the page do not use its places *(revised 2026-11-27, order sweep)*
 - **Rules:** `list_projects` R7 [BUG-1958]
 - **Kind:** bug
-- **Expect:** xfail BUG-1958
+- **Expect:** xfail BUG-1958 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PRJM-L-08 (skip).
 - **Fails today on:** Then 1 (the page of the first two projects is filtered after paging: `[]`)
 
 **Given**
@@ -3804,10 +3804,10 @@
 **Then**
 1. returns: `idset(result) == {V1.id, V2.id}`.
 
-### PRJM-L-11 — a privileged caller's page is read as is, private projects in it
-- **Rules:** `list_projects` R6
+### PRJM-L-11 — a privileged caller's page is read as is, private projects in it *(revised 2026-11-27, order sweep)*
+- **Rules:** `list_projects` R6 [BUG-100]
 - **Kind:** boundary
-- **Expect:** pass
+- **Expect:** xfail BUG-100 (non-strict): the unfiltered read is the base workspace list, which has no `ORDER BY` (BUG-100), so the first page of 2 is {H1, H2} only when the physical order happens to match (same reason as PRJM-L-10). Then 1 failed when the order sweep forced the other order. Revisit after launch.
 
 **Given**
 1. H1 = private proj `name "Aa"`.

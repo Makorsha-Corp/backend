@@ -756,7 +756,7 @@ def test_pjs_l_06__status_passed_on(db, S):
 
 
 # [claude] PJS-L-07
-@xfail("BUG-1958")
+@pytest.mark.xfail(strict=False, reason="BUG-1958") # physical order can put the filtered-out row off the page (order sweep 2026-11-27)
 def test_pjs_l_07__hidden_rows_take_no_page_places(db, S):
     """PJS-L-07 — hidden private projects ahead of the page do not use its places (pass-through).
     Rules: list_projects R1 (manager R7 [BUG-1958])."""

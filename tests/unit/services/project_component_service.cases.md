@@ -384,10 +384,10 @@
 **Then**
 1. returns: `idset(result) == {CA.id}`.
 
-### PCS-L-20 — hidden components ahead of the page do not empty it
+### PCS-L-20 — hidden components ahead of the page do not empty it *(revised 2026-11-27, order sweep)*
 - **Rules:** `get_components` R5 [BUG-2277]
 - **Kind:** bug
-- **Expect:** xfail BUG-2277
+- **Expect:** xfail BUG-2277 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PCS-L-21 (skip); PCS-L-23 covers the statement count.
 - **Fails today on:** Then 1 (today `[]`: the first page holds only hidden rows)
 
 **Given**
@@ -420,10 +420,10 @@
 **Then**
 1. returns: `idset(result) == {V2.id}`.
 
-### PCS-L-22 — a deleted project's components take no place on the page
+### PCS-L-22 — a deleted project's components take no place on the page *(revised 2026-11-27, order sweep)*
 - **Rules:** `get_components` R4, R5 [BUG-1278]
 - **Kind:** bug
-- **Expect:** xfail BUG-1278
+- **Expect:** xfail BUG-1278 (non-strict): fails only when physical order puts the filtered-out row on the page; strict proof is PCS-L-19 (deleted project's components left out).
 - **Fails today on:** Then 1 (today the page holds D1)
 
 **Given**

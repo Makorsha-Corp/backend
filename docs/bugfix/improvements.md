@@ -133,3 +133,30 @@ The skills, the fixer agent and the tools are updated with the findings above. N
 that is always rolled back. `scripts/bugfix/compile_query.py` prints a DAO method's SQL
 without a database. Still open: T12 (fix the 2 Cloudinary legacy tests through the
 test pipeline), T13 (record the test environment in the baseline metadata), C4 sweep (running).
+
+## Batch 2 (2026-11-27)
+
+### Planner (batch 2)
+
+| # | Finding | Proposed change | Status |
+|---|---|---|---|
+| P12 | The local checkout was behind `origin/main`, so `bugs.md` statuses were stale. | §0: `git merge origin/main` into the working branch before planning, or read `git show origin/main:docs/testing/bugs.md`. | open |
+| P13 | The planner had to write its own `bugs.md` parser. "Names two files" is tricky because "reached through … via `app/services/...`" mentions aren't fix locations. | Add `scripts/bugfix/open_bugs.py --layer dao`, counting only fix locations. | open |
+| P14 | Bugs tied to another unit's bug ("goes away with BUG-908") aren't covered. | Skip them, or plan them with the bug they depend on. | open |
+| P15 | There's no status for "briefed, worktree deferred". | Add `briefed`. The orchestrator flips it to `planned` when it creates the worktree. | open |
+| P16 | Unclear whether a brief may carry an implementation hint from the spec ("import utcnow the way `machine.py` does"). | Yes, if the spec or the row already says it; never invent one. | open |
+
+### Tester pre-check (batch 2)
+
+| # | Finding | Proposed change | Status |
+|---|---|---|---|
+| A12 | A **wrong label** (the test checks the right thing, but its marker leaves out a second bug it needs) is different from a wrong check. Skipping the whole bug would be overkill. | §A.4: record a marker-only diff, apply it before the baseline (the flip check reads bug ids from the baseline's reasons), and keep the bug in the unit. Done this batch: MMLM-G-21/22 now name BUG-1101 and BUG-1150. | open (skill) |
+| A13 | Read the cards' "Fails today on" lines early: a TypeError, a missing parameter or another bug's new API means the marker must name that bug too. | Add to §A.1 and §A.3. | open |
+| A14 | Clock bugs: check that the expected value is a patched constant (so the test is time-zone independent) and the patch target is a module-level name. Warn the systems engineer when the code uses function-local imports. | Add to §A.3. | open |
+
+### Order sweep (2026-11-27)
+
+| # | Finding | Change made | Status |
+|---|---|---|---|
+| C5 | The suite was run with every query's row order forced, ascending and descending. 3 pass tests relied on luck: PRJM-L-11 (BUG-100) and POS-AR-02/08 (BUG-2431). 8 strict xfails passed under one forced order, so they could go red on CI. | All 11 are now non-strict with their bug, and the cards are revised (`docs/bugfix/order-sweep-2026-11-27.md`). The tool is reusable: `makorsh-pipeline/order_sweep/plug/order_perturb.py`. Consider adding it to the tools as a periodic check. | done |
+| C6 | BUG-2293, 2298, 2308 and 2611 (project areas) now have only a statement-count strict card, with no strict paging card. | Add a deterministic skip-case card for each. Revisit after launch (projects deferred). | open (after launch) |
