@@ -143,7 +143,7 @@ def clock(local, utc):
         def now(cls, tz=None):
             return local
 
-    with mock.patch("app.dao.help_ticket.datetime", _Clock), \
+    with mock.patch("app.dao.help_ticket.datetime", _Clock, create=True), \
             mock.patch("app.dao.help_ticket.utcnow", create=True, return_value=utc), \
             mock.patch("app.utils.time.utcnow", return_value=utc):
         yield

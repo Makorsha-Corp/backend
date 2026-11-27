@@ -35,7 +35,7 @@
 - **WithStatus** = a test-local `class WithStatus(pydantic.BaseModel)` with exactly the fields `title: str`, `description: str`, `category: str | None = None`, `status: str`.
 - `HelpTicketCreate.model_construct(...)` skips validation, so the plain string a card gives as `type` reaches the DAO; a pydantic serialization warning on dump is expected and harmless (do not turn warnings into errors for these cards).
 
-**Externals.** Only in `CW` cards: **clock(L, U)** = for the When, patch `app.dao.help_ticket.datetime` with a subclass of `datetime` whose `now()` returns L, and patch both `app.dao.help_ticket.utcnow` (with `create=True`) and `app.utils.time.utcnow` to return U. A `CW` card without a clock line runs under clock(`datetime(2026, 6, 1, 12, 0)`, `datetime(2026, 6, 1, 12, 0)`).
+**Externals.** Only in `CW` cards: **clock(L, U)** = for the When, patch `app.dao.help_ticket.datetime` (`create=True`) with a subclass of `datetime` whose `now()` returns L, and patch both `app.dao.help_ticket.utcnow` (with `create=True`) and `app.utils.time.utcnow` to return U. A `CW` card without a clock line runs under clock(`datetime(2026, 6, 1, 12, 0)`, `datetime(2026, 6, 1, 12, 0)`).
 
 **Given rows.** Rows are inserted directly into the tables (never through `dao`) and flushed one at a time in the order written, so ids rise in that order. The session does not autoflush. A card names, by column name, every column that differs from these defaults.
 - These rows exist in every test and need no Given line: W1 = `make_workspace(name=f"Gamma {TAG}")`, W2 = `make_workspace(name=f"Delta {TAG}")`; U1 = `make_profile(name="Rahim")`, U2 = `make_profile(name="Karim")`.

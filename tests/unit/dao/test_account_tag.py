@@ -8,6 +8,7 @@ Built in normal mode (no local model): every test sits below a `# [claude] <ID>`
 comment.
 """
 # ruff: noqa: SIM117  (Conventions prescribe `with pytest.raises(...)` around `with db.begin_nested():`)
+import re
 from unittest.mock import patch
 
 import pytest
@@ -186,12 +187,23 @@ class StatementRecorder:
     def written(self):
         return [s for s in self.statements if s.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))]
 
+    def updates(self):
+        return [s for s in self.statements if s.lstrip().upper().startswith("UPDATE")]
+
     def sql(self):
         """The one SELECT from `account_tags`; fails loudly unless there is exactly one."""
         [statement] = [
             s for s in self.statements if s.lstrip().upper().startswith("SELECT") and "FROM account_tags" in s
         ]
         return statement
+
+
+# Convention "relative update" (BUG-1484, ATG-INC-06, DEC-08): an UPDATE of account_tags whose
+# SET computes the counter from the stored column (`usage_count = usage_count + / - ...`);
+# for the decrease, the same statement's WHERE also tests the stored column (`usage_count >`).
+_REL_INC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:account_tags\.)?usage_count\s*\+", re.IGNORECASE)
+_REL_DEC = re.compile(r"SET\s+usage_count\s*=\s*\(?\s*(?:account_tags\.)?usage_count\s*-", re.IGNORECASE)
+_DEC_GUARD = re.compile(r"WHERE.*usage_count\s*>", re.IGNORECASE | re.DOTALL)
 
 
 # Convention "order_part": the text of `sql` after ORDER BY ("" when there is none)
@@ -835,7 +847,8 @@ def test_atg_inc_06__the_increase_applies_to_the_stored_value_not_the_loaded_one
     t1 = mk_tag(name="Supplier", tag_code="supplier", usage_count=3)
     db.execute(text("UPDATE account_tags SET usage_count = 10 WHERE id = :i"), {"i": t1.id})
 
-    result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+    with StatementRecorder(db) as recorder:
+        result = dao.increment_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
 
     # Then 1
     assert result is t1
@@ -843,6 +856,8 @@ def test_atg_inc_06__the_increase_applies_to_the_stored_value_not_the_loaded_one
     assert result.usage_count == 11
     # Then 3
     assert stored_count(db, t1) == 11
+    # Then 4
+    assert any(_REL_INC.search(s) for s in recorder.updates())
 
 
 # [claude] ATG-INC-07
@@ -1030,7 +1045,8 @@ def test_atg_dec_08__the_decrease_applies_to_the_stored_value_not_the_loaded_one
     t1 = mk_tag(name="Supplier", tag_code="supplier", usage_count=3)
     db.execute(text("UPDATE account_tags SET usage_count = 10 WHERE id = :i"), {"i": t1.id})
 
-    result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+    with StatementRecorder(db) as recorder:
+        result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
 
     # Then 1
     assert result is t1
@@ -1038,6 +1054,8 @@ def test_atg_dec_08__the_decrease_applies_to_the_stored_value_not_the_loaded_one
     assert result.usage_count == 9
     # Then 3
     assert stored_count(db, t1) == 9
+    # Then 4
+    assert any(_REL_DEC.search(s) and _DEC_GUARD.search(s) for s in recorder.updates())
 
 
 # [claude] ATG-DEC-09

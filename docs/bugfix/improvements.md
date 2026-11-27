@@ -188,3 +188,12 @@ test pipeline), T13 (record the test environment in the baseline metadata), C4 s
 All 3 units CLEAN on the first round, no fixer feedback rounds, no contract changes: dao-machine_maintenance_log (46 flipped, `5966805`), dao-factory_section (16 flipped, `cab794a`), dao-item_tag (11 flipped, `10ac8de`). All three testers lost one full run to T15.
 | R1 | Fixers write bug ids into code comments/docstrings (both reviewers flagged it as a minor: nothing else in `app/` does). | Fixer rule: explain the why in comments, never cite BUG ids; ids go in fix-notes and the commit. |
 | R2 | Parallel reviewers overwrote each other's `chk.py` in the shared session scratchpad. | Orchestrator prompts give each agent its own scratch subfolder (`scratchpad/<unit>/`). |
+
+### Planner and pre-check (batch 3)
+
+| Id | Seen | Fix |
+|---|---|---|
+| P18 | Rows that name a DAO only through a "via" mention (BUG-342/343 → `machine.py`) get excluded by the two-file rule even when the fix belongs in the DAO. | Planner skill: say which file owns a row (the file the fix changes, not the file the title names). |
+| P19 | Clock-bug tests that patch the old `<module>.datetime` name without `create=True` break when the clean fix drops that import (BUG-1441: 33 errors). | Pre-check: for clock bugs, check every patched name survives the clean fix; test designer: patch old and new names with `create=True`. |
+| P20 | Unclear whether a fixer may leave a now-unused import to keep tests green. | Fixer rule: remove imports the fix makes unused (ruff F401); the pre-check must make tests tolerate that. |
+| P21 | Caller tests passed a plain string where the contract is an enum (BUG-886), so a correct fix failed them. | Pre-check: compare each caller test's argument types against the spec signature. |

@@ -47,7 +47,7 @@
 - A Given line written as code is a step to run exactly.
 
 **Externals.**
-- **clock** (every `C` card unless it says otherwise): around the When, patch `app.dao.help_ticket.datetime` with a subclass of `datetime` whose `now()` returns `datetime(2026, 6, 1, 12, 0)`, and patch `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` to return `datetime(2026, 6, 1, 12, 0)`.
+- **clock** (every `C` card unless it says otherwise): around the When, patch `app.dao.help_ticket.datetime` (`create=True`) with a subclass of `datetime` whose `now()` returns `datetime(2026, 6, 1, 12, 0)`, and patch `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` to return `datetime(2026, 6, 1, 12, 0)`.
 - **close clock** (every `U` and `V` card unless it says "real clock"): around the When, patch `app.managers.help_ticket_manager.utcnow` to return `datetime(2026, 6, 1, 12, 0)`.
 
 **Named checks.**
@@ -150,7 +150,7 @@
 
 **Given**
 1. No ticket in W1 (commit point after this line).
-2. Instead of clock: `app.dao.help_ticket.datetime` patched with a `datetime` subclass whose `now()` returns `datetime(2027, 1, 1, 5, 0)`; `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` patched to return `datetime(2026, 12, 31, 23, 0)`.
+2. Instead of clock: `app.dao.help_ticket.datetime` patched (`create=True`) with a `datetime` subclass whose `now()` returns `datetime(2027, 1, 1, 5, 0)`; `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` patched to return `datetime(2026, 12, 31, 23, 0)`.
 
 **When**
 - `result = svc.create_ticket(db, workspace=W1, user=CR, payload=HelpTicketCreate(title="Printer jam", description="It jams"))`.

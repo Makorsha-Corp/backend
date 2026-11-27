@@ -260,7 +260,7 @@ def _fixed_datetime(now_value):
 @contextmanager
 def clock(now=FIXED, utc=FIXED):
     with (
-        patch("app.dao.help_ticket.datetime", _fixed_datetime(now)),
+        patch("app.dao.help_ticket.datetime", _fixed_datetime(now), create=True),
         patch("app.dao.help_ticket.utcnow", create=True, return_value=utc),
         patch("app.utils.time.utcnow", return_value=utc),
     ):

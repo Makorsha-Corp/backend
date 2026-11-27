@@ -44,7 +44,7 @@
 - **snapshot** = taken after the last Given line, before the When: the values `unchanged` and `nothing written` compare to.
 
 **Externals.**
-- **clock** (every `C` card): around the When, patch `app.dao.help_ticket.datetime` with a subclass of `datetime` whose `now()` returns `datetime(2026, 6, 1, 12, 0)`, and patch `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` to return `datetime(2026, 6, 1, 12, 0)`.
+- **clock** (every `C` card): around the When, patch `app.dao.help_ticket.datetime` (`create=True`) with a subclass of `datetime` whose `now()` returns `datetime(2026, 6, 1, 12, 0)`, and patch `app.dao.help_ticket.utcnow` (`create=True`) and `app.utils.time.utcnow` to return `datetime(2026, 6, 1, 12, 0)`.
 - **close clock** (every `U` card unless it says "real clock"): around the When, patch `app.managers.help_ticket_manager.utcnow` to return CLOSE_AT.
 
 **Named checks.**
