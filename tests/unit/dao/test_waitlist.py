@@ -342,7 +342,6 @@ def test_wls_ls_03__the_search_text_in_the_middle_of_an_email_finds_it(db, TAG, 
 
 
 # [claude] WLS-LS-04
-@pytest.mark.xfail(strict=True, reason="BUG-1410: `%` and `_` in the waitlist search act as wildcards")
 def test_wls_ls_04__in_the_search_matches_only_a_literal(db, TAG, mk_signup):
     """WLS-LS-04 — _ in the search matches only a literal _.
     Rules: `list_signups` R2 [BUG-1410]"""
@@ -360,7 +359,6 @@ def test_wls_ls_04__in_the_search_matches_only_a_literal(db, TAG, mk_signup):
 
 
 # [claude] WLS-LS-05
-@pytest.mark.xfail(strict=True, reason="BUG-1410: `%` and `_` in the waitlist search act as wildcards")
 def test_wls_ls_05__in_the_search_matches_only_a_literal(db, TAG, mk_signup):
     """WLS-LS-05 — % in the search matches only a literal %.
     Rules: `list_signups` R2 [BUG-1410]"""
@@ -378,7 +376,6 @@ def test_wls_ls_05__in_the_search_matches_only_a_literal(db, TAG, mk_signup):
 
 
 # [claude] WLS-LS-06
-@pytest.mark.xfail(strict=True, reason="BUG-1410: `%` and `_` in the waitlist search act as wildcards (a backslash escapes the next character)")
 def test_wls_ls_06__a_backslash_in_the_search_matches_only_a_literal_backslash(db, TAG, mk_signup):
     """WLS-LS-06 — a backslash in the search matches only a literal backslash.
     Rules: `list_signups` R2 [BUG-1410]"""
@@ -515,11 +512,6 @@ def test_wls_ls_14__newest_first_by_created_at_whatever_the_ids(db, TAG, mk_sign
 
 
 # [claude] WLS-LS-15
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1411: Waitlist signups with one timestamp come back in no fixed order "
-    "(non-strict: the tied rows come back in physical order, which can match by accident)",
-)
 def test_wls_ls_15__on_a_tie_the_higher_id_comes_first_also_after_the_lowest_id_was_upda(db, TAG, mk_signup):
     """WLS-LS-15 — on a tie the higher id comes first, also after the lowest id was updated.
     Rules: `list_signups` R5 [BUG-1411]"""
@@ -539,7 +531,6 @@ def test_wls_ls_15__on_a_tie_the_higher_id_comes_first_also_after_the_lowest_id_
 
 
 # [claude] WLS-LS-16
-@pytest.mark.xfail(strict=True, reason="BUG-1411: Waitlist signups with one timestamp come back in no fixed order")
 def test_wls_ls_16__the_query_orders_by_created_at_then_id_both_descending(db, TAG, mk_signup):
     """WLS-LS-16 — the query orders by created_at, then id, both descending.
     Rules: `list_signups` R5 [BUG-1411]"""

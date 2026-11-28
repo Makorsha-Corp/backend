@@ -806,7 +806,6 @@ def test_wsv_l_05__the_list_neither_commits_nor_rolls_back(db, tag):
 
 
 # [claude] WSV-L-06
-@pytest.mark.xfail(strict=True, reason="BUG-1410: `%` and `_` in the waitlist search act as wildcards")
 def test_wsv_l_06__pass_through_bug_1410_underscore_in_the_search_matches_only_a_literal_underscore(db, tag):
     """WSV-L-06 — pass-through BUG-1410: _ in the search matches only a literal _.
     Rules: `list_signups` R1 [BUG-1410]"""
@@ -824,7 +823,6 @@ def test_wsv_l_06__pass_through_bug_1410_underscore_in_the_search_matches_only_a
 
 
 # [claude] WSV-L-07
-@pytest.mark.xfail(strict=False, reason="BUG-1411: Waitlist signups with one timestamp come back in no fixed order")
 def test_wsv_l_07__pass_through_bug_1411_on_a_created_at_tie_the_higher_id_comes_first(db, tag):
     """WSV-L-07 — pass-through BUG-1411: on a created_at tie the higher id comes first.
     Rules: `list_signups` R1 [BUG-1411]"""

@@ -8,6 +8,15 @@ from app.schemas.waitlist import WaitlistSignupRequest
 
 
 class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupRequest]):
+    _ILIKE_ESCAPE = "\\"
+
+    @staticmethod
+    def _escape_ilike(value: str) -> str:
+        """Escape user input so %, _ and the escape character match literally."""
+        escaped = value.replace("\\", "\\\\")
+        escaped = escaped.replace("%", "\\%").replace("_", "\\_")
+        return escaped
+
     def get_by_email(self, db: Session, *, email: str) -> WaitlistSignup | None:
         return db.query(self.model).filter(self.model.email == email).first()
 
@@ -23,8 +32,10 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
     ) -> tuple[list[WaitlistSignup], int]:
         query = db.query(self.model)
         if search:
-            term = f"%{search.strip().lower()}%"
-            query = query.filter(self.model.email.ilike(term))
+            term = f"%{self._escape_ilike(search.strip().lower())}%"
+            query = query.filter(
+                self.model.email.ilike(term, escape=self._ILIKE_ESCAPE)
+            )
         if wants_product_updates is not None:
             query = query.filter(self.model.wants_product_updates == wants_product_updates)
         if status is not None:
@@ -32,7 +43,7 @@ class WaitlistDAO(BaseDAO[WaitlistSignup, WaitlistSignupRequest, WaitlistSignupR
 
         total = query.count()
         items = (
-            query.order_by(self.model.created_at.desc())
+            query.order_by(self.model.created_at.desc(), self.model.id.desc())
             .offset(skip)
             .limit(limit)
             .all()
