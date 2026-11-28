@@ -15,16 +15,22 @@ class AttachmentMarkupEventDAO(BaseDAO[AttachmentMarkupEvent, object, object]):
         *,
         workspace_id: int,
         attachment_id: int,
-        limit: int = 200,
     ) -> list[AttachmentMarkupEvent]:
+        """Return every markup event of the attachment, newest first.
+
+        No cap: the history is a log and is never trimmed. ``id`` breaks ties
+        between entries written within the same clock tick.
+        """
         return (
             db.query(AttachmentMarkupEvent)
             .filter(
                 AttachmentMarkupEvent.workspace_id == workspace_id,
                 AttachmentMarkupEvent.attachment_id == attachment_id,
             )
-            .order_by(AttachmentMarkupEvent.created_at.desc())
-            .limit(limit)
+            .order_by(
+                AttachmentMarkupEvent.created_at.desc(),
+                AttachmentMarkupEvent.id.desc(),
+            )
             .all()
         )
 

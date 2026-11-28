@@ -326,7 +326,6 @@ def test_ame_la_07__on_a_tie_both_entries_sit_between_the_newer_and_the_older_on
 
 
 # [claude] AME-LA-08
-@pytest.mark.xfail(strict=False, reason="BUG-1436: Markup history entries of one time come back in no fixed order")
 def test_ame_la_08__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated(db, w1, at1, mk_entry):
     """AME-LA-08 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `list_for_attachment` R3 [BUG-1436]"""
@@ -346,7 +345,6 @@ def test_ame_la_08__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_u
 
 
 # [claude] AME-LA-09
-@pytest.mark.xfail(strict=True, reason="BUG-1436: Markup history entries of one time come back in no fixed order")
 def test_ame_la_09__the_query_orders_by_created_at_then_id_both_descending(db, w1, at1, mk_entry):
     """AME-LA-09 — the query orders by created_at, then id, both descending.
     Rules: `list_for_attachment` R3 [BUG-1436]"""
@@ -369,7 +367,6 @@ def test_ame_la_09__the_query_orders_by_created_at_then_id_both_descending(db, w
 
 
 # [claude] AME-LA-10
-@pytest.mark.xfail(strict=True, reason="BUG-1437: Markup history silently stops at the 200 newest entries")
 def test_ame_la_10__every_entry_is_returned_201_give_201(db, w1, at1, mk_many_entries):
     """AME-LA-10 — every entry is returned: 201 give 201.
     Rules: `list_for_attachment` R4 [BUG-1437]"""

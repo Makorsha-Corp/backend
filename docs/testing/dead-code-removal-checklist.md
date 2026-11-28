@@ -211,7 +211,7 @@
 
 ### `app/dao/attachment_markup_event.py`
 
-- [ ] `app/dao/attachment_markup_event.py:18` — kind `parameter` — name `AttachmentMarkupEventDAO.list_for_attachment(limit=200)` and its `.limit(limit)` (line 27) — reason: the only caller (`AttachmentMarkupManager.list_events`) never passes it; **remove together with the fix of BUG-1437** (all entries returned, no cap) (`tests/unit/dao/attachment_markup_event.spec.md` P1; decided by Claude under the reviewer's delegation (2026-11-03))
+- [x] `app/dao/attachment_markup_event.py:18` — kind `parameter` — name `AttachmentMarkupEventDAO.list_for_attachment(limit=200)` and its `.limit(limit)` (line 27) — reason: the only caller (`AttachmentMarkupManager.list_events`) never passes it; **remove together with the fix of BUG-1437** (all entries returned, no cap) (`tests/unit/dao/attachment_markup_event.spec.md` P1; decided by Claude under the reviewer's delegation (2026-11-03)) — removed with the BUG-1437 fix in bugfix/dao-attachment_markup_event (2026-11-28)
 
 ### `app/dao/project_attachment.py`
 

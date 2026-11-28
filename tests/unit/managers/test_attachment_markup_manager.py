@@ -147,10 +147,6 @@ X2103 = pytest.mark.xfail(strict=True, reason=(
     "BUG-2103: the workspace owner (owner_user_id) does not open another member's help ticket"))
 X1435 = pytest.mark.xfail(strict=False, reason=(
     "BUG-1435: markup layers saved at one moment come back in no fixed order"))
-X1436 = pytest.mark.xfail(strict=False, reason=(
-    "BUG-1436: markup history entries of one time come back in no fixed order"))
-X1437 = pytest.mark.xfail(strict=True, reason=(
-    "BUG-1437: markup history silently stops at the 200 newest entries"))
 
 
 # --------------------------------------------------------------------------- #
@@ -2257,7 +2253,6 @@ def test_amup_lv_03__newest_first(db, S):
     assert eids(result) == [EC.id, EA.id, EB.id]
 
 
-@X1436
 def test_amup_lv_04__ties_highest_id_first_after_update(db, S):
     """AMUP-LV-04 — entries of one time come highest id first, also after an update.
     Rules: list_events R3 [BUG-1436]."""
@@ -2279,7 +2274,6 @@ def test_amup_lv_05__no_entries_empty_list(db, S):
     assert result == []
 
 
-@X1437
 def test_amup_lv_06__all_201_entries(db, S):
     """AMUP-LV-06 — all 201 entries are returned.
     Rules: list_events R3 [BUG-1437]."""
