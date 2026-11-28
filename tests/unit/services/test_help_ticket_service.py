@@ -67,9 +67,6 @@ NOTFOUND = "Help ticket not found."
 # The fixed moment of "clock" and "close clock"
 FIXED = datetime(2026, 6, 1, 12, 0)
 
-BUG_1441 = "BUG-1441: A help ticket number's year comes from the server's local clock"
-BUG_1442 = "BUG-1442: Help tickets of one creation time come back in no fixed order"
-BUG_1443 = "BUG-1443: `%` and `_` in the support inbox search match every ticket"
 BUG_1574 = "BUG-1574: Help ticket titles are stored untrimmed, and blank titles and descriptions are accepted"
 BUG_1575 = (
     "BUG-1575: `null` for a ticket's title or description answers a database error"
@@ -528,7 +525,6 @@ def test_hts_c_04__a_failing_reread_after_the_commit_leaves_the_ticket_saved(
 
 
 # [claude] HTS-C-05
-@pytest.mark.xfail(strict=True, reason=BUG_1441)
 def test_hts_c_05__the_year_of_the_number_is_the_utc_year_pass_through(db, w1, cr):
     """HTS-C-05 — the year of the number is the UTC year (pass-through).
     Rules: `create_ticket` R1 (DAO `create_with_user` R2 [BUG-1441])"""
@@ -941,7 +937,6 @@ def test_hts_l_15__a_negative_limit_raises_dataerror_when_called_directly(
 
 
 # [claude] HTS-L-16
-@pytest.mark.xfail(strict=False, reason=BUG_1442)
 def test_hts_l_16__tied_times_come_back_id_descending_pass_through(
     db, w1, own, mk_ticket
 ):
@@ -4025,7 +4020,6 @@ def test_hts_p_04__status_closed_keeps_only_closed_tickets(
 
 
 # [claude] HTS-P-05
-@pytest.mark.xfail(strict=True, reason=BUG_1443)
 def test_hts_p_05__underscore_in_the_search_matches_only_a_literal_underscore_pass_through(
     db, tag, mk_ticket
 ):

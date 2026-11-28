@@ -1,6 +1,4 @@
 """Help ticket DAO operations."""
-from datetime import datetime
-
 from sqlalchemy.orm import Session, joinedload
 
 from app.dao.base import BaseDAO
@@ -9,10 +7,20 @@ from app.models.help_ticket import HelpTicket
 from app.models.profile import Profile
 from app.models.workspace import Workspace
 from app.schemas.help_ticket import HelpTicketCreate, HelpTicketUpdate
+from app.utils.time import utcnow
 
 
 class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
     """DAO for HelpTicket model."""
+
+    _ILIKE_ESCAPE = "\\"
+
+    @staticmethod
+    def _escape_ilike(value: str) -> str:
+        """Escape user input so %, _ and the escape character match literally."""
+        escaped = value.replace("\\", "\\\\")
+        escaped = escaped.replace("%", "\\%").replace("_", "\\_")
+        return escaped
 
     def generate_ticket_number(
         self, db: Session, *, workspace_id: int, year: int
@@ -37,7 +45,8 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         workspace_id: int,
         user_id: int,
     ) -> HelpTicket:
-        current_year = datetime.now().year
+        # The year must agree with the UTC created_at, not the server's local clock.
+        current_year = utcnow().year
         ticket_number = self.generate_ticket_number(
             db, workspace_id=workspace_id, year=current_year
         )
@@ -107,7 +116,7 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         if created_by is not None:
             query = query.filter(HelpTicket.created_by == created_by)
         return (
-            query.order_by(HelpTicket.created_at.desc())
+            query.order_by(HelpTicket.created_at.desc(), HelpTicket.id.desc())
             .offset(skip)
             .limit(limit)
             .all()
@@ -135,15 +144,15 @@ class DAOHelpTicket(BaseDAO[HelpTicket, HelpTicketCreate, HelpTicketUpdate]):
         if ticket_type is not None:
             query = query.filter(HelpTicket.type == ticket_type)
         if search:
-            term = f"%{search.strip()}%"
+            term = f"%{self._escape_ilike(search.strip())}%"
             query = query.filter(
-                (HelpTicket.title.ilike(term))
-                | (HelpTicket.ticket_number.ilike(term))
-                | (HelpTicket.description.ilike(term))
-                | (Workspace.name.ilike(term))
+                (HelpTicket.title.ilike(term, escape=self._ILIKE_ESCAPE))
+                | (HelpTicket.ticket_number.ilike(term, escape=self._ILIKE_ESCAPE))
+                | (HelpTicket.description.ilike(term, escape=self._ILIKE_ESCAPE))
+                | (Workspace.name.ilike(term, escape=self._ILIKE_ESCAPE))
             )
         rows = (
-            query.order_by(HelpTicket.created_at.desc())
+            query.order_by(HelpTicket.created_at.desc(), HelpTicket.id.desc())
             .offset(skip)
             .limit(limit)
             .all()
