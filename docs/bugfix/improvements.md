@@ -207,3 +207,19 @@ All 3 units CLEAN on the first round, no fixer feedback rounds, no contract chan
 | F8 | `_escape_ilike` is now copied in 3 DAOs (account_invoice, help_ticket, machine). | Later refactor unit: one shared helper in `app/utils/` (not inside the one-file bug units). |
 | F9 | `machine_activity_events` has only single-column indexes; the BUG-886 latest-status filter would benefit from a partial index `(workspace_id, machine_id, created_at DESC, id DESC) WHERE event_type='status_updated'`. | Later `db-change` unit (migration). |
 | T20 | Running legacy `tests/test_*.py` and `tests/unit/...` in one pytest call errors 673 unit tests (`fixture 'db' not found`). | Tester skill C.4: run legacy files in a separate pytest call. |
+
+### Batch 4 (2026-11-27/28, first batch of 5)
+
+All 5 units CLEAN on the first round, all code reviews PASS, no fixer feedback rounds, no contract changes: dao-waitlist (7 flipped, `db3bb3f`), dao-machine_section_assignment (8, `881a95c`), dao-workspace_invitation (13, `c6b9a87`), dao-item_tag-2 (BUG-3302, new test, `8502901` + `24c6843`), dao-machine_item (36, `253484f`). Wall clock from planning to the last push was about 1h45; the 5 parallel full-suite runs took about 13 minutes each.
+
+| Id | Seen | Fix |
+|---|---|---|
+| A25 | `.claude/agents/bug-fixer.md` step 5 says throwaway checks go in `<worktree>/.scratch/`, but the round prompts say the session scratchpad. Fixers followed the prompt. | Pick one (the scratchpad: nothing to clean from the worktree) and fix the agent file together with A24 (needs a restart). |
+| T21 | `scripts/bugfix/worktree.py unblind` crashes with WinError 267 when run from the worktree's own copy: it finds the worktree folder from the script's location. All 5 testers hit it. | Tester skill: always run the main checkout's copy; or make the script resolve the main checkout via `git rev-parse --git-common-dir`. |
+| T22 | Testers leave `.cases.md` "Expect: xfail BUG-…" lines stale after a fix (every unit since batch 1 does). | Decide once: either the tester updates the Expect line when it removes a marker, or a later sweep tool (with T17) does it. |
+| P22 | A unit for a bug with no test (BUG-3302) needs the pre-check to write the test in the main checkout and the tester to carry it to the branch; the flip compare then rejects with "no test before names BUG-…". | Planner/tester skills: describe this "new test" path; flipcheck: accept tests absent from the baseline that name the unit's bugs. |
+| H1 | HR-8 in `house-rules.md` names only `%` and `_`, but specs and bug rows also require `\` to match literally. | Add `\` to HR-8. |
+| F10 | dao-workspace_invitation review R1-1 (minor): "my invitations" lower-cases the argument in Python and the column in Postgres; they differ for rare capitals such as `İ` and `ẞ`. | Owner decides in the PR; if wanted, a later unit lower-cases both sides in SQL. |
+| F11 | dao-machine_section_assignment review: `upsert_for_machine` docstring still says it always replaces; `app/managers/machine_manager.py:176-178` comment says "deleted/replaced". | Fold into the BUG-908 unit (which removes `clear_for_section`). |
+| F12 | item_tag spec R7 doesn't yet say the in-memory value must match after a savepoint rollback. | One sentence in the next describer pass. |
+
