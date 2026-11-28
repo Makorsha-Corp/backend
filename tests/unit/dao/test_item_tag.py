@@ -1412,6 +1412,26 @@ def test_itg_dec_15__the_decrease_is_flushed_but_not_committed_a_rollback_restor
         assert commit_spy.call_count == 0
 
 
+# [claude] ITG-DEC-16
+def test_itg_dec_16__after_a_savepoint_rollback_the_tag_object_shows_the_stored_count_again(db, w1, mk_tag):
+    """ITG-DEC-16 — after a savepoint rollback, the tag object shows the stored count again.
+    Rules: `decrement_usage_count` R7 [BUG-3302]"""
+    t1 = mk_tag(name="Hex Bolt", tag_code="hex_bolt", usage_count=5)
+
+    sp = db.begin_nested()
+    result = dao.decrement_usage_count(db, tag_id=t1.id, workspace_id=w1.id)
+
+    # Then 1
+    assert result is t1
+    # Then 2
+    assert t1.usage_count == 4
+    sp.rollback()
+    # Then 3
+    assert stored_count(db, t1) == 5
+    # Then 4
+    assert t1.usage_count == 5
+
+
 # --------------------------------------------------------------------------- #
 # Inherited BaseDAO methods on ItemTag
 # --------------------------------------------------------------------------- #
