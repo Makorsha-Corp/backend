@@ -980,7 +980,6 @@ def test_mim_l_01__with_a_machine_id_only_that_machine_s_rows_each_with_its_item
 
 
 # [claude] MIM-L-02
-@pytest.mark.xfail(strict=False, reason="BUG-976: A machine's stock rows have no sort order")
 def test_mim_l_02__with_a_machine_id_rows_come_in_item_name_order_case_insensitive(db, w1, m1, mk_item, mk_stock):
     """MIM-L-02 — with a machine_id: rows come in item-name order, case-insensitive.
     Rules: `list_machine_items` R1 [BUG-976]"""
@@ -997,7 +996,6 @@ def test_mim_l_02__with_a_machine_id_rows_come_in_item_name_order_case_insensiti
 
 
 # [claude] MIM-L-03
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mim_l_03__with_a_machine_id_a_soft_deleted_machine_gives_an_empty_list(db, w1, i1, m1, mx, mk_stock):
     """MIM-L-03 — with a machine_id: a soft-deleted machine gives an empty list.
     Rules: `list_machine_items` R1 [BUG-979]"""
@@ -1013,7 +1011,6 @@ def test_mim_l_03__with_a_machine_id_a_soft_deleted_machine_gives_an_empty_list(
 
 
 # [claude] MIM-L-04
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mim_l_04__with_a_machine_id_a_machine_in_a_soft_deleted_factory_gives_an_empty_list(db, w1, i1, m1, mf, mk_stock):
     """MIM-L-04 — with a machine_id: a machine in a soft-deleted factory gives an empty list.
     Rules: `list_machine_items` R1 [BUG-979]"""
@@ -1029,7 +1026,6 @@ def test_mim_l_04__with_a_machine_id_a_machine_in_a_soft_deleted_factory_gives_a
 
 
 # [claude] MIM-L-05
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mim_l_05__with_a_machine_id_a_removed_item_s_row_is_left_out_the_others_stay(db, w1, i1, ix, m1, mk_stock):
     """MIM-L-05 — with a machine_id: a removed item's row is left out, the others stay.
     Rules: `list_machine_items` R1 [BUG-980]"""
@@ -1254,7 +1250,6 @@ def test_mim_l_23__with_a_machine_id_skip_past_the_end_gives_an_empty_list(db, w
 
 
 # [claude] MIM-L-24
-@pytest.mark.xfail(strict=False, reason="BUG-976: A machine's stock rows have no sort order")
 def test_mim_l_24__with_a_machine_id_consecutive_windows_partition_the_rows(db, w1, i1, i2, i3, m1, mk_stock):
     """MIM-L-24 — with a machine_id: consecutive windows partition the rows.
     Rules: `list_machine_items` R5 [BUG-976]"""

@@ -149,9 +149,6 @@ BUG_TITLES = {
     "BUG-1338": "Item summary shows finished goods of a removed item",
     "BUG-1328": "Item summary counts finished goods of a deleted factory",
     "BUG-884": "Item summary still shows and totals stock held in a soft-deleted factory",
-    "BUG-982": "Item summary silently stops at 500 machines",
-    "BUG-981": "Item summary still lists and counts placements on deleted machines and in deleted factories",
-    "BUG-977": "Machine placements of an item have no sort order",
     "BUG-1326": "An item's product rows have no sort order",
     "BUG-932": "An item's tags on its summary have no sort order",
     "BUG-640": "Ledger lists ordered by `performed_at` only; ties in no fixed order",
@@ -4217,7 +4214,6 @@ def test_ism_dp_03__removed_item_no_finished_goods(db, st, mk):
     assert result.kpis.product_qty_total == 0
 
 
-@xf("BUG-981")
 def test_ism_dp_04__placement_on_deleted_machine_not_listed(db, st, mk):
     """ISM-DP-04 — a placement on a deleted machine is not listed.
     Rules: _machine_placements R1 [BUG-981]."""
@@ -4231,7 +4227,6 @@ def test_ism_dp_04__placement_on_deleted_machine_not_listed(db, st, mk):
     assert result.kpis.machine_placement_count == 1
 
 
-@xf("BUG-981")
 def test_ism_dp_05__placement_on_machine_of_deleted_factory_not_listed(db, st, mk):
     """ISM-DP-05 — a placement on a machine of a deleted factory is not listed.
     Rules: _machine_placements R1 [BUG-981]; _machine_location_map R5."""
@@ -4245,7 +4240,6 @@ def test_ism_dp_05__placement_on_machine_of_deleted_factory_not_listed(db, st, m
     assert result.kpis.machine_placement_count == 1
 
 
-@xf("BUG-982")
 def test_ism_dp_06__placements_not_capped_at_500(db, st, mk):
     """ISM-DP-06 — placements are not capped at 500.
     Rules: _machine_placements R1 [BUG-982]."""
@@ -4269,7 +4263,6 @@ def _summary_recorded(db, st):
     return result, rec
 
 
-@xf("BUG-977")
 def test_ism_dp_07__placement_read_has_order_by(db, st, mk):
     """ISM-DP-07 — the placement read has an ORDER BY.
     Rules: _machine_placements R5 [BUG-977]."""
