@@ -65,7 +65,7 @@ attachments (deferred until after launch).
 Every bug gets a unique `BUG-<n>` in `docs/testing/bugs.md`. To avoid
 collisions between people working in parallel, use your own range:
 
-- main sweep (owner): up to BUG-4999 (last used: BUG-3229)
+- main sweep (owner): up to BUG-4999 (last used: BUG-3302)
 - production testing: **BUG-5000…5999**
 
 Hand each module in a batch its own block of 20–50 ids inside your range.

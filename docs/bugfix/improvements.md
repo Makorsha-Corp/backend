@@ -197,3 +197,13 @@ All 3 units CLEAN on the first round, no fixer feedback rounds, no contract chan
 | P19 | Clock-bug tests that patch the old `<module>.datetime` name without `create=True` break when the clean fix drops that import (BUG-1441: 33 errors). | Pre-check: for clock bugs, check every patched name survives the clean fix; test designer: patch old and new names with `create=True`. |
 | P20 | Unclear whether a fixer may leave a now-unused import to keep tests green. | Fixer rule: remove imports the fix makes unused (ruff F401); the pre-check must make tests tolerate that. |
 | P21 | Caller tests passed a plain string where the contract is an enum (BUG-886), so a correct fix failed them. | Pre-check: compare each caller test's argument types against the spec signature. |
+
+### Batch 3 fix round (2026-11-27)
+
+| Id | Seen | Fix |
+|---|---|---|
+| A24 | The extra batch rules in the fixer prompts (reproduce first, no BUG ids in comments, remove unused imports, type hints) worked: all 3 fixers reproduced every bug first. | Move them into `.claude/agents/bug-fixer.md` (needs a restart). |
+| F7 | Follow-up unit (now BUG-3302 in bugs.md): `app/dao/item_tag.py` decrement leaves a stale in-memory value after a savepoint rollback (review R1-1 in batch 2); the account_tag fixer found `synchronize_session="fetch"` + expire fixes it. Its comments also carry BUG ids. | Plan a small follow-up unit after account_tag merges. |
+| F8 | `_escape_ilike` is now copied in 3 DAOs (account_invoice, help_ticket, machine). | Later refactor unit: one shared helper in `app/utils/` (not inside the one-file bug units). |
+| F9 | `machine_activity_events` has only single-column indexes; the BUG-886 latest-status filter would benefit from a partial index `(workspace_id, machine_id, created_at DESC, id DESC) WHERE event_type='status_updated'`. | Later `db-change` unit (migration). |
+| T20 | Running legacy `tests/test_*.py` and `tests/unit/...` in one pytest call errors 673 unit tests (`fixture 'db' not found`). | Tester skill C.4: run legacy files in a separate pytest call. |

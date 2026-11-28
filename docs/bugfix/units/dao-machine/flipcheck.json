@@ -1,0 +1,291 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_machine.py::test_mch_gf_12__the_live_machine_of_a_soft_deleted_factory_is_not_returned",
+    "tests/unit/dao/test_machine.py::test_mch_gs_12__a_machine_whose_factory_is_soft_deleted_is_not_returned",
+    "tests/unit/dao/test_machine.py::test_mch_gs_15__a_soft_deleted_section_returns_an_empty_list_although_an_assignment",
+    "tests/unit/dao/test_machine.py::test_mch_rs_17__a_machine_restored_inside_a_soft_deleted_factory_stays_hidden_from",
+    "tests/unit/dao/test_machine.py::test_mch_rs_18__a_machine_restored_inside_a_soft_deleted_factory_stays_hidden_from",
+    "tests/unit/dao/test_machine.py::test_mch_sa_100__descending_names_that_differ_only_in_case_come_back_in_id_order",
+    "tests/unit/dao/test_machine.py::test_mch_sa_130__a_tab_before_and_a_newline_after_the_search_text_are_removed_before_matching",
+    "tests/unit/dao/test_machine.py::test_mch_sa_15__the_machine_of_a_soft_deleted_factory_is_not_listed",
+    "tests/unit/dao/test_machine.py::test_mch_sa_16__the_id_of_a_soft_deleted_factory_as_the_filter_returns_an_empty_list",
+    "tests/unit/dao/test_machine.py::test_mch_sa_17__the_machine_of_a_soft_deleted_factory_does_not_use_up_a_place_in_the",
+    "tests/unit/dao/test_machine.py::test_mch_sa_18__the_machine_of_a_soft_deleted_factory_is_not_returned_when_the_other",
+    "tests/unit/dao/test_machine.py::test_mch_sa_33__the_id_of_a_soft_deleted_section_as_the_filter_returns_an_empty_list",
+    "tests/unit/dao/test_machine.py::test_mch_sa_39__a_search_of_three_spaces_applies_no_search_filter",
+    "tests/unit/dao/test_machine.py::test_mch_sa_40__a_search_of_a_space_a_tab_and_a_newline_applies_no_search_filter",
+    "tests/unit/dao/test_machine.py::test_mch_sa_41__spaces_around_the_search_text_are_removed_before_matching",
+    "tests/unit/dao/test_machine.py::test_mch_sa_42__leading_spaces_of_the_search_text_are_removed_before_matching",
+    "tests/unit/dao/test_machine.py::test_mch_sa_43__a_trailing_space_of_the_search_text_is_removed_before_matching",
+    "tests/unit/dao/test_machine.py::test_mch_sa_55__a_percent_sign_alone_finds_only_machines_that_contain_a_percent_sign",
+    "tests/unit/dao/test_machine.py::test_mch_sa_56__a_percent_sign_inside_the_text_is_not_a_wildcard",
+    "tests/unit/dao/test_machine.py::test_mch_sa_58__an_underscore_alone_finds_only_machines_that_contain_an_underscore",
+    "tests/unit/dao/test_machine.py::test_mch_sa_59__an_underscore_inside_the_text_is_not_a_wildcard",
+    "tests/unit/dao/test_machine.py::test_mch_sa_60__a_backslash_in_the_text_is_matched_literally",
+    "tests/unit/dao/test_machine.py::test_mch_sa_67__latest_event_type_running_returns_the_machine_whose_latest_status_is",
+    "tests/unit/dao/test_machine.py::test_mch_sa_68__latest_event_type_idle_returns_the_machine_whose_latest_status_is_idle",
+    "tests/unit/dao/test_machine.py::test_mch_sa_69__latest_event_type_off_returns_the_machine_whose_latest_status_is_off",
+    "tests/unit/dao/test_machine.py::test_mch_sa_70__latest_event_type_maintenance_returns_the_machine_whose_latest_status",
+    "tests/unit/dao/test_machine.py::test_mch_sa_72__the_newest_status_change_decides_the_machine_matches_its_newest_status",
+    "tests/unit/dao/test_machine.py::test_mch_sa_73__the_newest_status_change_decides_the_machine_does_not_match_an_older",
+    "tests/unit/dao/test_machine.py::test_mch_sa_74__latest_goes_by_created_at_not_by_the_order_of_insertion",
+    "tests/unit/dao/test_machine.py::test_mch_sa_75__on_a_created_at_tie_the_status_change_with_the_greater_id_decides",
+    "tests/unit/dao/test_machine.py::test_mch_sa_76__on_a_created_at_tie_the_status_change_with_the_lower_id_does_not_match",
+    "tests/unit/dao/test_machine.py::test_mch_sa_77__a_machine_with_only_events_of_other_types_never_matches",
+    "tests/unit/dao/test_machine.py::test_mch_sa_78__a_newer_event_of_another_type_does_not_replace_the_latest_status",
+    "tests/unit/dao/test_machine.py::test_mch_sa_79__the_status_in_a_newer_event_of_another_type_is_not_matched",
+    "tests/unit/dao/test_machine.py::test_mch_sa_80__a_latest_status_change_without_metadata_matches_nothing_and_the_older",
+    "tests/unit/dao/test_machine.py::test_mch_sa_81__a_latest_status_change_without_a_status_key_matches_nothing_and_the",
+    "tests/unit/dao/test_machine.py::test_mch_sa_82__a_status_change_recorded_in_another_workspace_is_not_counted",
+    "tests/unit/dao/test_machine.py::test_mch_sa_83__the_status_of_a_change_recorded_in_another_workspace_is_not_matched",
+    "tests/unit/dao/test_machine.py::test_mch_sa_84__two_newest_status_changes_with_the_same_status_list_the_machine_once",
+    "tests/unit/dao/test_machine.py::test_mch_sa_85__the_status_filter_combines_with_the_factory_filter",
+    "tests/unit/dao/test_machine.py::test_mch_sa_86__the_status_filter_combines_with_the_search_text",
+    "tests/unit/dao/test_machine.py::test_mch_sa_87__the_status_filter_is_sorted_and_paged_like_any_other_result",
+    "tests/unit/dao/test_machine.py::test_mch_sa_88__with_the_status_filter_a_machine_of_another_workspace_is_not_returned",
+    "tests/unit/dao/test_machine.py::test_mch_sa_89__with_the_status_filter_a_soft_deleted_machine_is_not_returned",
+    "tests/unit/dao/test_machine.py::test_mch_sa_99__ascending_names_that_differ_only_in_case_come_back_in_id_order",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_n_20__in_a_soft_deleted_factory_the_answer_is_false",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_12__latest_event_type_is_handed_to_the_list",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_13__search_text_is_literal_through_the_list",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_14__search_text_is_trimmed_through_the_list",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_19__a_machine_of_a_soft_deleted_factory_is_hidden_on_the_list_path",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_26__a_machine_of_a_soft_deleted_factory_is_hidden_on_the_maintenance_path",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_32__the_id_of_a_soft_deleted_section_finds_nothing",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_39__latest_event_type_works_on_the_maintenance_path",
+    "tests/unit/managers/test_machine_manager.py::test_mcm_s_88__a_case_only_tie_on_the_maintenance_sort_falls_to_id",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_12__pass_through_bug_886_latest_event_type_filters_the_list",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_13__pass_through_bug_887_a_case_only_tie_on_the_maintenance_sort_falls_to_id",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_14__pass_through_bug_888_search_text_is_literal",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_15__pass_through_bug_889_the_id_of_a_soft_deleted_section_finds_nothing",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_16__pass_through_bug_890_a_machine_of_a_soft_deleted_factory_is_not_listed",
+    "tests/unit/services/test_machine_service.py::test_mcs_l_17__pass_through_bug_892_search_text_is_trimmed"
+  ],
+  "rejections": [],
+  "notes": [],
+  "ignored_nonstrict": [
+    {
+      "test": "tests/unit/dao/test_attachment_ledger.py::test_atl_g_42__on_a_tie_the_higher_id_comes_first_when_the_higher_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-640"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_attachment_ledger.py::test_atl_g_43__on_a_tie_the_higher_id_comes_first_with_no_update",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-640"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_expense_order_approver.py::test_eoa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_22__factories_come_back_in_id_order_not_in_name_order_and_not_in_the",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_23__the_first_window_of_one_holds_the_factory_with_the_lowest_id",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_24__the_second_window_of_one_holds_the_factory_with_the_next_id",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory_section.py::test_fsd_inh_18__get_by_workspace_returns_the_sections_in_id_order_not_in_name_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag.py::test_itg_inh_18__get_by_workspace_returns_the_tags_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_inh_14__get_by_workspace_returns_the_links_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_tfi_13__two_tags_with_the_same_name_come_back_lower_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-932"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_tfs_18__two_tags_with_the_same_name_come_back_lower_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-933"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_activity_event.py::test_mae_lm_14__on_a_tie_the_entry_is_the_highest_id_the_row_the_single_lookup_returns",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1090"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gt_27__rows_come_back_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-977"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_11__rows_come_back_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_33__id_order_holds_when_the_lower_id_sits_on_the_higher_machine_and_item",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_payment_transaction_event.py::test_pte_g_13__on_a_created_at_tie_the_lower_id_comes_first_after_the_lower_row_is_upd",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1190"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item.py::test_pci_g_12__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1276"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item.py::test_pci_g_14__the_order_comes_before_paging_and_the_hidden_row_does_not_use_up_the_s",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1276"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item_ledger.py::test_pcil_bal_16__tie_greatest_id_decides",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-2463"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item_ledger.py::test_pcil_le_09__tie_greatest_id_returned",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-2463"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_purchase_order_approver.py::test_poa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_delivery_item.py::test_sdi_g_11__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1271"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_order_approver.py::test_soa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_order_item.py::test_soi_g_12__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1270"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_transfer_order_approver.py::test_toa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_work_order_approver.py::test_woa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_work_order_item.py::test_woi_g_16__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1272"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_order_workflow_service.py::test_owfs_gl_04__id_order_after_update",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_order_workflow_service.py::test_owfs_gl_05__paged_after_update_no_miss_no_repeat",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_purchase_order_service.py::test_pos_br_05__lines_in_id_order",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-3172"
+      ]
+    }
+  ],
+  "before_commit": "614bbcedc6d5b742019040a9e4fec93181fc33f5",
+  "after_commit": "614bbcedc6d5b742019040a9e4fec93181fc33f5",
+  "bugs": [
+    "BUG-886",
+    "BUG-887",
+    "BUG-888",
+    "BUG-889",
+    "BUG-890",
+    "BUG-891",
+    "BUG-892"
+  ],
+  "env_warnings": []
+}
