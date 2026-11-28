@@ -31,6 +31,7 @@ class DAOMachineSectionAssignment(BaseDAO[MachineSectionAssignment, MachineSecti
                 MachineSectionAssignment.factory_section_id == factory_section_id,
                 MachineSectionAssignment.workspace_id == workspace_id,
             )
+            .order_by(MachineSectionAssignment.id.asc())
             .offset(skip).limit(limit).all()
         )
 
@@ -41,6 +42,9 @@ class DAOMachineSectionAssignment(BaseDAO[MachineSectionAssignment, MachineSecti
         """Replace whatever assignment a machine has with `factory_section_id`.
         Passing None clears the assignment entirely (machine becomes unassigned)."""
         existing = self.get_by_machine(db, machine_id=machine_id, workspace_id=workspace_id)
+        # Re-saving the current section must keep the original row and its audit stamps.
+        if existing and existing.factory_section_id == factory_section_id:
+            return existing
         if existing:
             db.delete(existing)
             db.flush()
@@ -58,9 +62,8 @@ class DAOMachineSectionAssignment(BaseDAO[MachineSectionAssignment, MachineSecti
         self, db: Session, *, factory_section_id: int, workspace_id: int
     ) -> list[int]:
         """Unassign every machine currently pointing at this section — used when the
-        section itself is deleted. Deletes row-by-row (not a bulk DELETE) so any
-        already-loaded Machine.section_assignment in this session's identity map
-        gets properly invalidated. Returns the affected machine_ids."""
+        section itself is deleted. Already-loaded Machine objects are not refreshed;
+        the caller must expire or reload them. Returns the affected machine_ids."""
         rows = self.get_by_section(db, factory_section_id=factory_section_id, workspace_id=workspace_id, limit=10000)
         machine_ids = [r.machine_id for r in rows]
         for row in rows:

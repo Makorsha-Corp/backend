@@ -341,7 +341,6 @@ def test_msm_set_01__a_machine_without_a_section_is_put_into_a_live_section_of_i
     assert count_rows(db, "machine_section_assignments") == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-909: Re-saving a machine's current section deletes and re-creates its assignment")
 def test_msm_set_08__re_saving_the_section_the_machine_already_has_leaves_its_link(db, w1, u1, u2, f1, m1, s1, mk_assignment):
     """MSM-SET-08 — re-saving the section the machine already has leaves its link untouched.
     Rules: `set_assignment` R4 [BUG-909]"""
@@ -1348,11 +1347,6 @@ def test_msm_clr_09__all_10_001_links_of_a_section_are_deleted_and_listed(db, w1
 
 
 # [claude] MSM-CLR-13
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-906: Assignment rows of a section have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_msm_clr_13__the_machine_ids_come_back_in_the_order_of_the_link_ids(db, w1, u2, m1, m2, m3, s1, mk_assignment):
     """MSM-CLR-13 — the machine ids come back in the order of the link ids.
     Rules: `clear_for_section` R7 [BUG-906]"""

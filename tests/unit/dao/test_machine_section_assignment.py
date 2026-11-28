@@ -333,7 +333,6 @@ def test_msa_up_01__a_machine_without_an_assignment_gets_one_new_row(db, w1, u2,
     assert count_rows(db, "machine_section_assignments") == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-909: Re-saving a machine's current section deletes and re-creates its assignment")
 def test_msa_up_03__re_saving_the_section_the_machine_already_has_leaves_its_row_untouched(db, w1, u1, u2, m1, s1, mk_assignment):
     """MSA-UP-03 — re-saving the section the machine already has leaves its row untouched.
     Rules: `upsert_for_machine` R3 [BUG-909]"""
@@ -1122,11 +1121,6 @@ def test_msa_gs_18__negative_limit_is_rejected_by_the_database_and_nothing_chang
 
 
 # [claude] MSA-GS-20
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-906: Assignment rows of a section have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_msa_gs_20__rows_come_back_by_id_ascending(db, w1, u2, m1, m2, m3, s1, mk_assignment):
     """MSA-GS-20 — rows come back by id ascending.
     Rules: `get_by_section` R6 [BUG-906]"""
@@ -1145,11 +1139,6 @@ def test_msa_gs_20__rows_come_back_by_id_ascending(db, w1, u2, m1, m2, m3, s1, m
 
 
 # [claude] MSA-GS-21
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-906: Assignment rows of a section have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_msa_gs_21__a_middle_window_holds_the_second_and_third_row_by_id(db, w1, u2, m1, m2, m3, s1, mk_assignment):
     """MSA-GS-21 — a middle window holds the second and third row by id.
     Rules: `get_by_section` R6 [BUG-906], R4"""
@@ -1166,7 +1155,6 @@ def test_msa_gs_21__a_middle_window_holds_the_second_and_third_row_by_id(db, w1,
 
 
 # [claude] MSA-GS-22
-@pytest.mark.xfail(strict=True, reason="BUG-906: Assignment rows of a section have no sort order")
 def test_msa_gs_22__the_by_section_query_asks_the_database_for_an_order(db, w1, m1, s1, mk_assignment):
     """MSA-GS-22 — the by-section query asks the database for an order.
     Rules: `get_by_section` R6 [BUG-906]; `clear_for_section` R7 [BUG-906] (same query)"""
@@ -1627,11 +1615,6 @@ def test_msa_cl_10__once_the_machine_is_expired_it_reports_no_section(db, w1, m1
 
 
 # [claude] MSA-CL-11
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-906: Assignment rows of a section have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_msa_cl_11__the_machine_ids_come_back_in_the_order_of_the_row_ids(db, w1, u2, m1, m2, m3, s1, mk_assignment):
     """MSA-CL-11 — the machine ids come back in the order of the row ids.
     Rules: `clear_for_section` R7 [BUG-906]"""

@@ -2844,7 +2844,6 @@ def test_mcm_u_72__a_section_of_the_old_factory_sent_with_a_move_is_refused(db, 
 
 
 # [claude] MCM-U-73
-@pytest.mark.xfail(strict=True, reason="BUG-909: Re-saving a machine's current section deletes and re-creates its assignment")
 def test_mcm_u_73__re_sending_the_current_section_keeps_the_link_row(db, w1, u1, u2, s1, mk_machine, mk_link):
     """MCM-U-73 — re-sending the current section keeps the link row.
     Rules: `update_machine` R18 [BUG-909]"""
