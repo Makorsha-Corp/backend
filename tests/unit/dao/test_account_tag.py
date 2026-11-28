@@ -33,12 +33,6 @@ dao = account_tag_dao
 # Convention "MISSING": an id no row of any table has
 MISSING = 999999999
 
-BUG_1482 = "BUG-1482: Account tag lists have no sort order; \"system tags first\" does not happen"
-BUG_1483 = "BUG-1483: System tag list includes deleted system tags"
-BUG_1484 = "BUG-1484: Account tag usage counter can lose concurrent changes"
-BUG_1485 = "BUG-1485: Account tag picker silently stops at 100 tags"
-NON_STRICT = " (non-strict: today's order is the plan's physical order, which can match by accident)"
-
 
 # --------------------------------------------------------------------------- #
 # Conventions -> standing rows (W1, W2; every test)
@@ -478,7 +472,6 @@ def test_atg_act_04__an_unknown_workspace_returns_an_empty_list(db, mk_tag):
 
 
 # [claude] ATG-ACT-05
-@pytest.mark.xfail(strict=True, reason=BUG_1485)
 def test_atg_act_05__every_active_tag_is_returned_101_give_101(db, w1):
     """ATG-ACT-05 — every active tag is returned: 101 give 101.
     Rules: `get_active_tags_in_workspace` R2 [BUG-1485]"""
@@ -508,7 +501,6 @@ def test_atg_act_06__a_deleted_tag_ahead_of_100_active_ones_does_not_take_a_plac
 
 
 # [claude] ATG-ACT-07
-@pytest.mark.xfail(strict=False, reason=BUG_1482 + NON_STRICT)
 def test_atg_act_07__every_system_tag_comes_before_every_user_tag(db, w1, mk_tag, mk_system_tag):
     """ATG-ACT-07 — every system tag comes before every user tag.
     Rules: `get_active_tags_in_workspace` R3 [BUG-1482]"""
@@ -527,7 +519,6 @@ def test_atg_act_07__every_system_tag_comes_before_every_user_tag(db, w1, mk_tag
 
 
 # [claude] ATG-ACT-08
-@pytest.mark.xfail(strict=False, reason=BUG_1482 + NON_STRICT)
 def test_atg_act_08__within_a_group_name_case_insensitive_then_id(db, w1, mk_tag):
     """ATG-ACT-08 — within a group: name case-insensitive, then id.
     Rules: `get_active_tags_in_workspace` R4 [BUG-1482]"""
@@ -547,7 +538,6 @@ def test_atg_act_08__within_a_group_name_case_insensitive_then_id(db, w1, mk_tag
 
 
 # [claude] ATG-ACT-09
-@pytest.mark.xfail(strict=True, reason=BUG_1482)
 def test_atg_act_09__the_query_orders_by_system_first_then_name_case_insensitive_then_id(db, w1, mk_tag):
     """ATG-ACT-09 — the query orders by system first, then name case-insensitive, then id.
     Rules: `get_active_tags_in_workspace` R3, R4 [BUG-1482]"""
@@ -661,7 +651,6 @@ def test_atg_sys_04__no_limit_101_system_tags_give_101(db, w1):
 
 
 # [claude] ATG-SYS-05
-@pytest.mark.xfail(strict=True, reason=BUG_1483)
 def test_atg_sys_05__a_deleted_system_tag_is_not_returned(db, w1, mk_system_tag):
     """ATG-SYS-05 — a deleted system tag is not returned.
     Rules: `get_system_tags_in_workspace` R2 [BUG-1483]"""
@@ -677,7 +666,6 @@ def test_atg_sys_05__a_deleted_system_tag_is_not_returned(db, w1, mk_system_tag)
 
 
 # [claude] ATG-SYS-06
-@pytest.mark.xfail(strict=False, reason=BUG_1482 + NON_STRICT)
 def test_atg_sys_06__ordered_by_name_case_insensitive_then_id(db, w1, mk_system_tag):
     """ATG-SYS-06 — ordered by name case-insensitive, then id.
     Rules: `get_system_tags_in_workspace` R3 [BUG-1482]"""
@@ -696,7 +684,6 @@ def test_atg_sys_06__ordered_by_name_case_insensitive_then_id(db, w1, mk_system_
 
 
 # [claude] ATG-SYS-07
-@pytest.mark.xfail(strict=True, reason=BUG_1482)
 def test_atg_sys_07__the_query_orders_by_name_case_insensitive_then_id(db, w1, mk_system_tag):
     """ATG-SYS-07 — the query orders by name case-insensitive, then id.
     Rules: `get_system_tags_in_workspace` R3 [BUG-1482]"""
@@ -840,7 +827,6 @@ def test_atg_inc_05__a_negative_stored_counter_goes_up_by_one(db, w1, mk_tag):
 
 
 # [claude] ATG-INC-06
-@pytest.mark.xfail(strict=True, reason=BUG_1484)
 def test_atg_inc_06__the_increase_applies_to_the_stored_value_not_the_loaded_one(db, w1, mk_tag):
     """ATG-INC-06 — the increase applies to the stored value, not the loaded one.
     Rules: `increment_usage_count` R5 [BUG-1484]"""
@@ -1038,7 +1024,6 @@ def test_atg_dec_07__a_deleted_system_tag_is_decremented_like_any_other(db, w1, 
 
 
 # [claude] ATG-DEC-08
-@pytest.mark.xfail(strict=True, reason=BUG_1484)
 def test_atg_dec_08__the_decrease_applies_to_the_stored_value_not_the_loaded_one(db, w1, mk_tag):
     """ATG-DEC-08 — the decrease applies to the stored value, not the loaded one.
     Rules: `decrement_usage_count` R6 [BUG-1484]"""
@@ -1059,7 +1044,6 @@ def test_atg_dec_08__the_decrease_applies_to_the_stored_value_not_the_loaded_one
 
 
 # [claude] ATG-DEC-09
-@pytest.mark.xfail(strict=True, reason=BUG_1484)
 def test_atg_dec_09__the_not_below_0_check_uses_the_stored_value_stored_0_stays_0(db, w1, mk_tag):
     """ATG-DEC-09 — the "not below 0" check uses the stored value: stored 0 stays 0.
     Rules: `decrement_usage_count` R6 [BUG-1484]"""

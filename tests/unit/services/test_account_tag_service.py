@@ -45,9 +45,6 @@ MISSING = 999999999
 # Convention "BN" (Bengali, "raw material")
 BN = "কাঁচামাল"
 
-BUG_1482 = "BUG-1482: Account tag lists have no sort order"
-BUG_1483 = "BUG-1483: System tag list includes deleted system tags"
-BUG_1485 = "BUG-1485: Account tag picker silently stops at 100 tags"
 BUG_1682 = "BUG-1682: Account tag names are stored untrimmed, and blank names are accepted"
 BUG_1683 = "BUG-1683: A deleted account tag's code can never be used again"
 BUG_1684 = "BUG-1684: Account tag code uniqueness is not enforced by the database"
@@ -334,7 +331,6 @@ def test_atv_t_06__the_list_neither_commits_nor_rolls_back(db, w1, mk_tag):
 
 
 # [claude] ATV-T-07
-@pytest.mark.xfail(strict=False, reason=BUG_1482)
 def test_atv_t_07__pass_through_bug_1482_system_tags_first_then_name_case_insensitive_then_id(
     db, w1, mk_tag, mk_system_tag,
 ):
@@ -354,7 +350,6 @@ def test_atv_t_07__pass_through_bug_1482_system_tags_first_then_name_case_insens
 
 
 # [claude] ATV-T-08
-@pytest.mark.xfail(strict=True, reason=BUG_1485)
 def test_atv_t_08__pass_through_bug_1485_every_live_tag_is_returned_101_of_101(db, w1):
     """ATV-T-08 — pass-through BUG-1485: every live tag is returned, 101 of 101.
     Rules: `get_tags` R1 [BUG-1485]"""
@@ -404,7 +399,6 @@ def test_atv_y_02__a_live_system_tag_of_the_workspace_is_returned_when_there_is_
 
 
 # [claude] ATV-Y-03
-@pytest.mark.xfail(strict=True, reason=BUG_1483)
 def test_atv_y_03__pass_through_bug_1483_a_deleted_system_tag_is_not_returned(db, w1, mk_system_tag):
     """ATV-Y-03 — pass-through BUG-1483: a deleted system tag is not returned.
     Rules: `get_system_tags` R1 [BUG-1483]"""
@@ -418,7 +412,6 @@ def test_atv_y_03__pass_through_bug_1483_a_deleted_system_tag_is_not_returned(db
 
 
 # [claude] ATV-Y-04
-@pytest.mark.xfail(strict=False, reason=BUG_1482)
 def test_atv_y_04__pass_through_bug_1482_system_tags_come_by_name_case_insensitive_ascending(
     db, w1, mk_system_tag,
 ):
