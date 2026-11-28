@@ -34,10 +34,6 @@ dao = help_ticket_dao
 # Convention "MISSING": an id that no row of any table has
 MISSING = 999999999
 
-BUG_1441 = "BUG-1441: A help ticket number's year comes from the server's local clock"
-BUG_1442 = "BUG-1442: Help tickets of one creation time come back in no fixed order"
-BUG_1443 = "BUG-1443: `%` and `_` in the support inbox search match every ticket"
-
 
 # --------------------------------------------------------------------------- #
 # Conventions -> the rows that exist in every test
@@ -500,7 +496,6 @@ def test_hlp_cw_02__the_second_ticket_gets_the_next_number(db, w1, u2, mk_ticket
 
 
 # [claude] HLP-CW-03
-@pytest.mark.xfail(strict=True, reason=BUG_1441)
 def test_hlp_cw_03__the_year_comes_from_utc_not_the_server_s_local_clock(db, w1, u1):
     """HLP-CW-03 — the year comes from UTC, not the server's local clock.
     Rules: `create_with_user` R2 [BUG-1441]"""
@@ -1254,7 +1249,6 @@ def test_hlp_lw_16__on_a_tie_both_tickets_sit_between_the_newer_and_the_older_on
 
 
 # [claude] HLP-LW-17
-@pytest.mark.xfail(strict=False, reason=BUG_1442)
 def test_hlp_lw_17__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated(db, w1, mk_ticket):
     """HLP-LW-17 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `list_by_workspace` R5 [BUG-1442]"""
@@ -1275,7 +1269,6 @@ def test_hlp_lw_17__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_u
 
 
 # [claude] HLP-LW-18
-@pytest.mark.xfail(strict=True, reason=BUG_1442)
 def test_hlp_lw_18__the_query_orders_by_created_at_then_id_both_descending(db, w1, mk_ticket):
     """HLP-LW-18 — the query orders by created_at, then id, both descending.
     Rules: `list_by_workspace` R5 [BUG-1442]"""
@@ -1435,7 +1428,6 @@ def test_hlp_lw_26__asked_for_w2_only_the_w2_ticket_is_returned_though_the_w1_ti
 
 
 # [claude] HLP-LW-27
-@pytest.mark.xfail(strict=False, reason=BUG_1442)
 def test_hlp_lw_27__on_a_tie_the_id_decides_not_the_title(db, w1, mk_ticket):
     """HLP-LW-27 — on a tie the id decides, not the title.
     Rules: `list_by_workspace` R5 [BUG-1442]"""
@@ -1769,7 +1761,6 @@ def test_hlp_lp_10__a_search_of_only_spaces_matches_every_ticket(db, w2, mk_tick
 
 
 # [claude] HLP-LP-11
-@pytest.mark.xfail(strict=True, reason=BUG_1443)
 def test_hlp_lp_11__in_the_search_matches_only_a_real(db, TAG, mk_ticket):
     """HLP-LP-11 — _ in the search matches only a real _.
     Rules: `list_platform` R6 [BUG-1443]"""
@@ -1786,7 +1777,6 @@ def test_hlp_lp_11__in_the_search_matches_only_a_real(db, TAG, mk_ticket):
 
 
 # [claude] HLP-LP-12
-@pytest.mark.xfail(strict=True, reason=BUG_1443)
 def test_hlp_lp_12__in_the_search_matches_only_a_real(db, TAG, mk_ticket):
     """HLP-LP-12 — % in the search matches only a real %.
     Rules: `list_platform` R6 [BUG-1443]"""
@@ -1803,7 +1793,6 @@ def test_hlp_lp_12__in_the_search_matches_only_a_real(db, TAG, mk_ticket):
 
 
 # [claude] HLP-LP-13
-@pytest.mark.xfail(strict=True, reason=BUG_1443)
 def test_hlp_lp_13__a_backslash_in_the_search_matches_only_a_real_backslash(db, TAG, mk_ticket):
     """HLP-LP-13 — a backslash in the search matches only a real backslash.
     Rules: `list_platform` R6 [BUG-1443]"""
@@ -1904,7 +1893,6 @@ def test_hlp_lp_19__newest_first_whatever_the_ids(db, TAG, mk_ticket):
 
 
 # [claude] HLP-LP-20
-@pytest.mark.xfail(strict=False, reason=BUG_1442)
 def test_hlp_lp_20__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_updated(db, TAG, mk_ticket):
     """HLP-LP-20 — on a tie the highest id comes first, when the lowest id was updated.
     Rules: `list_platform` R5 [BUG-1442]"""
@@ -1925,7 +1913,6 @@ def test_hlp_lp_20__on_a_tie_the_highest_id_comes_first_when_the_lowest_id_was_u
 
 
 # [claude] HLP-LP-21
-@pytest.mark.xfail(strict=True, reason=BUG_1442)
 def test_hlp_lp_21__the_query_orders_by_created_at_then_id_both_descending(db, TAG, mk_ticket):
     """HLP-LP-21 — the query orders by created_at, then id, both descending.
     Rules: `list_platform` R5 [BUG-1442]"""
@@ -2027,7 +2014,6 @@ def test_hlp_lp_25__status_is_a_filter_and_keeps_none(db, TAG, mk_ticket):
 
 
 # [claude] HLP-LP-26
-@pytest.mark.xfail(strict=False, reason=BUG_1442)
 def test_hlp_lp_26__on_a_tie_the_id_decides_not_the_title(db, TAG, mk_ticket):
     """HLP-LP-26 — on a tie the id decides, not the title.
     Rules: `list_platform` R5 [BUG-1442]"""
