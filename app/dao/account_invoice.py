@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import ColumnElement, and_, case, func, or_
 from sqlalchemy.orm import Query, Session
 
 from app.dao.base import BaseDAO
@@ -39,6 +39,14 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         """SQL expression — outstanding is invoice_amount - paid_amount (not a column)."""
         return AccountInvoice.invoice_amount - AccountInvoice.paid_amount
 
+    @staticmethod
+    def _same_workspace_account_join() -> ColumnElement[bool]:
+        """Join an invoice to its account only when both are in the same workspace."""
+        return and_(
+            AccountInvoice.account_id == Account.id,
+            Account.workspace_id == AccountInvoice.workspace_id,
+        )
+
     def _order_number_search_conditions(
         self,
         db: Session,
@@ -55,8 +63,12 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
         ]
         conditions = []
         for order_type, order_model, number_column in order_specs:
+            live_order_filters = [order_model.workspace_id == workspace_id]
+            # Only work orders are soft-deletable; a voided order is a state and still matches.
+            if hasattr(order_model, "is_deleted"):
+                live_order_filters.append(order_model.is_deleted == False)
             matching_order_ids = db.query(order_model.id).filter(
-                order_model.workspace_id == workspace_id,
+                *live_order_filters,
                 number_column.ilike(term, escape=self._ILIKE_ESCAPE),
             )
             conditions.append(
@@ -66,7 +78,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
                 )
             )
             matching_invoice_ids = db.query(order_model.invoice_id).filter(
-                order_model.workspace_id == workspace_id,
+                *live_order_filters,
                 order_model.invoice_id.isnot(None),
                 number_column.ilike(term, escape=self._ILIKE_ESCAPE),
             )
@@ -94,11 +106,12 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
     ) -> Query:
         """
         Base query with all list filters. JOINs Account to exclude
-        soft-deleted accounts from results. (SECURITY-CRITICAL)
+        soft-deleted accounts and accounts of another workspace from results.
+        (SECURITY-CRITICAL)
         """
         query = (
             db.query(AccountInvoice)
-            .join(Account, AccountInvoice.account_id == Account.id)
+            .join(Account, self._same_workspace_account_join())
             .filter(
                 AccountInvoice.workspace_id == workspace_id,
                 Account.is_deleted == False,
@@ -125,11 +138,16 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
                     term=term,
                 ),
             ]
-            if raw.isdigit():
+            # ASCII only: str.isdigit() also accepts e.g. "²" (int() raises) and Arabic-Indic digits.
+            if raw.isascii() and raw.isdigit():
                 search_conditions.append(AccountInvoice.id == int(raw))
             query = query.filter(or_(*search_conditions))
         if account_name_search:
-            query = query.filter(Account.name.ilike(f"%{account_name_search}%"))
+            query = query.filter(
+                Account.name.ilike(
+                    f"%{self._escape_ilike(account_name_search)}%", escape=self._ILIKE_ESCAPE
+                )
+            )
         if invoice_date_from:
             query = query.filter(AccountInvoice.invoice_date >= invoice_date_from)
         if invoice_date_to:
@@ -229,7 +247,7 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
                     case((AccountInvoice.payment_status == "overdue", 1), else_=0)
                 ).label("has_overdue"),
             )
-            .join(Account, AccountInvoice.account_id == Account.id)
+            .join(Account, self._same_workspace_account_join())
             .filter(
                 AccountInvoice.workspace_id == workspace_id,
                 Account.is_deleted == False,
@@ -277,11 +295,13 @@ class AccountInvoiceDAO(BaseDAO[AccountInvoice, AccountInvoiceCreate, AccountInv
             query = query.filter(receivable_sq.c.outstanding_total > 0)
 
         if search:
-            query = query.filter(Account.name.ilike(f"%{search}%"))
+            query = query.filter(
+                Account.name.ilike(f"%{self._escape_ilike(search)}%", escape=self._ILIKE_ESCAPE)
+            )
 
         total = query.count()
         rows = (
-            query.order_by(Account.name.asc(), Account.id.asc())
+            query.order_by(func.lower(Account.name).asc(), Account.id.asc())
             .offset(skip)
             .limit(limit)
             .all()

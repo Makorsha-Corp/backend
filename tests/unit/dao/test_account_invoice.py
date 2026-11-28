@@ -75,19 +75,12 @@ TD = date(2031, 6, 15)
 TDM1 = TD - timedelta(days=1)
 TDP1 = TD + timedelta(days=1)
 
-R622 = "BUG-622: Invoice/account search filters are not HR-8 safe"
-R623 = "BUG-623: Accounts-hub page ordered by account name case-sensitively"
 R634 = "BUG-634: Draft invoices counted as open balances and in summary totals"
 R635 = 'BUG-635: No invoice ever becomes "overdue"'
 R636 = (
     'BUG-636: Hub "accounts with open balance" KPI counts accounts the hub list hides'
 )
 R637 = "BUG-637: Whitespace-only invoice-number search returns almost nothing"
-R2690 = (
-    "BUG-2690: An invoice on another workspace's account is listed, "
-    "found by that account's name and counted in totals"
-)
-R2691 = "BUG-2691: A soft-deleted work order's number still finds its invoice"
 R2692 = "BUG-2692: Account invoice summary adds payables and receivables into one total"
 
 
@@ -875,7 +868,6 @@ def test_aiv_on_13__voided_eo_number_still_finds_invoice(db, st):
 
 
 # [claude] AIV-ON-14
-@pytest.mark.xfail(strict=True, reason=R2691)
 def test_aiv_on_14__deleted_wo_number_does_not_find_forward(db, st):
     """AIV-ON-14 — a deleted work order's number does not find its invoice (forward link).
     Rules: _order_number_search_conditions R4 [BUG-2691]"""
@@ -892,7 +884,6 @@ def test_aiv_on_14__deleted_wo_number_does_not_find_forward(db, st):
 
 
 # [claude] AIV-ON-15
-@pytest.mark.xfail(strict=True, reason=R2691)
 def test_aiv_on_15__deleted_wo_number_does_not_find_reverse(db, st):
     """AIV-ON-15 — a deleted work order's number does not find its invoice (reverse link).
     Rules: _order_number_search_conditions R4 [BUG-2691]"""
@@ -1062,7 +1053,6 @@ def test_aiv_fq_05__deleted_but_active_account_out(db, st):
 
 
 # [claude] AIV-FQ-06
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_fq_06__invoice_on_w2_account_not_listed(db, st):
     """AIV-FQ-06 — a W1 invoice on W2's account is not listed.
     Rules: _build_filtered_query R2a [BUG-2690]"""
@@ -1078,7 +1068,6 @@ def test_aiv_fq_06__invoice_on_w2_account_not_listed(db, st):
 
 
 # [claude] AIV-FQ-07
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_fq_07__invoice_on_w0_account_not_listed(db, st):
     """AIV-FQ-07 — a W1 invoice on W0's account is not listed.
     Rules: _build_filtered_query R2a [BUG-2690]"""
@@ -1094,7 +1083,6 @@ def test_aiv_fq_07__invoice_on_w0_account_not_listed(db, st):
 
 
 # [claude] AIV-FQ-08
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_fq_08__foreign_account_name_does_not_find(db, st):
     """AIV-FQ-08 — a foreign account's name does not find a W1 invoice placed on it.
     Rules: _build_filtered_query R2a, R11 [BUG-2690]"""
@@ -1501,7 +1489,6 @@ def test_aiv_fq_35__ascii_digits_match_invoice_id(db, st):
 
 
 # [claude] AIV-FQ-36
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_fq_36__superscript_digit_searched_as_text(db, st):
     """AIV-FQ-36 — a superscript digit is searched as text and never raises.
     Rules: _build_filtered_query R10 [BUG-622]"""
@@ -1515,7 +1502,6 @@ def test_aiv_fq_36__superscript_digit_searched_as_text(db, st):
 
 
 # [claude] AIV-FQ-37
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_fq_37__arabic_indic_digits_do_not_match_id(db, st):
     """AIV-FQ-37 — Arabic-Indic digits do not match the invoice id.
     Rules: _build_filtered_query R10 [BUG-622]"""
@@ -1561,7 +1547,6 @@ def test_aiv_fq_39__account_name_search_not_trimmed(db, st):
 
 
 # [claude] AIV-FQ-40
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_fq_40__percent_in_account_name_search_literal(db, st):
     """AIV-FQ-40 — a percent sign in the account name search is literal.
     Rules: _build_filtered_query R11 [BUG-622]"""
@@ -1576,7 +1561,6 @@ def test_aiv_fq_40__percent_in_account_name_search_literal(db, st):
 
 
 # [claude] AIV-FQ-41
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_fq_41__underscore_in_account_name_search_literal(db, st):
     """AIV-FQ-41 — an underscore in the account name search is literal.
     Rules: _build_filtered_query R11 [BUG-622]"""
@@ -1591,7 +1575,6 @@ def test_aiv_fq_41__underscore_in_account_name_search_literal(db, st):
 
 
 # [claude] AIV-FQ-42
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_fq_42__backslash_in_account_name_search_literal(db, st):
     """AIV-FQ-42 — a backslash in the account name search is literal.
     Rules: _build_filtered_query R11 [BUG-622]"""
@@ -1944,7 +1927,6 @@ def test_aiv_lp_08__w1_does_not_see_w0_invoice(db, st):
 
 
 # [claude] AIV-LP-09
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_lp_09__w1_invoice_on_w2_account_not_listed(db, st):
     """AIV-LP-09 — a W1 invoice placed on W2's account is not listed under that account.
     Rules: list_invoices_page R1; _build_filtered_query R2a [BUG-2690]"""
@@ -2271,7 +2253,6 @@ def test_aiv_pf_16__w0_w2_neither_listed_nor_counted(db, st):
 
 
 # [claude] AIV-PF-17
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_pf_17__invoice_on_w0_account_neither_listed_nor_counted(db, st):
     """AIV-PF-17 — a W1 invoice on W0's account is neither listed nor counted.
     Rules: list_invoices_page_filtered R1, R2; _build_filtered_query R2a [BUG-2690]"""
@@ -2685,7 +2666,6 @@ def test_aiv_ah_19__search_middle_any_case(db, st):
 
 
 # [claude] AIV-AH-20
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_ah_20__percent_in_hub_search_literal(db, st):
     """AIV-AH-20 — a percent sign in the hub search is literal.
     Rules: list_accounts_hub_page R4 [BUG-622]"""
@@ -2700,7 +2680,6 @@ def test_aiv_ah_20__percent_in_hub_search_literal(db, st):
 
 
 # [claude] AIV-AH-21
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_ah_21__underscore_in_hub_search_literal(db, st):
     """AIV-AH-21 — an underscore in the hub search is literal.
     Rules: list_accounts_hub_page R4 [BUG-622]"""
@@ -2715,7 +2694,6 @@ def test_aiv_ah_21__underscore_in_hub_search_literal(db, st):
 
 
 # [claude] AIV-AH-22
-@pytest.mark.xfail(strict=True, reason=R622)
 def test_aiv_ah_22__backslash_in_hub_search_literal(db, st):
     """AIV-AH-22 — a backslash in the hub search is literal.
     Rules: list_accounts_hub_page R4 [BUG-622]"""
@@ -2763,7 +2741,6 @@ def test_aiv_ah_24__same_name_ordered_by_id(db, st):
 
 
 # [claude] AIV-AH-25
-@pytest.mark.xfail(strict=True, reason=R623)
 def test_aiv_ah_25__case_only_names_case_insensitive_then_id(db, st):
     """AIV-AH-25 — names that differ only in case are ordered case-insensitively, then by id.
     Rules: list_accounts_hub_page R5 [BUG-623]"""
@@ -2779,7 +2756,6 @@ def test_aiv_ah_25__case_only_names_case_insensitive_then_id(db, st):
 
 
 # [claude] AIV-AH-26
-@pytest.mark.xfail(strict=True, reason=R623)
 def test_aiv_ah_26__hub_query_orders_by_lower_name(db, st):
     """AIV-AH-26 — the hub query orders by the lower-cased name.
     Rules: list_accounts_hub_page R5 [BUG-623]"""
@@ -3157,7 +3133,6 @@ def test_aiv_hs_09__w0_w2_not_counted(db, st):
 
 
 # [claude] AIV-HS-10
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_hs_10__invoice_on_w2_account_not_counted(db, st):
     """AIV-HS-10 — a W1 invoice on W2's account is not counted.
     Rules: summarize_open_hub_type R1; _build_filtered_query R2a [BUG-2690]"""
@@ -3173,7 +3148,6 @@ def test_aiv_hs_10__invoice_on_w2_account_not_counted(db, st):
 
 
 # [claude] AIV-HS-11
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_hs_11__invoice_on_w0_account_not_counted(db, st):
     """AIV-HS-11 — a W1 invoice on W0's account is not counted.
     Rules: summarize_open_hub_type R1; _build_filtered_query R2a [BUG-2690]"""
@@ -3338,7 +3312,6 @@ def test_aiv_ca_06__other_workspaces_do_not_count(db, st):
 
 
 # [claude] AIV-CA-07
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_ca_07__invoice_on_w2_account_does_not_count(db, st):
     """AIV-CA-07 — a W1 invoice on W2's account does not make that account count.
     Rules: count_accounts_with_any_open_balance R1; _build_filtered_query R2a [BUG-2690]"""
@@ -3497,7 +3470,6 @@ def test_aiv_si_08__w0_w2_not_summed(db, st):
 
 
 # [claude] AIV-SI-09
-@pytest.mark.xfail(strict=True, reason=R2690)
 def test_aiv_si_09__invoice_on_w2_account_not_summed(db, st):
     """AIV-SI-09 — a W1 invoice placed on W2's account is not summed for that account.
     Rules: summarize_invoices R1; _build_filtered_query R2a [BUG-2690]"""

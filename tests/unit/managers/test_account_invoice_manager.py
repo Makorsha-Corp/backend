@@ -1502,7 +1502,6 @@ def test_l_32__not_all_digits_no_id_match(db, M, w1, a1, u1):
     assert M.list_invoices(db, w1.id, invoice_number_search=f"{i2.id}x") == []
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: a non-ASCII digit crashes the digit-only check with ValueError")
 def test_l_33__superscript_digit_no_crash(db, M, w1, a1, u1):
     """AIM-L-33 — a superscript digit should not raise; today it crashes.
     Rules: list_invoices R10 [BUG-622]."""
@@ -1511,7 +1510,6 @@ def test_l_33__superscript_digit_no_crash(db, M, w1, a1, u1):
     assert M.list_invoices(db, w1.id, invoice_number_search="²") == []
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: Unicode isdigit() lets Arabic-Indic digits match by id")
 def test_l_34__arabic_indic_digits_should_not_match_id(db, M, w1, a1, u1):
     """AIM-L-34 — Arabic-Indic digits should never trigger the id-match shortcut.
     Rules: list_invoices R10 [BUG-622]."""
@@ -1530,7 +1528,6 @@ def test_l_35__account_name_search_case_insensitive(db, M, w1, a1, a2, u1):
     assert ids_list(result) == [i1.id]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: account_name_search '%' is an unescaped wildcard matching every account")
 def test_l_36__account_name_percent_literal(db, M, w1, a1, a2, u1):
     """AIM-L-36 — "%" in account_name_search should match a literal percent sign only.
     Rules: list_invoices R11 [BUG-622]."""
@@ -1542,7 +1539,6 @@ def test_l_36__account_name_percent_literal(db, M, w1, a1, a2, u1):
     assert ids_list(result) == [i1.id]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: account_name_search '_' is an unescaped wildcard matching every account")
 def test_l_37__account_name_underscore_literal(db, M, w1, a1, a2, u1):
     """AIM-L-37 — "_" in account_name_search should match a literal underscore only.
     Rules: list_invoices R11 [BUG-622]."""
@@ -1554,7 +1550,6 @@ def test_l_37__account_name_underscore_literal(db, M, w1, a1, a2, u1):
     assert ids_list(result) == [i1.id]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: account_name_search backslash is not escaped (unmatched)")
 def test_l_38__account_name_backslash_literal(db, M, w1, a1, a2, u1):
     """AIM-L-38 — a literal backslash in the account name should be matched by a backslash search.
     Rules: list_invoices R11 [BUG-622]."""
@@ -2196,7 +2191,6 @@ def test_ah_08__search_substring(db, M, w1, a1, a2):
     assert total == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: hub search '%' is not escaped and matches every account")
 def test_ah_09__percent_literal(db, M, w1, a1, a2):
     """AIM-AH-09 — "%" in search should match only a literal percent; today it matches everything.
     Rules: list_accounts_hub_page R4 [BUG-622]."""
@@ -2207,7 +2201,6 @@ def test_ah_09__percent_literal(db, M, w1, a1, a2):
     assert total == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-622: hub search '_' is not escaped and matches every account")
 def test_ah_10__underscore_literal(db, M, w1, a1, a2):
     """AIM-AH-10 — "_" in search should match only a literal underscore; today it matches everything.
     Rules: list_accounts_hub_page R4 [BUG-622]."""
@@ -2266,7 +2259,6 @@ def test_ah_14__unknown_section_same_as_overview(db, M, w1, a1, a2, u1):
     assert total == 4
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-623: hub account order is case-sensitive")
 def test_ah_15__case_insensitive_name_order(db, M, w1):
     """AIM-AH-15 — names should order case-insensitively; today the order is case-sensitive.
     Rules: list_accounts_hub_page R6 [BUG-623]."""
@@ -2351,7 +2343,6 @@ def test_ah_21__equal_names_tie_break_by_id_ignores_heap_order(db, M, w1):
     assert total == 3
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-623: hub account order is case-sensitive")
 def test_ah_22__case_insensitive_equal_names_tie_break_by_id(db, M, w1):
     """AIM-AH-22 — case-insensitively equal names should order by id; today order is case-sensitive.
     Rules: list_accounts_hub_page R6 [BUG-623]."""
