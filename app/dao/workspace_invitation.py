@@ -1,5 +1,6 @@
 """WorkspaceInvitation DAO"""
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
@@ -26,18 +27,22 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
                 WorkspaceInvitation.status == 'pending',
                 WorkspaceInvitation.expires_at > utcnow()
             )
+            .order_by(WorkspaceInvitation.invited_at.desc(), WorkspaceInvitation.id.desc())
             .all()
         )
 
     def get_user_invitations(self, db: Session, *, email: str) -> list[WorkspaceInvitation]:
         """Get all pending invitations for user email"""
+        # Postgres trim() strips only spaces, so Python strips the same character.
+        normalized_email = email.strip(" ").lower()
         return (
             db.query(WorkspaceInvitation)
             .filter(
-                WorkspaceInvitation.email == email,
+                func.lower(func.trim(WorkspaceInvitation.email)) == normalized_email,
                 WorkspaceInvitation.status == 'pending',
                 WorkspaceInvitation.expires_at > utcnow()
             )
+            .order_by(WorkspaceInvitation.invited_at.desc(), WorkspaceInvitation.id.desc())
             .all()
         )
 
@@ -60,6 +65,7 @@ class WorkspaceInvitationDAO(BaseDAO[WorkspaceInvitation, WorkspaceInvitationCre
         return (
             db.query(WorkspaceInvitation)
             .filter(WorkspaceInvitation.workspace_id == workspace_id)
+            .order_by(WorkspaceInvitation.invited_at.desc(), WorkspaceInvitation.id.desc())
             .all()
         )
 

@@ -382,11 +382,6 @@ def test_wsi_gp_05__writes_nothing_a_pending_row_stays_pending_an_unflushed_edit
 
 
 # [claude] WSI-GP-06
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1401: Invitation lists have no sort order "
-    "(non-strict: today's rows come back in physical order, which can match by accident)",
-)
 def test_wsi_gp_06__newest_invitation_first_and_on_a_tie_the_higher_id_first(db, w1, mk_inv):
     """WSI-GP-06 — newest invitation first, and on a tie the higher id first.
     Rules: `get_pending_invitations` R4 [BUG-1401]"""
@@ -406,7 +401,6 @@ def test_wsi_gp_06__newest_invitation_first_and_on_a_tie_the_higher_id_first(db,
 
 
 # [claude] WSI-GP-07
-@pytest.mark.xfail(strict=True, reason="BUG-1401: Invitation lists have no sort order")
 def test_wsi_gp_07__the_query_orders_by_invited_at_then_id_both_descending(db, w1, mk_inv):
     """WSI-GP-07 — the query orders by invited_at, then id, both descending.
     Rules: `get_pending_invitations` R4 [BUG-1401]"""
@@ -489,7 +483,6 @@ def test_wsi_ui_01__pending_unexpired_rows_of_that_email_from_every_workspace(db
 
 
 # [claude] WSI-UI-02
-@pytest.mark.xfail(strict=True, reason="BUG-1402: \"My invitations\" misses an invitation when the account email has capitals")
 def test_wsi_ui_02__the_email_is_matched_ignoring_case_on_the_argument_side(db, mk_inv):
     """WSI-UI-02 — the email is matched ignoring case on the argument side.
     Rules: `get_user_invitations` R2 [BUG-1402]"""
@@ -505,7 +498,6 @@ def test_wsi_ui_02__the_email_is_matched_ignoring_case_on_the_argument_side(db, 
 
 
 # [claude] WSI-UI-03
-@pytest.mark.xfail(strict=True, reason="BUG-1402: \"My invitations\" misses an invitation when the account email has capitals")
 def test_wsi_ui_03__the_email_is_matched_ignoring_surrounding_spaces_on_the_argument_side(db, mk_inv):
     """WSI-UI-03 — the email is matched ignoring surrounding spaces on the argument side.
     Rules: `get_user_invitations` R2 [BUG-1402]"""
@@ -521,7 +513,6 @@ def test_wsi_ui_03__the_email_is_matched_ignoring_surrounding_spaces_on_the_argu
 
 
 # [claude] WSI-UI-04
-@pytest.mark.xfail(strict=True, reason="BUG-1402: \"My invitations\" misses an invitation when the account email has capitals")
 def test_wsi_ui_04__a_stored_email_with_capitals_is_found_by_the_lower_case_one(db, mk_inv):
     """WSI-UI-04 — a stored email with capitals is found by the lower-case one.
     Rules: `get_user_invitations` R2 [BUG-1402]"""
@@ -578,11 +569,6 @@ def test_wsi_ui_07__no_cap_101_invitations_to_one_email_give_101_rows(db, mk_man
 
 
 # [claude] WSI-UI-08
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1401: Invitation lists have no sort order "
-    "(non-strict: today's rows come back in physical order, which can match by accident)",
-)
 def test_wsi_ui_08__newest_invitation_first_and_on_a_tie_the_higher_id_first(db, w2, mk_inv):
     """WSI-UI-08 — newest invitation first, and on a tie the higher id first.
     Rules: `get_user_invitations` R4 [BUG-1401]"""
@@ -602,7 +588,6 @@ def test_wsi_ui_08__newest_invitation_first_and_on_a_tie_the_higher_id_first(db,
 
 
 # [claude] WSI-UI-09
-@pytest.mark.xfail(strict=True, reason="BUG-1401: Invitation lists have no sort order")
 def test_wsi_ui_09__the_query_orders_by_invited_at_then_id_both_descending(db, mk_inv):
     """WSI-UI-09 — the query orders by invited_at, then id, both descending.
     Rules: `get_user_invitations` R4 [BUG-1401]"""
@@ -692,7 +677,6 @@ def test_wsi_ui_12__only_status_exactly_pending_pending_pending_and_cancelled_ar
 
 
 # [claude] WSI-UI-13
-@pytest.mark.xfail(strict=True, reason="BUG-1402: \"My invitations\" misses an invitation when the account email has capitals")
 def test_wsi_ui_13__a_stored_email_with_a_leading_space_is_found_by_the_plain_one(db, mk_inv):
     """WSI-UI-13 — a stored email with a leading space is found by the plain one.
     Rules: `get_user_invitations` R2 [BUG-1402]"""
@@ -886,11 +870,6 @@ def test_wsi_ga_04__no_cap_101_invitations_give_101_rows(db, w1, mk_many_inv):
 
 
 # [claude] WSI-GA-05
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-1401: Invitation lists have no sort order "
-    "(non-strict: today's rows come back in physical order, which can match by accident)",
-)
 def test_wsi_ga_05__newest_invitation_first_and_on_a_tie_the_higher_id_first(db, w1, mk_inv):
     """WSI-GA-05 — newest invitation first, and on a tie the higher id first.
     Rules: `get_all_invitations` R3 [BUG-1401]"""
@@ -910,7 +889,6 @@ def test_wsi_ga_05__newest_invitation_first_and_on_a_tie_the_higher_id_first(db,
 
 
 # [claude] WSI-GA-06
-@pytest.mark.xfail(strict=True, reason="BUG-1401: Invitation lists have no sort order")
 def test_wsi_ga_06__the_query_orders_by_invited_at_then_id_both_descending(db, w1, mk_inv):
     """WSI-GA-06 — the query orders by invited_at, then id, both descending.
     Rules: `get_all_invitations` R3 [BUG-1401]"""

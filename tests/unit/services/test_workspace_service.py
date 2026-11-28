@@ -60,8 +60,6 @@ OWNONLY = "Only the workspace owner can perform this action"
 
 BUG_1280 = "BUG-1280: Someone who left the workspace stays on its projects"
 BUG_1400 = "BUG-1400: Member lists have no sort order"
-BUG_1401 = "BUG-1401: Invitation lists have no sort order"
-BUG_1402 = 'BUG-1402: "My invitations" misses an invitation when the account email has capitals'
 BUG_1404 = "BUG-1404: Workspace audit rows never record IP address or user agent"
 BUG_1871 = 'BUG-1871: "Unlimited" plan (max_members = -1) cannot send any invitation'
 BUG_1872 = 'BUG-1872: "Unlimited" plan (max_members = -1) cannot add any member'
@@ -3925,7 +3923,6 @@ def test_wss_li_06__inviters_read_together(db, s):
 
 
 # [claude] WSS-LI-07
-@pytest.mark.xfail(strict=True, reason=BUG_1401)
 def test_wss_li_07__invitation_query_ordered(db, s):
     """WSS-LI-07 — the invitation query is ordered (pass-through).
     Rules: list_invitations R4 [BUG-1401]."""
@@ -4948,7 +4945,6 @@ def test_wss_mi_03__email_without_invitation_empty(db, s):
 
 
 # [claude] WSS-MI-04
-@pytest.mark.xfail(strict=True, reason=BUG_1402)
 def test_wss_mi_04__email_matches_ignoring_capitals(db, s):
     """WSS-MI-04 — the email matches ignoring capitals (pass-through).
     Rules: get_my_invitations R1 [BUG-1402]."""
@@ -5005,7 +5001,6 @@ def test_wss_mi_06__workspaces_and_inviters_read_together(db, s):
 
 
 # [claude] WSS-MI-07
-@pytest.mark.xfail(strict=True, reason=BUG_1401)
 def test_wss_mi_07__invitation_query_ordered(db, s):
     """WSS-MI-07 — the invitation query is ordered (pass-through).
     Rules: get_my_invitations R1 [BUG-1401]."""
