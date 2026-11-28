@@ -2,10 +2,10 @@
 
 > **Spec:** `tests/unit/dao/item_tag.spec.md` (source commit e48a092)
 > **Status:** READY — the spec is **APPROVED** (2026-10-17); every answer (P1, P2, Q1, Q2 and the house-rule lines BUG-929, BUG-930, BUG-100) was decided by Claude under the reviewer's delegation, so nothing is provisional.
-> **Counts:** 92 cases · 81 expected-to-pass · 11 expected-to-fail (bugs) · 9 deferred
+> **Counts:** 93 cases · 82 expected-to-pass · 11 expected-to-fail (bugs) · 9 deferred (ITG-DEC-16 added 2026-11-27 for BUG-3302; passes since its fix)
 
 ## Reviewer summary
-- **Per callable:** `get_by_code_in_workspace` 17 · `get_system_tags_in_workspace` 10 (3 bug) · `get_active_tags_in_workspace` 13 (3 bug) · `increment_usage_count` 13 (1 bug) · `decrement_usage_count` 15 (2 bug) · inherited `BaseDAO` methods on `ItemTag` 24 (2 bug).
+- **Per callable:** `get_by_code_in_workspace` 17 · `get_system_tags_in_workspace` 10 (3 bug) · `get_active_tags_in_workspace` 13 (3 bug) · `increment_usage_count` 13 (1 bug) · `decrement_usage_count` 16 (3 bug) · inherited `BaseDAO` methods on `ItemTag` 24 (2 bug).
 - **Expected-to-fail by bug:** BUG-929 3 (ITG-SYS-08, SYS-09 non-strict; SYS-10 strict, statement recorder) · BUG-930 3 (ITG-ACT-11, ACT-12 non-strict; ACT-13 strict, statement recorder) · BUG-931 3 (ITG-INC-11, DEC-13, DEC-14 — strict) · BUG-100 2 (ITG-INH-18 non-strict; INH-19 strict, statement recorder).
 - **Delegated answers and the cards that rest on them:** P1 (a deleted tag is found by its code) — ITG-CODE-15. P2 (the counters work on a deleted tag) — ITG-INC-06, DEC-09. Q2 (unknown / foreign tag → `None`, no error) — ITG-INC-03, INC-04, DEC-06, DEC-07. Q1 / BUG-931 — ITG-INC-11, DEC-13, DEC-14 (pass control ITG-INC-12).
 - **Notable design choices:**
@@ -1189,6 +1189,26 @@
 3. re-read T1 after the savepoint rollback: `usage_count == 3`.
 4. mock called: the `db.commit` spy was never called.
 
+### ITG-DEC-16 — after a savepoint rollback, the tag object shows the stored count again *(added 2026-11-27, bug-fix pre-check, unit dao-item_tag-2)*
+- **Rules:** `decrement_usage_count` R7 [BUG-3302] (bug row Intended: after a savepoint rollback the in-memory `usage_count` equals the stored value, as for the increment)
+- **Kind:** bug
+- **Expect:** pass (BUG-3302 fixed in bugfix/dao-item_tag-2; was strict xfail)
+- **Failed before the fix on:** Then 4 (the object still held the rolled-back 4 while the database had 5)
+- **Author:** claude — savepoint rollback
+
+**Given**
+1. T1 = tag, `name "Hex Bolt"`, `tag_code "hex_bolt"`, but `usage_count 5`.
+2. `sp = db.begin_nested()` directly before the call (no commit spy).
+
+**When**
+- `result = dao.decrement_usage_count(db, tag_id=T1.id, workspace_id=W1.id)`.
+
+**Then**
+1. returns: `result is T1`.
+2. returns: inside the savepoint, `T1.usage_count == 4` (read on the object; this load is what the rollback must undo).
+3. after `sp.rollback()`: `stored_count(T1) == 5`.
+4. after `sp.rollback()`, read on the object without any expire or re-read: `T1.usage_count == 5`.
+
 
 ## Inherited `BaseDAO` methods on `ItemTag`
 
@@ -1648,7 +1668,7 @@
 | `decrement_usage_count` | R4 (Q2) | ITG-DEC-06, DEC-07 |
 | `decrement_usage_count` | R5 (P2) | ITG-DEC-09, DEC-10 |
 | `decrement_usage_count` | R6 [BUG-931] | ITG-DEC-13, DEC-14 (strict xfail) |
-| `decrement_usage_count` | R7 | ITG-DEC-01, DEC-12, DEC-15 |
+| `decrement_usage_count` | R7 | ITG-DEC-01, DEC-12, DEC-15; DEC-16 (BUG-3302, fixed) |
 | `decrement_usage_count` | Side effects (one row, one column, no commit) | ITG-DEC-11, DEC-15 |
 | inherited | R1 | ITG-INH-01 |
 | inherited | R2 | ITG-INH-02, INH-03, INH-05, INH-06, INH-07, INH-08, INH-09, INH-10, INH-11 |
@@ -1664,3 +1684,4 @@
 | BUG-930 | `get_active_tags_in_workspace` R4 | ITG-ACT-11, ACT-12, ACT-13 |
 | BUG-931 | `increment_usage_count` R5, `decrement_usage_count` R6 | ITG-INC-11, DEC-13, DEC-14 |
 | BUG-100 | inherited R5 | ITG-INH-18, INH-19 |
+| BUG-3302 | `decrement_usage_count` R7 (in-memory value after a savepoint rollback) | ITG-DEC-16 (fixed) |

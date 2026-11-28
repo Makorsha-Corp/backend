@@ -127,6 +127,8 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
         if tag:
             # Relative update in the database (BUG-931): the decrease and the
             # "not below 0" check both use the stored value.
+            # "fetch" registers the tag as changed in the session transaction,
+            # so a savepoint roll-back around this call expires it again.
             stored = db.execute(
                 update(ItemTag)
                 .where(
@@ -136,11 +138,13 @@ class ItemTagDAO(BaseDAO[ItemTag, ItemTagCreate, ItemTagUpdate]):
                 )
                 .values(usage_count=ItemTag.usage_count - 1)
                 .returning(ItemTag.usage_count)
-                .execution_options(synchronize_session=False, autoflush=False)
+                .execution_options(synchronize_session="fetch", autoflush=False)
             ).scalar_one_or_none()
             if stored is not None:
-                # Written: reload from the database on next access
-                # (savepoint-safe) and flush like before.
+                # Written: the synchronisation computes "loaded value - 1" in
+                # Python, which is stale when the row changed meanwhile, so
+                # expire it and let the next access read the stored value.
+                # Flush the session's other pending changes like before.
                 db.expire(tag, ["usage_count"])
                 db.flush()
             else:
