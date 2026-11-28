@@ -2,11 +2,11 @@
 
 > **Spec:** `tests/unit/dao/item_tag.spec.md` (source commit e48a092)
 > **Status:** READY — the spec is **APPROVED** (2026-10-17); every answer (P1, P2, Q1, Q2 and the house-rule lines BUG-929, BUG-930, BUG-100) was decided by Claude under the reviewer's delegation, so nothing is provisional.
-> **Counts:** 93 cases · 81 expected-to-pass · 12 expected-to-fail (bugs) · 9 deferred (ITG-DEC-16 added 2026-11-27 for BUG-3302)
+> **Counts:** 93 cases · 82 expected-to-pass · 11 expected-to-fail (bugs) · 9 deferred (ITG-DEC-16 added 2026-11-27 for BUG-3302; passes since its fix)
 
 ## Reviewer summary
 - **Per callable:** `get_by_code_in_workspace` 17 · `get_system_tags_in_workspace` 10 (3 bug) · `get_active_tags_in_workspace` 13 (3 bug) · `increment_usage_count` 13 (1 bug) · `decrement_usage_count` 16 (3 bug) · inherited `BaseDAO` methods on `ItemTag` 24 (2 bug).
-- **Expected-to-fail by bug:** BUG-929 3 (ITG-SYS-08, SYS-09 non-strict; SYS-10 strict, statement recorder) · BUG-930 3 (ITG-ACT-11, ACT-12 non-strict; ACT-13 strict, statement recorder) · BUG-931 3 (ITG-INC-11, DEC-13, DEC-14 — strict) · BUG-100 2 (ITG-INH-18 non-strict; INH-19 strict, statement recorder) · BUG-3302 1 (ITG-DEC-16 strict).
+- **Expected-to-fail by bug:** BUG-929 3 (ITG-SYS-08, SYS-09 non-strict; SYS-10 strict, statement recorder) · BUG-930 3 (ITG-ACT-11, ACT-12 non-strict; ACT-13 strict, statement recorder) · BUG-931 3 (ITG-INC-11, DEC-13, DEC-14 — strict) · BUG-100 2 (ITG-INH-18 non-strict; INH-19 strict, statement recorder).
 - **Delegated answers and the cards that rest on them:** P1 (a deleted tag is found by its code) — ITG-CODE-15. P2 (the counters work on a deleted tag) — ITG-INC-06, DEC-09. Q2 (unknown / foreign tag → `None`, no error) — ITG-INC-03, INC-04, DEC-06, DEC-07. Q1 / BUG-931 — ITG-INC-11, DEC-13, DEC-14 (pass control ITG-INC-12).
 - **Notable design choices:**
   - Row order (BUG-929, BUG-930, BUG-100): no pass card and no strict card depends on physical row order or on the database collation. List cards compare `sorted(ids(result))`, sizes, membership or `[]`. Two pass cards do check an order that `ORDER BY` already gives today: ITG-ACT-09 (system tags first — compares only the `is_system_tag` flags) and ITG-ACT-10 (single-word, all-lower-case ASCII names, which every collation orders alike).
@@ -1668,7 +1668,7 @@
 | `decrement_usage_count` | R4 (Q2) | ITG-DEC-06, DEC-07 |
 | `decrement_usage_count` | R5 (P2) | ITG-DEC-09, DEC-10 |
 | `decrement_usage_count` | R6 [BUG-931] | ITG-DEC-13, DEC-14 (strict xfail) |
-| `decrement_usage_count` | R7 | ITG-DEC-01, DEC-12, DEC-15; DEC-16 (strict xfail, BUG-3302) |
+| `decrement_usage_count` | R7 | ITG-DEC-01, DEC-12, DEC-15; DEC-16 (BUG-3302, fixed) |
 | `decrement_usage_count` | Side effects (one row, one column, no commit) | ITG-DEC-11, DEC-15 |
 | inherited | R1 | ITG-INH-01 |
 | inherited | R2 | ITG-INH-02, INH-03, INH-05, INH-06, INH-07, INH-08, INH-09, INH-10, INH-11 |
@@ -1684,4 +1684,4 @@
 | BUG-930 | `get_active_tags_in_workspace` R4 | ITG-ACT-11, ACT-12, ACT-13 |
 | BUG-931 | `increment_usage_count` R5, `decrement_usage_count` R6 | ITG-INC-11, DEC-13, DEC-14 |
 | BUG-100 | inherited R5 | ITG-INH-18, INH-19 |
-| BUG-3302 | `decrement_usage_count` R7 (in-memory value after a savepoint rollback) | ITG-DEC-16 |
+| BUG-3302 | `decrement_usage_count` R7 (in-memory value after a savepoint rollback) | ITG-DEC-16 (fixed) |
