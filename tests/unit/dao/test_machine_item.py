@@ -1250,7 +1250,6 @@ def test_mit_gm_15__a_machine_with_no_rows_returns_an_empty_list(db, w1, m1, m2,
 
 
 # [claude] MIT-GM-16
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mit_gm_16__the_rows_of_a_soft_deleted_machine_are_hidden(db, w1, m1, md, i1, mk_stock):
     """MIT-GM-16 — the rows of a soft-deleted machine are hidden.
     Rules: `get_by_machine` R4a [BUG-979]"""
@@ -1264,7 +1263,6 @@ def test_mit_gm_16__the_rows_of_a_soft_deleted_machine_are_hidden(db, w1, m1, md
 
 
 # [claude] MIT-GM-17
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mit_gm_17__a_w2_row_on_a_soft_deleted_machine_of_w1_is_hidden_too(db, w2, md, i1, mk_stock):
     """MIT-GM-17 — a W2 row on a soft-deleted machine of W1 is hidden too.
     Rules: `get_by_machine` R4a [BUG-979], R2"""
@@ -1277,7 +1275,6 @@ def test_mit_gm_17__a_w2_row_on_a_soft_deleted_machine_of_w1_is_hidden_too(db, w
 
 
 # [claude] MIT-GM-18
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mit_gm_18__the_rows_of_a_live_machine_in_a_soft_deleted_factory_are_hidden(db, w1, m1, mf, i1, mk_stock):
     """MIT-GM-18 — the rows of a live machine in a soft-deleted factory are hidden.
     Rules: `get_by_machine` R4b [BUG-979]"""
@@ -1403,7 +1400,6 @@ def test_mit_gm_24__the_rows_are_back_unchanged_once_the_factory_is_no_longer_de
 
 
 # [claude] MIT-GM-25
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mit_gm_25__the_row_of_a_removed_item_is_not_returned_the_other_row_is(db, w1, m1, i1, ix, mk_stock):
     """MIT-GM-25 — the row of a removed item is not returned, the other row is.
     Rules: `get_by_machine` R5 [BUG-980]"""
@@ -1417,7 +1413,6 @@ def test_mit_gm_25__the_row_of_a_removed_item_is_not_returned_the_other_row_is(d
 
 
 # [claude] MIT-GM-26
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mit_gm_26__a_machine_holding_only_a_removed_item_returns_an_empty_list(db, w1, m1, ix, mk_stock):
     """MIT-GM-26 — a machine holding only a removed item returns an empty list.
     Rules: `get_by_machine` R5 [BUG-980]"""
@@ -1430,7 +1425,6 @@ def test_mit_gm_26__a_machine_holding_only_a_removed_item_returns_an_empty_list(
 
 
 # [claude] MIT-GM-27
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mit_gm_27__the_row_of_a_removed_item_takes_no_place_in_the_page_skip_2_of_two(db, w1, m1, i1, i2, ix, mk_stock):
     """MIT-GM-27 — the row of a removed item takes no place in the page: skip=2 of two visible rows is empty.
     Rules: `get_by_machine` R5 [BUG-980]"""
@@ -1445,11 +1439,6 @@ def test_mit_gm_27__the_row_of_a_removed_item_takes_no_place_in_the_page_skip_2_
 
 
 # [claude] MIT-GM-28
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-980: A machine's stock list still shows items removed from the catalog "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_28__anvil_removed_bolt_active_limit_1_returns_the_bolt_row(db, w1, m1, i1, mk_stock, mk_item):
     """MIT-GM-28 — Anvil removed, Bolt active: limit=1 returns the Bolt row.
     Rules: `get_by_machine` R5 [BUG-980]"""
@@ -1509,11 +1498,6 @@ def test_mit_gm_30__the_row_is_back_unchanged_once_the_item_is_active_again(db, 
 
 
 # [claude] MIT-GM-31
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-976: A machine's stock rows have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_31__rows_come_back_by_item_name_case_insensitive(db, w1, m1, mk_stock, mk_item):
     """MIT-GM-31 — rows come back by item name, case-insensitive.
     Rules: `get_by_machine` R6 [BUG-976]"""
@@ -1533,11 +1517,6 @@ def test_mit_gm_31__rows_come_back_by_item_name_case_insensitive(db, w1, m1, mk_
 
 
 # [claude] MIT-GM-32
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-976: A machine's stock rows have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_32__items_bolt_and_bolt_lower_row_id_first_the_capital_one_holding_it(db, w1, m1, mk_stock, mk_item):
     """MIT-GM-32 — items "Bolt" and "bolt": lower row id first, the capital one holding it.
     Rules: `get_by_machine` R6 [BUG-976]"""
@@ -1557,11 +1536,6 @@ def test_mit_gm_32__items_bolt_and_bolt_lower_row_id_first_the_capital_one_holdi
 
 
 # [claude] MIT-GM-33
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-976: A machine's stock rows have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_33__items_bolt_and_bolt_lower_row_id_first_the_lower_case_one_holding_it(db, w1, m1, mk_stock, mk_item):
     """MIT-GM-33 — items "Bolt" and "bolt": lower row id first, the lower-case one holding it.
     Rules: `get_by_machine` R6 [BUG-976]"""
@@ -1581,11 +1555,6 @@ def test_mit_gm_33__items_bolt_and_bolt_lower_row_id_first_the_lower_case_one_ho
 
 
 # [claude] MIT-GM-34
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-976: A machine's stock rows have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_34__the_order_is_applied_before_paging_first_window(db, w1, m1, mk_stock, mk_item):
     """MIT-GM-34 — the order is applied before paging: first window.
     Rules: `get_by_machine` R6 [BUG-976], R7"""
@@ -1607,11 +1576,6 @@ def test_mit_gm_34__the_order_is_applied_before_paging_first_window(db, w1, m1, 
 
 
 # [claude] MIT-GM-35
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-976: A machine's stock rows have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gm_35__the_order_is_applied_before_paging_second_window_no_repeats_and_no_gaps(db, w1, m1, mk_stock, mk_item):
     """MIT-GM-35 — the order is applied before paging: second window, no repeats and no gaps.
     Rules: `get_by_machine` R6 [BUG-976], R7"""
@@ -1633,7 +1597,6 @@ def test_mit_gm_35__the_order_is_applied_before_paging_second_window_no_repeats_
 
 
 # [claude] MIT-GM-36
-@pytest.mark.xfail(strict=True, reason="BUG-976: A machine's stock rows have no sort order")
 def test_mit_gm_36__the_machine_list_query_asks_for_item_name_case_insensitive_then_row_id(db, w1, m1, i1, mk_stock):
     """MIT-GM-36 — the machine list query asks for item name case-insensitive, then row id.
     Rules: `get_by_machine` R6 [BUG-976]"""
@@ -1899,7 +1862,6 @@ def test_mit_gm_51__reading_a_row_s_item_name_and_unit_needs_no_further_query(db
 
 
 # [claude] MIT-GM-52
-@pytest.mark.xfail(strict=True, reason="BUG-979: A machine's stock list still shows a deleted machine, or a machine of a deleted factory")
 def test_mit_gm_52__a_w2_row_on_a_w1_machine_in_a_soft_deleted_factory_is_hidden_too(db, w2, mf, i1, mk_stock):
     """MIT-GM-52 — a W2 row on a W1 machine in a soft-deleted factory is hidden too.
     Rules: `get_by_machine` R4b [BUG-979], R2"""
@@ -1912,7 +1874,6 @@ def test_mit_gm_52__a_w2_row_on_a_w1_machine_in_a_soft_deleted_factory_is_hidden
 
 
 # [claude] MIT-GM-53
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mit_gm_53__a_w1_row_of_a_removed_item_of_w2_is_hidden_the_other_row_is_returned(db, w1, w2, m1, i1, mk_stock, mk_item):
     """MIT-GM-53 — a W1 row of a removed item of W2 is hidden, the other row is returned.
     Rules: `get_by_machine` R5 [BUG-980], R2"""
@@ -1927,7 +1888,6 @@ def test_mit_gm_53__a_w1_row_of_a_removed_item_of_w2_is_hidden_the_other_row_is_
 
 
 # [claude] MIT-GM-54
-@pytest.mark.xfail(strict=True, reason="BUG-980: A machine's stock list still shows items removed from the catalog")
 def test_mit_gm_54__a_w2_row_of_a_removed_item_of_w1_is_hidden(db, w2, m1, ix, mk_stock):
     """MIT-GM-54 — a W2 row of a removed item of W1 is hidden.
     Rules: `get_by_machine` R5 [BUG-980], R2"""
@@ -2339,7 +2299,6 @@ def test_mit_gt_12__an_item_with_no_rows_returns_an_empty_list(db, w1, m1, i1, i
 
 
 # [claude] MIT-GT-13
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_13__on_a_live_and_on_a_soft_deleted_machine_only_the_live_machine_s_row(db, w1, m1, md, i1, mk_stock):
     """MIT-GT-13 — on a live and on a soft-deleted machine: only the live machine's row.
     Rules: `get_by_item` R3a [BUG-981]"""
@@ -2353,7 +2312,6 @@ def test_mit_gt_13__on_a_live_and_on_a_soft_deleted_machine_only_the_live_machin
 
 
 # [claude] MIT-GT-14
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_14__only_on_a_soft_deleted_machine_an_empty_list(db, w1, md, i1, mk_stock):
     """MIT-GT-14 — only on a soft-deleted machine: an empty list.
     Rules: `get_by_item` R3a [BUG-981]"""
@@ -2366,7 +2324,6 @@ def test_mit_gt_14__only_on_a_soft_deleted_machine_an_empty_list(db, w1, md, i1,
 
 
 # [claude] MIT-GT-15
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_15__a_w2_row_on_a_soft_deleted_machine_of_w1_is_hidden_too(db, w2, md, i1, mk_stock):
     """MIT-GT-15 — a W2 row on a soft-deleted machine of W1 is hidden too.
     Rules: `get_by_item` R3a [BUG-981], R2"""
@@ -2379,7 +2336,6 @@ def test_mit_gt_15__a_w2_row_on_a_soft_deleted_machine_of_w1_is_hidden_too(db, w
 
 
 # [claude] MIT-GT-16
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_16__on_a_live_machine_and_on_one_in_a_soft_deleted_factory_only_the_first(db, w1, m1, mf, i1, mk_stock):
     """MIT-GT-16 — on a live machine and on one in a soft-deleted factory: only the first row.
     Rules: `get_by_item` R3b [BUG-981]"""
@@ -2393,7 +2349,6 @@ def test_mit_gt_16__on_a_live_machine_and_on_one_in_a_soft_deleted_factory_only_
 
 
 # [claude] MIT-GT-17
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_17__only_on_a_machine_in_a_soft_deleted_factory_an_empty_list(db, w1, mf, i1, mk_stock):
     """MIT-GT-17 — only on a machine in a soft-deleted factory: an empty list.
     Rules: `get_by_item` R3b [BUG-981]"""
@@ -2539,7 +2494,6 @@ def test_mit_gt_24__a_removed_item_s_rows_are_returned_like_any_other(db, w1, m1
 
 
 # [claude] MIT-GT-25
-@pytest.mark.xfail(strict=True, reason="BUG-982: Item summary silently stops at 500 machines")
 def test_mit_gt_25__501_machines_holding_the_item_all_501_rows(db, w1, i1, mk_press_stock):
     """MIT-GT-25 — 501 machines holding the item: all 501 rows.
     Rules: `get_by_item` R5 [BUG-982]"""
@@ -2568,11 +2522,6 @@ def test_mit_gt_26__500_machines_holding_the_item_all_500_rows(db, w1, i1, mk_pr
 
 
 # [claude] MIT-GT-27
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-977: Machine placements of an item have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gt_27__rows_come_back_in_id_order(db, w1, m1, m2, i1, mk_stock):
     """MIT-GT-27 — rows come back in id order.
     Rules: `get_by_item` R6 [BUG-977]"""
@@ -2590,7 +2539,6 @@ def test_mit_gt_27__rows_come_back_in_id_order(db, w1, m1, m2, i1, mk_stock):
 
 
 # [claude] MIT-GT-28
-@pytest.mark.xfail(strict=True, reason="BUG-977: Machine placements of an item have no sort order")
 def test_mit_gt_28__the_item_query_asks_the_database_for_id_order(db, w1, m1, i1, mk_stock):
     """MIT-GT-28 — the item query asks the database for id order.
     Rules: `get_by_item` R6 [BUG-977]"""
@@ -2664,7 +2612,6 @@ def test_mit_gt_31__reading_a_row_s_item_name_and_unit_needs_no_further_query(db
 
 
 # [claude] MIT-GT-32
-@pytest.mark.xfail(strict=True, reason="BUG-982: Item summary silently stops at 500 machines")
 def test_mit_gt_32__the_item_query_carries_no_limit_and_no_offset_so_no_cap_of_any_size(db, w1, m1, i1, mk_stock):
     """MIT-GT-32 — the item query carries no LIMIT and no OFFSET, so no cap of any size exists.
     Rules: `get_by_item` R5 [BUG-982]"""
@@ -2683,7 +2630,6 @@ def test_mit_gt_32__the_item_query_carries_no_limit_and_no_offset_so_no_cap_of_a
 
 
 # [claude] MIT-GT-33
-@pytest.mark.xfail(strict=True, reason="BUG-981: Item summary still lists and counts placements on deleted machines and in deleted factories")
 def test_mit_gt_33__a_w2_row_on_a_w1_machine_in_a_soft_deleted_factory_is_hidden_too(db, w2, mf, i1, mk_stock):
     """MIT-GT-33 — a W2 row on a W1 machine in a soft-deleted factory is hidden too.
     Rules: `get_by_item` R3b [BUG-981], R2"""
@@ -2696,11 +2642,6 @@ def test_mit_gt_33__a_w2_row_on_a_w1_machine_in_a_soft_deleted_factory_is_hidden
 
 
 # [claude] MIT-GT-34
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-977: Machine placements of an item have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_mit_gt_34__id_order_holds_when_the_lower_id_sits_on_the_higher_machine(db, w1, m1, m2, i1, mk_stock):
     """MIT-GT-34 — id order holds when the lower id sits on the higher machine.
     Rules: `get_by_item` R6 [BUG-977]"""
