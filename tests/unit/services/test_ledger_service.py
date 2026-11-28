@@ -71,7 +71,6 @@ BUG_652 = "BUG-652: Inventory reconcile does not record who changed the stock ro
 BUG_653 = (
     "BUG-653: Inventory reconcile ignores a wrong average price when quantities match"
 )
-BUG_655 = "BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history"
 BUG_1278 = (
     "BUG-1278: The members and components of a deleted project stay open; "
     "BUG-1954: A deleted project still opens by id"
@@ -2155,7 +2154,6 @@ def test_lsv_gib_05__bug_3043_a_non_zero_value_stays_the_exact_decimal(db, s):
 
 
 # [claude] LSV-GIB-06
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_lsv_gib_06__pass_through_bug_655_a_bucket_with_history_answers_its_balance(
     db, s
 ):
@@ -2746,7 +2744,6 @@ def test_lsv_rinv_15__bug_644_the_snapshot_is_read_with_for_update_of_inventory(
 
 
 # [claude] LSV-RINV-16
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_lsv_rinv_16__pass_through_bug_655_a_bucket_with_history_reconciles_and_commits(
     db, s
 ):

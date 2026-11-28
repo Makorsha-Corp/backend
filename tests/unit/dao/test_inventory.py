@@ -466,7 +466,6 @@ def test_inv_st_01__records_total_quantity_and_value(db, w1, f1, f2, i1, i2, mk_
 
 
 # [local-coder] INV-SY-17
-@pytest.mark.xfail(strict=True, reason="BUG-664: 'Latest ledger entry' picked by timestamp alone can pick a stale row")
 def test_inv_sy_17__among_entries_sharing_newest_performed_at_greatest_id_wins(db, w1, u2, f1, i1, mk_stock, mk_entry):
     """INV-SY-17 — among entries sharing the newest performed_at the greatest id wins.
     Rules: sync_snapshot_from_ledger R12 [BUG-664]"""

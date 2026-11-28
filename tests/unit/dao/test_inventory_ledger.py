@@ -293,7 +293,6 @@ def test_led_w_33__negative_limit_is_rejected_by_the_database_and_nothing_change
     assert snap(db, e1) == before_e1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_12__newer_entries_of_other_buckets_do_not_change_the_balance(db, w1, w2, f1, f2, i1, i2, mk_entry):
     """LED-BAL-12 — newer entries of other buckets do not change the balance.
     Rules: `calculate_balance` R4 [BUG-655], R3"""
@@ -489,7 +488,6 @@ def test_led_dr_07__start_date_none_is_refused_before_any_query_and_nothing_chan
 
 
 # [local-coder] LED-DR-19
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_dr_19__factory_id_0_filters_and_returns_an_empty_list(db, w1, f2, mk_entry):
     """LED-DR-19 — factory_id 0 filters and returns an empty list.
     Rules: `get_by_date_range` R4a [BUG-885]"""
@@ -516,7 +514,6 @@ def test_led_pf_03__an_entry_the_same_user_performed_in_another_workspace_is_not
 
 
 # [local-coder] LED-BAL-11
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_11__the_balance_comes_from_the_entry_with_the_greatest_performed_at(db, w1, f1, i1, mk_entry):
     """LED-BAL-11 — the balance comes from the entry with the greatest performed_at.
     Rules: `calculate_balance` R4 [BUG-655]"""
@@ -533,7 +530,6 @@ def test_led_bal_11__the_balance_comes_from_the_entry_with_the_greatest_performe
 
 
 # [local-coder] LED-BAL-13
-@pytest.mark.xfail(strict=True, reason="BUG-641: 'Latest entry' balance lookups pick an arbitrary row on a timestamp tie; BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_13__among_entries_sharing_the_newest_performed_at_the_greatest_id_gives_th(db, w1, f1, i1, mk_entry):
     """LED-BAL-13 — among entries sharing the newest performed_at the greatest id gives the balance.
     Rules: `calculate_balance` R4a [BUG-641, BUG-655]"""
@@ -550,7 +546,6 @@ def test_led_bal_13__among_entries_sharing_the_newest_performed_at_the_greatest_
 
 
 # [local-coder] LED-LE-06
-@pytest.mark.xfail(strict=True, reason="BUG-664: 'Latest ledger entry' picked by timestamp alone can pick a stale row")
 def test_led_le_06__among_entries_sharing_the_newest_performed_at_the_greatest_id_wins(db, w1, f1, i1, mk_entry):
     """LED-LE-06 — among entries sharing the newest performed_at the greatest id wins.
     Rules: `get_latest_entry` R3 [BUG-664]"""
@@ -765,7 +760,6 @@ def test_led_w_14__a_negative_factory_id_returns_an_empty_list(db, w1, mk_entry)
 
 
 # [local-coder] LED-W-15
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_w_15__factory_id_0_filters_and_returns_an_empty_list(db, w1, f2, mk_entry):
     """LED-W-15 — factory_id 0 filters and returns an empty list.
     Rules: `get_by_workspace` R4a [BUG-885]"""
@@ -805,7 +799,6 @@ def test_led_w_17__an_item_id_that_does_not_exist_returns_an_empty_list(db, w1, 
 
 
 # [local-coder] LED-W-18
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_w_18__item_id_0_filters_and_returns_an_empty_list(db, w1, i2, mk_entry):
     """LED-W-18 — item_id 0 filters and returns an empty list.
     Rules: `get_by_workspace` R5a [BUG-885]"""
@@ -1350,7 +1343,6 @@ def test_led_tt_19__an_item_id_that_does_not_exist_returns_an_empty_list(db, w1,
 
 
 # [local-coder] LED-TT-20
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_tt_20__factory_id_0_filters_and_returns_an_empty_list(db, w1, f2, mk_entry):
     """LED-TT-20 — factory_id 0 filters and returns an empty list.
     Rules: `get_by_transaction_type` R3a [BUG-885]"""
@@ -1364,7 +1356,6 @@ def test_led_tt_20__factory_id_0_filters_and_returns_an_empty_list(db, w1, f2, m
 
 
 # [local-coder] LED-TT-21
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_tt_21__item_id_0_filters_and_returns_an_empty_list(db, w1, i2, mk_entry):
     """LED-TT-21 — item_id 0 filters and returns an empty list.
     Rules: `get_by_transaction_type` R3a [BUG-885]"""
@@ -1747,7 +1738,6 @@ def test_led_dr_18__an_item_id_that_does_not_exist_returns_an_empty_list(db, w1,
 
 
 # [local-coder] LED-DR-20
-@pytest.mark.xfail(strict=True, reason="BUG-885: Inventory ledger lists treat factory_id=0 / item_id=0 as 'no filter'")
 def test_led_dr_20__item_id_0_filters_and_returns_an_empty_list(db, w1, i2, mk_entry):
     """LED-DR-20 — item_id 0 filters and returns an empty list.
     Rules: `get_by_date_range` R4a [BUG-885]"""
@@ -2297,7 +2287,6 @@ def test_led_bal_07__a_bucket_without_entries_in_a_soft_deleted_factory_gives_qu
 
 
 # [local-coder] LED-BAL-08
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_08__a_single_entry_gives_its_quantity_and_quantity_times_average_price(db, w1, f1, i1, mk_entry):
     """LED-BAL-08 — a single entry gives its quantity and quantity times average price.
     Rules: `calculate_balance` R2 [BUG-655]"""
@@ -2318,7 +2307,6 @@ def test_led_bal_08__a_single_entry_gives_its_quantity_and_quantity_times_averag
 
 
 # [local-coder] LED-BAL-09
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_09__an_entry_with_no_average_price_gives_its_quantity_and_value_0_00(db, w1, f1, i1, mk_entry):
     """LED-BAL-09 — an entry with no average price gives its quantity and value 0.00.
     Rules: `calculate_balance` R2 [BUG-655]"""
@@ -2335,7 +2323,6 @@ def test_led_bal_09__an_entry_with_no_average_price_gives_its_quantity_and_value
 
 
 # [local-coder] LED-BAL-10
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_10__an_entry_with_quantity_0_gives_quantity_0_and_value_0(db, w1, f1, i1, mk_entry):
     """LED-BAL-10 — an entry with quantity 0 gives quantity 0 and value 0.
     Rules: `calculate_balance` R2 [BUG-655]"""
@@ -2350,7 +2337,6 @@ def test_led_bal_10__an_entry_with_quantity_0_gives_quantity_0_and_value_0(db, w
 
 
 # [local-coder] LED-BAL-14
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_14__the_balance_of_a_bucket_in_a_soft_deleted_factory_is_returned(db, w1, fd, i1, mk_entry):
     """LED-BAL-14 — the balance of a bucket in a soft-deleted factory is returned.
     Rules: `calculate_balance` R5 [BUG-655]"""
@@ -2365,7 +2351,6 @@ def test_led_bal_14__the_balance_of_a_bucket_in_a_soft_deleted_factory_is_return
 
 
 # [local-coder] LED-BAL-15
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_15__the_balance_of_a_bucket_of_a_removed_catalog_item_is_returned(db, w1, f1, ir, mk_entry):
     """LED-BAL-15 — the balance of a bucket of a removed catalog item is returned.
     Rules: `calculate_balance` R5 [BUG-655]"""
@@ -2380,7 +2365,6 @@ def test_led_bal_15__the_balance_of_a_bucket_of_a_removed_catalog_item_is_return
 
 
 # [local-coder] LED-BAL-16
-@pytest.mark.xfail(strict=True, reason="BUG-655: Inventory balance and inventory reconcile crash whenever the bucket has history")
 def test_led_bal_16__reading_the_balance_of_a_bucket_with_history_changes_nothing(db, w1, f1, i1, mk_entry):
     """LED-BAL-16 — reading the balance of a bucket with history changes nothing.
     Rules: `calculate_balance` R6, R2 [BUG-655]"""

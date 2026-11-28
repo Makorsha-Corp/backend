@@ -1476,7 +1476,6 @@ def test_led_gib_02__decoys_only_zero(db, M, f1, f2, i1, i2, w1, w2, u1):
     assert gib(db, M, f1, i1, STORAGE, w1) == (0, Decimal("0.00"))
 
 
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_led_gib_03__latest_qty_and_value(db, M, f1, i1, w1, u1):
     """LED-GIB-03 — the latest entry's qty_after and computed value.
     Rules: get_inventory_balance R2 [BUG-655]."""
@@ -1487,7 +1486,6 @@ def test_led_gib_03__latest_qty_and_value(db, M, f1, i1, w1, u1):
     assert gib(db, M, f1, i1, STORAGE, w1) == (50, Decimal("250.00"))
 
 
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_led_gib_04__null_avg_price_is_zero_value(db, M, f1, i1, w1, u1):
     """LED-GIB-04 — a NULL avg_price_after on the latest entry gives value 0.00.
     Rules: get_inventory_balance R2 [BUG-655]."""
@@ -1498,7 +1496,6 @@ def test_led_gib_04__null_avg_price_is_zero_value(db, M, f1, i1, w1, u1):
     assert gib(db, M, f1, i1, STORAGE, w1) == (30, Decimal("0.00"))
 
 
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_led_gib_05__isolation_from_decoys(db, M, f1, f2, i1, i2, w1, w2, u1):
     """LED-GIB-05 — newer entries of other type/factory/item/workspace are ignored.
     Rules: get_inventory_balance R2 [BUG-655]."""
@@ -1511,7 +1508,6 @@ def test_led_gib_05__isolation_from_decoys(db, M, f1, f2, i1, i2, w1, w2, u1):
     assert gib(db, M, f1, i1, STORAGE, w1) == (12, Decimal("24.00"))
 
 
-@pytest.mark.xfail(strict=True, reason=f"{BUG_641} (and {BUG_655.split(':')[0]})")
 def test_led_gib_06__tie_broken_by_highest_id(db, M, engine, f1, i1, w1, u1):
     """LED-GIB-06 — the inventory_ledger latest-entry SELECT's ORDER BY should
     end performed_at DESC, id DESC, followed by LIMIT (proved from the recorded
@@ -1638,7 +1634,6 @@ def test_led_rinv_06__no_snapshot_nonzero_ledger_error(db, M, ri_hist, f1, i1, w
     assert il_count(db, w1, f1, i1, STORAGE) == 2
 
 
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_led_rinv_07__balanced_with_history(db, M, ri_hist, f1, i1, w1, u1, u2):
     """LED-RINV-07 — snapshot matching ledger qty/price with history: balanced.
     Rules: reconcile_inventory R6, R1 [BUG-655]."""
@@ -1834,7 +1829,6 @@ def test_led_rinv_15__avg_price_only_mismatch_empty_ledger(db, M, f1, i1, w1, u1
     )
 
 
-@pytest.mark.xfail(strict=True, reason=BUG_655)
 def test_led_rinv_16__second_sequential_call_balanced(db, M, ri_empty, f1, i1, w1, u2):
     """LED-RINV-16 — calling twice in a row: the second call should be balanced.
     Rules: reconcile_inventory R11 [BUG-655]."""

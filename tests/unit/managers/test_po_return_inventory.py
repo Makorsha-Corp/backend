@@ -50,7 +50,6 @@ from tests.unit.factories import make_profile, make_workspace
 SUFFIX = "has a fractional quantity; inventory requires whole units"
 
 BUG_802 = "BUG-802: the fractional-quantity error names the PO item's internal id, not the line number"
-BUG_803 = "BUG-803: ambiguous-latest-row tie-break when 3+ same-item lines share one performed_at in one call"
 
 _seq = itertools.count(1)
 
@@ -1685,7 +1684,6 @@ def test_pri_p_46__machine_latest_by_performed_at_not_insertion_order(db, w1, u1
     assert reread_machine_item(db, w1, m1, i1).qty == 7
 
 
-@pytest.mark.xfail(strict=False, reason=BUG_803)
 def test_pri_p_47__three_same_item_lines_chain_correctly(db, w1, u1, u2, f1, i1, clock, po_):
     """PRI-P-47 — three lines for the same item should each deduct from the previous line's stock.
     Rules: post_purchase_return_inventory R15a [BUG-803], R15, R16."""

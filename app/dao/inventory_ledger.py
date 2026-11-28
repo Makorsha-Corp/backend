@@ -35,9 +35,9 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
         )
         if inventory_type:
             query = query.filter(InventoryLedger.inventory_type == inventory_type)
-        if factory_id:
+        if factory_id is not None:
             query = query.filter(InventoryLedger.factory_id == factory_id)
-        if item_id:
+        if item_id is not None:
             query = query.filter(InventoryLedger.item_id == item_id)
         return query.order_by(desc(InventoryLedger.performed_at)).offset(skip).limit(limit).all()
 
@@ -64,9 +64,9 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
         )
         if inventory_type:
             query = query.filter(InventoryLedger.inventory_type == inventory_type)
-        if factory_id:
+        if factory_id is not None:
             query = query.filter(InventoryLedger.factory_id == factory_id)
-        if item_id:
+        if item_id is not None:
             query = query.filter(InventoryLedger.item_id == item_id)
         return (
             query.order_by(desc(InventoryLedger.performed_at))
@@ -91,9 +91,9 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
         )
         if inventory_type:
             query = query.filter(InventoryLedger.inventory_type == inventory_type)
-        if factory_id:
+        if factory_id is not None:
             query = query.filter(InventoryLedger.factory_id == factory_id)
-        if item_id:
+        if item_id is not None:
             query = query.filter(InventoryLedger.item_id == item_id)
         return (
             query.order_by(desc(InventoryLedger.performed_at))
@@ -140,7 +140,9 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
         """Return (qty, total_value) for one (factory, item, inventory_type) bucket.
 
         Each inventory_type is an independent bucket and must be specified.
-        Returns (0, 0.00) when no entries exist yet.
+        The latest entry is the one with the greatest performed_at, ties broken by
+        greatest id. The value is its qty_after x avg_price_after (0.00 when the
+        average price is empty). Returns (0, 0.00) when no entries exist yet.
         """
         entry = (
             db.query(InventoryLedger)
@@ -150,18 +152,24 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
                 InventoryLedger.item_id == item_id,
                 InventoryLedger.inventory_type == inventory_type,
             )
-            .order_by(desc(InventoryLedger.performed_at))
+            # Rows written in one save share performed_at; the higher id is the later write.
+            .order_by(desc(InventoryLedger.performed_at), desc(InventoryLedger.id))
             .first()
         )
         if entry:
-            return (entry.qty_after, entry.value_after or Decimal('0.00'))
+            if entry.avg_price_after is None:
+                return (entry.qty_after, Decimal('0.00'))
+            return (entry.qty_after, entry.qty_after * entry.avg_price_after)
         return (0, Decimal('0.00'))
 
     def get_latest_entry(
         self, db: Session, *, factory_id: int, item_id: int,
         inventory_type: InventoryTypeEnum, workspace_id: int
     ) -> InventoryLedger | None:
-        """Get the most recent ledger entry for one (factory, item, inventory_type) bucket."""
+        """Get the most recent ledger entry for one (factory, item, inventory_type) bucket.
+
+        Most recent = greatest performed_at, ties broken by greatest id.
+        """
         return (
             db.query(InventoryLedger)
             .filter(
@@ -170,7 +178,8 @@ class InventoryLedgerDAO(BaseDAO[InventoryLedger, InventoryLedgerCreate, Invento
                 InventoryLedger.item_id == item_id,
                 InventoryLedger.inventory_type == inventory_type,
             )
-            .order_by(desc(InventoryLedger.performed_at))
+            # Rows written in one save share performed_at; the higher id is the later write.
+            .order_by(desc(InventoryLedger.performed_at), desc(InventoryLedger.id))
             .first()
         )
 
