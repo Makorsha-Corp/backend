@@ -970,7 +970,6 @@ def test_its_p_16__pass_through_bug_033_items_come_by_name_case_insensitively(db
 
 
 # [claude] ITS-P-17
-@pytest.mark.xfail(strict=False, reason="BUG-933: Item list tag chips sorted by collation name with no tie-break")
 def test_its_p_17__pass_through_bug_933_an_items_tags_come_by_name_then_id(db, w1, mk_i1, mk_tag, mk_link):
     """ITS-P-17 — pass-through BUG-933: an item's tags come by name case-insensitively, then id.
     Rules: `get_items_page` R2 [BUG-933]"""

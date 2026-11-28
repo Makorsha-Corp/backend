@@ -153,7 +153,6 @@ BUG_TITLES = {
     "BUG-981": "Item summary still lists and counts placements on deleted machines and in deleted factories",
     "BUG-977": "Machine placements of an item have no sort order",
     "BUG-1326": "An item's product rows have no sort order",
-    "BUG-932": "An item's tags on its summary have no sort order",
     "BUG-640": "Ledger lists ordered by `performed_at` only; ties in no fixed order",
     "BUG-1337": "A product ledger entry's time depends on the database's time zone",
 }
@@ -4295,7 +4294,6 @@ def test_ism_dp_08__finished_goods_read_has_order_by(db, st, mk):
     assert sel and all("ORDER BY" in s for s in sel)
 
 
-@xf("BUG-932")
 def test_ism_dp_09__tag_read_has_order_by(db, st, mk):
     """ISM-DP-09 — the item's tag read has an ORDER BY.
     Rules: get_summary R3 [BUG-932]."""

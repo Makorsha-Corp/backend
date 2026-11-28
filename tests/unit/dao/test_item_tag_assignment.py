@@ -667,11 +667,6 @@ def test_ita_tfs_15__a_tag_on_two_items_is_the_same_object_in_both_lists(db, w1,
 
 
 # [claude] ITA-TFS-17
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-933: Item list tag chips sorted by collation name with no tie-break "
-    "(non-strict: the outcome depends on the server's collation, not on this code alone)",
-)
 def test_ita_tfs_17__names_that_differ_only_in_case_come_back_in_id_order_then_the_other(db, w1, i1, mk_tag, mk_system_tag, mk_link):
     """ITA-TFS-17 — names that differ only in case come back in id order, then the other names case-insensitively.
     Rules: `get_tags_for_items` R6 [BUG-933]"""
@@ -693,12 +688,6 @@ def test_ita_tfs_17__names_that_differ_only_in_case_come_back_in_id_order_then_t
 
 
 # [claude] ITA-TFS-18
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-933: Item list tag chips sorted by collation name with no tie-break "
-    "(non-strict: the order of same-name tags is the physical row order and the plan's, "
-    "which can match by accident)",
-)
 def test_ita_tfs_18__two_tags_with_the_same_name_come_back_lower_id_first(db, w1, i1, mk_tag, mk_link):
     """ITA-TFS-18 — two tags with the same name come back lower id first.
     Rules: `get_tags_for_items` R6 [BUG-933]"""
@@ -716,7 +705,6 @@ def test_ita_tfs_18__two_tags_with_the_same_name_come_back_lower_id_first(db, w1
 
 
 # [claude] ITA-TFS-19
-@pytest.mark.xfail(strict=True, reason="BUG-933: Item list tag chips sorted by collation name with no tie-break")
 def test_ita_tfs_19__the_tags_of_items_query_asks_for_name_case_insensitive_then_id(db, w1, i1, t1, mk_link):
     """ITA-TFS-19 — the tags-of-items query asks for name case-insensitive, then id.
     Rules: `get_tags_for_items` R6 [BUG-933]"""
@@ -909,11 +897,6 @@ def test_ita_tfi_11__an_item_of_another_workspace_reached_through_a_link_of_this
 
 
 # [claude] ITA-TFI-12
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-932: An item's tags on its summary have no sort order "
-    "(non-strict: today's order is the physical row order, which can match by accident)",
-)
 def test_ita_tfi_12__names_that_differ_only_in_case_come_back_in_id_order_then_the_other(db, w1, i1, mk_tag, mk_system_tag, mk_link):
     """ITA-TFI-12 — names that differ only in case come back in id order, then the other names case-insensitively.
     Rules: `get_tags_for_item` R4 [BUG-932]"""
@@ -935,11 +918,6 @@ def test_ita_tfi_12__names_that_differ_only_in_case_come_back_in_id_order_then_t
 
 
 # [claude] ITA-TFI-13
-@pytest.mark.xfail(
-    strict=False,
-    reason="BUG-932: An item's tags on its summary have no sort order "
-    "(non-strict: today's order is the physical row order and the plan's, which can match by accident)",
-)
 def test_ita_tfi_13__two_tags_with_the_same_name_come_back_lower_id_first(db, w1, i1, mk_tag, mk_link):
     """ITA-TFI-13 — two tags with the same name come back lower id first.
     Rules: `get_tags_for_item` R4 [BUG-932]"""
@@ -957,7 +935,6 @@ def test_ita_tfi_13__two_tags_with_the_same_name_come_back_lower_id_first(db, w1
 
 
 # [claude] ITA-TFI-14
-@pytest.mark.xfail(strict=True, reason="BUG-932: An item's tags on its summary have no sort order")
 def test_ita_tfi_14__the_tags_of_one_item_query_asks_for_name_case_insensitive_then_id(db, w1, i1, t1, mk_link):
     """ITA-TFI-14 — the tags-of-one-item query asks for name case-insensitive, then id.
     Rules: `get_tags_for_item` R4 [BUG-932]"""

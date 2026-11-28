@@ -23,7 +23,8 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
         Get tags for multiple items in one query (SECURITY-CRITICAL).
 
         Returns:
-            Mapping of item_id -> tags ordered by tag name.
+            Mapping of item_id -> tags ordered by name (case-insensitive),
+            then id.
         """
         if not item_ids:
             return {}
@@ -36,7 +37,11 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
                 ItemTagAssignment.workspace_id == workspace_id,
                 ItemTag.is_active == True,
             )
-            .order_by(ItemTagAssignment.item_id, ItemTag.name)
+            .order_by(
+                ItemTagAssignment.item_id,
+                func.lower(ItemTag.name).asc(),
+                ItemTag.id.asc(),
+            )
             .all()
         )
 
@@ -57,7 +62,8 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
             workspace_id: Workspace ID to filter by
 
         Returns:
-            List of tags assigned to the item
+            List of tags assigned to the item, ordered by name
+            (case-insensitive), then id
         """
         return (
             db.query(ItemTag)
@@ -67,6 +73,7 @@ class ItemTagAssignmentDAO(BaseDAO[ItemTagAssignment, ItemTagAssignmentCreate, I
                 ItemTagAssignment.workspace_id == workspace_id,
                 ItemTag.is_active == True
             )
+            .order_by(func.lower(ItemTag.name).asc(), ItemTag.id.asc())
             .all()
         )
 
