@@ -38,8 +38,6 @@ BUG_868 = "BUG-868: `%` and `_` in account name search act as wildcards"
 BUG_861 = "BUG-861: Account tag-code filter is exact and case-sensitive"
 BUG_864 = "BUG-864: Filtering accounts by a deleted tag still returns them"
 BUG_866 = "BUG-866: Account search has no sort order"
-BUG_1480 = "BUG-1480: Accounts of one tag have no sort order"
-BUG_1481 = "BUG-1481: \"Accounts with tag N\" lists the accounts of a deleted tag"
 NON_STRICT = " (non-strict: today's order is the plan's physical order, which can match by accident)"
 
 
@@ -1017,7 +1015,6 @@ def test_acc_bt_06__an_unknown_tag_returns_an_empty_list(db, w1, mk_account, mk_
 
 
 # [claude] ACC-BT-07
-@pytest.mark.xfail(strict=True, reason=BUG_1481)
 def test_acc_bt_07__a_deleted_tag_gives_an_empty_list_its_links_stay(db, w1, mk_account, mk_tag, link):
     """ACC-BT-07 — a deleted tag gives an empty list; its links stay.
     Rules: `get_accounts_by_tag_id` R3 [BUG-1481]"""
@@ -1034,7 +1031,6 @@ def test_acc_bt_07__a_deleted_tag_gives_an_empty_list_its_links_stay(db, w1, mk_
 
 
 # [claude] ACC-BT-08
-@pytest.mark.xfail(strict=False, reason=BUG_1480 + NON_STRICT)
 def test_acc_bt_08__ordered_by_name_case_insensitive_then_id(db, w1, mk_account, mk_tag, link):
     """ACC-BT-08 — ordered by name case-insensitive, then id.
     Rules: `get_accounts_by_tag_id` R4 [BUG-1480]"""
@@ -1057,7 +1053,6 @@ def test_acc_bt_08__ordered_by_name_case_insensitive_then_id(db, w1, mk_account,
 
 
 # [claude] ACC-BT-09
-@pytest.mark.xfail(strict=True, reason=BUG_1480)
 def test_acc_bt_09__the_query_orders_by_name_case_insensitive_then_id(db, w1, mk_account, mk_tag, link):
     """ACC-BT-09 — the query orders by name case-insensitive, then id.
     Rules: `get_accounts_by_tag_id` R4 [BUG-1480]"""

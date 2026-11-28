@@ -1,5 +1,6 @@
 """Account DAO operations"""
 
+from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 
 from app.dao.base import BaseDAO
@@ -109,6 +110,9 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
         """
         Get all active accounts that have a specific tag assigned (SECURITY-CRITICAL)
 
+        A deleted tag (is_active = False) matches no account. Results are
+        ordered by name (case-insensitive), then id, before paging.
+
         Args:
             db: Database session
             workspace_id: Workspace ID to filter by
@@ -119,19 +123,25 @@ class AccountDAO(BaseDAO[Account, AccountCreate, AccountUpdate]):
         Returns:
             List of accounts tagged with the given tag
         """
+        # EXISTS rather than join + DISTINCT: each account appears once, and
+        # Postgres refuses ORDER BY lower(name) together with SELECT DISTINCT.
         return (
             db.query(Account)
-            .join(AccountTagAssignment, Account.id == AccountTagAssignment.account_id)
             .filter(
                 Account.workspace_id == workspace_id,
                 Account.is_active == True,
                 Account.is_deleted == False,
-                AccountTagAssignment.workspace_id == workspace_id,
-                AccountTagAssignment.tag_id == tag_id
+                exists().where(
+                    AccountTagAssignment.account_id == Account.id,
+                    AccountTagAssignment.workspace_id == workspace_id,
+                    AccountTagAssignment.tag_id == tag_id,
+                    AccountTag.id == AccountTagAssignment.tag_id,
+                    AccountTag.is_active == True,
+                ),
             )
+            .order_by(func.lower(Account.name).asc(), Account.id.asc())
             .offset(skip)
             .limit(limit)
-            .distinct()
             .all()
         )
 
