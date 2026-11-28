@@ -223,3 +223,18 @@ All 5 units CLEAN on the first round, all code reviews PASS, no fixer feedback r
 | F11 | dao-machine_section_assignment review: `upsert_for_machine` docstring still says it always replaces; `app/managers/machine_manager.py:176-178` comment says "deleted/replaced". | Fold into the BUG-908 unit (which removes `clear_for_section`). |
 | F12 | item_tag spec R7 doesn't yet say the in-memory value must match after a savepoint rollback. | One sentence in the next describer pass. |
 
+### Batch 5 (2026-11-28, independent of the open batch-4 PRs)
+
+All 5 units CLEAN, all code reviews PASS: dao-item_tag_assignment (8 flipped, `ec2b64c`), dao-attachment_markup_event (5, `af94ef0`), dao-account (3, `43c3f76`), dao-account_invoice (30, `698188f`; BUG-637 moved out), dao-inventory_ledger (26, `f6ff706`; round 2 after the systems engineer showed the BUG-655 crash fix made reconcile reachable and a timestamp tie made it write wrong stock; scope widened with the inventory halves of BUG-641/664 and BUG-803).
+
+| Id | Seen | Fix |
+|---|---|---|
+| T23 | flipcheck can't express a bug fixed in only one of two files (BUG-641/664 inventory vs machine half): the compare says REJECTED and the tester has to accept a hand-checked list of leftovers. | Add `--partial BUG-x` (tests naming it may stay xfailed if unchanged) or split such rows per file in bugs.md. |
+| P23 | A row's tests can span two files even when the Module column names one (BUG-637: invoice and account search). Found at pre-check. | Planner: grep the bug id across all spec files before cutting a unit; correct the row's Module column. |
+| S1 | Fixing a crash can make a never-run path reachable (inventory reconcile). The systems engineer caught that the newly reachable path wrote wrong stock. | SE skill: for every crash fix, run the newly reachable code path end to end and report what it writes. |
+| F13 | BUG-1486 (`account_tag_assignment.py`) is the same ordering pattern as BUG-932; BUG-1435 (`attachment_markup.py`) the same tie-break as BUG-1436; BUG-861/864/866/868 are in `account.py` `get_accounts_in_workspace` (filed under the manager). | Next DAO units. |
+| F14 | BUG-2119 (markup manager, one query per history entry) gets worse now that the history has no cap (5,000 entries: about 2.7 s on localhost). | Put the attachment markup manager unit in the next batch. |
+| F15 | Production data already corrupted by the inventory tie (BUG-664/803) and invoices on another workspace's account (BUG-2690) are hidden or no longer made worse, but not repaired. | Read-only checks first (ledger chain breaks `qty_before != previous qty_after`; cross-workspace invoices with amounts per workspace), then an owner decision on repair. |
+| F16 | dao-inventory_ledger review R1-1 (minor): the "latest entry" query is written twice (`calculate_balance`, `get_latest_entry`). | Optional cleanup with the machine-half unit. |
+| O4 | A systems engineer copied the repo's `.env` into its scratch folder for a measurement run (deleted afterwards). | Prompts already say "never copy .env"; keep it in the SE and reviewer skills. |
+

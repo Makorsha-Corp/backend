@@ -1,0 +1,154 @@
+{
+  "ok": false,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_inventory.py::test_inv_sy_17__among_entries_sharing_newest_performed_at_greatest_id_wins",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_08__a_single_entry_gives_its_quantity_and_quantity_times_average_price",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_09__an_entry_with_no_average_price_gives_its_quantity_and_value_0_00",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_10__an_entry_with_quantity_0_gives_quantity_0_and_value_0",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_11__the_balance_comes_from_the_entry_with_the_greatest_performed_at",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_12__newer_entries_of_other_buckets_do_not_change_the_balance",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_13__among_entries_sharing_the_newest_performed_at_the_greatest_id_gives_th",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_14__the_balance_of_a_bucket_in_a_soft_deleted_factory_is_returned",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_15__the_balance_of_a_bucket_of_a_removed_catalog_item_is_returned",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_bal_16__reading_the_balance_of_a_bucket_with_history_changes_nothing",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_dr_19__factory_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_dr_20__item_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_le_06__among_entries_sharing_the_newest_performed_at_the_greatest_id_wins",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_tt_20__factory_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_tt_21__item_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_w_15__factory_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/dao/test_inventory_ledger.py::test_led_w_18__item_id_0_filters_and_returns_an_empty_list",
+    "tests/unit/managers/test_ledger_manager.py::test_led_gib_03__latest_qty_and_value",
+    "tests/unit/managers/test_ledger_manager.py::test_led_gib_04__null_avg_price_is_zero_value",
+    "tests/unit/managers/test_ledger_manager.py::test_led_gib_05__isolation_from_decoys",
+    "tests/unit/managers/test_ledger_manager.py::test_led_gib_06__tie_broken_by_highest_id",
+    "tests/unit/managers/test_ledger_manager.py::test_led_rinv_07__balanced_with_history",
+    "tests/unit/managers/test_ledger_manager.py::test_led_rinv_16__second_sequential_call_balanced",
+    "tests/unit/managers/test_po_return_inventory.py::test_pri_p_47__three_same_item_lines_chain_correctly",
+    "tests/unit/services/test_ledger_service.py::test_lsv_gib_06__pass_through_bug_655_a_bucket_with_history_answers_its_balance",
+    "tests/unit/services/test_ledger_service.py::test_lsv_rinv_16__pass_through_bug_655_a_bucket_with_history_reconciles_and_commits"
+  ],
+  "rejections": [
+    {
+      "test": "tests/unit/dao/test_machine_item_ledger.py::test_mil_bal_11__among_tied_entries_the_greatest_id_decides_the_balance",
+      "why": "target test for ['BUG-641'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item_ledger.py::test_mil_bal_12__the_query_asks_the_database_for_performed_at_newest_first_then_id",
+      "why": "target test for ['BUG-641'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item_ledger.py::test_mil_le_09__among_tied_entries_the_greatest_id_is_returned",
+      "why": "target test for ['BUG-664'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item_ledger.py::test_mil_le_10__the_query_asks_the_database_for_performed_at_newest_first_then_id",
+      "why": "target test for ['BUG-664'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_inventory_movements.py::test_invm_muc_05__tied_rows_picks_wrong_one",
+      "why": "target test for ['BUG-664'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_inventory_movements.py::test_invm_si_15__tied_ledger_rows_sync_from_wrong_row",
+      "why": "target test for ['BUG-664'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_inventory_movements.py::test_invm_so_18__tied_ledger_rows_sync_from_wrong_row",
+      "why": "target test for ['BUG-664'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_ledger_manager.py::test_led_gmb_05__tie_broken_by_highest_id",
+      "why": "target test for ['BUG-641'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_ledger_manager.py::test_led_rinv_06__no_snapshot_nonzero_ledger_error",
+      "why": "target test for ['BUG-655'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/managers/test_ledger_manager.py::test_led_rinv_12__adjusted_with_history",
+      "why": "target test for ['BUG-655'] is xfailed after (was xfailed); expected passed"
+    },
+    {
+      "test": "tests/unit/services/test_ledger_service.py::test_lsv_gmb_08__pass_through_bug_641_the_latest_entry_breaks_ties_by_id",
+      "why": "target test for ['BUG-641'] is xfailed after (was xfailed); expected passed"
+    }
+  ],
+  "notes": [
+    {
+      "test": "tests/unit/managers/test_ledger_manager.py::test_led_rinv_13__avg_price_only_mismatch_with_history",
+      "note": "also needs ['BUG-653']; still xfailed"
+    },
+    {
+      "test": "tests/unit/managers/test_ledger_manager.py::test_led_rinv_14__null_avg_price_treated_as_zero",
+      "note": "also needs ['BUG-650']; still xfailed"
+    }
+  ],
+  "ignored_nonstrict": [
+    {
+      "test": "tests/unit/dao/test_machine.py::test_mch_gf_26__machines_come_back_by_name_case_insensitive_ascending",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-343"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_production_formula.py::test_pfm_gw_07__rows_paged_one_at_a_time_neither_repeat_nor_miss_a_row",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/managers/test_machine_item_manager.py::test_mim_l_58__without_a_machine_id_equal_names_in_different_case_come_lower_row_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-1071"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_purchase_order_service.py::test_pos_lr_03__equal_times_higher_id_first",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-3172"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_sales_service.py::test_ss_a_07b__line_numbers_follow_id_order_after_rewrite",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-3193"
+      ]
+    }
+  ],
+  "before_commit": "092776ba4d68e23dd2797cf1e35e222cc14b4241",
+  "after_commit": "092776ba4d68e23dd2797cf1e35e222cc14b4241",
+  "bugs": [
+    "BUG-641",
+    "BUG-655",
+    "BUG-664",
+    "BUG-803",
+    "BUG-885"
+  ],
+  "env_warnings": [],
+  "tester_verdict": {
+    "verdict": "CLEAN (accepted per tester-precheck.md round-2 acceptance rule)",
+    "reason": "flipcheck cannot express a partly fixed bug. All 11 rejections are expected leftovers, each xfailed before and after: 7 machine-half tests of BUG-641/BUG-664 (markers kept; machine ledger is a later unit) and 4 wrong tests (LED-RINV-06, LED-RINV-12, INVM-SO-18, INVM-SI-15; docs/bugfix/wrong-tests.md; skipped this round). All 26 removed markers flipped as intended. No passing test changed.",
+    "expected_leftovers_machine_half": [
+      "test_invm_muc_05",
+      "test_led_gmb_05",
+      "test_lsv_gmb_08",
+      "test_mil_bal_11",
+      "test_mil_bal_12",
+      "test_mil_le_09",
+      "test_mil_le_10"
+    ],
+    "expected_leftovers_wrong_tests": [
+      "test_invm_si_15",
+      "test_invm_so_18",
+      "test_led_rinv_06",
+      "test_led_rinv_12"
+    ],
+    "date": "2026-11-28"
+  }
+}
