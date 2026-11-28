@@ -411,3 +411,130 @@ red after a correct fix, so BUG-886 must be skipped this round.
   and in `tests/unit/services/machine_service.cases.md` MCS-L-12, the When's
   `latest_event_type="IDLE"` becomes `latest_event_type=IDLE` (the enum member, per the
   conventions' `IDLE = MachineEventTypeEnum.IDLE`). Both test files are LF.
+
+## BUG-655: LED-RINV-06 (setup does not match its card) and LED-RINV-12 (marker names one bug, the test needs three)
+
+**Status: proposed 2026-11-28 by the tester's pre-check** (one setup line and one marker reason;
+today's outcome is unchanged, both still fail on the `AttributeError`). BUG-655 stays in unit
+dao-inventory_ledger **only if** this diff is on `origin/main` before the batch-5 baseline is
+recorded; otherwise BUG-655 is skipped this round (BUG-885 goes ahead either way).
+
+- **Unit:** `dao-inventory_ledger` (pre-check 2026-11-28).
+- **Tests:** `test_led_rinv_06__no_snapshot_nonzero_ledger_error`,
+  `test_led_rinv_12__adjusted_with_history`, in `tests/unit/managers/test_ledger_manager.py`.
+  The other 19 BUG-655 tests (8 DAO, 5 manager, 2 service single-tagged; 4 dual-tagged that keep their markers) are right.
+- **LED-RINV-06, why it's wrong:** the card's Given is "RI-hist **without S**" and the check is
+  spec `reconcile_inventory` R5 ("No live snapshot and ledger quantity ≠ 0 → same error dict ...;
+  no snapshot created or restored") reached through R1 [BUG-655]. The test uses the `ri_hist`
+  setup as it is, which **creates** the live snapshot S (qty 10 @ 2.00), and never removes it. With
+  a correct BUG-655 fix patched in (no `app/` edit) the call returns
+  `{"status": "adjusted", "ledger_qty": 15, "snapshot_qty": 10, "discrepancy": 5, ...}` and the
+  "no `inventory` row" check fails too, so stage C would remove the marker and the test would fail.
+  With S deleted first, the same test fails today on the `AttributeError` and passes with the fix
+  (measured on `bf_dao_inventory_ledger_test`).
+- **LED-RINV-12, why it's wrong:** what it checks is right (spec `reconcile_inventory` R3, R9,
+  R9a, R9b, R10, R1; its card's Rules column says "[BUG-655, BUG-651, BUG-652]"), but its strict
+  marker names only BUG-655 (card: "xfail BUG-655"). R9a / R9b are BUG-651 ("quantity = 0;
+  qty_before = the ledger quantity"; notes end with the avg-price sentence) and R10's `updated_by`
+  is BUG-652, both in `app/managers/ledger_manager.py`, out of this unit. With a correct BUG-655 fix
+  patched in, the test gets past the balance and fails on `updated_by == U2` (BUG-652), then would
+  fail on `quantity == 0` (BUG-651). Same shape as the BUG-1101 entry above.
+- **Proposed correction:**
+
+```diff
+--- a/tests/unit/managers/test_ledger_manager.py
++++ b/tests/unit/managers/test_ledger_manager.py
+@@ -1626,6 +1626,8 @@
+ def test_led_rinv_06__no_snapshot_nonzero_ledger_error(db, M, ri_hist, f1, i1, w1, u2):
+     """LED-RINV-06 — ledger history without a snapshot should report the error dict.
+     Rules: reconcile_inventory R5, R1 [BUG-655]."""
++    db.delete(ri_hist["snap"])  # card Given: "RI-hist without S"
++    db.flush()
+     result = rinv(db, M, f1, i1, STORAGE, w1, u2)
+     assert result == {
+         "status": "error", "ledger_qty": 15, "snapshot_qty": 0, "discrepancy": 15,
+@@ -1727,7 +1729,7 @@
+     assert row.total_cost == Decimal("0.00")
+ 
+ 
+-@pytest.mark.xfail(strict=True, reason=BUG_655)
++@pytest.mark.xfail(strict=True, reason=f"{BUG_655.split(':')[0]}, {BUG_651.split(':')[0]}, {BUG_652.split(':')[0]}: needs all three fixes")
+ def test_led_rinv_12__adjusted_with_history(db, M, ri_hist, f1, i1, w1, u1, u2):
+     """LED-RINV-12 — a full correction with ledger history (qty + avg_price + notes).
+     Rules: reconcile_inventory R3, R9, R9a, R9b, R10, R1 [BUG-655, BUG-651, BUG-652]."""
+```
+
+  Matching cases change in `tests/unit/managers/ledger_manager.cases.md`: LED-RINV-06 unchanged
+  (the card is right); LED-RINV-12 `xfail BUG-655 — fails today on: raises AttributeError` becomes
+  `xfail BUG-655, BUG-651, BUG-652 — fails today on: raises AttributeError (after BUG-655:
+  updated_by == U1, quantity == 5)`. The test file is LF.
+
+## BUG-664: INVM-SO-18 and INVM-SI-15 (the "new ledger row" is picked by id, but the tie setup gives a seeded row a higher id)
+
+**Status: proposed 2026-11-28 by the tester's pre-check (round 2 of unit dao-inventory_ledger,
+scope widened with the inventory half of BUG-641 / BUG-664 / BUG-803).** Two lines per test; today's
+outcome is unchanged (both still fail strict, on the sync line their cards name), so a baseline
+recorded before or after the diff gives the same outcome for them. BUG-664 stays in the unit
+**only if** this diff is on `origin/main` and in `bugfix/dao-inventory_ledger` before the tester's
+stage C; otherwise these two tests keep their markers and are reported as expected leftovers
+(the flip check will list them as rejections, see the unit's `tester-precheck.md`, round 2).
+
+- **Unit:** `dao-inventory_ledger` (pre-check round 2, 2026-11-28).
+- **Tests:** `test_invm_so_18__tied_ledger_rows_sync_from_wrong_row`,
+  `test_invm_si_15__tied_ledger_rows_sync_from_wrong_row`, in
+  `tests/unit/managers/test_inventory_movements.py`. The other BUG-664 / BUG-803 inventory tests
+  (INV-SY-17, LED-LE-06, PRI-P-47) are right.
+- **Why it's wrong:** what the cards check is right. Spec `_storage_out` R3a [BUG-664]: "The bucket
+  row's `qty` and `avg_price` are then set from the newest ledger row for that bucket ... 'newest' =
+  greatest `performed_at`, ties broken by greatest `id`"; bug row BUG-664 intended: "'Latest' ordered by
+  `performed_at` descending, then `id` descending". The cards (SO-18, SI-15) expect "new ledger row
+  `qty_before 10` ...". But the test reads the new row as `ledger_rows(...)[-1]`, and `ledger_rows`
+  orders by `id` ascending. The tie setup gives row C an explicit id of `nextval + 1_000_000`, so the
+  row the movement writes (next sequence value) has a **smaller** id than C, and `[-1]` is C (seeded with
+  `qty_before 0`). With a correct fix simulated (scratch plugin that patches `InventoryLedgerDAO`
+  with `ORDER BY performed_at DESC, id DESC`; no `app/` edit), the result and the bucket checks pass and
+  both tests fail on `assert 0 == 10` (`new.qty_before`). No correct fix can make them pass.
+- **Proposed correction** (pick the row the movement wrote as the one that was not there before;
+  `git apply --check` clean on 092776b. Patched copy measured on `bf_dao_inventory_ledger_test`:
+  today both still fail on the card's line (`Decimal('4.50') == Decimal('5.00')`, bucket `22 == 20`,
+  i.e. synced from row B), with the simulated fix both pass, and no other test in the file changes):
+
+```diff
+--- a/tests/unit/managers/test_inventory_movements.py
++++ b/tests/unit/managers/test_inventory_movements.py
+@@ -1031,12 +1031,13 @@
+                   row_id=c_id)
+     mk_inv_ledger(db, workspace_id=w1.id, factory_id=f1.id, item_id=i1.id, inv_type=STORAGE,
+                   qty_after=15, avg_after=Decimal("4.00"), performed_by_id=u2.id, performed_at=T0)
++    seeded = {row.id for row in ledger_rows(db, w1.id, f1.id, i1.id, STORAGE)}
+     result = _storage_out(db, factory_id=f1.id, item_id=i1.id, qty=5, **so_kwargs(w1, u1))
+     assert result == Decimal("5.00")
+     r = reread_inventory(db, bucket.id)
+     assert r.qty == 5
+     assert r.avg_price == Decimal("5.00")
+-    new = ledger_rows(db, w1.id, f1.id, i1.id, STORAGE)[-1]
++    [new] = [row for row in ledger_rows(db, w1.id, f1.id, i1.id, STORAGE) if row.id not in seeded]
+     assert new.qty_before == 10
+     assert new.qty_after == 5
+     assert new.unit_cost == Decimal("5.00")
+@@ -1377,13 +1378,14 @@
+                   row_id=c_id)
+     mk_inv_ledger(db, workspace_id=w1.id, factory_id=f1.id, item_id=i1.id, inv_type=STORAGE,
+                   qty_after=15, avg_after=Decimal("4.00"), performed_by_id=u2.id, performed_at=T0)
++    seeded = {row.id for row in ledger_rows(db, w1.id, f1.id, i1.id, STORAGE)}
+     result = _storage_in(db, factory_id=f1.id, item_id=i1.id, qty=10, unit_cost=Decimal("7.00"),
+                           **si_kwargs(w1, u1))
+     assert result is None
+     r = reread_inventory(db, bucket.id)
+     assert r.qty == 20
+     assert r.avg_price == Decimal("6.00")
+-    new = ledger_rows(db, w1.id, f1.id, i1.id, STORAGE)[-1]
++    [new] = [row for row in ledger_rows(db, w1.id, f1.id, i1.id, STORAGE) if row.id not in seeded]
+     assert new.qty_before == 10
+     assert new.avg_price_before == Decimal("5.00")
+     assert new.avg_price_after == Decimal("6.00")
+```
+
+  The cards in `tests/unit/managers/inventory_movements.cases.md` are right and stay unchanged; the
+  executor notes could add one line: "with an explicit high id in the setup, the new row is the one not
+  seeded, not the last by id". The test file is LF, ASCII.

@@ -1,0 +1,279 @@
+{
+  "ok": true,
+  "flipped_as_intended": [
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ah_20__percent_in_hub_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ah_21__underscore_in_hub_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ah_22__backslash_in_hub_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ah_25__case_only_names_case_insensitive_then_id",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ah_26__hub_query_orders_by_lower_name",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_ca_07__invoice_on_w2_account_does_not_count",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_06__invoice_on_w2_account_not_listed",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_07__invoice_on_w0_account_not_listed",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_08__foreign_account_name_does_not_find",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_36__superscript_digit_searched_as_text",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_37__arabic_indic_digits_do_not_match_id",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_40__percent_in_account_name_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_41__underscore_in_account_name_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_fq_42__backslash_in_account_name_search_literal",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_hs_10__invoice_on_w2_account_not_counted",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_hs_11__invoice_on_w0_account_not_counted",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_lp_09__w1_invoice_on_w2_account_not_listed",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_on_14__deleted_wo_number_does_not_find_forward",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_on_15__deleted_wo_number_does_not_find_reverse",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_pf_17__invoice_on_w0_account_neither_listed_nor_counted",
+    "tests/unit/dao/test_account_invoice.py::test_aiv_si_09__invoice_on_w2_account_not_summed",
+    "tests/unit/managers/test_account_invoice_manager.py::test_ah_09__percent_literal",
+    "tests/unit/managers/test_account_invoice_manager.py::test_ah_10__underscore_literal",
+    "tests/unit/managers/test_account_invoice_manager.py::test_ah_15__case_insensitive_name_order",
+    "tests/unit/managers/test_account_invoice_manager.py::test_ah_22__case_insensitive_equal_names_tie_break_by_id",
+    "tests/unit/managers/test_account_invoice_manager.py::test_l_33__superscript_digit_no_crash",
+    "tests/unit/managers/test_account_invoice_manager.py::test_l_34__arabic_indic_digits_should_not_match_id",
+    "tests/unit/managers/test_account_invoice_manager.py::test_l_36__account_name_percent_literal",
+    "tests/unit/managers/test_account_invoice_manager.py::test_l_37__account_name_underscore_literal",
+    "tests/unit/managers/test_account_invoice_manager.py::test_l_38__account_name_backslash_literal"
+  ],
+  "rejections": [],
+  "notes": [],
+  "ignored_nonstrict": [
+    {
+      "test": "tests/unit/dao/test_attachment_ledger.py::test_atl_g_42__on_a_tie_the_higher_id_comes_first_when_the_higher_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-640"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_attachment_ledger.py::test_atl_g_43__on_a_tie_the_higher_id_comes_first_with_no_update",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-640"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_expense_order_approver.py::test_eoa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_22__factories_come_back_in_id_order_not_in_name_order_and_not_in_the",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_23__the_first_window_of_one_holds_the_factory_with_the_lowest_id",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory.py::test_fcd_gw_24__the_second_window_of_one_holds_the_factory_with_the_next_id",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_factory_section.py::test_fsd_inh_18__get_by_workspace_returns_the_sections_in_id_order_not_in_name_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag.py::test_itg_inh_18__get_by_workspace_returns_the_tags_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_inh_14__get_by_workspace_returns_the_links_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_tfi_13__two_tags_with_the_same_name_come_back_lower_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-932"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_item_tag_assignment.py::test_ita_tfs_18__two_tags_with_the_same_name_come_back_lower_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-933"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_activity_event.py::test_mae_lm_14__on_a_tie_the_entry_is_the_highest_id_the_row_the_single_lookup_returns",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1090"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_11__rows_come_back_in_id_order",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_12__the_first_of_two_windows_holds_the_two_lowest_ids",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_13__the_second_of_two_windows_holds_the_two_highest_ids",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_item.py::test_mit_gw_33__id_order_holds_when_the_lower_id_sits_on_the_higher_machine_and_item",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_machine_section_assignment.py::test_msa_gs_20__rows_come_back_by_id_ascending",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-906"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_payment_transaction_event.py::test_pte_g_13__on_a_created_at_tie_the_lower_id_comes_first_after_the_lower_row_is_upd",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1190"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item.py::test_pci_g_12__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1276"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item.py::test_pci_g_14__the_order_comes_before_paging_and_the_hidden_row_does_not_use_up_the_s",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1276"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item_ledger.py::test_pcil_bal_16__tie_greatest_id_decides",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-2463"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_project_component_item_ledger.py::test_pcil_le_09__tie_greatest_id_returned",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-2463"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_purchase_order_approver.py::test_poa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_delivery_item.py::test_sdi_g_11__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1271"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_order_approver.py::test_soa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_order_item.py::test_soi_g_13__rows_come_back_by_id_ascending_with_no_update",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-1270"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_sales_order_item.py::test_soi_g_19__rows_come_back_by_id_ascending_when_price_would_sort_the_other_way",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-1270"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_transfer_order_approver.py::test_toa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_work_order_approver.py::test_woa_go_12__on_a_tie_the_lowest_id_comes_first_when_the_lower_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1200"
+      ]
+    },
+    {
+      "test": "tests/unit/dao/test_work_order_item.py::test_woi_g_16__rows_come_back_by_id_ascending_when_the_lowest_id_was_updated",
+      "change": "xfailed -> xpassed",
+      "bugs": [
+        "BUG-1272"
+      ]
+    },
+    {
+      "test": "tests/unit/managers/test_machine_item_manager.py::test_mim_l_58__without_a_machine_id_equal_names_in_different_case_come_lower_row_id_first",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-1071"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_miscellaneous_project_cost_service.py::test_mpcsv_l_15__workspace_list_in_id_order",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-100"
+      ]
+    },
+    {
+      "test": "tests/unit/services/test_purchase_order_service.py::test_pos_br_05__lines_in_id_order",
+      "change": "xpassed -> xfailed",
+      "bugs": [
+        "BUG-3172"
+      ]
+    }
+  ],
+  "before_commit": "092776ba4d68e23dd2797cf1e35e222cc14b4241",
+  "after_commit": "092776ba4d68e23dd2797cf1e35e222cc14b4241",
+  "bugs": [
+    "BUG-2690",
+    "BUG-2691",
+    "BUG-622",
+    "BUG-623"
+  ],
+  "env_warnings": []
+}

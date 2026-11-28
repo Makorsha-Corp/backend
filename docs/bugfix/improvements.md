@@ -207,3 +207,34 @@ All 3 units CLEAN on the first round, no fixer feedback rounds, no contract chan
 | F8 | `_escape_ilike` is now copied in 3 DAOs (account_invoice, help_ticket, machine). | Later refactor unit: one shared helper in `app/utils/` (not inside the one-file bug units). |
 | F9 | `machine_activity_events` has only single-column indexes; the BUG-886 latest-status filter would benefit from a partial index `(workspace_id, machine_id, created_at DESC, id DESC) WHERE event_type='status_updated'`. | Later `db-change` unit (migration). |
 | T20 | Running legacy `tests/test_*.py` and `tests/unit/...` in one pytest call errors 673 unit tests (`fixture 'db' not found`). | Tester skill C.4: run legacy files in a separate pytest call. |
+
+### Batch 4 (2026-11-27/28, first batch of 5)
+
+All 5 units CLEAN on the first round, all code reviews PASS, no fixer feedback rounds, no contract changes: dao-waitlist (7 flipped, `db3bb3f`), dao-machine_section_assignment (8, `881a95c`), dao-workspace_invitation (13, `c6b9a87`), dao-item_tag-2 (BUG-3302, new test, `8502901` + `24c6843`), dao-machine_item (36, `253484f`). Wall clock from planning to the last push was about 1h45; the 5 parallel full-suite runs took about 13 minutes each.
+
+| Id | Seen | Fix |
+|---|---|---|
+| A25 | `.claude/agents/bug-fixer.md` step 5 says throwaway checks go in `<worktree>/.scratch/`, but the round prompts say the session scratchpad. Fixers followed the prompt. | Pick one (the scratchpad: nothing to clean from the worktree) and fix the agent file together with A24 (needs a restart). |
+| T21 | `scripts/bugfix/worktree.py unblind` crashes with WinError 267 when run from the worktree's own copy: it finds the worktree folder from the script's location. All 5 testers hit it. | Tester skill: always run the main checkout's copy; or make the script resolve the main checkout via `git rev-parse --git-common-dir`. |
+| T22 | Testers leave `.cases.md` "Expect: xfail BUG-…" lines stale after a fix (every unit since batch 1 does). | Decide once: either the tester updates the Expect line when it removes a marker, or a later sweep tool (with T17) does it. |
+| P22 | A unit for a bug with no test (BUG-3302) needs the pre-check to write the test in the main checkout and the tester to carry it to the branch; the flip compare then rejects with "no test before names BUG-…". | Planner/tester skills: describe this "new test" path; flipcheck: accept tests absent from the baseline that name the unit's bugs. |
+| H1 | HR-8 in `house-rules.md` names only `%` and `_`, but specs and bug rows also require `\` to match literally. | Add `\` to HR-8. |
+| F10 | dao-workspace_invitation review R1-1 (minor): "my invitations" lower-cases the argument in Python and the column in Postgres; they differ for rare capitals such as `İ` and `ẞ`. | Owner decides in the PR; if wanted, a later unit lower-cases both sides in SQL. |
+| F11 | dao-machine_section_assignment review: `upsert_for_machine` docstring still says it always replaces; `app/managers/machine_manager.py:176-178` comment says "deleted/replaced". | Fold into the BUG-908 unit (which removes `clear_for_section`). |
+| F12 | item_tag spec R7 doesn't yet say the in-memory value must match after a savepoint rollback. | One sentence in the next describer pass. |
+
+### Batch 5 (2026-11-28, independent of the open batch-4 PRs)
+
+All 5 units CLEAN, all code reviews PASS: dao-item_tag_assignment (8 flipped, `ec2b64c`), dao-attachment_markup_event (5, `af94ef0`), dao-account (3, `43c3f76`), dao-account_invoice (30, `698188f`; BUG-637 moved out), dao-inventory_ledger (26, `f6ff706`; round 2 after the systems engineer showed the BUG-655 crash fix made reconcile reachable and a timestamp tie made it write wrong stock; scope widened with the inventory halves of BUG-641/664 and BUG-803).
+
+| Id | Seen | Fix |
+|---|---|---|
+| T23 | flipcheck can't express a bug fixed in only one of two files (BUG-641/664 inventory vs machine half): the compare says REJECTED and the tester has to accept a hand-checked list of leftovers. | Add `--partial BUG-x` (tests naming it may stay xfailed if unchanged) or split such rows per file in bugs.md. |
+| P23 | A row's tests can span two files even when the Module column names one (BUG-637: invoice and account search). Found at pre-check. | Planner: grep the bug id across all spec files before cutting a unit; correct the row's Module column. |
+| S1 | Fixing a crash can make a never-run path reachable (inventory reconcile). The systems engineer caught that the newly reachable path wrote wrong stock. | SE skill: for every crash fix, run the newly reachable code path end to end and report what it writes. |
+| F13 | BUG-1486 (`account_tag_assignment.py`) is the same ordering pattern as BUG-932; BUG-1435 (`attachment_markup.py`) the same tie-break as BUG-1436; BUG-861/864/866/868 are in `account.py` `get_accounts_in_workspace` (filed under the manager). | Next DAO units. |
+| F14 | BUG-2119 (markup manager, one query per history entry) gets worse now that the history has no cap (5,000 entries: about 2.7 s on localhost). | Put the attachment markup manager unit in the next batch. |
+| F15 | Production data already corrupted by the inventory tie (BUG-664/803) and invoices on another workspace's account (BUG-2690) are hidden or no longer made worse, but not repaired. | Read-only checks first (ledger chain breaks `qty_before != previous qty_after`; cross-workspace invoices with amounts per workspace), then an owner decision on repair. |
+| F16 | dao-inventory_ledger review R1-1 (minor): the "latest entry" query is written twice (`calculate_balance`, `get_latest_entry`). | Optional cleanup with the machine-half unit. |
+| O4 | A systems engineer copied the repo's `.env` into its scratch folder for a measurement run (deleted afterwards). | Prompts already say "never copy .env"; keep it in the SE and reviewer skills. |
+
