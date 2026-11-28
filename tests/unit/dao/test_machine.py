@@ -359,7 +359,6 @@ def test_mch_inh_13__a_refused_update_leaves_an_existing_assignment_pointing_at_
     assert count_rows(db, "machine_section_assignments") == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_72__the_newest_status_change_decides_the_machine_matches_its_newest_status(db, w1, mk_machine, mk_event):
     """MCH-SA-72 — the newest status change decides: the machine matches its newest status.
     Rules: `search_advanced` R12a [BUG-886]"""
@@ -945,7 +944,6 @@ def test_mch_sa_129__once_the_factory_is_no_longer_deleted_its_id_works_as_the_f
 
 # MCH-SA-130 is a local-model card that the tool handed back (its text check compares
 # the evaluated "\tbolt\n" with the card's source text and rejects the faithful test).
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_130__a_tab_before_and_a_newline_after_the_search_text_are_removed_before_matching(db, w1, mk_machine):
     """MCH-SA-130 — a tab before and a newline after the search text are removed before matching.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -1139,7 +1137,6 @@ def test_mch_sd_10__a_deleted_by_that_is_no_profile_id_fails_on_flush_and_nothin
 
 
 # [local-coder] MCH-SA-40
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_40__a_search_of_a_space_a_tab_and_a_newline_applies_no_search_filter(db, w1, mk_machine):
     """MCH-SA-40 — a search of a space, a tab and a newline applies no search filter.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -1183,7 +1180,6 @@ def test_mch_sa_61__has_model_number_true_keeps_machines_with_a_non_empty_model_
 
 
 # [local-coder] MCH-SA-77
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_77__a_machine_with_only_events_of_other_types_never_matches(db, w1, mk_machine, mk_event):
     """MCH-SA-77 — a machine with only events of other types never matches.
     Rules: `search_advanced` R12b [BUG-886]"""
@@ -1436,7 +1432,6 @@ def test_mch_gf_11__a_factory_whose_only_machine_is_soft_deleted_returns_an_empt
 
 
 # [local-coder] MCH-GF-12
-@pytest.mark.xfail(strict=True, reason="BUG-891: Factory / section machine lookups return machines of a soft-deleted factory")
 def test_mch_gf_12__the_live_machine_of_a_soft_deleted_factory_is_not_returned(db, w1, fd, mk_machine):
     """MCH-GF-12 — the live machine of a soft-deleted factory is not returned.
     Rules: `get_by_factory` R3a [BUG-891]"""
@@ -1747,7 +1742,6 @@ def test_mch_gs_11__a_section_whose_only_assigned_machine_is_soft_deleted_return
 
 
 # [local-coder] MCH-GS-12
-@pytest.mark.xfail(strict=True, reason="BUG-891: Factory / section machine lookups return machines of a soft-deleted factory")
 def test_mch_gs_12__a_machine_whose_factory_is_soft_deleted_is_not_returned(db, w1, s1, fd, mk_machine, mk_assignment):
     """MCH-GS-12 — a machine whose factory is soft-deleted is not returned.
     Rules: `get_by_section` R3a [BUG-891]"""
@@ -1810,7 +1804,6 @@ def test_mch_gs_14__a_lookup_leaves_the_machine_of_a_soft_deleted_factory_and_it
 
 
 # [local-coder] MCH-GS-15
-@pytest.mark.xfail(strict=True, reason="BUG-889: Filtering machines by a soft-deleted section still returns its machines")
 def test_mch_gs_15__a_soft_deleted_section_returns_an_empty_list_although_an_assignment(db, w1, sx, s1, mk_machine, mk_assignment):
     """MCH-GS-15 — a soft-deleted section returns an empty list although an assignment still points at it.
     Rules: `get_by_section` R4 [BUG-889]"""
@@ -2377,7 +2370,6 @@ def test_mch_sa_14__section_id_and_name_are_readable_on_an_assigned_machine_and_
 
 
 # [local-coder] MCH-SA-15
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mch_sa_15__the_machine_of_a_soft_deleted_factory_is_not_listed(db, w1, fd, mk_machine):
     """MCH-SA-15 — the machine of a soft-deleted factory is not listed.
     Rules: `search_advanced` R3a [BUG-890]"""
@@ -2391,7 +2383,6 @@ def test_mch_sa_15__the_machine_of_a_soft_deleted_factory_is_not_listed(db, w1, 
 
 
 # [local-coder] MCH-SA-16
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mch_sa_16__the_id_of_a_soft_deleted_factory_as_the_filter_returns_an_empty_list(db, w1, fd, mk_machine):
     """MCH-SA-16 — the id of a soft-deleted factory as the filter returns an empty list.
     Rules: `search_advanced` R3a [BUG-890]"""
@@ -2405,7 +2396,6 @@ def test_mch_sa_16__the_id_of_a_soft_deleted_factory_as_the_filter_returns_an_em
 
 
 # [local-coder] MCH-SA-17
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mch_sa_17__the_machine_of_a_soft_deleted_factory_does_not_use_up_a_place_in_the(db, w1, fd, mk_machine):
     """MCH-SA-17 — the machine of a soft-deleted factory does not use up a place in the page.
     Rules: `search_advanced` R3a [BUG-890]"""
@@ -2419,7 +2409,6 @@ def test_mch_sa_17__the_machine_of_a_soft_deleted_factory_does_not_use_up_a_plac
 
 
 # [local-coder] MCH-SA-18
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mch_sa_18__the_machine_of_a_soft_deleted_factory_is_not_returned_when_the_other(db, w1, s1, fd, mk_machine, mk_assignment):
     """MCH-SA-18 — the machine of a soft-deleted factory is not returned when the other filters match it.
     Rules: `search_advanced` R3a [BUG-890]"""
@@ -2653,7 +2642,6 @@ def test_mch_sa_32__the_matching_factory_and_section_pair_of_the_other_factory_r
 
 
 # [local-coder] MCH-SA-33
-@pytest.mark.xfail(strict=True, reason="BUG-889: Filtering machines by a soft-deleted section still returns its machines")
 def test_mch_sa_33__the_id_of_a_soft_deleted_section_as_the_filter_returns_an_empty_list(db, w1, sx, s1, mk_machine, mk_assignment):
     """MCH-SA-33 — the id of a soft-deleted section as the filter returns an empty list.
     Rules: `search_advanced` R6a [BUG-889]"""
@@ -2742,7 +2730,6 @@ def test_mch_sa_38__an_empty_search_text_applies_no_search_filter(db, w1, mk_mac
 
 
 # [local-coder] MCH-SA-39
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_39__a_search_of_three_spaces_applies_no_search_filter(db, w1, mk_machine):
     """MCH-SA-39 — a search of three spaces applies no search filter.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -2756,7 +2743,6 @@ def test_mch_sa_39__a_search_of_three_spaces_applies_no_search_filter(db, w1, mk
 
 
 # [local-coder] MCH-SA-41
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_41__spaces_around_the_search_text_are_removed_before_matching(db, w1, mk_machine):
     """MCH-SA-41 — spaces around the search text are removed before matching.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -2770,7 +2756,6 @@ def test_mch_sa_41__spaces_around_the_search_text_are_removed_before_matching(db
 
 
 # [local-coder] MCH-SA-42
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_42__leading_spaces_of_the_search_text_are_removed_before_matching(db, w1, mk_machine):
     """MCH-SA-42 — leading spaces of the search text are removed before matching.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -2784,7 +2769,6 @@ def test_mch_sa_42__leading_spaces_of_the_search_text_are_removed_before_matchin
 
 
 # [local-coder] MCH-SA-43
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mch_sa_43__a_trailing_space_of_the_search_text_is_removed_before_matching(db, w1, mk_machine):
     """MCH-SA-43 — a trailing space of the search text is removed before matching.
     Rules: `search_advanced` R8 [BUG-892]"""
@@ -2930,7 +2914,6 @@ def test_mch_sa_54__the_section_name_is_not_searched(db, w1, s1, mk_machine, mk_
 
 
 # [local-coder] MCH-SA-55
-@pytest.mark.xfail(strict=True, reason="BUG-888: % and _ in machine search act as wildcards")
 def test_mch_sa_55__a_percent_sign_alone_finds_only_machines_that_contain_a_percent_sign(db, w1, mk_machine):
     """MCH-SA-55 — a percent sign alone finds only machines that contain a percent sign.
     Rules: `search_advanced` R9 [BUG-888]"""
@@ -2944,7 +2927,6 @@ def test_mch_sa_55__a_percent_sign_alone_finds_only_machines_that_contain_a_perc
 
 
 # [local-coder] MCH-SA-56
-@pytest.mark.xfail(strict=True, reason="BUG-888: % and _ in machine search act as wildcards")
 def test_mch_sa_56__a_percent_sign_inside_the_text_is_not_a_wildcard(db, w1, mk_machine):
     """MCH-SA-56 — a percent sign inside the text is not a wildcard.
     Rules: `search_advanced` R9 [BUG-888]"""
@@ -2971,7 +2953,6 @@ def test_mch_sa_57__a_text_with_a_percent_sign_finds_the_machine_that_contains_i
 
 
 # [local-coder] MCH-SA-58
-@pytest.mark.xfail(strict=True, reason="BUG-888: % and _ in machine search act as wildcards")
 def test_mch_sa_58__an_underscore_alone_finds_only_machines_that_contain_an_underscore(db, w1, mk_machine):
     """MCH-SA-58 — an underscore alone finds only machines that contain an underscore.
     Rules: `search_advanced` R9 [BUG-888]"""
@@ -2985,7 +2966,6 @@ def test_mch_sa_58__an_underscore_alone_finds_only_machines_that_contain_an_unde
 
 
 # [local-coder] MCH-SA-59
-@pytest.mark.xfail(strict=True, reason="BUG-888: % and _ in machine search act as wildcards")
 def test_mch_sa_59__an_underscore_inside_the_text_is_not_a_wildcard(db, w1, mk_machine):
     """MCH-SA-59 — an underscore inside the text is not a wildcard.
     Rules: `search_advanced` R9 [BUG-888]"""
@@ -2999,7 +2979,6 @@ def test_mch_sa_59__an_underscore_inside_the_text_is_not_a_wildcard(db, w1, mk_m
 
 
 # [local-coder] MCH-SA-60
-@pytest.mark.xfail(strict=True, reason="BUG-888: % and _ in machine search act as wildcards")
 def test_mch_sa_60__a_backslash_in_the_text_is_matched_literally(db, w1, mk_machine):
     """MCH-SA-60 — a backslash in the text is matched literally.
     Rules: `search_advanced` R9 [BUG-888]"""
@@ -3088,7 +3067,6 @@ def test_mch_sa_66__has_model_number_false_with_has_manufacturer_true_looks_at_e
 
 
 # [local-coder] MCH-SA-67
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_67__latest_event_type_running_returns_the_machine_whose_latest_status_is(db, w1, mk_machine, mk_event):
     """MCH-SA-67 — latest_event_type RUNNING returns the machine whose latest status is RUNNING.
     Rules: `search_advanced` R12 [BUG-886], Errors row 3"""
@@ -3109,7 +3087,6 @@ def test_mch_sa_67__latest_event_type_running_returns_the_machine_whose_latest_s
 
 
 # [local-coder] MCH-SA-68
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_68__latest_event_type_idle_returns_the_machine_whose_latest_status_is_idle(db, w1, mk_machine, mk_event):
     """MCH-SA-68 — latest_event_type IDLE returns the machine whose latest status is IDLE.
     Rules: `search_advanced` R12 [BUG-886]"""
@@ -3130,7 +3107,6 @@ def test_mch_sa_68__latest_event_type_idle_returns_the_machine_whose_latest_stat
 
 
 # [local-coder] MCH-SA-69
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_69__latest_event_type_off_returns_the_machine_whose_latest_status_is_off(db, w1, mk_machine, mk_event):
     """MCH-SA-69 — latest_event_type OFF returns the machine whose latest status is OFF.
     Rules: `search_advanced` R12 [BUG-886]"""
@@ -3151,7 +3127,6 @@ def test_mch_sa_69__latest_event_type_off_returns_the_machine_whose_latest_statu
 
 
 # [local-coder] MCH-SA-70
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_70__latest_event_type_maintenance_returns_the_machine_whose_latest_status(db, w1, mk_machine, mk_event):
     """MCH-SA-70 — latest_event_type MAINTENANCE returns the machine whose latest status is MAINTENANCE.
     Rules: `search_advanced` R12 [BUG-886]"""
@@ -3189,7 +3164,6 @@ def test_mch_sa_71__without_a_status_filter_machines_with_several_status_events_
 
 
 # [local-coder] MCH-SA-73
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_73__the_newest_status_change_decides_the_machine_does_not_match_an_older(db, w1, mk_machine, mk_event):
     """MCH-SA-73 — the newest status change decides: the machine does not match an older status.
     Rules: `search_advanced` R12a [BUG-886]"""
@@ -3206,7 +3180,6 @@ def test_mch_sa_73__the_newest_status_change_decides_the_machine_does_not_match_
 
 
 # [local-coder] MCH-SA-74
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_74__latest_goes_by_created_at_not_by_the_order_of_insertion(db, w1, mk_machine, mk_event):
     """MCH-SA-74 — "latest" goes by created_at, not by the order of insertion.
     Rules: `search_advanced` R12a [BUG-886]"""
@@ -3223,7 +3196,6 @@ def test_mch_sa_74__latest_goes_by_created_at_not_by_the_order_of_insertion(db, 
 
 
 # [local-coder] MCH-SA-75
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_75__on_a_created_at_tie_the_status_change_with_the_greater_id_decides(db, w1, mk_machine, mk_event):
     """MCH-SA-75 — on a created_at tie the status change with the greater id decides.
     Rules: `search_advanced` R12a [BUG-886]"""
@@ -3240,7 +3212,6 @@ def test_mch_sa_75__on_a_created_at_tie_the_status_change_with_the_greater_id_de
 
 
 # [local-coder] MCH-SA-76
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_76__on_a_created_at_tie_the_status_change_with_the_lower_id_does_not_match(db, w1, mk_machine, mk_event):
     """MCH-SA-76 — on a created_at tie the status change with the lower id does not match.
     Rules: `search_advanced` R12a [BUG-886]"""
@@ -3257,7 +3228,6 @@ def test_mch_sa_76__on_a_created_at_tie_the_status_change_with_the_lower_id_does
 
 
 # [local-coder] MCH-SA-78
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_78__a_newer_event_of_another_type_does_not_replace_the_latest_status(db, w1, mk_machine, mk_event):
     """MCH-SA-78 — a newer event of another type does not replace the latest status.
     Rules: `search_advanced` R12b [BUG-886]"""
@@ -3272,7 +3242,6 @@ def test_mch_sa_78__a_newer_event_of_another_type_does_not_replace_the_latest_st
 
 
 # [local-coder] MCH-SA-79
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_79__the_status_in_a_newer_event_of_another_type_is_not_matched(db, w1, mk_machine, mk_event):
     """MCH-SA-79 — the status in a newer event of another type is not matched.
     Rules: `search_advanced` R12b [BUG-886]"""
@@ -3287,7 +3256,6 @@ def test_mch_sa_79__the_status_in_a_newer_event_of_another_type_is_not_matched(d
 
 
 # [local-coder] MCH-SA-80
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_80__a_latest_status_change_without_metadata_matches_nothing_and_the_older(db, w1, mk_machine, mk_event):
     """MCH-SA-80 — a latest status change without metadata matches nothing and the older one is not used.
     Rules: `search_advanced` R12c [BUG-886]"""
@@ -3304,7 +3272,6 @@ def test_mch_sa_80__a_latest_status_change_without_metadata_matches_nothing_and_
 
 
 # [local-coder] MCH-SA-81
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_81__a_latest_status_change_without_a_status_key_matches_nothing_and_the(db, w1, mk_machine, mk_event):
     """MCH-SA-81 — a latest status change without a "status" key matches nothing and the older one is not used.
     Rules: `search_advanced` R12c [BUG-886]"""
@@ -3321,7 +3288,6 @@ def test_mch_sa_81__a_latest_status_change_without_a_status_key_matches_nothing_
 
 
 # [local-coder] MCH-SA-82
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_82__a_status_change_recorded_in_another_workspace_is_not_counted(db, w1, w2, mk_machine, mk_event):
     """MCH-SA-82 — a status change recorded in another workspace is not counted.
     Rules: `search_advanced` R12d [BUG-886]"""
@@ -3336,7 +3302,6 @@ def test_mch_sa_82__a_status_change_recorded_in_another_workspace_is_not_counted
 
 
 # [local-coder] MCH-SA-83
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_83__the_status_of_a_change_recorded_in_another_workspace_is_not_matched(db, w1, w2, mk_machine, mk_event):
     """MCH-SA-83 — the status of a change recorded in another workspace is not matched.
     Rules: `search_advanced` R12d [BUG-886]"""
@@ -3351,7 +3316,6 @@ def test_mch_sa_83__the_status_of_a_change_recorded_in_another_workspace_is_not_
 
 
 # [local-coder] MCH-SA-84
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_84__two_newest_status_changes_with_the_same_status_list_the_machine_once(db, w1, mk_machine, mk_event):
     """MCH-SA-84 — two newest status changes with the same status list the machine once.
     Rules: `search_advanced` R12e [BUG-886]"""
@@ -3369,7 +3333,6 @@ def test_mch_sa_84__two_newest_status_changes_with_the_same_status_list_the_mach
 
 
 # [local-coder] MCH-SA-85
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_85__the_status_filter_combines_with_the_factory_filter(db, w1, f1, f2, mk_machine, mk_event):
     """MCH-SA-85 — the status filter combines with the factory filter.
     Rules: `search_advanced` R12e [BUG-886], R13a"""
@@ -3387,7 +3350,6 @@ def test_mch_sa_85__the_status_filter_combines_with_the_factory_filter(db, w1, f
 
 
 # [local-coder] MCH-SA-86
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_86__the_status_filter_combines_with_the_search_text(db, w1, mk_machine, mk_event):
     """MCH-SA-86 — the status filter combines with the search text.
     Rules: `search_advanced` R12e [BUG-886], R13a"""
@@ -3405,7 +3367,6 @@ def test_mch_sa_86__the_status_filter_combines_with_the_search_text(db, w1, mk_m
 
 
 # [local-coder] MCH-SA-87
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_87__the_status_filter_is_sorted_and_paged_like_any_other_result(db, w1, mk_machine, mk_event):
     """MCH-SA-87 — the status filter is sorted and paged like any other result.
     Rules: `search_advanced` R12e [BUG-886], R17"""
@@ -3425,7 +3386,6 @@ def test_mch_sa_87__the_status_filter_is_sorted_and_paged_like_any_other_result(
 
 
 # [local-coder] MCH-SA-88
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_88__with_the_status_filter_a_machine_of_another_workspace_is_not_returned(db, w1, w2, f9, mk_machine, mk_event):
     """MCH-SA-88 — with the status filter a machine of another workspace is not returned.
     Rules: `search_advanced` R1, R12 [BUG-886]"""
@@ -3441,7 +3401,6 @@ def test_mch_sa_88__with_the_status_filter_a_machine_of_another_workspace_is_not
 
 
 # [local-coder] MCH-SA-89
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mch_sa_89__with_the_status_filter_a_soft_deleted_machine_is_not_returned(db, w1, mk_machine, mk_event):
     """MCH-SA-89 — with the status filter a soft-deleted machine is not returned.
     Rules: `search_advanced` R2, R12 [BUG-886]"""
@@ -3583,7 +3542,6 @@ def test_mch_sa_98__names_of_mixed_case_sort_case_insensitively_descending(db, w
 
 
 # [local-coder] MCH-SA-99
-@pytest.mark.xfail(strict=True, reason="BUG-887: Machine list name sort is collation-dependent on case-only ties")
 def test_mch_sa_99__ascending_names_that_differ_only_in_case_come_back_in_id_order(db, w1, mk_machine):
     """MCH-SA-99 — ascending, names that differ only in case come back in id order.
     Rules: `search_advanced` R14 [BUG-887]"""
@@ -3597,7 +3555,6 @@ def test_mch_sa_99__ascending_names_that_differ_only_in_case_come_back_in_id_ord
 
 
 # [local-coder] MCH-SA-100
-@pytest.mark.xfail(strict=True, reason="BUG-887: Machine list name sort is collation-dependent on case-only ties")
 def test_mch_sa_100__descending_names_that_differ_only_in_case_come_back_in_id_order(db, w1, mk_machine):
     """MCH-SA-100 — descending, names that differ only in case come back in id order.
     Rules: `search_advanced` R14 [BUG-887]"""
@@ -4603,7 +4560,6 @@ def test_mch_rs_15__a_deleted_machine_of_another_factory_and_a_live_machine_are_
 
 
 # [local-coder] MCH-RS-17
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mch_rs_17__a_machine_restored_inside_a_soft_deleted_factory_stays_hidden_from(db, w1, fd, mk_machine):
     """MCH-RS-17 — a machine restored inside a soft-deleted factory stays hidden from the machine search.
     Rules: `restore` R7a [BUG-890]"""
@@ -4624,7 +4580,6 @@ def test_mch_rs_17__a_machine_restored_inside_a_soft_deleted_factory_stays_hidde
 
 
 # [local-coder] MCH-RS-18
-@pytest.mark.xfail(strict=True, reason="BUG-891: Factory / section machine lookups return machines of a soft-deleted factory")
 def test_mch_rs_18__a_machine_restored_inside_a_soft_deleted_factory_stays_hidden_from(db, w1, fd, s1, mk_machine, mk_assignment):
     """MCH-RS-18 — a machine restored inside a soft-deleted factory stays hidden from the factory and section lookups.
     Rules: `restore` R7a [BUG-891]"""

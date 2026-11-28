@@ -1243,7 +1243,6 @@ def test_mcs_l_11__the_list_neither_commits_nor_rolls_back(db, w1, w2, f9, mk_ma
 
 
 # [claude] MCS-L-12
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mcs_l_12__pass_through_bug_886_latest_event_type_filters_the_list(db, w1, mk_machine, mk_status):
     """MCS-L-12 — pass-through BUG-886: latest_event_type filters the list.
     Rules: `get_machines` R1 [BUG-886]"""
@@ -1259,7 +1258,6 @@ def test_mcs_l_12__pass_through_bug_886_latest_event_type_filters_the_list(db, w
 
 
 # [claude] MCS-L-13
-@pytest.mark.xfail(strict=False, reason="BUG-887: Machine list name sort is collation-dependent on case-only ties")
 def test_mcs_l_13__pass_through_bug_887_a_case_only_tie_on_the_maintenance_sort_falls_to_id(
     db, w1, f2, mk_machine,
 ):
@@ -1275,7 +1273,6 @@ def test_mcs_l_13__pass_through_bug_887_a_case_only_tie_on_the_maintenance_sort_
 
 
 # [claude] MCS-L-14
-@pytest.mark.xfail(strict=True, reason="BUG-888: `%` and `_` in machine search act as wildcards")
 def test_mcs_l_14__pass_through_bug_888_search_text_is_literal(db, w1, mk_machine):
     """MCS-L-14 — pass-through BUG-888: search text is literal.
     Rules: `get_machines` R1 [BUG-888]"""
@@ -1289,7 +1286,6 @@ def test_mcs_l_14__pass_through_bug_888_search_text_is_literal(db, w1, mk_machin
 
 
 # [claude] MCS-L-15
-@pytest.mark.xfail(strict=True, reason="BUG-889: Filtering machines by a soft-deleted section still returns its machines")
 def test_mcs_l_15__pass_through_bug_889_the_id_of_a_soft_deleted_section_finds_nothing(
     db, w1, sx, mk_machine, mk_link,
 ):
@@ -1305,7 +1301,6 @@ def test_mcs_l_15__pass_through_bug_889_the_id_of_a_soft_deleted_section_finds_n
 
 
 # [claude] MCS-L-16
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mcs_l_16__pass_through_bug_890_a_machine_of_a_soft_deleted_factory_is_not_listed(db, w1, mk_machine):
     """MCS-L-16 — pass-through BUG-890: a machine of a soft-deleted factory is not listed.
     Rules: `get_machines` R1 [BUG-890]"""
@@ -1319,7 +1314,6 @@ def test_mcs_l_16__pass_through_bug_890_a_machine_of_a_soft_deleted_factory_is_n
 
 
 # [claude] MCS-L-17
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mcs_l_17__pass_through_bug_892_search_text_is_trimmed(db, w1, mk_machine):
     """MCS-L-17 — pass-through BUG-892: search text is trimmed.
     Rules: `get_machines` R1 [BUG-892]"""

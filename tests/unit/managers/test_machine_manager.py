@@ -4568,7 +4568,6 @@ def test_mcm_s_11__the_default_limit_on_the_list_path_is_100(db, w1, bulk):
 
 
 # [claude] MCM-S-12
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mcm_s_12__latest_event_type_is_handed_to_the_list(db, w1, mk_machine, mk_status_row):
     """MCM-S-12 — latest_event_type is handed to the list.
     Rules: `search_machines` R1 [BUG-886]"""
@@ -4583,7 +4582,6 @@ def test_mcm_s_12__latest_event_type_is_handed_to_the_list(db, w1, mk_machine, m
 
 
 # [claude] MCM-S-13
-@pytest.mark.xfail(strict=True, reason="BUG-888: `%` and `_` in machine search act as wildcards")
 def test_mcm_s_13__search_text_is_literal_through_the_list(db, w1, mk_machine):
     """MCM-S-13 — search text is literal through the list.
     Rules: `search_machines` R1 [BUG-888]"""
@@ -4596,7 +4594,6 @@ def test_mcm_s_13__search_text_is_literal_through_the_list(db, w1, mk_machine):
 
 
 # [claude] MCM-S-14
-@pytest.mark.xfail(strict=True, reason="BUG-892: Machine search text is not trimmed")
 def test_mcm_s_14__search_text_is_trimmed_through_the_list(db, w1, mk_machine):
     """MCM-S-14 — search text is trimmed through the list.
     Rules: `search_machines` R1 [BUG-892]"""
@@ -4661,7 +4658,6 @@ def test_mcm_s_18__soft_deleted_machines_are_never_returned_on_the_list_path(db,
 
 
 # [claude] MCM-S-19
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mcm_s_19__a_machine_of_a_soft_deleted_factory_is_hidden_on_the_list_path(db, w1, mk_machine):
     """MCM-S-19 — a machine of a soft-deleted factory is hidden on the list path.
     Rules: `search_machines` R3 [BUG-890]"""
@@ -4744,7 +4740,6 @@ def test_mcm_s_25__soft_deleted_machines_are_never_returned_on_the_maintenance_p
 
 
 # [claude] MCM-S-26
-@pytest.mark.xfail(strict=True, reason="BUG-890: Machines of a soft-deleted factory still appear on the machines page")
 def test_mcm_s_26__a_machine_of_a_soft_deleted_factory_is_hidden_on_the_maintenance_path(db, w1, mk_machine):
     """MCM-S-26 — a machine of a soft-deleted factory is hidden on the maintenance path.
     Rules: `search_machines` R3 [BUG-890]"""
@@ -4815,7 +4810,6 @@ def test_mcm_s_31__a_machine_with_a_left_over_link_to_a_deleted_section_stays_li
 
 
 # [claude] MCM-S-32
-@pytest.mark.xfail(strict=True, reason="BUG-889: Filtering machines by a soft-deleted section still returns its machines")
 def test_mcm_s_32__the_id_of_a_soft_deleted_section_finds_nothing(db, w1, sx, mk_machine, mk_link):
     """MCM-S-32 — the id of a soft-deleted section finds nothing.
     Rules: `search_machines` R3 [BUG-889]"""
@@ -4916,7 +4910,6 @@ def test_mcm_s_38__created_at_order_is_kept_on_the_maintenance_path(db, w1, mk_m
 
 
 # [claude] MCM-S-39
-@pytest.mark.xfail(strict=True, reason="BUG-886: Filtering the machines page by latest status always crashes")
 def test_mcm_s_39__latest_event_type_works_on_the_maintenance_path(db, w1, mk_machine, mk_status_row):
     """MCM-S-39 — latest_event_type works on the maintenance path.
     Rules: `search_machines` R6 [BUG-886], Errors row 2"""
@@ -5573,7 +5566,6 @@ def test_mcm_s_87__the_maintenance_sort_is_combined_with_a_window(db, w1, mk_mac
 
 
 # [claude] MCM-S-88
-@pytest.mark.xfail(strict=False, reason="BUG-887: Machine list name sort is collation-dependent on case-only ties")
 def test_mcm_s_88__a_case_only_tie_on_the_maintenance_sort_falls_to_id(db, w1, f2, mk_machine):
     """MCM-S-88 — a case-only tie on the maintenance sort falls to id.
     Rules: `search_machines` R18 [BUG-887]"""
@@ -9618,7 +9610,6 @@ def test_mcm_n_19__an_unknown_factory_gives_false(db, w1, mk_machine):
 
 
 # [claude] MCM-N-20
-@pytest.mark.xfail(strict=True, reason="BUG-891: Factory / section machine lookups return machines of a soft-deleted factory")
 def test_mcm_n_20__in_a_soft_deleted_factory_the_answer_is_false(db, w1, fd, mk_machine):
     """MCM-N-20 — in a soft-deleted factory the answer is False.
     Rules: `_check_name_exists_in_factory` R8 [BUG-891]"""
